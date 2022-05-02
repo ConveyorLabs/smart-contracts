@@ -40,6 +40,7 @@ contract ConveyorLimitOrders {
     mapping(address => mapping(address => OrderGroup)) ActiveOrders;
 
     /// @notice Add user's order into the Active order's mapping conditionally if the oder passes all of the safety check criterion
+    /// @param orders := array of orders to be added to ActiveOrders mapping in OrderGroup struct
     function placeOrder(Order[] orders){
         //security checks
 
@@ -101,8 +102,33 @@ contract ConveyorLimitOrders {
         //ex. emit cancelAllOrders(msg.sender, allOrders)
     }
 
-    ///@notice gets all open orders for a specific wallet
+    ///@notice gets all open orders for a specific wallet from ActiveOrders mapping
     function getOpenOrders() external view {
-        return orders[msg.sender];
+        return ActiveOders[msg.sender];
+    }
+
+    /// @notice execute all orders passed from beacon matching order execution criteria. i.e. 'orderPrice' matches observable lp price for all orders
+    /// @param orders := array of orders to be executed within the mapping
+    function executeOrders(Order[] orders) external onlyEOA {
+
+        //iterate through orders and try to fill order
+        for (i=0; i<len(orders); ++i){
+            Order order = orders[i];
+            //check the execution price of the order
+            
+            //check the price of the lp 
+            
+            //note: can either loop through and execute or aggregate and execute
+            
+            //loop through orders and see which ones hit the execution price
+
+            //if execution price hit
+                //add the order to executableOrders, update total
+
+            
+            //aggregate the value of all of the orders
+            
+        }
+
     }
 }
