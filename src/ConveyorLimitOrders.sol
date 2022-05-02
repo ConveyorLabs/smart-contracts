@@ -32,7 +32,7 @@ contract ConveyorLimitOrders {
 
     /// @notice Struct containing mapping(orderId => Order) where 'Order' is the order struct containing the properties of the Order
     struct OrderGroup{
-        mapping(uint256 => Order) Orders;
+        mapping(bytes32 => Order) Orders;
         uint256 totalOrdersValue;
     }
 
