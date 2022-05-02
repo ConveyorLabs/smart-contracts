@@ -11,9 +11,13 @@ contract ConveyorLimitOrdersTest is DSTest {
         conveyorLimitOrders = new ConveyorLimitOrders();
     }
 
-    function testExample() public {
-        assertTrue(true);
-    }
+    function testPlaceOrder() public {}
+
+    function testUpdateOrder() public {}
 
     function testCancelOrder() public {}
+
+    function testCancelAllOrders() public {}
+
+    function testExecuteOrder() public {}
 }
