@@ -65,7 +65,7 @@ contract ConveyorLimitOrders {
     function updateOrder(Order order){
         //security checks
         //check that order exists
-        /// @dev Update OrderGroup struct in ActiveOders mapping of identifier oderId to updated order i.e  mapping(uint256 => Order) Orders;
+        /// @dev Update OrderGroup struct in ActiveOders mapping of identifier oderId to updated order i.e  mapping(bytes32 => Order) Orders;
         ActiveOrders[msg.sender][order.token].Orders[order.orderId] = order;
 
         //emit order updated
@@ -79,7 +79,7 @@ contract ConveyorLimitOrders {
         //security checks
         //check that orders exists
         /// @dev The logic should look something like this I believe because of the logic below
-        /// @dev ActiveOrders[msg.sender][order.token].Orders will be mapping(uint256 => Order) Orders; 
+        /// @dev ActiveOrders[msg.sender][order.token].Orders will be mapping(bytes32 => Order) Orders; 
         del ActiveOrders[msg.sender][order.token].Orders[order.orderId]
         //emit order canceled
         //ex. emit cancelOrder(msg.sender, order)
