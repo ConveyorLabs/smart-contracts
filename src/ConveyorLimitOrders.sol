@@ -19,11 +19,6 @@ contract ConveyorLimitOrders {
         Order[] indexed orders
     );
     
-    event OrderCanceled(
-        EventType indexed eventType, 
-        address indexed sender,
-        Order indexed order
-    );
 
     //----------------------Errors------------------------------------//
 
@@ -173,7 +168,7 @@ contract ConveyorLimitOrders {
             revert OrderDoesNotExist(order.orderId);
         }
 
-        /// get the the order quantity of the calldata
+        /// Get the orderQuantity from the existing order
         uint256 orderQuantity = ActiveOrders[msg.sender]
             .orderGroup[order.token]
             .orders[order.orderId]
@@ -189,9 +184,10 @@ contract ConveyorLimitOrders {
             .orderGroup[order.token]
             .orders[order.orderId];
 
-        //emit order canceled
-        //ex. emit cancelOrder(msg.sender, order)
-        emit OrderCanceled(EventType.CANCEL, msg.sender, order);
+        //emit OrderEvent CANCEL
+        Order[] memory orders;
+        orders[0] = order;
+        emit OrderEvent(EventType.CANCEL, msg.sender, orders);
     }
 
     /// @notice cancel all orders relevant in ActiveOders mapping to the msg.sender i.e the function caller
