@@ -97,6 +97,7 @@ contract ConveyorLimitOrders {
                 if (!(currentToken == newOrder.token)) {
                     revert IncongruentTokenInOrderGroup();
                 }
+
                 //add the order quant to total order value
                 totalOrderValue += newOrder.quantity;
 
@@ -185,6 +186,8 @@ contract ConveyorLimitOrders {
         Order[] memory orders;
         emit OrderEvent(EventType.PLACE, msg.sender, orders);
     }
+
+    function swapAndPlaceOrders() public {}
 
     ///@notice gets all open orders for a specific wallet from ActiveOrders mapping
 
