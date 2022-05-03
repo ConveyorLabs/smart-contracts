@@ -18,6 +18,7 @@ contract ConveyorLimitOrders {
         address indexed sender,
         Order[] indexed orders
     );
+    
 
     //----------------------Errors------------------------------------//
 
@@ -161,15 +162,32 @@ contract ConveyorLimitOrders {
     /// @notice Remove Order order from OrderGroup mapping by identifier orderId conditionally if order exists already in ActiveOrders
     /// @param order the order to which the caller is removing from the OrderGroup struct
     function cancelOrder(Order calldata order) public {
-        //security checks
-        //check that orders exists
-        /// @dev The logic should look something like this I believe because of the logic below
-        /// @dev ActiveOrders[msg.sender][order.token].Orders will be mapping(bytes32 => Order) Orders;
-        delete ActiveOrders[msg.sender].orderGroup[order.token].orders[
-            order.orderId
-        ];
-        //emit order canceled
-        //ex. emit cancelOrder(msg.sender, order)
+        
+        /// Check if order exists in active orders. Revert if order does not exist
+        if(!ActiveOrders[msg.sender].orderGroup[order.token].orders[order.orderId].exists){
+            revert OrderDoesNotExist(order.orderId);
+        }
+
+        /// Get the orderQuantity from the existing order
+        uint256 orderQuantity = ActiveOrders[msg.sender]
+            .orderGroup[order.token]
+            .orders[order.orderId]
+            .quantity;
+
+        //update totalOrdersValue to decrease by amount orderQuantity of the order being removed
+        ActiveOrders[msg.sender]
+            .orderGroup[order.token]
+            .totalOrderValue -= orderQuantity;
+
+        // Delete Order Orders[order.orderId] from ActiveOrders mapping
+        delete ActiveOrders[msg.sender]
+            .orderGroup[order.token]
+            .orders[order.orderId];
+
+        //emit OrderEvent CANCEL
+        Order[] memory orders;
+        orders[0] = order;
+        emit OrderEvent(EventType.CANCEL, msg.sender, orders);
     }
 
     /// @notice cancel all orders relevant in ActiveOders mapping to the msg.sender i.e the function caller
