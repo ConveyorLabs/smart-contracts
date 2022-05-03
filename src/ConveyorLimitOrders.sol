@@ -1,11 +1,33 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.13;
 
+import "../lib/interfaces/IERC20.sol";
+
 contract ConveyorLimitOrders {
+    //----------------------Modifiers------------------------------------//
+
     modifier onlyEOA() {
         require(msg.sender == tx.origin);
         _;
     }
+
+    //----------------------Events------------------------------------//
+
+    event OrderEvent(
+        EventType indexed eventType,
+        address indexed sender,
+        Order[] indexed orders
+    );
+
+    //----------------------Errors------------------------------------//
+
+    error OrderDoesNotExist(bytes32 orderId);
+    error InsufficientWalletBalance();
+
+    //TODO: rename this, bad name oof
+    error IncongruentTokenInOrderGroup();
+
+    //----------------------Enums------------------------------------//
 
     /// @notice enumeration of event type to be emmited from eoa function calls for, for queryable beacon event listening
     enum EventType {
@@ -25,6 +47,8 @@ contract ConveyorLimitOrders {
         TAKE_PROFIT
     }
 
+    //----------------------Structs------------------------------------//
+
     /// @notice Struct containing the token, orderId, OrderType enum type, price, and quantity for each order
     struct Order {
         address token;
@@ -32,50 +56,106 @@ contract ConveyorLimitOrders {
         OrderType orderType;
         uint256 price;
         uint256 quantity;
+        bool exists;
     }
 
     /// @notice Struct containing mapping(orderId => Order) where 'Order' is the order struct containing the properties of the Order
     struct OrderGroup {
-        mapping(bytes32 => Order) Orders;
-        uint256 totalOrdersValue;
+        mapping(bytes32 => Order) orders;
+        uint256 totalOrderValue;
     }
 
     struct TokenToOrderGroup {
         mapping(address => OrderGroup) orderGroup;
     }
 
+    //----------------------State Structures------------------------------------//
+
     /// @notice mapping from mapping(eoaAddress => mapping(token => OrderGroup)) to store the current Active orders in Conveyor state structure
     mapping(address => TokenToOrderGroup) ActiveOrders;
 
+    //----------------------Functions------------------------------------//
+
     /// @notice Add user's order into the Active order's mapping conditionally if the oder passes all of the safety check criterion
-    /// @param orders := array of orders to be added to ActiveOrders mapping in OrderGroup struct
-    function placeOrder(Order[] calldata orders) public {
-        //security checks
+    /// @param arrOrders := array of orders to be added to ActiveOrders mapping in OrderGroup struct
+    function placeOrder(Order[][] calldata arrOrders) public {
+        for (uint256 i = 0; i < arrOrders.length; ++i) {
+            Order[] memory orders = arrOrders[i];
+            //get the current token for the order array
+            address currentToken = orders[i].token;
 
-        //uses msg.sender as the eoaAccount placing the order
+            //get the current totalOrderValue for all existing orders on the token
+            uint256 totalOrderValue = ActiveOrders[msg.sender]
+                .orderGroup[currentToken]
+                .totalOrderValue;
 
-        //iterate through orders and place order
-        for (uint256 i = 0; i <= orders.length; ++i) {
-            //does the wallet have enough tokens to place the order + active order value on the token
-            //make new order
-            //add to collection
+            uint256 tokenBalance = IERC20(currentToken).balanceOf(msg.sender);
+
+            for (uint256 j = 0; j < orders.length; ++j) {
+                Order memory newOrder = orders[j];
+
+                if (!(currentToken == newOrder.token)) {
+                    revert IncongruentTokenInOrderGroup();
+                }
+
+                //add the order quant to total order value
+                totalOrderValue += newOrder.quantity;
+
+                //check if the wallet has a sufficient balance
+                if (tokenBalance < totalOrderValue) {
+                    revert InsufficientWalletBalance();
+                }
+
+                //add the order to active orders
+                ActiveOrders[msg.sender].orderGroup[currentToken].orders[
+                        newOrder.orderId
+                    ] = newOrder;
+            }
+
+            //emit orders placed
+            emit OrderEvent(EventType.PLACE, msg.sender, orders);
         }
-        //emit event for placing an order
-        //ex. emit placeOrder(msg.sender, orders)
     }
 
     /// @notice Update mapping(uint256 => Order) in Order struct from identifier orderId to new 'order' value passed as @param
-    /// @param order the order to which the caller is updating from the OrderGroup struct
-    function updateOrder(Order calldata order) public {
-        //security checks
-        //check that order exists
-        /// @dev Update OrderGroup struct in ActiveOders mapping of identifier oderId to updated order i.e  mapping(bytes32 => Order) Orders;
-        ActiveOrders[msg.sender].orderGroup[order.token].Orders[
-            order.orderId
-        ] = order;
+    function updateOrder(Order calldata newOrder) public {
+        Order memory oldOrder = ActiveOrders[msg.sender]
+            .orderGroup[newOrder.token]
+            .orders[newOrder.orderId];
+
+        //check if the old order exists
+        if (!oldOrder.exists) {
+            revert OrderDoesNotExist(newOrder.orderId);
+        }
+
+        uint256 totalOrdersValue = ActiveOrders[msg.sender]
+            .orderGroup[newOrder.token]
+            .totalOrderValue;
+
+        //adjust total orders value quanity
+        totalOrdersValue -= newOrder.quantity + oldOrder.quantity;
+
+        //check if the wallet has a sufficient balance
+        if (IERC20(newOrder.token).balanceOf(msg.sender) < totalOrdersValue) {
+            revert InsufficientWalletBalance();
+        }
+
+        //update totalOrdersValue for that token
+        ActiveOrders[msg.sender]
+            .orderGroup[newOrder.token]
+            .totalOrderValue = totalOrdersValue;
+
+        //update the order
+        ActiveOrders[msg.sender].orderGroup[newOrder.token].orders[
+            newOrder.orderId
+        ] = newOrder;
 
         //emit order updated
-        //ex. emit updateOrder(msg.sender, order)
+        //TODO: still need to decide on contents of events
+
+        Order[] memory orders;
+        orders[0] = newOrder;
+        emit OrderEvent(EventType.UPDATE, msg.sender, orders);
     }
 
     /// @notice Remove Order order from OrderGroup mapping by identifier orderId conditionally if order exists already in ActiveOrders
@@ -85,7 +165,7 @@ contract ConveyorLimitOrders {
         //check that orders exists
         /// @dev The logic should look something like this I believe because of the logic below
         /// @dev ActiveOrders[msg.sender][order.token].Orders will be mapping(bytes32 => Order) Orders;
-        delete ActiveOrders[msg.sender].orderGroup[order.token].Orders[
+        delete ActiveOrders[msg.sender].orderGroup[order.token].orders[
             order.orderId
         ];
         //emit order canceled
@@ -102,13 +182,16 @@ contract ConveyorLimitOrders {
         delete ActiveOrders[msg.sender];
 
         //emit all order cancel
-        //ex. emit cancelAllOrders(msg.sender, allOrders)
+        //pass in an empty list to signify that all orders have been canceled
+        Order[] memory orders;
+        emit OrderEvent(EventType.PLACE, msg.sender, orders);
     }
+
+    function swapAndPlaceOrders() public {}
 
     ///@notice gets all open orders for a specific wallet from ActiveOrders mapping
 
-    // ///TODO: implement logic to do this
-
+    ///TODO: implement logic to do this
     // function getOpenOrders() external view returns (TokenToOrderGroup memory) {
     //     return ActiveOrders[msg.sender];
     // }
