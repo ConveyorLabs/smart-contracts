@@ -73,7 +73,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         //Swap Eth for UNI/Link to address(1337)
         //swapEthForToken(20, address(1337), 0x514910771AF9Ca656af840dff83E8264EcF986CA);
         //swapEthForToken(20, address(1337), 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984);
-        console.logString("Got her");
+       
         //Initialize mock orders
         // Order memory order1 = Order({
         //     token: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
