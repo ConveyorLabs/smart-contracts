@@ -241,7 +241,7 @@ contract ConveyorLimitOrders {
     /// @param token0Decimals Decimals of token0
     /// @param reserve1 uint256 token2 value
     /// @param token1Decimals Decimals of token1
-    function calculateEqualDecimalReserves(uint256 reserve0, uint8 token0Decimals, uint256 reserve1, uint8 token1Decimals) internal {
+    function convertToCommonBase(uint256 reserve0, uint8 token0Decimals, uint256 reserve1, uint8 token1Decimals) internal {
 
         /// @dev Conditionally change the decimal to target := max(decimal0, decimal1)
 
@@ -253,8 +253,8 @@ contract ConveyorLimitOrders {
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
     /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
-    function calculateUniV2SpotPrice(address token0, address token1) internal {
-        address factory = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+    function calculateUniV2SpotPrice(address token0, address token1, address factory) internal {
+        
 
         address pair = address(uint160(uint(keccak256(abi.encodePacked(
             hex'ff',
@@ -282,7 +282,7 @@ contract ConveyorLimitOrders {
 
     /// @notice Helper function to get the price average of a token between multiple pools
     /// @param address[] pool address's to calculate the average price between
-    function calculateMeanPoolPriceAverageToken0(address[] arrTokenPairs address token0, address token1) internal {
+    function calculateMeanPoolPriceAverageToken0(address[] pairs, address token0, address token1) internal {
         //Calculate mean spot price across arrTokenPairs in terms of token0, so token0/token1
     }
 }
