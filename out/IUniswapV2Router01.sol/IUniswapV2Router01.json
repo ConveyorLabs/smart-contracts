@@ -761,51 +761,42 @@
     "linkReferences": {}
   },
   "ast": {
-    "absolutePath": "/home/sekiro/conveyor/limits-v0/lib/interfaces/IUniswapV2Router01.sol",
+    "absolutePath": "/Users/leyton/ConveyorLabs/limits-v0/lib/interfaces/IUniswapV2Router01.sol",
+    "id": 449,
     "exportedSymbols": {
       "IUniswapV2Router01": [
         448
       ]
     },
-    "id": 449,
-    "license": "PLACEHOLDER",
     "nodeType": "SourceUnit",
+    "src": "40:3525:2",
     "nodes": [
       {
         "id": 142,
+        "nodeType": "PragmaDirective",
+        "src": "40:24:2",
         "literals": [
           "solidity",
           ">=",
           "0.6",
           ".2"
-        ],
-        "nodeType": "PragmaDirective",
-        "src": "40:24:2"
+        ]
       },
       {
-        "abstract": false,
-        "baseContracts": [],
-        "canonicalName": "IUniswapV2Router01",
-        "contractDependencies": [],
-        "contractKind": "interface",
-        "fullyImplemented": false,
         "id": 448,
-        "linearizedBaseContracts": [
-          448
-        ],
-        "name": "IUniswapV2Router01",
-        "nameLocation": "76:18:2",
         "nodeType": "ContractDefinition",
+        "src": "66:3499:2",
         "nodes": [
           {
-            "functionSelector": "c45a0155",
             "id": 147,
+            "nodeType": "FunctionDefinition",
+            "src": "101:51:2",
+            "functionSelector": "c45a0155",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "factory",
             "nameLocation": "110:7:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 143,
               "nodeType": "ParameterList",
@@ -848,20 +839,20 @@
               "src": "142:9:2"
             },
             "scope": 448,
-            "src": "101:51:2",
             "stateMutability": "pure",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "ad5c4648",
             "id": 152,
+            "nodeType": "FunctionDefinition",
+            "src": "157:48:2",
+            "functionSelector": "ad5c4648",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "WETH",
             "nameLocation": "166:4:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 148,
               "nodeType": "ParameterList",
@@ -904,20 +895,20 @@
               "src": "195:9:2"
             },
             "scope": 448,
-            "src": "157:48:2",
             "stateMutability": "pure",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "e8e33700",
             "id": 177,
+            "nodeType": "FunctionDefinition",
+            "src": "211:289:2",
+            "functionSelector": "e8e33700",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "addLiquidity",
             "nameLocation": "220:12:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 169,
               "nodeType": "ParameterList",
@@ -1233,20 +1224,20 @@
               "src": "455:44:2"
             },
             "scope": 448,
-            "src": "211:289:2",
             "stateMutability": "nonpayable",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "f305d719",
             "id": 198,
+            "nodeType": "FunctionDefinition",
+            "src": "505:262:2",
+            "functionSelector": "f305d719",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "addLiquidityETH",
             "nameLocation": "514:15:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 190,
               "nodeType": "ParameterList",
@@ -1507,20 +1498,20 @@
               "src": "716:50:2"
             },
             "scope": 448,
-            "src": "505:262:2",
             "stateMutability": "payable",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "baa2abde",
             "id": 219,
+            "nodeType": "FunctionDefinition",
+            "src": "772:242:2",
+            "functionSelector": "baa2abde",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "removeLiquidity",
             "nameLocation": "781:15:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 213,
               "nodeType": "ParameterList",
@@ -1782,20 +1773,20 @@
               "src": "985:28:2"
             },
             "scope": 448,
-            "src": "772:242:2",
             "stateMutability": "nonpayable",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "02751cec",
             "id": 238,
+            "nodeType": "FunctionDefinition",
+            "src": "1019:232:2",
+            "functionSelector": "02751cec",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "removeLiquidityETH",
             "nameLocation": "1028:18:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 232,
               "nodeType": "ParameterList",
@@ -2029,20 +2020,20 @@
               "src": "1216:34:2"
             },
             "scope": 448,
-            "src": "1019:232:2",
             "stateMutability": "nonpayable",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "2195995c",
             "id": 267,
+            "nodeType": "FunctionDefinition",
+            "src": "1256:308:2",
+            "functionSelector": "2195995c",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "removeLiquidityWithPermit",
             "nameLocation": "1265:25:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 261,
               "nodeType": "ParameterList",
@@ -2412,20 +2403,20 @@
               "src": "1535:28:2"
             },
             "scope": 448,
-            "src": "1256:308:2",
             "stateMutability": "nonpayable",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "ded9382a",
             "id": 294,
+            "nodeType": "FunctionDefinition",
+            "src": "1569:298:2",
+            "functionSelector": "ded9382a",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "removeLiquidityETHWithPermit",
             "nameLocation": "1578:28:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 288,
               "nodeType": "ParameterList",
@@ -2767,20 +2758,20 @@
               "src": "1832:34:2"
             },
             "scope": 448,
-            "src": "1569:298:2",
             "stateMutability": "nonpayable",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "38ed1739",
             "id": 311,
+            "nodeType": "FunctionDefinition",
+            "src": "1872:207:2",
+            "functionSelector": "38ed1739",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "swapExactTokensForTokens",
             "nameLocation": "1881:24:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 306,
               "nodeType": "ParameterList",
@@ -2978,20 +2969,20 @@
               "src": "2055:23:2"
             },
             "scope": 448,
-            "src": "1872:207:2",
             "stateMutability": "nonpayable",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "8803dbee",
             "id": 328,
+            "nodeType": "FunctionDefinition",
+            "src": "2084:207:2",
+            "functionSelector": "8803dbee",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "swapTokensForExactTokens",
             "nameLocation": "2093:24:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 323,
               "nodeType": "ParameterList",
@@ -3189,20 +3180,20 @@
               "src": "2267:23:2"
             },
             "scope": 448,
-            "src": "2084:207:2",
             "stateMutability": "nonpayable",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "7ff36ab5",
             "id": 343,
+            "nodeType": "FunctionDefinition",
+            "src": "2296:175:2",
+            "functionSelector": "7ff36ab5",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "swapExactETHForTokens",
             "nameLocation": "2305:21:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 338,
               "nodeType": "ParameterList",
@@ -3373,20 +3364,20 @@
               "src": "2447:23:2"
             },
             "scope": 448,
-            "src": "2296:175:2",
             "stateMutability": "payable",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "4a25d94a",
             "id": 360,
+            "nodeType": "FunctionDefinition",
+            "src": "2476:174:2",
+            "functionSelector": "4a25d94a",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "swapTokensForExactETH",
             "nameLocation": "2485:21:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 355,
               "nodeType": "ParameterList",
@@ -3584,20 +3575,20 @@
               "src": "2626:23:2"
             },
             "scope": 448,
-            "src": "2476:174:2",
             "stateMutability": "nonpayable",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "18cbafe5",
             "id": 377,
+            "nodeType": "FunctionDefinition",
+            "src": "2655:174:2",
+            "functionSelector": "18cbafe5",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "swapExactTokensForETH",
             "nameLocation": "2664:21:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 372,
               "nodeType": "ParameterList",
@@ -3795,20 +3786,20 @@
               "src": "2805:23:2"
             },
             "scope": 448,
-            "src": "2655:174:2",
             "stateMutability": "nonpayable",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "fb3bdb41",
             "id": 392,
+            "nodeType": "FunctionDefinition",
+            "src": "2834:172:2",
+            "functionSelector": "fb3bdb41",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "swapETHForExactTokens",
             "nameLocation": "2843:21:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 387,
               "nodeType": "ParameterList",
@@ -3979,20 +3970,20 @@
               "src": "2982:23:2"
             },
             "scope": 448,
-            "src": "2834:172:2",
             "stateMutability": "payable",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "ad615dec",
             "id": 403,
+            "nodeType": "FunctionDefinition",
+            "src": "3012:96:2",
+            "functionSelector": "ad615dec",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "quote",
             "nameLocation": "3021:5:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 399,
               "nodeType": "ParameterList",
@@ -4116,20 +4107,20 @@
               "src": "3093:14:2"
             },
             "scope": 448,
-            "src": "3012:96:2",
             "stateMutability": "pure",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "054d50d4",
             "id": 414,
+            "nodeType": "FunctionDefinition",
+            "src": "3113:109:2",
+            "functionSelector": "054d50d4",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "getAmountOut",
             "nameLocation": "3122:12:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 410,
               "nodeType": "ParameterList",
@@ -4253,20 +4244,20 @@
               "src": "3205:16:2"
             },
             "scope": 448,
-            "src": "3113:109:2",
             "stateMutability": "pure",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "85f8c259",
             "id": 425,
+            "nodeType": "FunctionDefinition",
+            "src": "3227:108:2",
+            "functionSelector": "85f8c259",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "getAmountIn",
             "nameLocation": "3236:11:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 421,
               "nodeType": "ParameterList",
@@ -4390,20 +4381,20 @@
               "src": "3319:15:2"
             },
             "scope": 448,
-            "src": "3227:108:2",
             "stateMutability": "pure",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "d06ca61f",
             "id": 436,
+            "nodeType": "FunctionDefinition",
+            "src": "3340:109:2",
+            "functionSelector": "d06ca61f",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "getAmountsOut",
             "nameLocation": "3349:13:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 431,
               "nodeType": "ParameterList",
@@ -4519,20 +4510,20 @@
               "src": "3425:23:2"
             },
             "scope": 448,
-            "src": "3340:109:2",
             "stateMutability": "view",
             "virtual": false,
             "visibility": "external"
           },
           {
-            "functionSelector": "1f00ca74",
             "id": 447,
+            "nodeType": "FunctionDefinition",
+            "src": "3454:109:2",
+            "functionSelector": "1f00ca74",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "getAmountsIn",
             "nameLocation": "3463:12:2",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 442,
               "nodeType": "ParameterList",
@@ -4648,17 +4639,26 @@
               "src": "3539:23:2"
             },
             "scope": 448,
-            "src": "3454:109:2",
             "stateMutability": "view",
             "virtual": false,
             "visibility": "external"
           }
         ],
+        "abstract": false,
+        "baseContracts": [],
+        "canonicalName": "IUniswapV2Router01",
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "fullyImplemented": false,
+        "linearizedBaseContracts": [
+          448
+        ],
+        "name": "IUniswapV2Router01",
+        "nameLocation": "76:18:2",
         "scope": 449,
-        "src": "66:3499:2",
         "usedErrors": []
       }
     ],
-    "src": "40:3525:2"
+    "license": "PLACEHOLDER"
   }
 }

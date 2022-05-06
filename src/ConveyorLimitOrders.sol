@@ -234,4 +234,55 @@ contract ConveyorLimitOrders {
             //aggregate the value of all of the orders
         }
     }
+
+    /// @notice Helper function to change the base decimal value of token0 & token1 to the same target decimal value
+    /// target decimal value for both token decimals to match will be max(token0Decimals, token1Decimals)
+    /// @param reserve0 uint256 token1 value
+    /// @param token0Decimals Decimals of token0
+    /// @param reserve1 uint256 token2 value
+    /// @param token1Decimals Decimals of token1
+    function convertToCommonBase(uint256 reserve0, uint8 token0Decimals, uint256 reserve1, uint8 token1Decimals) internal {
+
+        /// @dev Conditionally change the decimal to target := max(decimal0, decimal1)
+
+        /// return tuple of modified reserve values in matching decimals
+
+    }
+
+    /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
+    /// @param token0 bytes32 address of token1
+    /// @param token1 bytes32 address of token2
+    /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
+    function calculateUniV2SpotPrice(address token0, address token1, address factory) internal {
+        
+
+        address pair = address(uint160(uint(keccak256(abi.encodePacked(
+            hex'ff',
+            factory,
+            keccak256(abi.encodePacked(token0, token1)),
+            hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f'
+            )))));
+
+        /// @dev get reserve values from the pair address & do some safe math arithmetic to output spot price
+    }
+
+    /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
+    /// @param token0 bytes32 address of token1
+    /// @param token1 bytes32 address of token2
+    /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
+    function calculateUniV3SpotPrice(address token0, address token1) internal {
+        address factory = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+
+        /// I think this logic should work for spot price alternatively we could use a Uni v3 price oracle
+        IUniswapV3Pool pool = IUniswapV3Pool(factory.getPool(token0, token1, FEE);
+        (uint160 sqrtPriceX96,,,,,,) =  pool.slot0();
+        return uint(sqrtPriceX96).mul(uint(sqrtPriceX96)).mul(1e18) >> (96 * 2);
+
+    }
+
+    /// @notice Helper function to get the price average of a token between multiple pools
+    /// @param address[] pool address's to calculate the average price between
+    function calculateMeanPoolPriceAverageToken0(address[] pairs, address token0, address token1) internal {
+        //Calculate mean spot price across arrTokenPairs in terms of token0, so token0/token1
+    }
 }
