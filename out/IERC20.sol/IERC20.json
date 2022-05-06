@@ -195,7 +195,7 @@
     "linkReferences": {}
   },
   "ast": {
-    "absolutePath": "/home/sekiro/conveyor/limits-v0/lib/interfaces/IERC20.sol",
+    "absolutePath": "/Users/offshore/conveyor/limits/lib/interfaces/IERC20.sol",
     "exportedSymbols": {
       "IERC20": [
         77
