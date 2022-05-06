@@ -50,7 +50,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         cheatCodes.deal(address(this), MAX_UINT);
 
         //swap 20 ether for the swap token
-        swapEthForToken(20 ether, 0x514910771AF9Ca656af840dff83E8264EcF986CA);
+        swapEthForToken(20 ether, swapToken);
 
         ConveyorLimitOrders.Order memory order = newOrder(
             swapToken,
@@ -63,7 +63,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     function testUpdateOrder() public {
         //swap 20 ether for the swap token
-        swapEthForToken(20 ether, 0x514910771AF9Ca656af840dff83E8264EcF986CA);
+        swapEthForToken(20 ether, swapToken);
 
         //create a new order
         ConveyorLimitOrders.Order memory order = newOrder(
@@ -86,7 +86,22 @@ contract ConveyorLimitOrdersTest is DSTest {
         conveyorLimitOrders.updateOrder(updatedOrder);
     }
 
-    function testCancelOrder() public {}
+    function testCancelOrder() public {
+        //swap 20 ether for the swap token
+        swapEthForToken(20 ether, 0x514910771AF9Ca656af840dff83E8264EcF986CA);
+
+        //create a new order
+        ConveyorLimitOrders.Order memory order = newOrder(
+            swapToken,
+            245000000000000000000,
+            5
+        );
+        //place a mock order
+        bytes32 orderId = placeMockOrder(order);
+
+        //submit the updated order
+        conveyorLimitOrders.cancelOrder(swapToken, orderId);
+    }
 
     function testCancelAllOrders() public {}
 
@@ -115,7 +130,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         address token,
         uint256 price,
         uint256 quantity
-    ) internal returns (ConveyorLimitOrders.Order memory order) {
+    ) internal pure returns (ConveyorLimitOrders.Order memory order) {
         //Initialize mock order
         order = ConveyorLimitOrders.Order({
             token: token,

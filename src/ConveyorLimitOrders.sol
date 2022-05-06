@@ -129,6 +129,9 @@ contract ConveyorLimitOrders {
                 )
             );
 
+            //set exists to true
+            newOrder.exists = true;
+
             //add the order to active orders
             ActiveOrders[msg.sender].orderGroup[orderToken].orders[
                 orderId
@@ -137,6 +140,11 @@ contract ConveyorLimitOrders {
             orderIds[orderIdIndex] = orderId;
             ++orderIdIndex;
         }
+
+        //set the updated total value
+        ActiveOrders[msg.sender]
+            .orderGroup[orderToken]
+            .totalOrderValue = totalOrderValue;
 
         //emit orders placed
         emit OrderEvent(EventType.PLACE, msg.sender, orderGroup);
@@ -159,8 +167,12 @@ contract ConveyorLimitOrders {
             .orderGroup[newOrder.token]
             .totalOrderValue;
 
+        if (newOrder.quantity > oldOrder.quantity) {
+            totalOrdersValue += newOrder.quantity - oldOrder.quantity;
+        } else {
+            totalOrdersValue += oldOrder.quantity - newOrder.quantity;
+        }
         //adjust total orders value quanity
-        totalOrdersValue -= newOrder.quantity + oldOrder.quantity;
 
         //check if the wallet has a sufficient balance
         if (IERC20(newOrder.token).balanceOf(msg.sender) < totalOrdersValue) {
@@ -180,42 +192,37 @@ contract ConveyorLimitOrders {
         //emit order updated
         //TODO: still need to decide on contents of events
 
-        Order[] memory orders;
+        Order[] memory orders = new Order[](1);
         orders[0] = newOrder;
         emit OrderEvent(EventType.UPDATE, msg.sender, orders);
     }
 
     /// @notice Remove Order order from OrderGroup mapping by identifier orderId conditionally if order exists already in ActiveOrders
-    /// @param order the order to which the caller is removing from the OrderGroup struct
-    function cancelOrder(Order calldata order) public {
+    // / @param order the order to which the caller is removing from the OrderGroup struct
+    function cancelOrder(address token, bytes32 orderId) public {
         /// Check if order exists in active orders. Revert if order does not exist
         if (
-            !ActiveOrders[msg.sender]
-                .orderGroup[order.token]
-                .orders[order.orderId]
-                .exists
+            !ActiveOrders[msg.sender].orderGroup[token].orders[orderId].exists
         ) {
-            revert OrderDoesNotExist(order.orderId);
+            revert OrderDoesNotExist(orderId);
         }
 
+        Order memory order = ActiveOrders[msg.sender].orderGroup[token].orders[
+            orderId
+        ];
         /// Get the orderQuantity from the existing order
-        uint256 orderQuantity = ActiveOrders[msg.sender]
-            .orderGroup[order.token]
-            .orders[order.orderId]
-            .quantity;
+        uint256 orderQuantity = order.quantity;
 
         //update totalOrdersValue to decrease by amount orderQuantity of the order being removed
         ActiveOrders[msg.sender]
-            .orderGroup[order.token]
+            .orderGroup[token]
             .totalOrderValue -= orderQuantity;
 
         // Delete Order Orders[order.orderId] from ActiveOrders mapping
-        delete ActiveOrders[msg.sender].orderGroup[order.token].orders[
-            order.orderId
-        ];
+        delete ActiveOrders[msg.sender].orderGroup[token].orders[orderId];
 
         //emit OrderEvent CANCEL
-        Order[] memory orders;
+        Order[] memory orders = new Order[](1);
         orders[0] = order;
         emit OrderEvent(EventType.CANCEL, msg.sender, orders);
     }
