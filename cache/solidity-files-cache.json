@@ -83,6 +83,43 @@
         }
       }
     },
+    "/Users/leyton/ConveyorLabs/limits-v0/lib/interfaces/IUniswapV2Pair.sol": {
+      "lastModificationDate": 1651843109399,
+      "contentHash": "8502aa3fe044adc01d0ec6c09e1b196a",
+      "sourceName": "lib/interfaces/IUniswapV2Pair.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs"
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london"
+        }
+      },
+      "imports": [],
+      "versionRequirement": ">=0.5.0",
+      "artifacts": {
+        "IUniswapV2Pair": {
+          "0.8.13+commit.abaa5c0e.Darwin.appleclang": "IUniswapV2Pair.sol/IUniswapV2Pair.json"
+        }
+      }
+    },
     "/Users/leyton/ConveyorLabs/limits-v0/lib/interfaces/IUniswapV2Router01.sol": {
       "lastModificationDate": 1651843109399,
       "contentHash": "2b28949ce8397c009eaebbf62cbc93d9",
@@ -159,9 +196,160 @@
         }
       }
     },
+    "/Users/leyton/ConveyorLabs/limits-v0/lib/interfaces/IUniswapV3Factory.sol": {
+      "lastModificationDate": 1651871001946,
+      "contentHash": "df146d1c1e409049d1c9445dda039415",
+      "sourceName": "lib/interfaces/IUniswapV3Factory.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs"
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london"
+        }
+      },
+      "imports": [],
+      "versionRequirement": ">=0.5.0",
+      "artifacts": {
+        "IUniswapV3Factory": {
+          "0.8.13+commit.abaa5c0e.Darwin.appleclang": "IUniswapV3Factory.sol/IUniswapV3Factory.json"
+        }
+      }
+    },
+    "/Users/leyton/ConveyorLabs/limits-v0/lib/libraries/FullMath.sol": {
+      "lastModificationDate": 1651878227792,
+      "contentHash": "ae559085b99556f0d1e1e05150d66c3d",
+      "sourceName": "lib/libraries/FullMath.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs"
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london"
+        }
+      },
+      "imports": [],
+      "versionRequirement": ">=0.4.0",
+      "artifacts": {
+        "FullMath": {
+          "0.8.13+commit.abaa5c0e.Darwin.appleclang": "FullMath.sol/FullMath.json"
+        }
+      }
+    },
+    "/Users/leyton/ConveyorLabs/limits-v0/lib/libraries/OracleLibrary.sol": {
+      "lastModificationDate": 1651880510813,
+      "contentHash": "e768c615dae18780c7d9550a5c7c7fb4",
+      "sourceName": "lib/libraries/OracleLibrary.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs"
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london"
+        }
+      },
+      "imports": [
+        "lib/libraries/FullMath.sol",
+        "lib/libraries/TickMath.sol"
+      ],
+      "versionRequirement": ">=0.5.0",
+      "artifacts": {
+        "OracleLibrary": {
+          "0.8.13+commit.abaa5c0e.Darwin.appleclang": "OracleLibrary.sol/OracleLibrary.json"
+        }
+      }
+    },
+    "/Users/leyton/ConveyorLabs/limits-v0/lib/libraries/TickMath.sol": {
+      "lastModificationDate": 1651878767656,
+      "contentHash": "d6cf4db5b70f69dc999bf10644fc4894",
+      "sourceName": "lib/libraries/TickMath.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs"
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london"
+        }
+      },
+      "imports": [],
+      "versionRequirement": ">=0.5.0",
+      "artifacts": {
+        "TickMath": {
+          "0.8.13+commit.abaa5c0e.Darwin.appleclang": "TickMath.sol/TickMath.json"
+        }
+      }
+    },
     "/Users/leyton/ConveyorLabs/limits-v0/src/ConveyorLimitOrders.sol": {
-      "lastModificationDate": 1651843109417,
-      "contentHash": "6daf6c427c5bf1c4fb0fbec364736725",
+      "lastModificationDate": 1651880427316,
+      "contentHash": "81a4453646ce61f3e846421b61ebe289",
       "sourceName": "src/ConveyorLimitOrders.sol",
       "solcConfig": {
         "settings": {
@@ -189,7 +377,23 @@
         }
       },
       "imports": [
-        "lib/interfaces/IERC20.sol"
+        "lib/interfaces/IERC20.sol",
+        "lib/interfaces/IUniswapV2Factory.sol",
+        "lib/interfaces/IUniswapV2Pair.sol",
+        "lib/interfaces/IUniswapV2Router01.sol",
+        "lib/interfaces/IUniswapV2Router02.sol",
+        "lib/interfaces/IUniswapV3Factory.sol",
+        "lib/interfaces/IUniswapV3Pool.sol",
+        "lib/interfaces/IUniswapV3PoolActions.sol",
+        "lib/interfaces/IUniswapV3PoolDerivedState.sol",
+        "lib/interfaces/IUniswapV3PoolEvents.sol",
+        "lib/interfaces/IUniswapV3PoolImmutables.sol",
+        "lib/interfaces/IUniswapV3PoolOwnerActions.sol",
+        "lib/interfaces/IUniswapV3PoolState.sol",
+        "lib/libraries/FullMath.sol",
+        "lib/libraries/OracleLibrary.sol",
+        "lib/libraries/TickMath.sol",
+        "src/test/utils/Console.sol"
       ],
       "versionRequirement": ">=0.8.13",
       "artifacts": {
@@ -199,8 +403,8 @@
       }
     },
     "/Users/leyton/ConveyorLabs/limits-v0/src/test/ConveyorLimitOrders.t.sol": {
-      "lastModificationDate": 1651850561833,
-      "contentHash": "9e5f499dea6888bf877d5eba190647a3",
+      "lastModificationDate": 1651880299513,
+      "contentHash": "0977fdf7f28d3371e97b1637570eec26",
       "sourceName": "src/test/ConveyorLimitOrders.t.sol",
       "solcConfig": {
         "settings": {
@@ -230,8 +434,20 @@
       "imports": [
         "lib/interfaces/IERC20.sol",
         "lib/interfaces/IUniswapV2Factory.sol",
+        "lib/interfaces/IUniswapV2Pair.sol",
         "lib/interfaces/IUniswapV2Router01.sol",
         "lib/interfaces/IUniswapV2Router02.sol",
+        "lib/interfaces/IUniswapV3Factory.sol",
+        "lib/interfaces/IUniswapV3Pool.sol",
+        "lib/interfaces/IUniswapV3PoolActions.sol",
+        "lib/interfaces/IUniswapV3PoolDerivedState.sol",
+        "lib/interfaces/IUniswapV3PoolEvents.sol",
+        "lib/interfaces/IUniswapV3PoolImmutables.sol",
+        "lib/interfaces/IUniswapV3PoolOwnerActions.sol",
+        "lib/interfaces/IUniswapV3PoolState.sol",
+        "lib/libraries/FullMath.sol",
+        "lib/libraries/OracleLibrary.sol",
+        "lib/libraries/TickMath.sol",
         "src/ConveyorLimitOrders.sol",
         "src/test/utils/Console.sol",
         "src/test/utils/Utils.sol",

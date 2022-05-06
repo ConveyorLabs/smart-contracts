@@ -70,45 +70,19 @@ contract ConveyorLimitOrdersTest is DSTest {
         console.logString("Balance: " );
         
         cheatCodes.prank(address(this));
-        //Swap Eth for UNI/Link to address(1337)
-        //swapEthForToken(20, address(1337), 0x514910771AF9Ca656af840dff83E8264EcF986CA);
-        //swapEthForToken(20, address(1337), 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984);
-        console.logString("Got her");
-        //Initialize mock orders
-        // Order memory order1 = Order({
-        //     token: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-        //     orderId: bytes32(keccak256(abi.encodePacked(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D))), //<--- just temporary 
-        //     orderType: ConveyorLimitOrders.OrderType.SELL,
-        //     price: 2700,
-        //     quantity: 5,
-        //     exists: true
-        // });
+      
+       
+       
 
-        ConveyorLimitOrders.Order memory order2 = ConveyorLimitOrders.Order({
-            token: 0x514910771AF9Ca656af840dff83E8264EcF986CA,
-            orderId: bytes32(keccak256(abi.encodePacked(0x514910771AF9Ca656af840dff83E8264EcF986CA))), //<--- just temporary 
-            orderType: ConveyorLimitOrders.OrderType.SELL,
-            price: 11,
-            quantity: 5,
-            exists: true
-        });
-
-        ConveyorLimitOrders.Order memory order3 = ConveyorLimitOrders.Order({
-            token: 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984,
-            orderId: bytes32(keccak256(abi.encodePacked(0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984))), //<--- just temporary 
-            orderType: ConveyorLimitOrders.OrderType.SELL,
-            price: 8,
-            quantity: 5,
-            exists: true
-        });
         
-        ConveyorLimitOrders.Order[][] memory arrOrders;
+        
+       
         
 
-        arrOrders[0][0]= order2;
+     
         
 
-        conveyorLimitOrders.placeOrder(arrOrders);
+        
         
 
         
@@ -122,6 +96,64 @@ contract ConveyorLimitOrdersTest is DSTest {
     function testCancelAllOrders() public {}
 
     function testExecuteOrder() public {}
+
+    function testChangeBase() public {
+        //----------Test 1 setup----------------------//
+        uint256 reserve0 = 131610640170334000000000000;
+        uint8 dec0= 18;
+        uint256 reserve1 = 131610640170334;
+        uint8 dec1 = 9;
+        (uint256 r0_out, uint256 r1_out) =conveyorLimitOrders.convertToCommonBase(reserve0, dec0, reserve1, dec1);
+
+        //----------Test 2 setup-----------------//
+        uint256 reserve01 = 131610640170334;
+        uint8 dec01= 6;
+        uint256 reserve11 = 47925919677616776812811;
+        uint8 dec11 = 18;
+        (uint256 r0_out1, uint256 r1_out1) =conveyorLimitOrders.convertToCommonBase(reserve01, dec01, reserve11, dec11);
+
+        //Assertion checks
+        assertEq(r1_out, 131610640170334000000000); // 9 decimals added
+        assertEq(r0_out, 131610640170334000000000000); //No change
+        assertEq(r0_out1, 131610640170334000000000000); //12 decimals added
+        assertEq(r1_out1, 47925919677616776812811); //No change
+    }
+
+    function testUniV2SpotPrice() public{
+        //Peg
+        address weth=0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+        //Pair 1
+        address usdc=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+        //Pair 2
+        address ntvrk = 0xFc0d6Cf33e38bcE7CA7D89c0E292274031b7157A;
+
+        //Pair 3
+        address high=0x71Ab77b7dbB4fa7e017BC15090b2163221420282;
+
+        uint256 priceWETHUSDC= conveyorLimitOrders.calculateUniV2SpotPrice(usdc,weth);
+        console.logUint(priceWETHUSDC);
+
+    }
+
+    function testUniV3SpotPrice() public{
+        //Peg
+        address weth=0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+        //Pair 1
+        address usdc=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+        //Pair 2
+        address ntvrk = 0xFc0d6Cf33e38bcE7CA7D89c0E292274031b7157A;
+
+        //Pair 3
+        address high=0x71Ab77b7dbB4fa7e017BC15090b2163221420282;
+
+        uint256 priceWETHUSDC= conveyorLimitOrders.calculateUniV3SpotPrice(weth,usdc, 1000000000000,3000,1);
+        console.logUint(priceWETHUSDC);
+
+    }
 
     function swapEthForToken(uint256 amount, address _swapToken) internal {
         cheatCodes.deal(address(this), amount);

@@ -2,7 +2,13 @@
 pragma solidity >=0.8.13;
 
 import "../lib/interfaces/IERC20.sol";
-
+import "../lib/interfaces/IUniswapV2Router02.sol";
+import "../lib/interfaces/IUniswapV2Factory.sol";
+import "../lib/interfaces/IUniswapV2Pair.sol";
+import "./test/utils/Console.sol";
+import "../lib/libraries/OracleLibrary.sol";
+import "../lib/interfaces/IUniswapV3Factory.sol";
+import "../lib/interfaces/IUniswapV3Pool.sol";
 contract ConveyorLimitOrders {
     //----------------------Modifiers------------------------------------//
 
@@ -48,6 +54,11 @@ contract ConveyorLimitOrders {
         TAKE_PROFIT
     }
 
+    //----------------------Factory/Router Address's------------------------------------//
+    /// @dev 0-Uniswap V2 Factory, 1-Uniswap V3 Factory
+    address[] dexFactories = [0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,0x1F98431c8aD98523631AE4a59f267346ea31F984];
+    IUniswapV2Factory public v2Factory;
+
     //----------------------Structs------------------------------------//
 
     /// @notice Struct containing the token, orderId, OrderType enum type, price, and quantity for each order
@@ -77,6 +88,7 @@ contract ConveyorLimitOrders {
 
     //----------------------Functions------------------------------------//
 
+ 
     /// @notice Add user's order into the Active order's mapping conditionally if the oder passes all of the safety check criterion
     /// @param arrOrders := array of orders to be added to ActiveOrders mapping in OrderGroup struct
     function placeOrder(Order[][] calldata arrOrders) public {
@@ -241,11 +253,15 @@ contract ConveyorLimitOrders {
     /// @param token0Decimals Decimals of token0
     /// @param reserve1 uint256 token2 value
     /// @param token1Decimals Decimals of token1
-    function convertToCommonBase(uint256 reserve0, uint8 token0Decimals, uint256 reserve1, uint8 token1Decimals) internal {
+    function convertToCommonBase(uint256 reserve0, uint8 token0Decimals, uint256 reserve1, uint8 token1Decimals) external returns (uint256, uint256){
 
         /// @dev Conditionally change the decimal to target := max(decimal0, decimal1)
-
         /// return tuple of modified reserve values in matching decimals
+        if(token0Decimals>token1Decimals){
+            return (reserve0, reserve1*(10**(token0Decimals-token1Decimals)));
+        }else{
+            return(reserve0*(10**(token1Decimals-token0Decimals)), reserve1);
+        }
 
     }
 
@@ -253,9 +269,10 @@ contract ConveyorLimitOrders {
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
     /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
-    function calculateUniV2SpotPrice(address token0, address token1, address factory) internal {
-        
-
+    function calculateUniV2SpotPrice(address token0, address token1) external view returns (uint112) {
+         
+        //Get Uni v2 pair address for token0, token1
+        address factory = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
         address pair = address(uint160(uint(keccak256(abi.encodePacked(
             hex'ff',
             factory,
@@ -263,26 +280,75 @@ contract ConveyorLimitOrders {
             hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f'
             )))));
 
-        /// @dev get reserve values from the pair address & do some safe math arithmetic to output spot price
-    }
+        console.log(pair);
+        (uint112 x, ,)=IUniswapV2Pair(pair).getReserves();
+        console.log(x);
+       
+        (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pair).getReserves();
+        console.log(reserve0);
+        console.log(reserve1);
 
+        return reserve0/reserve1;
+        
+    }
+    
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
-    /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
-    function calculateUniV3SpotPrice(address token0, address token1) internal {
-        address factory = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+    /// @return amountOut spot price of token1 with respect to token2 i.e reserve1/reserve2
+    function calculateUniV3SpotPrice(address token0, address token1, uint128 amountIn, uint24 FEE, uint32 tickSecond) external returns (uint256 amountOut) {
+        //Uniswap V3 Factory
+        address factory = dexFactories[1];
+       
+        //tickSeconds array defines our tick interval of observation over the lp
+        uint32[] memory tickSeconds = new uint32[](2);
+        //int32 version of tickSecond padding in tick range
+        int32 tickSecondInt = int32(tickSecond);
+        //Populate tickSeconds array current block to tickSecond behind current block for tick range
+        tickSeconds[0] = tickSecond;
+        tickSeconds[1] = 0;
 
-        /// I think this logic should work for spot price alternatively we could use a Uni v3 price oracle
-        IUniswapV3Pool pool = IUniswapV3Pool(factory.getPool(token0, token1, FEE);
-        (uint160 sqrtPriceX96,,,,,,) =  pool.slot0();
-        return uint(sqrtPriceX96).mul(uint(sqrtPriceX96)).mul(1e18) >> (96 * 2);
+        //Pool address for token pair
+        address pool = IUniswapV3Factory(factory).getPool(
+            token0,
+            token1,
+            FEE
+        );
+        
 
+         //Start observation over lp in prespecified tick range
+        (int56[] memory tickCumulatives, ) = IUniswapV3Pool(pool).observe(
+            tickSeconds
+        );
+
+        //Spot price of tickSeconds ago - spot price of current block
+        int56 tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
+
+        // int56 / uint32 = int24
+        int24 tick = int24(tickCumulativesDelta / (tickSecondInt));
+
+         //so if tickCumulativeDelta < 0 and division has remainder, then rounddown
+        
+        if (
+            tickCumulativesDelta < 0 && (tickCumulativesDelta % tickSecondInt != 0)
+        ) {
+            tick--;
+        }
+
+        //token0SpotPrice = tick range spot over specified tick interval
+        amountOut = OracleLibrary.getQuoteAtTick(
+            tick,
+            amountIn,
+            token0,
+            token1
+        );
+
+        
     }
 
     /// @notice Helper function to get the price average of a token between multiple pools
     /// @param address[] pool address's to calculate the average price between
-    function calculateMeanPoolPriceAverageToken0(address[] pairs, address token0, address token1) internal {
-        //Calculate mean spot price across arrTokenPairs in terms of token0, so token0/token1
-    }
+    // function calculateMeanPoolPriceAverageToken0(address[] pairs, address token0, address token1) internal {
+    //     //Calculate mean spot price across arrTokenPairs in terms of token0, so token0/token1
+    // }
 }
