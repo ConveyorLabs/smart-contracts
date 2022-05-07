@@ -195,49 +195,36 @@
     "linkReferences": {}
   },
   "ast": {
-    "absolutePath": "/home/sekiro/conveyor/limits-v0/lib/interfaces/IERC20.sol",
+    "absolutePath": "/Users/leyton/ConveyorLabs/limits-v0/lib/interfaces/IERC20.sol",
+    "id": 78,
     "exportedSymbols": {
       "IERC20": [
         77
       ]
     },
-    "id": 78,
-    "license": "MIT",
     "nodeType": "SourceUnit",
+    "src": "33:2716:0",
     "nodes": [
       {
         "id": 1,
+        "nodeType": "PragmaDirective",
+        "src": "33:24:0",
         "literals": [
           "solidity",
           "^",
           "0.8",
           ".13"
-        ],
-        "nodeType": "PragmaDirective",
-        "src": "33:24:0"
+        ]
       },
       {
-        "abstract": false,
-        "baseContracts": [],
-        "canonicalName": "IERC20",
-        "contractDependencies": [],
-        "contractKind": "interface",
-        "documentation": {
-          "id": 2,
-          "nodeType": "StructuredDocumentation",
-          "src": "59:70:0",
-          "text": " @dev Interface of the ERC20 standard as defined in the EIP."
-        },
-        "fullyImplemented": false,
         "id": 77,
-        "linearizedBaseContracts": [
-          77
-        ],
-        "name": "IERC20",
-        "nameLocation": "140:6:0",
         "nodeType": "ContractDefinition",
+        "src": "130:2618:0",
         "nodes": [
           {
+            "id": 11,
+            "nodeType": "EventDefinition",
+            "src": "316:72:0",
             "anonymous": false,
             "documentation": {
               "id": 3,
@@ -246,10 +233,8 @@
               "text": " @dev Emitted when `value` tokens are moved from one account (`from`) to\n another (`to`).\n Note that `value` may be zero."
             },
             "eventSelector": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-            "id": 11,
             "name": "Transfer",
             "nameLocation": "322:8:0",
-            "nodeType": "EventDefinition",
             "parameters": {
               "id": 10,
               "nodeType": "ParameterList",
@@ -342,10 +327,12 @@
                 }
               ],
               "src": "330:57:0"
-            },
-            "src": "316:72:0"
+            }
           },
           {
+            "id": 20,
+            "nodeType": "EventDefinition",
+            "src": "547:108:0",
             "anonymous": false,
             "documentation": {
               "id": 12,
@@ -354,10 +341,8 @@
               "text": " @dev Emitted when the allowance of a `spender` for an `owner` is set by\n a call to {approve}. `value` is the new allowance."
             },
             "eventSelector": "8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
-            "id": 20,
             "name": "Approval",
             "nameLocation": "553:8:0",
-            "nodeType": "EventDefinition",
             "parameters": {
               "id": 19,
               "nodeType": "ParameterList",
@@ -450,10 +435,12 @@
                 }
               ],
               "src": "561:93:0"
-            },
-            "src": "547:108:0"
+            }
           },
           {
+            "id": 26,
+            "nodeType": "FunctionDefinition",
+            "src": "732:55:0",
             "documentation": {
               "id": 21,
               "nodeType": "StructuredDocumentation",
@@ -461,13 +448,11 @@
               "text": " @dev Returns the amount of tokens in existence."
             },
             "functionSelector": "18160ddd",
-            "id": 26,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "totalSupply",
             "nameLocation": "741:11:0",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 22,
               "nodeType": "ParameterList",
@@ -509,12 +494,14 @@
               "src": "777:9:0"
             },
             "scope": 77,
-            "src": "732:55:0",
             "stateMutability": "view",
             "virtual": false,
             "visibility": "external"
           },
           {
+            "id": 34,
+            "nodeType": "FunctionDefinition",
+            "src": "870:68:0",
             "documentation": {
               "id": 27,
               "nodeType": "StructuredDocumentation",
@@ -522,13 +509,11 @@
               "text": " @dev Returns the amount of tokens owned by `account`."
             },
             "functionSelector": "70a08231",
-            "id": 34,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "balanceOf",
             "nameLocation": "879:9:0",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 30,
               "nodeType": "ParameterList",
@@ -599,12 +584,14 @@
               "src": "928:9:0"
             },
             "scope": 77,
-            "src": "870:68:0",
             "stateMutability": "view",
             "virtual": false,
             "visibility": "external"
           },
           {
+            "id": 44,
+            "nodeType": "FunctionDefinition",
+            "src": "1151:70:0",
             "documentation": {
               "id": 35,
               "nodeType": "StructuredDocumentation",
@@ -612,13 +599,11 @@
               "text": " @dev Moves `amount` tokens from the caller's account to `to`.\n Returns a boolean value indicating whether the operation succeeded.\n Emits a {Transfer} event."
             },
             "functionSelector": "a9059cbb",
-            "id": 44,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "transfer",
             "nameLocation": "1160:8:0",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 40,
               "nodeType": "ParameterList",
@@ -716,12 +701,14 @@
               "src": "1214:6:0"
             },
             "scope": 77,
-            "src": "1151:70:0",
             "stateMutability": "nonpayable",
             "virtual": false,
             "visibility": "external"
           },
           {
+            "id": 54,
+            "nodeType": "FunctionDefinition",
+            "src": "1496:107:0",
             "documentation": {
               "id": 45,
               "nodeType": "StructuredDocumentation",
@@ -729,13 +716,11 @@
               "text": " @dev Returns the remaining number of tokens that `spender` will be\n allowed to spend on behalf of `owner` through {transferFrom}. This is\n zero by default.\n This value changes when {approve} or {transferFrom} are called."
             },
             "functionSelector": "dd62ed3e",
-            "id": 54,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "allowance",
             "nameLocation": "1505:9:0",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 50,
               "nodeType": "ParameterList",
@@ -834,12 +819,14 @@
               "src": "1593:9:0"
             },
             "scope": 77,
-            "src": "1496:107:0",
             "stateMutability": "view",
             "virtual": false,
             "visibility": "external"
           },
           {
+            "id": 64,
+            "nodeType": "FunctionDefinition",
+            "src": "2256:74:0",
             "documentation": {
               "id": 55,
               "nodeType": "StructuredDocumentation",
@@ -847,13 +834,11 @@
               "text": " @dev Sets `amount` as the allowance of `spender` over the caller's tokens.\n Returns a boolean value indicating whether the operation succeeded.\n IMPORTANT: Beware that changing an allowance with this method brings the risk\n that someone may use both the old and the new allowance by unfortunate\n transaction ordering. One possible solution to mitigate this race\n condition is to first reduce the spender's allowance to 0 and set the\n desired value afterwards:\n https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729\n Emits an {Approval} event."
             },
             "functionSelector": "095ea7b3",
-            "id": 64,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "approve",
             "nameLocation": "2265:7:0",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 60,
               "nodeType": "ParameterList",
@@ -951,12 +936,14 @@
               "src": "2323:6:0"
             },
             "scope": 77,
-            "src": "2256:74:0",
             "stateMutability": "nonpayable",
             "virtual": false,
             "visibility": "external"
           },
           {
+            "id": 76,
+            "nodeType": "FunctionDefinition",
+            "src": "2628:118:0",
             "documentation": {
               "id": 65,
               "nodeType": "StructuredDocumentation",
@@ -964,13 +951,11 @@
               "text": " @dev Moves `amount` tokens from `from` to `to` using the\n allowance mechanism. `amount` is then deducted from the caller's\n allowance.\n Returns a boolean value indicating whether the operation succeeded.\n Emits a {Transfer} event."
             },
             "functionSelector": "23b872dd",
-            "id": 76,
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "transferFrom",
             "nameLocation": "2637:12:0",
-            "nodeType": "FunctionDefinition",
             "parameters": {
               "id": 72,
               "nodeType": "ParameterList",
@@ -1096,17 +1081,32 @@
               "src": "2739:6:0"
             },
             "scope": 77,
-            "src": "2628:118:0",
             "stateMutability": "nonpayable",
             "virtual": false,
             "visibility": "external"
           }
         ],
+        "abstract": false,
+        "baseContracts": [],
+        "canonicalName": "IERC20",
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "documentation": {
+          "id": 2,
+          "nodeType": "StructuredDocumentation",
+          "src": "59:70:0",
+          "text": " @dev Interface of the ERC20 standard as defined in the EIP."
+        },
+        "fullyImplemented": false,
+        "linearizedBaseContracts": [
+          77
+        ],
+        "name": "IERC20",
+        "nameLocation": "140:6:0",
         "scope": 78,
-        "src": "130:2618:0",
         "usedErrors": []
       }
     ],
-    "src": "33:2716:0"
+    "license": "MIT"
   }
 }
