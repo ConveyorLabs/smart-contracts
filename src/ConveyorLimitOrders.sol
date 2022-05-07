@@ -24,7 +24,6 @@ contract ConveyorLimitOrders {
         address indexed sender,
         Order[] indexed orders
     );
-    
 
     //----------------------Errors------------------------------------//
 
@@ -88,46 +87,84 @@ contract ConveyorLimitOrders {
 
     //----------------------Functions------------------------------------//
 
+<<<<<<< HEAD
  
+=======
+    function getOrderById(
+        address eoaAddress,
+        address token,
+        bytes32 orderId
+    ) public view returns (Order memory order) {
+        order = ActiveOrders[eoaAddress].orderGroup[token].orders[orderId];
+    }
+
+>>>>>>> d7a43e5ce2a050a1ab879de2395715934738ed4b
     /// @notice Add user's order into the Active order's mapping conditionally if the oder passes all of the safety check criterion
-    /// @param arrOrders := array of orders to be added to ActiveOrders mapping in OrderGroup struct
-    function placeOrder(Order[][] calldata arrOrders) public {
-        for (uint256 i = 0; i < arrOrders.length; ++i) {
-            Order[] memory orders = arrOrders[i];
-            //get the current token for the order array
-            address currentToken = orders[i].token;
+    /// @param orderGroup := array of orders to be added to ActiveOrders mapping in OrderGroup struct
+    /// @return orderIds
+    function placeOrder(Order[] calldata orderGroup)
+        public
+        returns (bytes32[] memory)
+    {
+        uint256 orderIdIndex;
+        bytes32[] memory orderIds = new bytes32[](orderGroup.length);
+        //token that the orders are being placed on
+        address orderToken = orderGroup[0].token;
 
-            //get the current totalOrderValue for all existing orders on the token
-            uint256 totalOrderValue = ActiveOrders[msg.sender]
-                .orderGroup[currentToken]
-                .totalOrderValue;
+        //get the current totalOrderValue for all existing orders on the token
+        uint256 totalOrderValue = ActiveOrders[msg.sender]
+            .orderGroup[orderToken]
+            .totalOrderValue;
 
-            uint256 tokenBalance = IERC20(currentToken).balanceOf(msg.sender);
+        uint256 tokenBalance = IERC20(orderToken).balanceOf(msg.sender);
 
-            for (uint256 j = 0; j < orders.length; ++j) {
-                Order memory newOrder = orders[j];
+        for (uint256 i = 0; i < orderGroup.length; ++i) {
+            Order memory newOrder = orderGroup[i];
 
-                if (!(currentToken == newOrder.token)) {
-                    revert IncongruentTokenInOrderGroup();
-                }
-
-                //add the order quant to total order value
-                totalOrderValue += newOrder.quantity;
-
-                //check if the wallet has a sufficient balance
-                if (tokenBalance < totalOrderValue) {
-                    revert InsufficientWalletBalance();
-                }
-
-                //add the order to active orders
-                ActiveOrders[msg.sender].orderGroup[currentToken].orders[
-                        newOrder.orderId
-                    ] = newOrder;
+            if (!(orderToken == newOrder.token)) {
+                revert IncongruentTokenInOrderGroup();
             }
 
-            //emit orders placed
-            emit OrderEvent(EventType.PLACE, msg.sender, orders);
+            //add the order quant to total order value
+            totalOrderValue += newOrder.quantity;
+
+            //check if the wallet has a sufficient balance
+            if (tokenBalance < totalOrderValue) {
+                revert InsufficientWalletBalance();
+            }
+
+            //create the new orderId
+            bytes32 orderId = keccak256(
+                abi.encodePacked(
+                    msg.sender,
+                    block.timestamp,
+                    orderToken,
+                    newOrder.price,
+                    i
+                )
+            );
+
+            //set exists to true
+            newOrder.exists = true;
+
+            //add the order to active orders
+            ActiveOrders[msg.sender].orderGroup[orderToken].orders[
+                orderId
+            ] = newOrder;
+
+            orderIds[orderIdIndex] = orderId;
+            ++orderIdIndex;
         }
+
+        //set the updated total value
+        ActiveOrders[msg.sender]
+            .orderGroup[orderToken]
+            .totalOrderValue = totalOrderValue;
+
+        //emit orders placed
+        emit OrderEvent(EventType.PLACE, msg.sender, orderGroup);
+
+        return orderIds;
     }
 
     /// @notice Update mapping(uint256 => Order) in Order struct from identifier orderId to new 'order' value passed as @param
@@ -145,8 +182,12 @@ contract ConveyorLimitOrders {
             .orderGroup[newOrder.token]
             .totalOrderValue;
 
+        if (newOrder.quantity > oldOrder.quantity) {
+            totalOrdersValue += newOrder.quantity - oldOrder.quantity;
+        } else {
+            totalOrdersValue += oldOrder.quantity - newOrder.quantity;
+        }
         //adjust total orders value quanity
-        totalOrdersValue -= newOrder.quantity + oldOrder.quantity;
 
         //check if the wallet has a sufficient balance
         if (IERC20(newOrder.token).balanceOf(msg.sender) < totalOrdersValue) {
@@ -166,38 +207,37 @@ contract ConveyorLimitOrders {
         //emit order updated
         //TODO: still need to decide on contents of events
 
-        Order[] memory orders;
+        Order[] memory orders = new Order[](1);
         orders[0] = newOrder;
         emit OrderEvent(EventType.UPDATE, msg.sender, orders);
     }
 
     /// @notice Remove Order order from OrderGroup mapping by identifier orderId conditionally if order exists already in ActiveOrders
-    /// @param order the order to which the caller is removing from the OrderGroup struct
-    function cancelOrder(Order calldata order) public {
-        
+    // / @param order the order to which the caller is removing from the OrderGroup struct
+    function cancelOrder(address token, bytes32 orderId) public {
         /// Check if order exists in active orders. Revert if order does not exist
-        if(!ActiveOrders[msg.sender].orderGroup[order.token].orders[order.orderId].exists){
-            revert OrderDoesNotExist(order.orderId);
+        if (
+            !ActiveOrders[msg.sender].orderGroup[token].orders[orderId].exists
+        ) {
+            revert OrderDoesNotExist(orderId);
         }
 
+        Order memory order = ActiveOrders[msg.sender].orderGroup[token].orders[
+            orderId
+        ];
         /// Get the orderQuantity from the existing order
-        uint256 orderQuantity = ActiveOrders[msg.sender]
-            .orderGroup[order.token]
-            .orders[order.orderId]
-            .quantity;
+        uint256 orderQuantity = order.quantity;
 
         //update totalOrdersValue to decrease by amount orderQuantity of the order being removed
         ActiveOrders[msg.sender]
-            .orderGroup[order.token]
+            .orderGroup[token]
             .totalOrderValue -= orderQuantity;
 
         // Delete Order Orders[order.orderId] from ActiveOrders mapping
-        delete ActiveOrders[msg.sender]
-            .orderGroup[order.token]
-            .orders[order.orderId];
+        delete ActiveOrders[msg.sender].orderGroup[token].orders[orderId];
 
         //emit OrderEvent CANCEL
-        Order[] memory orders;
+        Order[] memory orders = new Order[](1);
         orders[0] = order;
         emit OrderEvent(EventType.CANCEL, msg.sender, orders);
     }

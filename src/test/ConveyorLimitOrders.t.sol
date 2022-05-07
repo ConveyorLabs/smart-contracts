@@ -49,13 +49,21 @@ contract ConveyorLimitOrdersTest is DSTest {
     address _uniV2Address = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address _uniV2FactoryAddress = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
 
+<<<<<<< HEAD
     //Link token
+=======
+    //Chainlink ERC20 address
+>>>>>>> d7a43e5ce2a050a1ab879de2395715934738ed4b
     address swapToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
 
     function setUp() public {
         
         conveyorLimitOrders = new ConveyorLimitOrders();
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> d7a43e5ce2a050a1ab879de2395715934738ed4b
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         _uniV2Router = IUniswapV2Router02(_uniV2Address);
         _uniV2Factory = IUniswapV2Factory(_uniV2FactoryAddress);
@@ -65,6 +73,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     receive() external payable {}
 
     function testPlaceOrder() public {
+<<<<<<< HEAD
         //Deal address(1337) MAX Eth
         cheatCodes.deal(address(this), MAX_UINT);
         console.logString("Balance: " );
@@ -88,15 +97,69 @@ contract ConveyorLimitOrdersTest is DSTest {
         
 
     }
+=======
+        cheatCodes.deal(address(this), MAX_UINT);
 
-    function testUpdateOrder() public {}
+        //swap 20 ether for the swap token
+        swapEthForToken(20 ether, swapToken);
 
-    function testCancelOrder() public {}
+        ConveyorLimitOrders.Order memory order = newOrder(
+            swapToken,
+            245000000000000000000,
+            5
+        );
+
+        placeMockOrder(order);
+    }
+
+    function testUpdateOrder() public {
+        //swap 20 ether for the swap token
+        swapEthForToken(20 ether, swapToken);
+
+        //create a new order
+        ConveyorLimitOrders.Order memory order = newOrder(
+            swapToken,
+            245000000000000000000,
+            5
+        );
+        //place a mock order
+        bytes32 orderId = placeMockOrder(order);
+
+        //create a new order to replace the old order
+        ConveyorLimitOrders.Order memory updatedOrder = newOrder(
+            swapToken,
+            245000000000000000000,
+            5
+        );
+        updatedOrder.orderId = orderId;
+
+        //submit the updated order
+        conveyorLimitOrders.updateOrder(updatedOrder);
+    }
+
+    function testCancelOrder() public {
+        //swap 20 ether for the swap token
+        swapEthForToken(20 ether, 0x514910771AF9Ca656af840dff83E8264EcF986CA);
+>>>>>>> d7a43e5ce2a050a1ab879de2395715934738ed4b
+
+        //create a new order
+        ConveyorLimitOrders.Order memory order = newOrder(
+            swapToken,
+            245000000000000000000,
+            5
+        );
+        //place a mock order
+        bytes32 orderId = placeMockOrder(order);
+
+        //submit the updated order
+        conveyorLimitOrders.cancelOrder(swapToken, orderId);
+    }
 
     function testCancelAllOrders() public {}
 
     function testExecuteOrder() public {}
 
+<<<<<<< HEAD
     function testChangeBase() public {
         //----------Test 1 setup----------------------//
         uint256 reserve0 = 131610640170334000000000000;
@@ -154,6 +217,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         console.logUint(priceWETHUSDC);
 
     }
+=======
+    //-----------------------------Helper Functions----------------------------
+>>>>>>> d7a43e5ce2a050a1ab879de2395715934738ed4b
 
     function swapEthForToken(uint256 amount, address _swapToken) internal {
         cheatCodes.deal(address(this), amount);
@@ -170,5 +236,37 @@ contract ConveyorLimitOrdersTest is DSTest {
             address(this),
             (2**256 - 1)
         );
+    }
+
+    function newOrder(
+        address token,
+        uint256 price,
+        uint256 quantity
+    ) internal pure returns (ConveyorLimitOrders.Order memory order) {
+        //Initialize mock order
+        order = ConveyorLimitOrders.Order({
+            token: token,
+            orderId: bytes32(0),
+            orderType: ConveyorLimitOrders.OrderType.SELL,
+            price: price,
+            quantity: quantity,
+            exists: true
+        });
+    }
+
+    function placeMockOrder(ConveyorLimitOrders.Order memory order)
+        internal
+        returns (bytes32 orderId)
+    {
+        //create a new array of orders
+        ConveyorLimitOrders.Order[]
+            memory orderGroup = new ConveyorLimitOrders.Order[](1);
+        //add the order to the arrOrder and add the arrOrder to the orderGroup
+        orderGroup[0] = order;
+
+        //place order
+        bytes32[] memory orderIds = conveyorLimitOrders.placeOrder(orderGroup);
+
+        orderId = orderIds[0];
     }
 }
