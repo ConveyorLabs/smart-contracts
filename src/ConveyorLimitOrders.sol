@@ -9,6 +9,7 @@ import "./test/utils/Console.sol";
 import "../lib/libraries/OracleLibrary.sol";
 import "../lib/interfaces/IUniswapV3Factory.sol";
 import "../lib/interfaces/IUniswapV3Pool.sol";
+
 contract ConveyorLimitOrders {
     //----------------------Modifiers------------------------------------//
 
@@ -85,11 +86,10 @@ contract ConveyorLimitOrders {
     /// @notice mapping from mapping(eoaAddress => mapping(token => OrderGroup)) to store the current Active orders in Conveyor state structure
     mapping(address => TokenToOrderGroup) ActiveOrders;
 
+    
     //----------------------Functions------------------------------------//
+   
 
-<<<<<<< HEAD
- 
-=======
     function getOrderById(
         address eoaAddress,
         address token,
@@ -98,7 +98,7 @@ contract ConveyorLimitOrders {
         order = ActiveOrders[eoaAddress].orderGroup[token].orders[orderId];
     }
 
->>>>>>> d7a43e5ce2a050a1ab879de2395715934738ed4b
+
     /// @notice Add user's order into the Active order's mapping conditionally if the oder passes all of the safety check criterion
     /// @param orderGroup := array of orders to be added to ActiveOrders mapping in OrderGroup struct
     /// @return orderIds
@@ -375,7 +375,7 @@ contract ConveyorLimitOrders {
             tick--;
         }
 
-        //token0SpotPrice = tick range spot over specified tick interval
+        //amountOut = tick range spot over specified tick interval
         amountOut = OracleLibrary.getQuoteAtTick(
             tick,
             amountIn,

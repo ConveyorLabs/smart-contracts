@@ -49,21 +49,15 @@ contract ConveyorLimitOrdersTest is DSTest {
     address _uniV2Address = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address _uniV2FactoryAddress = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
 
-<<<<<<< HEAD
-    //Link token
-=======
+
     //Chainlink ERC20 address
->>>>>>> d7a43e5ce2a050a1ab879de2395715934738ed4b
+
     address swapToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
 
     function setUp() public {
         
         conveyorLimitOrders = new ConveyorLimitOrders();
-<<<<<<< HEAD
-        
-=======
 
->>>>>>> d7a43e5ce2a050a1ab879de2395715934738ed4b
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         _uniV2Router = IUniswapV2Router02(_uniV2Address);
         _uniV2Factory = IUniswapV2Factory(_uniV2FactoryAddress);
@@ -73,31 +67,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     receive() external payable {}
 
     function testPlaceOrder() public {
-<<<<<<< HEAD
-        //Deal address(1337) MAX Eth
-        cheatCodes.deal(address(this), MAX_UINT);
-        console.logString("Balance: " );
-        
-        cheatCodes.prank(address(this));
-      
-       
-       
 
-        
-        
-       
-        
-
-     
-        
-
-        
-        
-
-        
-
-    }
-=======
         cheatCodes.deal(address(this), MAX_UINT);
 
         //swap 20 ether for the swap token
@@ -140,7 +110,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     function testCancelOrder() public {
         //swap 20 ether for the swap token
         swapEthForToken(20 ether, 0x514910771AF9Ca656af840dff83E8264EcF986CA);
->>>>>>> d7a43e5ce2a050a1ab879de2395715934738ed4b
+
 
         //create a new order
         ConveyorLimitOrders.Order memory order = newOrder(
@@ -159,7 +129,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     function testExecuteOrder() public {}
 
-<<<<<<< HEAD
+
     function testChangeBase() public {
         //----------Test 1 setup----------------------//
         uint256 reserve0 = 131610640170334000000000000;
@@ -217,9 +187,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         console.logUint(priceWETHUSDC);
 
     }
-=======
+
     //-----------------------------Helper Functions----------------------------
->>>>>>> d7a43e5ce2a050a1ab879de2395715934738ed4b
+
 
     function swapEthForToken(uint256 amount, address _swapToken) internal {
         cheatCodes.deal(address(this), amount);

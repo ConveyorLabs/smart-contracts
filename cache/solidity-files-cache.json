@@ -233,6 +233,78 @@
         }
       }
     },
+    "/Users/leyton/ConveyorLabs/limits-v0/lib/interfaces/IUniswapV3Pool.sol": {
+      "lastModificationDate": 1651908473939,
+      "contentHash": "cacb3db8b3409b6b9445b2d4cbe786f8",
+      "sourceName": "lib/interfaces/IUniswapV3Pool.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs"
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london"
+        }
+      },
+      "imports": [
+        "lib/interfaces/IUniswapV3PoolDerivedState.sol"
+      ],
+      "versionRequirement": ">=0.5.0",
+      "artifacts": {
+        "IUniswapV3Pool": {
+          "0.8.13+commit.abaa5c0e.Darwin.appleclang": "IUniswapV3Pool.sol/IUniswapV3Pool.json"
+        }
+      }
+    },
+    "/Users/leyton/ConveyorLabs/limits-v0/lib/interfaces/IUniswapV3PoolDerivedState.sol": {
+      "lastModificationDate": 1651908228667,
+      "contentHash": "738d533a1e5cb0d6714a6a42d4bce170",
+      "sourceName": "lib/interfaces/IUniswapV3PoolDerivedState.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs"
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london"
+        }
+      },
+      "imports": [],
+      "versionRequirement": ">=0.5.0",
+      "artifacts": {}
+    },
     "/Users/leyton/ConveyorLabs/limits-v0/lib/libraries/FullMath.sol": {
       "lastModificationDate": 1651878227792,
       "contentHash": "ae559085b99556f0d1e1e05150d66c3d",
@@ -348,8 +420,8 @@
       }
     },
     "/Users/leyton/ConveyorLabs/limits-v0/src/ConveyorLimitOrders.sol": {
-      "lastModificationDate": 1651880427316,
-      "contentHash": "81a4453646ce61f3e846421b61ebe289",
+      "lastModificationDate": 1651908433357,
+      "contentHash": "fb0b27faa5ed5e2c024e695b61dd9173",
       "sourceName": "src/ConveyorLimitOrders.sol",
       "solcConfig": {
         "settings": {
@@ -384,12 +456,7 @@
         "lib/interfaces/IUniswapV2Router02.sol",
         "lib/interfaces/IUniswapV3Factory.sol",
         "lib/interfaces/IUniswapV3Pool.sol",
-        "lib/interfaces/IUniswapV3PoolActions.sol",
         "lib/interfaces/IUniswapV3PoolDerivedState.sol",
-        "lib/interfaces/IUniswapV3PoolEvents.sol",
-        "lib/interfaces/IUniswapV3PoolImmutables.sol",
-        "lib/interfaces/IUniswapV3PoolOwnerActions.sol",
-        "lib/interfaces/IUniswapV3PoolState.sol",
         "lib/libraries/FullMath.sol",
         "lib/libraries/OracleLibrary.sol",
         "lib/libraries/TickMath.sol",
@@ -403,8 +470,8 @@
       }
     },
     "/Users/leyton/ConveyorLabs/limits-v0/src/test/ConveyorLimitOrders.t.sol": {
-      "lastModificationDate": 1651880299513,
-      "contentHash": "0977fdf7f28d3371e97b1637570eec26",
+      "lastModificationDate": 1651907425373,
+      "contentHash": "eb1d8b93f1059af298bf6020e06951fd",
       "sourceName": "src/test/ConveyorLimitOrders.t.sol",
       "solcConfig": {
         "settings": {
@@ -439,12 +506,7 @@
         "lib/interfaces/IUniswapV2Router02.sol",
         "lib/interfaces/IUniswapV3Factory.sol",
         "lib/interfaces/IUniswapV3Pool.sol",
-        "lib/interfaces/IUniswapV3PoolActions.sol",
         "lib/interfaces/IUniswapV3PoolDerivedState.sol",
-        "lib/interfaces/IUniswapV3PoolEvents.sol",
-        "lib/interfaces/IUniswapV3PoolImmutables.sol",
-        "lib/interfaces/IUniswapV3PoolOwnerActions.sol",
-        "lib/interfaces/IUniswapV3PoolState.sol",
         "lib/libraries/FullMath.sol",
         "lib/libraries/OracleLibrary.sol",
         "lib/libraries/TickMath.sol",
