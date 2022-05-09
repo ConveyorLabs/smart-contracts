@@ -8,10 +8,19 @@ import './Uniswap/OracleLibrary.sol';
 import "../interfaces/UniswapV2/IUniswapV2Pair.sol";
 import "../interfaces/UniswapV3/IUniswapV3Factory.sol";
 import "../interfaces/UniswapV3/IUniswapV3Pool.sol";
+import '../../src/ConveyorLimitOrders.sol';
+import "../interfaces/ERC20.sol";
+
 /// @title LPMath library
 /// @notice Provides functions to get price data across multiple dex's
 library LPMathLibrary {
-    
+
+    struct Dex {
+        address factoryAddress;
+        bytes32 initBytecode;
+        bool isUniV2;
+    }
+
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
@@ -93,8 +102,20 @@ library LPMathLibrary {
     /// @param _factoryAddressV2 address[] array of dex factory address's to target in mean spot price calculation
     /// @param _initBytecode bytes32[] initialization bytecodes for dex pair 
     /// @return meanSpotPrice uint112 mean spot price over all dex's specified in input parameters
-    function calculateMeanLPSpot (address token0, address token1, address[] calldata _factoryAddressV2, bytes32[] calldata _initBytecodesV2, address _uniV3Factory) internal pure returns (uint112 meanSpotPrice) {
-
+    function calculateMeanLPSpot (address token0, address token1, Dex[] calldata dexes) internal pure returns (uint112 meanSpotPrice) {
+        uint112 meanSpotPrice=0;
+        uint112 n = dexes.length;
+        uint8 tokenInTarget = getTargetDecimals(token0);
+        uint128 amountIn = 1**tokenInTarget;
+        uint24 FEE = 3000;
+        
+        for (uint256 i =0; i<dexes.length; ++i){
+            if(dexes[i].isUniV2){
+                meanSpotPrice += calculateV2PriceSingle(token0, token1, dexes[i].factory, dexes[i].initBytecode);
+            }else{
+                meanSpotPrice += calculateUniV3SpotPrice(token0, token1, amountIn, FEE, tickSecond, dexes[i].factory);
+            }
+        }
     }
 
     /// @notice Helper function to change the base decimal value of token0 & token1 to the same target decimal value
@@ -117,9 +138,9 @@ library LPMathLibrary {
 
     /// @notice Helper function to get target decimals of ERC20 token
     /// @param token address of token to get target decimals
-    /// @return uint8 target decimals of token
+    /// @return targetDecimals uint8 target decimals of token
     function getTargetDecimals (address token) internal pure returns (uint8 targetDecimals) {
-
+        return ERC20(token).decimals();
     }
 
    

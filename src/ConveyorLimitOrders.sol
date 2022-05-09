@@ -57,7 +57,7 @@ contract ConveyorLimitOrders {
     //----------------------Factory/Router Address's------------------------------------//
     /// @dev 0-Uniswap V2 Factory, 1-Uniswap V3 Factory
     address[] dexFactories = [0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,0x1F98431c8aD98523631AE4a59f267346ea31F984];
-    IUniswapV2Factory public v2Factory;
+   
 
     //----------------------Structs------------------------------------//
 
@@ -81,15 +81,28 @@ contract ConveyorLimitOrders {
         mapping(address => OrderGroup) orderGroup;
     }
 
+    /// @notice Struct to store important Dex specifications
+    struct Dex {
+        address factoryAddress;
+        bytes32 initBytecode;
+        bool isUniV2;
+    }
     //----------------------State Structures------------------------------------//
 
     /// @notice mapping from mapping(eoaAddress => mapping(token => OrderGroup)) to store the current Active orders in Conveyor state structure
     mapping(address => TokenToOrderGroup) ActiveOrders;
 
-    
+    /// @notice Array of dex structures to be used throughout the contract for pair spot price calculations
+    Dex[] public dexes;
+
+     //----------------------Constructor------------------------------------//
+
+     constructor(Dex[] memory _dexes) public {
+        dexes= _dexes;
+     }
+
     //----------------------Functions------------------------------------//
    
-
     function getOrderById(
         address eoaAddress,
         address token,
