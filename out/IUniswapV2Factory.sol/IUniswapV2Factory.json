@@ -175,7 +175,7 @@
     "linkReferences": {}
   },
   "ast": {
-    "absolutePath": "/Users/leyton/ConveyorLabs/limits-v0/lib/interfaces/IUniswapV2Factory.sol",
+    "absolutePath": "/Users/leyton/ConveyorLabs/limit-contract-master/limits-v0/lib/interfaces/IUniswapV2Factory.sol",
     "id": 141,
     "exportedSymbols": {
       "IUniswapV2Factory": [

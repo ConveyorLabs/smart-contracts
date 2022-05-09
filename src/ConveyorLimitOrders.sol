@@ -2,13 +2,13 @@
 pragma solidity >=0.8.13;
 
 import "../lib/interfaces/IERC20.sol";
-import "../lib/interfaces/IUniswapV2Router02.sol";
-import "../lib/interfaces/IUniswapV2Factory.sol";
-import "../lib/interfaces/IUniswapV2Pair.sol";
+import "../lib/interfaces/UniswapV2/IUniswapV2Router02.sol";
+import "../lib/interfaces/UniswapV2/IUniswapV2Factory.sol";
+import "../lib/interfaces/UniswapV2/IUniswapV2Pair.sol";
 import "./test/utils/Console.sol";
-import "../lib/libraries/OracleLibrary.sol";
-import "../lib/interfaces/IUniswapV3Factory.sol";
-import "../lib/interfaces/IUniswapV3Pool.sol";
+import "../lib/libraries/Uniswap/OracleLibrary.sol";
+import "../lib/interfaces/UniswapV3/IUniswapV3Factory.sol";
+import "../lib/interfaces/UniswapV3/IUniswapV3Pool.sol";
 
 contract ConveyorLimitOrders {
     //----------------------Modifiers------------------------------------//

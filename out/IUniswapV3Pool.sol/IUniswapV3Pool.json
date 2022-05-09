@@ -70,7 +70,7 @@
     "linkReferences": {}
   },
   "ast": {
-    "absolutePath": "/Users/leyton/ConveyorLabs/limits-v0/lib/interfaces/IUniswapV3Pool.sol",
+    "absolutePath": "/Users/leyton/ConveyorLabs/limit-contract-master/limits-v0/lib/interfaces/IUniswapV3Pool.sol",
     "id": 869,
     "exportedSymbols": {
       "IUniswapV3Pool": [
@@ -98,7 +98,7 @@
         "id": 864,
         "nodeType": "ImportDirective",
         "src": "72:42:6",
-        "absolutePath": "/Users/leyton/ConveyorLabs/limits-v0/lib/interfaces/IUniswapV3PoolDerivedState.sol",
+        "absolutePath": "/Users/leyton/ConveyorLabs/limit-contract-master/limits-v0/lib/interfaces/IUniswapV3PoolDerivedState.sol",
         "file": "./IUniswapV3PoolDerivedState.sol",
         "nameLocation": "-1:-1:-1",
         "scope": 869,
