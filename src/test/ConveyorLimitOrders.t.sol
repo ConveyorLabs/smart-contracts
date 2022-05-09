@@ -6,8 +6,8 @@ import "./utils/Console.sol";
 import "./utils/Utils.sol";
 
 import "../ConveyorLimitOrders.sol";
-import "../../lib/interfaces/IUniswapV2Router02.sol";
-import "../../lib/interfaces/IUniswapV2Factory.sol";
+import "../../lib/interfaces/UniswapV2/IUniswapV2Router02.sol";
+import "../../lib/interfaces/UniswapV2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/IERC20.sol";
 
 interface CheatCodes {

@@ -99,7 +99,7 @@
       ]
     },
     "nodeType": "SourceUnit",
-    "src": "39:7057:12",
+    "src": "39:7077:12",
     "nodes": [
       {
         "id": 2563,
@@ -163,9 +163,9 @@
       {
         "id": 2568,
         "nodeType": "ImportDirective",
-        "src": "189:53:12",
-        "absolutePath": "/Users/leyton/ConveyorLabs/limit-contract-master/limits-v0/lib/interfaces/IUniswapV2Router02.sol",
-        "file": "../../lib/interfaces/IUniswapV2Router02.sol",
+        "src": "189:63:12",
+        "absolutePath": "/Users/leyton/ConveyorLabs/limit-contract-master/limits-v0/lib/interfaces/UniswapV2/IUniswapV2Router02.sol",
+        "file": "../../lib/interfaces/UniswapV2/IUniswapV2Router02.sol",
         "nameLocation": "-1:-1:-1",
         "scope": 3075,
         "sourceUnit": 779,
@@ -175,9 +175,9 @@
       {
         "id": 2569,
         "nodeType": "ImportDirective",
-        "src": "243:52:12",
-        "absolutePath": "/Users/leyton/ConveyorLabs/limit-contract-master/limits-v0/lib/interfaces/IUniswapV2Factory.sol",
-        "file": "../../lib/interfaces/IUniswapV2Factory.sol",
+        "src": "253:62:12",
+        "absolutePath": "/Users/leyton/ConveyorLabs/limit-contract-master/limits-v0/lib/interfaces/UniswapV2/IUniswapV2Factory.sol",
+        "file": "../../lib/interfaces/UniswapV2/IUniswapV2Factory.sol",
         "nameLocation": "-1:-1:-1",
         "scope": 3075,
         "sourceUnit": 141,
@@ -187,7 +187,7 @@
       {
         "id": 2570,
         "nodeType": "ImportDirective",
-        "src": "296:41:12",
+        "src": "316:41:12",
         "absolutePath": "/Users/leyton/ConveyorLabs/limit-contract-master/limits-v0/lib/interfaces/IERC20.sol",
         "file": "../../lib/interfaces/IERC20.sol",
         "nameLocation": "-1:-1:-1",
@@ -199,18 +199,18 @@
       {
         "id": 2583,
         "nodeType": "ContractDefinition",
-        "src": "339:119:12",
+        "src": "359:119:12",
         "nodes": [
           {
             "id": 2575,
             "nodeType": "FunctionDefinition",
-            "src": "366:33:12",
+            "src": "386:33:12",
             "functionSelector": "ca669fa7",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "prank",
-            "nameLocation": "375:5:12",
+            "nameLocation": "395:5:12",
             "parameters": {
               "id": 2573,
               "nodeType": "ParameterList",
@@ -223,7 +223,7 @@
                   "nameLocation": "-1:-1:-1",
                   "nodeType": "VariableDeclaration",
                   "scope": 2575,
-                  "src": "381:7:12",
+                  "src": "401:7:12",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -234,7 +234,7 @@
                     "id": 2571,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
-                    "src": "381:7:12",
+                    "src": "401:7:12",
                     "stateMutability": "nonpayable",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
@@ -244,13 +244,13 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "380:9:12"
+              "src": "400:9:12"
             },
             "returnParameters": {
               "id": 2574,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "398:0:12"
+              "src": "418:0:12"
             },
             "scope": 2583,
             "stateMutability": "nonpayable",
@@ -260,13 +260,13 @@
           {
             "id": 2582,
             "nodeType": "FunctionDefinition",
-            "src": "404:52:12",
+            "src": "424:52:12",
             "functionSelector": "c88a5e6d",
             "implemented": false,
             "kind": "function",
             "modifiers": [],
             "name": "deal",
-            "nameLocation": "413:4:12",
+            "nameLocation": "433:4:12",
             "parameters": {
               "id": 2580,
               "nodeType": "ParameterList",
@@ -276,10 +276,10 @@
                   "id": 2577,
                   "mutability": "mutable",
                   "name": "who",
-                  "nameLocation": "426:3:12",
+                  "nameLocation": "446:3:12",
                   "nodeType": "VariableDeclaration",
                   "scope": 2582,
-                  "src": "418:11:12",
+                  "src": "438:11:12",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -290,7 +290,7 @@
                     "id": 2576,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
-                    "src": "418:7:12",
+                    "src": "438:7:12",
                     "stateMutability": "nonpayable",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
@@ -304,10 +304,10 @@
                   "id": 2579,
                   "mutability": "mutable",
                   "name": "amount",
-                  "nameLocation": "439:6:12",
+                  "nameLocation": "459:6:12",
                   "nodeType": "VariableDeclaration",
                   "scope": 2582,
-                  "src": "431:14:12",
+                  "src": "451:14:12",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -318,7 +318,7 @@
                     "id": 2578,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
-                    "src": "431:7:12",
+                    "src": "451:7:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -327,13 +327,13 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "417:29:12"
+              "src": "437:29:12"
             },
             "returnParameters": {
               "id": 2581,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "455:0:12"
+              "src": "475:0:12"
             },
             "scope": 2583,
             "stateMutability": "nonpayable",
@@ -351,19 +351,19 @@
           2583
         ],
         "name": "CheatCodes",
-        "nameLocation": "349:10:12",
+        "nameLocation": "369:10:12",
         "scope": 3075,
         "usedErrors": []
       },
       {
         "id": 3074,
         "nodeType": "ContractDefinition",
-        "src": "460:6635:12",
+        "src": "480:6635:12",
         "nodes": [
           {
             "id": 2599,
             "nodeType": "StructDefinition",
-            "src": "509:167:12",
+            "src": "529:167:12",
             "canonicalName": "ConveyorLimitOrdersTest.Order",
             "members": [
               {
@@ -371,10 +371,10 @@
                 "id": 2587,
                 "mutability": "mutable",
                 "name": "token",
-                "nameLocation": "540:5:12",
+                "nameLocation": "560:5:12",
                 "nodeType": "VariableDeclaration",
                 "scope": 2599,
-                "src": "532:13:12",
+                "src": "552:13:12",
                 "stateVariable": false,
                 "storageLocation": "default",
                 "typeDescriptions": {
@@ -385,7 +385,7 @@
                   "id": 2586,
                   "name": "address",
                   "nodeType": "ElementaryTypeName",
-                  "src": "532:7:12",
+                  "src": "552:7:12",
                   "stateMutability": "nonpayable",
                   "typeDescriptions": {
                     "typeIdentifier": "t_address",
@@ -399,10 +399,10 @@
                 "id": 2589,
                 "mutability": "mutable",
                 "name": "orderId",
-                "nameLocation": "563:7:12",
+                "nameLocation": "583:7:12",
                 "nodeType": "VariableDeclaration",
                 "scope": 2599,
-                "src": "555:15:12",
+                "src": "575:15:12",
                 "stateVariable": false,
                 "storageLocation": "default",
                 "typeDescriptions": {
@@ -413,7 +413,7 @@
                   "id": 2588,
                   "name": "bytes32",
                   "nodeType": "ElementaryTypeName",
-                  "src": "555:7:12",
+                  "src": "575:7:12",
                   "typeDescriptions": {
                     "typeIdentifier": "t_bytes32",
                     "typeString": "bytes32"
@@ -426,10 +426,10 @@
                 "id": 2592,
                 "mutability": "mutable",
                 "name": "orderType",
-                "nameLocation": "590:9:12",
+                "nameLocation": "610:9:12",
                 "nodeType": "VariableDeclaration",
                 "scope": 2599,
-                "src": "580:19:12",
+                "src": "600:19:12",
                 "stateVariable": false,
                 "storageLocation": "default",
                 "typeDescriptions": {
@@ -444,10 +444,10 @@
                     "name": "OrderType",
                     "nodeType": "IdentifierPath",
                     "referencedDeclaration": 2604,
-                    "src": "580:9:12"
+                    "src": "600:9:12"
                   },
                   "referencedDeclaration": 2604,
-                  "src": "580:9:12",
+                  "src": "600:9:12",
                   "typeDescriptions": {
                     "typeIdentifier": "t_enum$_OrderType_$2604",
                     "typeString": "enum ConveyorLimitOrdersTest.OrderType"
@@ -460,10 +460,10 @@
                 "id": 2594,
                 "mutability": "mutable",
                 "name": "price",
-                "nameLocation": "617:5:12",
+                "nameLocation": "637:5:12",
                 "nodeType": "VariableDeclaration",
                 "scope": 2599,
-                "src": "609:13:12",
+                "src": "629:13:12",
                 "stateVariable": false,
                 "storageLocation": "default",
                 "typeDescriptions": {
@@ -474,7 +474,7 @@
                   "id": 2593,
                   "name": "uint256",
                   "nodeType": "ElementaryTypeName",
-                  "src": "609:7:12",
+                  "src": "629:7:12",
                   "typeDescriptions": {
                     "typeIdentifier": "t_uint256",
                     "typeString": "uint256"
@@ -487,10 +487,10 @@
                 "id": 2596,
                 "mutability": "mutable",
                 "name": "quantity",
-                "nameLocation": "640:8:12",
+                "nameLocation": "660:8:12",
                 "nodeType": "VariableDeclaration",
                 "scope": 2599,
-                "src": "632:16:12",
+                "src": "652:16:12",
                 "stateVariable": false,
                 "storageLocation": "default",
                 "typeDescriptions": {
@@ -501,7 +501,7 @@
                   "id": 2595,
                   "name": "uint256",
                   "nodeType": "ElementaryTypeName",
-                  "src": "632:7:12",
+                  "src": "652:7:12",
                   "typeDescriptions": {
                     "typeIdentifier": "t_uint256",
                     "typeString": "uint256"
@@ -514,10 +514,10 @@
                 "id": 2598,
                 "mutability": "mutable",
                 "name": "exists",
-                "nameLocation": "663:6:12",
+                "nameLocation": "683:6:12",
                 "nodeType": "VariableDeclaration",
                 "scope": 2599,
-                "src": "658:11:12",
+                "src": "678:11:12",
                 "stateVariable": false,
                 "storageLocation": "default",
                 "typeDescriptions": {
@@ -528,7 +528,7 @@
                   "id": 2597,
                   "name": "bool",
                   "nodeType": "ElementaryTypeName",
-                  "src": "658:4:12",
+                  "src": "678:4:12",
                   "typeDescriptions": {
                     "typeIdentifier": "t_bool",
                     "typeString": "bool"
@@ -538,56 +538,56 @@
               }
             ],
             "name": "Order",
-            "nameLocation": "516:5:12",
+            "nameLocation": "536:5:12",
             "scope": 3074,
             "visibility": "public"
           },
           {
             "id": 2604,
             "nodeType": "EnumDefinition",
-            "src": "685:83:12",
+            "src": "705:83:12",
             "canonicalName": "ConveyorLimitOrdersTest.OrderType",
             "members": [
               {
                 "id": 2600,
                 "name": "BUY",
-                "nameLocation": "710:3:12",
+                "nameLocation": "730:3:12",
                 "nodeType": "EnumValue",
-                "src": "710:3:12"
+                "src": "730:3:12"
               },
               {
                 "id": 2601,
                 "name": "SELL",
-                "nameLocation": "723:4:12",
+                "nameLocation": "743:4:12",
                 "nodeType": "EnumValue",
-                "src": "723:4:12"
+                "src": "743:4:12"
               },
               {
                 "id": 2602,
                 "name": "STOP",
-                "nameLocation": "737:4:12",
+                "nameLocation": "757:4:12",
                 "nodeType": "EnumValue",
-                "src": "737:4:12"
+                "src": "757:4:12"
               },
               {
                 "id": 2603,
                 "name": "TAKE_PROFIT",
-                "nameLocation": "751:11:12",
+                "nameLocation": "771:11:12",
                 "nodeType": "EnumValue",
-                "src": "751:11:12"
+                "src": "771:11:12"
               }
             ],
             "name": "OrderType",
-            "nameLocation": "690:9:12"
+            "nameLocation": "710:9:12"
           },
           {
             "id": 2607,
             "nodeType": "VariableDeclaration",
-            "src": "821:39:12",
+            "src": "841:39:12",
             "constant": false,
             "mutability": "mutable",
             "name": "conveyorLimitOrders",
-            "nameLocation": "841:19:12",
+            "nameLocation": "861:19:12",
             "scope": 3074,
             "stateVariable": true,
             "storageLocation": "default",
@@ -603,10 +603,10 @@
                 "name": "ConveyorLimitOrders",
                 "nodeType": "IdentifierPath",
                 "referencedDeclaration": 2561,
-                "src": "821:19:12"
+                "src": "841:19:12"
               },
               "referencedDeclaration": 2561,
-              "src": "821:19:12",
+              "src": "841:19:12",
               "typeDescriptions": {
                 "typeIdentifier": "t_contract$_ConveyorLimitOrders_$2561",
                 "typeString": "contract ConveyorLimitOrders"
@@ -617,11 +617,11 @@
           {
             "id": 2610,
             "nodeType": "VariableDeclaration",
-            "src": "895:21:12",
+            "src": "915:21:12",
             "constant": false,
             "mutability": "mutable",
             "name": "cheatCodes",
-            "nameLocation": "906:10:12",
+            "nameLocation": "926:10:12",
             "scope": 3074,
             "stateVariable": true,
             "storageLocation": "default",
@@ -637,10 +637,10 @@
                 "name": "CheatCodes",
                 "nodeType": "IdentifierPath",
                 "referencedDeclaration": 2583,
-                "src": "895:10:12"
+                "src": "915:10:12"
               },
               "referencedDeclaration": 2583,
-              "src": "895:10:12",
+              "src": "915:10:12",
               "typeDescriptions": {
                 "typeIdentifier": "t_contract$_CheatCodes_$2583",
                 "typeString": "contract CheatCodes"
@@ -651,11 +651,11 @@
           {
             "id": 2613,
             "nodeType": "VariableDeclaration",
-            "src": "922:31:12",
+            "src": "942:31:12",
             "constant": false,
             "mutability": "mutable",
             "name": "_uniV2Router",
-            "nameLocation": "941:12:12",
+            "nameLocation": "961:12:12",
             "scope": 3074,
             "stateVariable": true,
             "storageLocation": "default",
@@ -671,10 +671,10 @@
                 "name": "IUniswapV2Router02",
                 "nodeType": "IdentifierPath",
                 "referencedDeclaration": 778,
-                "src": "922:18:12"
+                "src": "942:18:12"
               },
               "referencedDeclaration": 778,
-              "src": "922:18:12",
+              "src": "942:18:12",
               "typeDescriptions": {
                 "typeIdentifier": "t_contract$_IUniswapV2Router02_$778",
                 "typeString": "contract IUniswapV2Router02"
@@ -685,11 +685,11 @@
           {
             "id": 2616,
             "nodeType": "VariableDeclaration",
-            "src": "959:31:12",
+            "src": "979:31:12",
             "constant": false,
             "mutability": "mutable",
             "name": "_uniV2Factory",
-            "nameLocation": "977:13:12",
+            "nameLocation": "997:13:12",
             "scope": 3074,
             "stateVariable": true,
             "storageLocation": "default",
@@ -705,10 +705,10 @@
                 "name": "IUniswapV2Factory",
                 "nodeType": "IdentifierPath",
                 "referencedDeclaration": 140,
-                "src": "959:17:12"
+                "src": "979:17:12"
               },
               "referencedDeclaration": 140,
-              "src": "959:17:12",
+              "src": "979:17:12",
               "typeDescriptions": {
                 "typeIdentifier": "t_contract$_IUniswapV2Factory_$140",
                 "typeString": "contract IUniswapV2Factory"
@@ -719,11 +719,11 @@
           {
             "id": 2619,
             "nodeType": "VariableDeclaration",
-            "src": "1024:114:12",
+            "src": "1044:114:12",
             "constant": true,
             "mutability": "constant",
             "name": "MAX_UINT",
-            "nameLocation": "1041:8:12",
+            "nameLocation": "1061:8:12",
             "scope": 3074,
             "stateVariable": true,
             "storageLocation": "default",
@@ -735,7 +735,7 @@
               "id": 2617,
               "name": "uint256",
               "nodeType": "ElementaryTypeName",
-              "src": "1024:7:12",
+              "src": "1044:7:12",
               "typeDescriptions": {
                 "typeIdentifier": "t_uint256",
                 "typeString": "uint256"
@@ -750,7 +750,7 @@
               "kind": "number",
               "lValueRequested": false,
               "nodeType": "Literal",
-              "src": "1060:78:12",
+              "src": "1080:78:12",
               "typeDescriptions": {
                 "typeIdentifier": "t_rational_115792089237316195423570985008687907853269984665640564039457584007913129639935_by_1",
                 "typeString": "int_const 1157...(70 digits omitted)...9935"
@@ -762,11 +762,11 @@
           {
             "id": 2622,
             "nodeType": "VariableDeclaration",
-            "src": "1177:66:12",
+            "src": "1197:66:12",
             "constant": false,
             "mutability": "mutable",
             "name": "_wnatoAddress",
-            "nameLocation": "1185:13:12",
+            "nameLocation": "1205:13:12",
             "scope": 3074,
             "stateVariable": true,
             "storageLocation": "default",
@@ -778,7 +778,7 @@
               "id": 2620,
               "name": "address",
               "nodeType": "ElementaryTypeName",
-              "src": "1177:7:12",
+              "src": "1197:7:12",
               "stateMutability": "nonpayable",
               "typeDescriptions": {
                 "typeIdentifier": "t_address",
@@ -794,7 +794,7 @@
               "kind": "number",
               "lValueRequested": false,
               "nodeType": "Literal",
-              "src": "1201:42:12",
+              "src": "1221:42:12",
               "typeDescriptions": {
                 "typeIdentifier": "t_address",
                 "typeString": "address"
@@ -806,11 +806,11 @@
           {
             "id": 2625,
             "nodeType": "VariableDeclaration",
-            "src": "1285:66:12",
+            "src": "1305:66:12",
             "constant": false,
             "mutability": "mutable",
             "name": "_uniV2Address",
-            "nameLocation": "1293:13:12",
+            "nameLocation": "1313:13:12",
             "scope": 3074,
             "stateVariable": true,
             "storageLocation": "default",
@@ -822,7 +822,7 @@
               "id": 2623,
               "name": "address",
               "nodeType": "ElementaryTypeName",
-              "src": "1285:7:12",
+              "src": "1305:7:12",
               "stateMutability": "nonpayable",
               "typeDescriptions": {
                 "typeIdentifier": "t_address",
@@ -838,7 +838,7 @@
               "kind": "number",
               "lValueRequested": false,
               "nodeType": "Literal",
-              "src": "1309:42:12",
+              "src": "1329:42:12",
               "typeDescriptions": {
                 "typeIdentifier": "t_address",
                 "typeString": "address"
@@ -850,11 +850,11 @@
           {
             "id": 2628,
             "nodeType": "VariableDeclaration",
-            "src": "1357:73:12",
+            "src": "1377:73:12",
             "constant": false,
             "mutability": "mutable",
             "name": "_uniV2FactoryAddress",
-            "nameLocation": "1365:20:12",
+            "nameLocation": "1385:20:12",
             "scope": 3074,
             "stateVariable": true,
             "storageLocation": "default",
@@ -866,7 +866,7 @@
               "id": 2626,
               "name": "address",
               "nodeType": "ElementaryTypeName",
-              "src": "1357:7:12",
+              "src": "1377:7:12",
               "stateMutability": "nonpayable",
               "typeDescriptions": {
                 "typeIdentifier": "t_address",
@@ -882,7 +882,7 @@
               "kind": "number",
               "lValueRequested": false,
               "nodeType": "Literal",
-              "src": "1388:42:12",
+              "src": "1408:42:12",
               "typeDescriptions": {
                 "typeIdentifier": "t_address",
                 "typeString": "address"
@@ -894,11 +894,11 @@
           {
             "id": 2631,
             "nodeType": "VariableDeclaration",
-            "src": "1469:62:12",
+            "src": "1489:62:12",
             "constant": false,
             "mutability": "mutable",
             "name": "swapToken",
-            "nameLocation": "1477:9:12",
+            "nameLocation": "1497:9:12",
             "scope": 3074,
             "stateVariable": true,
             "storageLocation": "default",
@@ -910,7 +910,7 @@
               "id": 2629,
               "name": "address",
               "nodeType": "ElementaryTypeName",
-              "src": "1469:7:12",
+              "src": "1489:7:12",
               "stateMutability": "nonpayable",
               "typeDescriptions": {
                 "typeIdentifier": "t_address",
@@ -926,7 +926,7 @@
               "kind": "number",
               "lValueRequested": false,
               "nodeType": "Literal",
-              "src": "1489:42:12",
+              "src": "1509:42:12",
               "typeDescriptions": {
                 "typeIdentifier": "t_address",
                 "typeString": "address"
@@ -938,11 +938,11 @@
           {
             "id": 2660,
             "nodeType": "FunctionDefinition",
-            "src": "1538:277:12",
+            "src": "1558:277:12",
             "body": {
               "id": 2659,
               "nodeType": "Block",
-              "src": "1562:253:12",
+              "src": "1582:253:12",
               "statements": [
                 {
                   "expression": {
@@ -957,7 +957,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 2607,
-                      "src": "1581:19:12",
+                      "src": "1601:19:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_contract$_ConveyorLimitOrders_$2561",
                         "typeString": "contract ConveyorLimitOrders"
@@ -975,7 +975,7 @@
                         "isPure": false,
                         "lValueRequested": false,
                         "nodeType": "NewExpression",
-                        "src": "1603:23:12",
+                        "src": "1623:23:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_function_creation_nonpayable$__$returns$_t_contract$_ConveyorLimitOrders_$2561_$",
                           "typeString": "function () returns (contract ConveyorLimitOrders)"
@@ -988,10 +988,10 @@
                             "name": "ConveyorLimitOrders",
                             "nodeType": "IdentifierPath",
                             "referencedDeclaration": 2561,
-                            "src": "1607:19:12"
+                            "src": "1627:19:12"
                           },
                           "referencedDeclaration": 2561,
-                          "src": "1607:19:12",
+                          "src": "1627:19:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_contract$_ConveyorLimitOrders_$2561",
                             "typeString": "contract ConveyorLimitOrders"
@@ -1006,14 +1006,14 @@
                       "lValueRequested": false,
                       "names": [],
                       "nodeType": "FunctionCall",
-                      "src": "1603:25:12",
+                      "src": "1623:25:12",
                       "tryCall": false,
                       "typeDescriptions": {
                         "typeIdentifier": "t_contract$_ConveyorLimitOrders_$2561",
                         "typeString": "contract ConveyorLimitOrders"
                       }
                     },
-                    "src": "1581:47:12",
+                    "src": "1601:47:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_contract$_ConveyorLimitOrders_$2561",
                       "typeString": "contract ConveyorLimitOrders"
@@ -1021,7 +1021,7 @@
                   },
                   "id": 2640,
                   "nodeType": "ExpressionStatement",
-                  "src": "1581:47:12"
+                  "src": "1601:47:12"
                 },
                 {
                   "expression": {
@@ -1036,7 +1036,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 2610,
-                      "src": "1639:10:12",
+                      "src": "1659:10:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_contract$_CheatCodes_$2583",
                         "typeString": "contract CheatCodes"
@@ -1052,7 +1052,7 @@
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
                           "referencedDeclaration": 11729,
-                          "src": "1663:12:12",
+                          "src": "1683:12:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_address",
                             "typeString": "address"
@@ -1071,7 +1071,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2583,
-                        "src": "1652:10:12",
+                        "src": "1672:10:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_type$_t_contract$_CheatCodes_$2583_$",
                           "typeString": "type(contract CheatCodes)"
@@ -1085,14 +1085,14 @@
                       "lValueRequested": false,
                       "names": [],
                       "nodeType": "FunctionCall",
-                      "src": "1652:24:12",
+                      "src": "1672:24:12",
                       "tryCall": false,
                       "typeDescriptions": {
                         "typeIdentifier": "t_contract$_CheatCodes_$2583",
                         "typeString": "contract CheatCodes"
                       }
                     },
-                    "src": "1639:37:12",
+                    "src": "1659:37:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_contract$_CheatCodes_$2583",
                       "typeString": "contract CheatCodes"
@@ -1100,7 +1100,7 @@
                   },
                   "id": 2646,
                   "nodeType": "ExpressionStatement",
-                  "src": "1639:37:12"
+                  "src": "1659:37:12"
                 },
                 {
                   "expression": {
@@ -1115,7 +1115,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 2613,
-                      "src": "1686:12:12",
+                      "src": "1706:12:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_contract$_IUniswapV2Router02_$778",
                         "typeString": "contract IUniswapV2Router02"
@@ -1131,7 +1131,7 @@
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
                           "referencedDeclaration": 2625,
-                          "src": "1720:13:12",
+                          "src": "1740:13:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_address",
                             "typeString": "address"
@@ -1150,7 +1150,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 778,
-                        "src": "1701:18:12",
+                        "src": "1721:18:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_type$_t_contract$_IUniswapV2Router02_$778_$",
                           "typeString": "type(contract IUniswapV2Router02)"
@@ -1164,14 +1164,14 @@
                       "lValueRequested": false,
                       "names": [],
                       "nodeType": "FunctionCall",
-                      "src": "1701:33:12",
+                      "src": "1721:33:12",
                       "tryCall": false,
                       "typeDescriptions": {
                         "typeIdentifier": "t_contract$_IUniswapV2Router02_$778",
                         "typeString": "contract IUniswapV2Router02"
                       }
                     },
-                    "src": "1686:48:12",
+                    "src": "1706:48:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_contract$_IUniswapV2Router02_$778",
                       "typeString": "contract IUniswapV2Router02"
@@ -1179,7 +1179,7 @@
                   },
                   "id": 2652,
                   "nodeType": "ExpressionStatement",
-                  "src": "1686:48:12"
+                  "src": "1706:48:12"
                 },
                 {
                   "expression": {
@@ -1194,7 +1194,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 2616,
-                      "src": "1744:13:12",
+                      "src": "1764:13:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_contract$_IUniswapV2Factory_$140",
                         "typeString": "contract IUniswapV2Factory"
@@ -1210,7 +1210,7 @@
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
                           "referencedDeclaration": 2628,
-                          "src": "1778:20:12",
+                          "src": "1798:20:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_address",
                             "typeString": "address"
@@ -1229,7 +1229,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 140,
-                        "src": "1760:17:12",
+                        "src": "1780:17:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_type$_t_contract$_IUniswapV2Factory_$140_$",
                           "typeString": "type(contract IUniswapV2Factory)"
@@ -1243,14 +1243,14 @@
                       "lValueRequested": false,
                       "names": [],
                       "nodeType": "FunctionCall",
-                      "src": "1760:39:12",
+                      "src": "1780:39:12",
                       "tryCall": false,
                       "typeDescriptions": {
                         "typeIdentifier": "t_contract$_IUniswapV2Factory_$140",
                         "typeString": "contract IUniswapV2Factory"
                       }
                     },
-                    "src": "1744:55:12",
+                    "src": "1764:55:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_contract$_IUniswapV2Factory_$140",
                       "typeString": "contract IUniswapV2Factory"
@@ -1258,7 +1258,7 @@
                   },
                   "id": 2658,
                   "nodeType": "ExpressionStatement",
-                  "src": "1744:55:12"
+                  "src": "1764:55:12"
                 }
               ]
             },
@@ -1267,18 +1267,18 @@
             "kind": "function",
             "modifiers": [],
             "name": "setUp",
-            "nameLocation": "1547:5:12",
+            "nameLocation": "1567:5:12",
             "parameters": {
               "id": 2632,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "1552:2:12"
+              "src": "1572:2:12"
             },
             "returnParameters": {
               "id": 2633,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "1562:0:12"
+              "src": "1582:0:12"
             },
             "scope": 3074,
             "stateMutability": "nonpayable",
@@ -1288,11 +1288,11 @@
           {
             "id": 2664,
             "nodeType": "FunctionDefinition",
-            "src": "1821:29:12",
+            "src": "1841:29:12",
             "body": {
               "id": 2663,
               "nodeType": "Block",
-              "src": "1848:2:12",
+              "src": "1868:2:12",
               "statements": []
             },
             "implemented": true,
@@ -1304,13 +1304,13 @@
               "id": 2661,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "1828:2:12"
+              "src": "1848:2:12"
             },
             "returnParameters": {
               "id": 2662,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "1848:0:12"
+              "src": "1868:0:12"
             },
             "scope": 3074,
             "stateMutability": "payable",
@@ -1320,11 +1320,11 @@
           {
             "id": 2698,
             "nodeType": "FunctionDefinition",
-            "src": "1856:356:12",
+            "src": "1876:356:12",
             "body": {
               "id": 2697,
               "nodeType": "Block",
-              "src": "1889:323:12",
+              "src": "1909:323:12",
               "statements": [
                 {
                   "expression": {
@@ -1337,7 +1337,7 @@
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
                             "referencedDeclaration": -28,
-                            "src": "1924:4:12",
+                            "src": "1944:4:12",
                             "typeDescriptions": {
                               "typeIdentifier": "t_contract$_ConveyorLimitOrdersTest_$3074",
                               "typeString": "contract ConveyorLimitOrdersTest"
@@ -1357,7 +1357,7 @@
                           "isPure": true,
                           "lValueRequested": false,
                           "nodeType": "ElementaryTypeNameExpression",
-                          "src": "1916:7:12",
+                          "src": "1936:7:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_type$_t_address_$",
                             "typeString": "type(address)"
@@ -1366,7 +1366,7 @@
                             "id": 2670,
                             "name": "address",
                             "nodeType": "ElementaryTypeName",
-                            "src": "1916:7:12",
+                            "src": "1936:7:12",
                             "typeDescriptions": {}
                           }
                         },
@@ -1378,7 +1378,7 @@
                         "lValueRequested": false,
                         "names": [],
                         "nodeType": "FunctionCall",
-                        "src": "1916:13:12",
+                        "src": "1936:13:12",
                         "tryCall": false,
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
@@ -1391,7 +1391,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2619,
-                        "src": "1931:8:12",
+                        "src": "1951:8:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -1415,7 +1415,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2610,
-                        "src": "1900:10:12",
+                        "src": "1920:10:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_contract$_CheatCodes_$2583",
                           "typeString": "contract CheatCodes"
@@ -1429,7 +1429,7 @@
                       "memberName": "deal",
                       "nodeType": "MemberAccess",
                       "referencedDeclaration": 2582,
-                      "src": "1900:15:12",
+                      "src": "1920:15:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_nonpayable$_t_address_$_t_uint256_$returns$__$",
                         "typeString": "function (address,uint256) external"
@@ -1443,7 +1443,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "1900:40:12",
+                    "src": "1920:40:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
@@ -1452,7 +1452,7 @@
                   },
                   "id": 2676,
                   "nodeType": "ExpressionStatement",
-                  "src": "1900:40:12"
+                  "src": "1920:40:12"
                 },
                 {
                   "expression": {
@@ -1466,7 +1466,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "2010:8:12",
+                        "src": "2030:8:12",
                         "subdenomination": "ether",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_20000000000000000000_by_1",
@@ -1480,7 +1480,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2631,
-                        "src": "2020:9:12",
+                        "src": "2040:9:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
                           "typeString": "address"
@@ -1503,7 +1503,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 2999,
-                      "src": "1994:15:12",
+                      "src": "2014:15:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_nonpayable$_t_uint256_$_t_address_$returns$__$",
                         "typeString": "function (uint256,address)"
@@ -1517,7 +1517,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "1994:36:12",
+                    "src": "2014:36:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
@@ -1526,7 +1526,7 @@
                   },
                   "id": 2681,
                   "nodeType": "ExpressionStatement",
-                  "src": "1994:36:12"
+                  "src": "2014:36:12"
                 },
                 {
                   "assignments": [
@@ -1538,10 +1538,10 @@
                       "id": 2686,
                       "mutability": "mutable",
                       "name": "order",
-                      "nameLocation": "2074:5:12",
+                      "nameLocation": "2094:5:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2697,
-                      "src": "2041:38:12",
+                      "src": "2061:38:12",
                       "stateVariable": false,
                       "storageLocation": "memory",
                       "typeDescriptions": {
@@ -1556,10 +1556,10 @@
                           "name": "ConveyorLimitOrders.Order",
                           "nodeType": "IdentifierPath",
                           "referencedDeclaration": 1801,
-                          "src": "2041:25:12"
+                          "src": "2061:25:12"
                         },
                         "referencedDeclaration": 1801,
-                        "src": "2041:25:12",
+                        "src": "2061:25:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_struct$_Order_$1801_storage_ptr",
                           "typeString": "struct ConveyorLimitOrders.Order"
@@ -1577,7 +1577,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2631,
-                        "src": "2104:9:12",
+                        "src": "2124:9:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
                           "typeString": "address"
@@ -1592,7 +1592,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "2127:21:12",
+                        "src": "2147:21:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_245000000000000000000_by_1",
                           "typeString": "int_const 245000000000000000000"
@@ -1608,7 +1608,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "2162:1:12",
+                        "src": "2182:1:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_5_by_1",
                           "typeString": "int_const 5"
@@ -1636,7 +1636,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 3029,
-                      "src": "2082:8:12",
+                      "src": "2102:8:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_pure$_t_address_$_t_uint256_$_t_uint256_$returns$_t_struct$_Order_$1801_memory_ptr_$",
                         "typeString": "function (address,uint256,uint256) pure returns (struct ConveyorLimitOrders.Order memory)"
@@ -1650,7 +1650,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "2082:91:12",
+                    "src": "2102:91:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_struct$_Order_$1801_memory_ptr",
@@ -1658,7 +1658,7 @@
                     }
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "2041:132:12"
+                  "src": "2061:132:12"
                 },
                 {
                   "expression": {
@@ -1669,7 +1669,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2686,
-                        "src": "2199:5:12",
+                        "src": "2219:5:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_struct$_Order_$1801_memory_ptr",
                           "typeString": "struct ConveyorLimitOrders.Order memory"
@@ -1688,7 +1688,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 3073,
-                      "src": "2184:14:12",
+                      "src": "2204:14:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_nonpayable$_t_struct$_Order_$1801_memory_ptr_$returns$_t_bytes32_$",
                         "typeString": "function (struct ConveyorLimitOrders.Order memory) returns (bytes32)"
@@ -1702,7 +1702,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "2184:21:12",
+                    "src": "2204:21:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_bytes32",
@@ -1711,7 +1711,7 @@
                   },
                   "id": 2696,
                   "nodeType": "ExpressionStatement",
-                  "src": "2184:21:12"
+                  "src": "2204:21:12"
                 }
               ]
             },
@@ -1720,18 +1720,18 @@
             "kind": "function",
             "modifiers": [],
             "name": "testPlaceOrder",
-            "nameLocation": "1865:14:12",
+            "nameLocation": "1885:14:12",
             "parameters": {
               "id": 2665,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "1879:2:12"
+              "src": "1899:2:12"
             },
             "returnParameters": {
               "id": 2666,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "1889:0:12"
+              "src": "1909:0:12"
             },
             "scope": 3074,
             "stateMutability": "nonpayable",
@@ -1741,11 +1741,11 @@
           {
             "id": 2747,
             "nodeType": "FunctionDefinition",
-            "src": "2218:715:12",
+            "src": "2238:715:12",
             "body": {
               "id": 2746,
               "nodeType": "Block",
-              "src": "2252:681:12",
+              "src": "2272:681:12",
               "statements": [
                 {
                   "expression": {
@@ -1759,7 +1759,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "2321:8:12",
+                        "src": "2341:8:12",
                         "subdenomination": "ether",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_20000000000000000000_by_1",
@@ -1773,7 +1773,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2631,
-                        "src": "2331:9:12",
+                        "src": "2351:9:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
                           "typeString": "address"
@@ -1796,7 +1796,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 2999,
-                      "src": "2305:15:12",
+                      "src": "2325:15:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_nonpayable$_t_uint256_$_t_address_$returns$__$",
                         "typeString": "function (uint256,address)"
@@ -1810,7 +1810,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "2305:36:12",
+                    "src": "2325:36:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
@@ -1819,7 +1819,7 @@
                   },
                   "id": 2705,
                   "nodeType": "ExpressionStatement",
-                  "src": "2305:36:12"
+                  "src": "2325:36:12"
                 },
                 {
                   "assignments": [
@@ -1831,10 +1831,10 @@
                       "id": 2710,
                       "mutability": "mutable",
                       "name": "order",
-                      "nameLocation": "2414:5:12",
+                      "nameLocation": "2434:5:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2746,
-                      "src": "2381:38:12",
+                      "src": "2401:38:12",
                       "stateVariable": false,
                       "storageLocation": "memory",
                       "typeDescriptions": {
@@ -1849,10 +1849,10 @@
                           "name": "ConveyorLimitOrders.Order",
                           "nodeType": "IdentifierPath",
                           "referencedDeclaration": 1801,
-                          "src": "2381:25:12"
+                          "src": "2401:25:12"
                         },
                         "referencedDeclaration": 1801,
-                        "src": "2381:25:12",
+                        "src": "2401:25:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_struct$_Order_$1801_storage_ptr",
                           "typeString": "struct ConveyorLimitOrders.Order"
@@ -1870,7 +1870,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2631,
-                        "src": "2444:9:12",
+                        "src": "2464:9:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
                           "typeString": "address"
@@ -1885,7 +1885,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "2467:21:12",
+                        "src": "2487:21:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_245000000000000000000_by_1",
                           "typeString": "int_const 245000000000000000000"
@@ -1901,7 +1901,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "2502:1:12",
+                        "src": "2522:1:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_5_by_1",
                           "typeString": "int_const 5"
@@ -1929,7 +1929,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 3029,
-                      "src": "2422:8:12",
+                      "src": "2442:8:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_pure$_t_address_$_t_uint256_$_t_uint256_$returns$_t_struct$_Order_$1801_memory_ptr_$",
                         "typeString": "function (address,uint256,uint256) pure returns (struct ConveyorLimitOrders.Order memory)"
@@ -1943,7 +1943,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "2422:91:12",
+                    "src": "2442:91:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_struct$_Order_$1801_memory_ptr",
@@ -1951,7 +1951,7 @@
                     }
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "2381:132:12"
+                  "src": "2401:132:12"
                 },
                 {
                   "assignments": [
@@ -1963,10 +1963,10 @@
                       "id": 2718,
                       "mutability": "mutable",
                       "name": "orderId",
-                      "nameLocation": "2560:7:12",
+                      "nameLocation": "2580:7:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2746,
-                      "src": "2552:15:12",
+                      "src": "2572:15:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -1977,7 +1977,7 @@
                         "id": 2717,
                         "name": "bytes32",
                         "nodeType": "ElementaryTypeName",
-                        "src": "2552:7:12",
+                        "src": "2572:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_bytes32",
                           "typeString": "bytes32"
@@ -1995,7 +1995,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2710,
-                        "src": "2585:5:12",
+                        "src": "2605:5:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_struct$_Order_$1801_memory_ptr",
                           "typeString": "struct ConveyorLimitOrders.Order memory"
@@ -2014,7 +2014,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 3073,
-                      "src": "2570:14:12",
+                      "src": "2590:14:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_nonpayable$_t_struct$_Order_$1801_memory_ptr_$returns$_t_bytes32_$",
                         "typeString": "function (struct ConveyorLimitOrders.Order memory) returns (bytes32)"
@@ -2028,7 +2028,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "2570:21:12",
+                    "src": "2590:21:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_bytes32",
@@ -2036,7 +2036,7 @@
                     }
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "2552:39:12"
+                  "src": "2572:39:12"
                 },
                 {
                   "assignments": [
@@ -2048,10 +2048,10 @@
                       "id": 2727,
                       "mutability": "mutable",
                       "name": "updatedOrder",
-                      "nameLocation": "2689:12:12",
+                      "nameLocation": "2709:12:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2746,
-                      "src": "2656:45:12",
+                      "src": "2676:45:12",
                       "stateVariable": false,
                       "storageLocation": "memory",
                       "typeDescriptions": {
@@ -2066,10 +2066,10 @@
                           "name": "ConveyorLimitOrders.Order",
                           "nodeType": "IdentifierPath",
                           "referencedDeclaration": 1801,
-                          "src": "2656:25:12"
+                          "src": "2676:25:12"
                         },
                         "referencedDeclaration": 1801,
-                        "src": "2656:25:12",
+                        "src": "2676:25:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_struct$_Order_$1801_storage_ptr",
                           "typeString": "struct ConveyorLimitOrders.Order"
@@ -2087,7 +2087,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2631,
-                        "src": "2726:9:12",
+                        "src": "2746:9:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
                           "typeString": "address"
@@ -2102,7 +2102,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "2749:21:12",
+                        "src": "2769:21:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_245000000000000000000_by_1",
                           "typeString": "int_const 245000000000000000000"
@@ -2118,7 +2118,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "2784:1:12",
+                        "src": "2804:1:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_5_by_1",
                           "typeString": "int_const 5"
@@ -2146,7 +2146,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 3029,
-                      "src": "2704:8:12",
+                      "src": "2724:8:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_pure$_t_address_$_t_uint256_$_t_uint256_$returns$_t_struct$_Order_$1801_memory_ptr_$",
                         "typeString": "function (address,uint256,uint256) pure returns (struct ConveyorLimitOrders.Order memory)"
@@ -2160,7 +2160,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "2704:91:12",
+                    "src": "2724:91:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_struct$_Order_$1801_memory_ptr",
@@ -2168,7 +2168,7 @@
                     }
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "2656:139:12"
+                  "src": "2676:139:12"
                 },
                 {
                   "expression": {
@@ -2184,7 +2184,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2727,
-                        "src": "2805:12:12",
+                        "src": "2825:12:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_struct$_Order_$1801_memory_ptr",
                           "typeString": "struct ConveyorLimitOrders.Order memory"
@@ -2198,7 +2198,7 @@
                       "memberName": "orderId",
                       "nodeType": "MemberAccess",
                       "referencedDeclaration": 1791,
-                      "src": "2805:20:12",
+                      "src": "2825:20:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_bytes32",
                         "typeString": "bytes32"
@@ -2212,13 +2212,13 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 2718,
-                      "src": "2828:7:12",
+                      "src": "2848:7:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_bytes32",
                         "typeString": "bytes32"
                       }
                     },
-                    "src": "2805:30:12",
+                    "src": "2825:30:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bytes32",
                       "typeString": "bytes32"
@@ -2226,7 +2226,7 @@
                   },
                   "id": 2739,
                   "nodeType": "ExpressionStatement",
-                  "src": "2805:30:12"
+                  "src": "2825:30:12"
                 },
                 {
                   "expression": {
@@ -2237,7 +2237,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2727,
-                        "src": "2913:12:12",
+                        "src": "2933:12:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_struct$_Order_$1801_memory_ptr",
                           "typeString": "struct ConveyorLimitOrders.Order memory"
@@ -2257,7 +2257,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2607,
-                        "src": "2881:19:12",
+                        "src": "2901:19:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_contract$_ConveyorLimitOrders_$2561",
                           "typeString": "contract ConveyorLimitOrders"
@@ -2271,7 +2271,7 @@
                       "memberName": "updateOrder",
                       "nodeType": "MemberAccess",
                       "referencedDeclaration": 2148,
-                      "src": "2881:31:12",
+                      "src": "2901:31:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_nonpayable$_t_struct$_Order_$1801_memory_ptr_$returns$__$",
                         "typeString": "function (struct ConveyorLimitOrders.Order memory) external"
@@ -2285,7 +2285,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "2881:45:12",
+                    "src": "2901:45:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
@@ -2294,7 +2294,7 @@
                   },
                   "id": 2745,
                   "nodeType": "ExpressionStatement",
-                  "src": "2881:45:12"
+                  "src": "2901:45:12"
                 }
               ]
             },
@@ -2303,18 +2303,18 @@
             "kind": "function",
             "modifiers": [],
             "name": "testUpdateOrder",
-            "nameLocation": "2227:15:12",
+            "nameLocation": "2247:15:12",
             "parameters": {
               "id": 2699,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "2242:2:12"
+              "src": "2262:2:12"
             },
             "returnParameters": {
               "id": 2700,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "2252:0:12"
+              "src": "2272:0:12"
             },
             "scope": 3074,
             "stateMutability": "nonpayable",
@@ -2324,11 +2324,11 @@
           {
             "id": 2780,
             "nodeType": "FunctionDefinition",
-            "src": "2939:511:12",
+            "src": "2959:511:12",
             "body": {
               "id": 2779,
               "nodeType": "Block",
-              "src": "2973:477:12",
+              "src": "2993:477:12",
               "statements": [
                 {
                   "expression": {
@@ -2342,7 +2342,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "3042:8:12",
+                        "src": "3062:8:12",
                         "subdenomination": "ether",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_20000000000000000000_by_1",
@@ -2359,7 +2359,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "3052:42:12",
+                        "src": "3072:42:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
                           "typeString": "address"
@@ -2383,7 +2383,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 2999,
-                      "src": "3026:15:12",
+                      "src": "3046:15:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_nonpayable$_t_uint256_$_t_address_$returns$__$",
                         "typeString": "function (uint256,address)"
@@ -2397,7 +2397,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "3026:69:12",
+                    "src": "3046:69:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
@@ -2406,7 +2406,7 @@
                   },
                   "id": 2754,
                   "nodeType": "ExpressionStatement",
-                  "src": "3026:69:12"
+                  "src": "3046:69:12"
                 },
                 {
                   "assignments": [
@@ -2418,10 +2418,10 @@
                       "id": 2759,
                       "mutability": "mutable",
                       "name": "order",
-                      "nameLocation": "3169:5:12",
+                      "nameLocation": "3189:5:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2779,
-                      "src": "3136:38:12",
+                      "src": "3156:38:12",
                       "stateVariable": false,
                       "storageLocation": "memory",
                       "typeDescriptions": {
@@ -2436,10 +2436,10 @@
                           "name": "ConveyorLimitOrders.Order",
                           "nodeType": "IdentifierPath",
                           "referencedDeclaration": 1801,
-                          "src": "3136:25:12"
+                          "src": "3156:25:12"
                         },
                         "referencedDeclaration": 1801,
-                        "src": "3136:25:12",
+                        "src": "3156:25:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_struct$_Order_$1801_storage_ptr",
                           "typeString": "struct ConveyorLimitOrders.Order"
@@ -2457,7 +2457,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2631,
-                        "src": "3199:9:12",
+                        "src": "3219:9:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
                           "typeString": "address"
@@ -2472,7 +2472,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "3222:21:12",
+                        "src": "3242:21:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_245000000000000000000_by_1",
                           "typeString": "int_const 245000000000000000000"
@@ -2488,7 +2488,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "3257:1:12",
+                        "src": "3277:1:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_5_by_1",
                           "typeString": "int_const 5"
@@ -2516,7 +2516,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 3029,
-                      "src": "3177:8:12",
+                      "src": "3197:8:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_pure$_t_address_$_t_uint256_$_t_uint256_$returns$_t_struct$_Order_$1801_memory_ptr_$",
                         "typeString": "function (address,uint256,uint256) pure returns (struct ConveyorLimitOrders.Order memory)"
@@ -2530,7 +2530,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "3177:91:12",
+                    "src": "3197:91:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_struct$_Order_$1801_memory_ptr",
@@ -2538,7 +2538,7 @@
                     }
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "3136:132:12"
+                  "src": "3156:132:12"
                 },
                 {
                   "assignments": [
@@ -2550,10 +2550,10 @@
                       "id": 2767,
                       "mutability": "mutable",
                       "name": "orderId",
-                      "nameLocation": "3315:7:12",
+                      "nameLocation": "3335:7:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2779,
-                      "src": "3307:15:12",
+                      "src": "3327:15:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -2564,7 +2564,7 @@
                         "id": 2766,
                         "name": "bytes32",
                         "nodeType": "ElementaryTypeName",
-                        "src": "3307:7:12",
+                        "src": "3327:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_bytes32",
                           "typeString": "bytes32"
@@ -2582,7 +2582,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2759,
-                        "src": "3340:5:12",
+                        "src": "3360:5:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_struct$_Order_$1801_memory_ptr",
                           "typeString": "struct ConveyorLimitOrders.Order memory"
@@ -2601,7 +2601,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 3073,
-                      "src": "3325:14:12",
+                      "src": "3345:14:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_nonpayable$_t_struct$_Order_$1801_memory_ptr_$returns$_t_bytes32_$",
                         "typeString": "function (struct ConveyorLimitOrders.Order memory) returns (bytes32)"
@@ -2615,7 +2615,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "3325:21:12",
+                    "src": "3345:21:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_bytes32",
@@ -2623,7 +2623,7 @@
                     }
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "3307:39:12"
+                  "src": "3327:39:12"
                 },
                 {
                   "expression": {
@@ -2634,7 +2634,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2631,
-                        "src": "3424:9:12",
+                        "src": "3444:9:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
                           "typeString": "address"
@@ -2646,7 +2646,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2767,
-                        "src": "3435:7:12",
+                        "src": "3455:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_bytes32",
                           "typeString": "bytes32"
@@ -2670,7 +2670,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2607,
-                        "src": "3392:19:12",
+                        "src": "3412:19:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_contract$_ConveyorLimitOrders_$2561",
                           "typeString": "contract ConveyorLimitOrders"
@@ -2684,7 +2684,7 @@
                       "memberName": "cancelOrder",
                       "nodeType": "MemberAccess",
                       "referencedDeclaration": 2244,
-                      "src": "3392:31:12",
+                      "src": "3412:31:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_nonpayable$_t_address_$_t_bytes32_$returns$__$",
                         "typeString": "function (address,bytes32) external"
@@ -2698,7 +2698,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "3392:51:12",
+                    "src": "3412:51:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
@@ -2707,7 +2707,7 @@
                   },
                   "id": 2778,
                   "nodeType": "ExpressionStatement",
-                  "src": "3392:51:12"
+                  "src": "3412:51:12"
                 }
               ]
             },
@@ -2716,18 +2716,18 @@
             "kind": "function",
             "modifiers": [],
             "name": "testCancelOrder",
-            "nameLocation": "2948:15:12",
+            "nameLocation": "2968:15:12",
             "parameters": {
               "id": 2748,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "2963:2:12"
+              "src": "2983:2:12"
             },
             "returnParameters": {
               "id": 2749,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "2973:0:12"
+              "src": "2993:0:12"
             },
             "scope": 3074,
             "stateMutability": "nonpayable",
@@ -2737,11 +2737,11 @@
           {
             "id": 2784,
             "nodeType": "FunctionDefinition",
-            "src": "3456:40:12",
+            "src": "3476:40:12",
             "body": {
               "id": 2783,
               "nodeType": "Block",
-              "src": "3494:2:12",
+              "src": "3514:2:12",
               "statements": []
             },
             "functionSelector": "f0974a1b",
@@ -2749,18 +2749,18 @@
             "kind": "function",
             "modifiers": [],
             "name": "testCancelAllOrders",
-            "nameLocation": "3465:19:12",
+            "nameLocation": "3485:19:12",
             "parameters": {
               "id": 2781,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "3484:2:12"
+              "src": "3504:2:12"
             },
             "returnParameters": {
               "id": 2782,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "3494:0:12"
+              "src": "3514:0:12"
             },
             "scope": 3074,
             "stateMutability": "nonpayable",
@@ -2770,11 +2770,11 @@
           {
             "id": 2788,
             "nodeType": "FunctionDefinition",
-            "src": "3502:37:12",
+            "src": "3522:37:12",
             "body": {
               "id": 2787,
               "nodeType": "Block",
-              "src": "3537:2:12",
+              "src": "3557:2:12",
               "statements": []
             },
             "functionSelector": "86b11ac1",
@@ -2782,18 +2782,18 @@
             "kind": "function",
             "modifiers": [],
             "name": "testExecuteOrder",
-            "nameLocation": "3511:16:12",
+            "nameLocation": "3531:16:12",
             "parameters": {
               "id": 2785,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "3527:2:12"
+              "src": "3547:2:12"
             },
             "returnParameters": {
               "id": 2786,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "3537:0:12"
+              "src": "3557:0:12"
             },
             "scope": 3074,
             "stateMutability": "nonpayable",
@@ -2803,11 +2803,11 @@
           {
             "id": 2868,
             "nodeType": "FunctionDefinition",
-            "src": "3546:989:12",
+            "src": "3566:989:12",
             "body": {
               "id": 2867,
               "nodeType": "Block",
-              "src": "3579:956:12",
+              "src": "3599:956:12",
               "statements": [
                 {
                   "assignments": [
@@ -2819,10 +2819,10 @@
                       "id": 2792,
                       "mutability": "mutable",
                       "name": "reserve0",
-                      "nameLocation": "3654:8:12",
+                      "nameLocation": "3674:8:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2867,
-                      "src": "3646:16:12",
+                      "src": "3666:16:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -2833,7 +2833,7 @@
                         "id": 2791,
                         "name": "uint256",
                         "nodeType": "ElementaryTypeName",
-                        "src": "3646:7:12",
+                        "src": "3666:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -2852,7 +2852,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "3665:27:12",
+                    "src": "3685:27:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_rational_131610640170334000000000000_by_1",
                       "typeString": "int_const 131610640170334000000000000"
@@ -2860,7 +2860,7 @@
                     "value": "131610640170334000000000000"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "3646:46:12"
+                  "src": "3666:46:12"
                 },
                 {
                   "assignments": [
@@ -2872,10 +2872,10 @@
                       "id": 2796,
                       "mutability": "mutable",
                       "name": "dec0",
-                      "nameLocation": "3708:4:12",
+                      "nameLocation": "3728:4:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2867,
-                      "src": "3702:10:12",
+                      "src": "3722:10:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -2886,7 +2886,7 @@
                         "id": 2795,
                         "name": "uint8",
                         "nodeType": "ElementaryTypeName",
-                        "src": "3702:5:12",
+                        "src": "3722:5:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint8",
                           "typeString": "uint8"
@@ -2905,7 +2905,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "3714:2:12",
+                    "src": "3734:2:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_rational_18_by_1",
                       "typeString": "int_const 18"
@@ -2913,7 +2913,7 @@
                     "value": "18"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "3702:14:12"
+                  "src": "3722:14:12"
                 },
                 {
                   "assignments": [
@@ -2925,10 +2925,10 @@
                       "id": 2800,
                       "mutability": "mutable",
                       "name": "reserve1",
-                      "nameLocation": "3734:8:12",
+                      "nameLocation": "3754:8:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2867,
-                      "src": "3726:16:12",
+                      "src": "3746:16:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -2939,7 +2939,7 @@
                         "id": 2799,
                         "name": "uint256",
                         "nodeType": "ElementaryTypeName",
-                        "src": "3726:7:12",
+                        "src": "3746:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -2958,7 +2958,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "3745:15:12",
+                    "src": "3765:15:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_rational_131610640170334_by_1",
                       "typeString": "int_const 131610640170334"
@@ -2966,7 +2966,7 @@
                     "value": "131610640170334"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "3726:34:12"
+                  "src": "3746:34:12"
                 },
                 {
                   "assignments": [
@@ -2978,10 +2978,10 @@
                       "id": 2804,
                       "mutability": "mutable",
                       "name": "dec1",
-                      "nameLocation": "3776:4:12",
+                      "nameLocation": "3796:4:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2867,
-                      "src": "3770:10:12",
+                      "src": "3790:10:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -2992,7 +2992,7 @@
                         "id": 2803,
                         "name": "uint8",
                         "nodeType": "ElementaryTypeName",
-                        "src": "3770:5:12",
+                        "src": "3790:5:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint8",
                           "typeString": "uint8"
@@ -3011,7 +3011,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "3783:1:12",
+                    "src": "3803:1:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_rational_9_by_1",
                       "typeString": "int_const 9"
@@ -3019,7 +3019,7 @@
                     "value": "9"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "3770:14:12"
+                  "src": "3790:14:12"
                 },
                 {
                   "assignments": [
@@ -3032,10 +3032,10 @@
                       "id": 2808,
                       "mutability": "mutable",
                       "name": "r0_out",
-                      "nameLocation": "3803:6:12",
+                      "nameLocation": "3823:6:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2867,
-                      "src": "3795:14:12",
+                      "src": "3815:14:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -3046,7 +3046,7 @@
                         "id": 2807,
                         "name": "uint256",
                         "nodeType": "ElementaryTypeName",
-                        "src": "3795:7:12",
+                        "src": "3815:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -3059,10 +3059,10 @@
                       "id": 2810,
                       "mutability": "mutable",
                       "name": "r1_out",
-                      "nameLocation": "3819:6:12",
+                      "nameLocation": "3839:6:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2867,
-                      "src": "3811:14:12",
+                      "src": "3831:14:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -3073,7 +3073,7 @@
                         "id": 2809,
                         "name": "uint256",
                         "nodeType": "ElementaryTypeName",
-                        "src": "3811:7:12",
+                        "src": "3831:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -3091,7 +3091,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2792,
-                        "src": "3868:8:12",
+                        "src": "3888:8:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -3103,7 +3103,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2796,
-                        "src": "3878:4:12",
+                        "src": "3898:4:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint8",
                           "typeString": "uint8"
@@ -3115,7 +3115,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2800,
-                        "src": "3884:8:12",
+                        "src": "3904:8:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -3127,7 +3127,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2804,
-                        "src": "3894:4:12",
+                        "src": "3914:4:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint8",
                           "typeString": "uint8"
@@ -3159,7 +3159,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2607,
-                        "src": "3828:19:12",
+                        "src": "3848:19:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_contract$_ConveyorLimitOrders_$2561",
                           "typeString": "contract ConveyorLimitOrders"
@@ -3173,7 +3173,7 @@
                       "memberName": "convertToCommonBase",
                       "nodeType": "MemberAccess",
                       "referencedDeclaration": 2351,
-                      "src": "3828:39:12",
+                      "src": "3848:39:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_nonpayable$_t_uint256_$_t_uint8_$_t_uint256_$_t_uint8_$returns$_t_uint256_$_t_uint256_$",
                         "typeString": "function (uint256,uint8,uint256,uint8) external returns (uint256,uint256)"
@@ -3187,7 +3187,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "3828:71:12",
+                    "src": "3848:71:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$_t_uint256_$_t_uint256_$",
@@ -3195,7 +3195,7 @@
                     }
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "3794:105:12"
+                  "src": "3814:105:12"
                 },
                 {
                   "assignments": [
@@ -3207,10 +3207,10 @@
                       "id": 2820,
                       "mutability": "mutable",
                       "name": "reserve01",
-                      "nameLocation": "3970:9:12",
+                      "nameLocation": "3990:9:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2867,
-                      "src": "3962:17:12",
+                      "src": "3982:17:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -3221,7 +3221,7 @@
                         "id": 2819,
                         "name": "uint256",
                         "nodeType": "ElementaryTypeName",
-                        "src": "3962:7:12",
+                        "src": "3982:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -3240,7 +3240,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "3982:15:12",
+                    "src": "4002:15:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_rational_131610640170334_by_1",
                       "typeString": "int_const 131610640170334"
@@ -3248,7 +3248,7 @@
                     "value": "131610640170334"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "3962:35:12"
+                  "src": "3982:35:12"
                 },
                 {
                   "assignments": [
@@ -3260,10 +3260,10 @@
                       "id": 2824,
                       "mutability": "mutable",
                       "name": "dec01",
-                      "nameLocation": "4013:5:12",
+                      "nameLocation": "4033:5:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2867,
-                      "src": "4007:11:12",
+                      "src": "4027:11:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -3274,7 +3274,7 @@
                         "id": 2823,
                         "name": "uint8",
                         "nodeType": "ElementaryTypeName",
-                        "src": "4007:5:12",
+                        "src": "4027:5:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint8",
                           "typeString": "uint8"
@@ -3293,7 +3293,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "4020:1:12",
+                    "src": "4040:1:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_rational_6_by_1",
                       "typeString": "int_const 6"
@@ -3301,7 +3301,7 @@
                     "value": "6"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "4007:14:12"
+                  "src": "4027:14:12"
                 },
                 {
                   "assignments": [
@@ -3313,10 +3313,10 @@
                       "id": 2828,
                       "mutability": "mutable",
                       "name": "reserve11",
-                      "nameLocation": "4039:9:12",
+                      "nameLocation": "4059:9:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2867,
-                      "src": "4031:17:12",
+                      "src": "4051:17:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -3327,7 +3327,7 @@
                         "id": 2827,
                         "name": "uint256",
                         "nodeType": "ElementaryTypeName",
-                        "src": "4031:7:12",
+                        "src": "4051:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -3346,7 +3346,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "4051:23:12",
+                    "src": "4071:23:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_rational_47925919677616776812811_by_1",
                       "typeString": "int_const 47925919677616776812811"
@@ -3354,7 +3354,7 @@
                     "value": "47925919677616776812811"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "4031:43:12"
+                  "src": "4051:43:12"
                 },
                 {
                   "assignments": [
@@ -3366,10 +3366,10 @@
                       "id": 2832,
                       "mutability": "mutable",
                       "name": "dec11",
-                      "nameLocation": "4090:5:12",
+                      "nameLocation": "4110:5:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2867,
-                      "src": "4084:11:12",
+                      "src": "4104:11:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -3380,7 +3380,7 @@
                         "id": 2831,
                         "name": "uint8",
                         "nodeType": "ElementaryTypeName",
-                        "src": "4084:5:12",
+                        "src": "4104:5:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint8",
                           "typeString": "uint8"
@@ -3399,7 +3399,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "4098:2:12",
+                    "src": "4118:2:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_rational_18_by_1",
                       "typeString": "int_const 18"
@@ -3407,7 +3407,7 @@
                     "value": "18"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "4084:16:12"
+                  "src": "4104:16:12"
                 },
                 {
                   "assignments": [
@@ -3420,10 +3420,10 @@
                       "id": 2836,
                       "mutability": "mutable",
                       "name": "r0_out1",
-                      "nameLocation": "4119:7:12",
+                      "nameLocation": "4139:7:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2867,
-                      "src": "4111:15:12",
+                      "src": "4131:15:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -3434,7 +3434,7 @@
                         "id": 2835,
                         "name": "uint256",
                         "nodeType": "ElementaryTypeName",
-                        "src": "4111:7:12",
+                        "src": "4131:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -3447,10 +3447,10 @@
                       "id": 2838,
                       "mutability": "mutable",
                       "name": "r1_out1",
-                      "nameLocation": "4136:7:12",
+                      "nameLocation": "4156:7:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2867,
-                      "src": "4128:15:12",
+                      "src": "4148:15:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -3461,7 +3461,7 @@
                         "id": 2837,
                         "name": "uint256",
                         "nodeType": "ElementaryTypeName",
-                        "src": "4128:7:12",
+                        "src": "4148:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -3479,7 +3479,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2820,
-                        "src": "4186:9:12",
+                        "src": "4206:9:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -3491,7 +3491,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2824,
-                        "src": "4197:5:12",
+                        "src": "4217:5:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint8",
                           "typeString": "uint8"
@@ -3503,7 +3503,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2828,
-                        "src": "4204:9:12",
+                        "src": "4224:9:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -3515,7 +3515,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2832,
-                        "src": "4215:5:12",
+                        "src": "4235:5:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint8",
                           "typeString": "uint8"
@@ -3547,7 +3547,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2607,
-                        "src": "4146:19:12",
+                        "src": "4166:19:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_contract$_ConveyorLimitOrders_$2561",
                           "typeString": "contract ConveyorLimitOrders"
@@ -3561,7 +3561,7 @@
                       "memberName": "convertToCommonBase",
                       "nodeType": "MemberAccess",
                       "referencedDeclaration": 2351,
-                      "src": "4146:39:12",
+                      "src": "4166:39:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_nonpayable$_t_uint256_$_t_uint8_$_t_uint256_$_t_uint8_$returns$_t_uint256_$_t_uint256_$",
                         "typeString": "function (uint256,uint8,uint256,uint8) external returns (uint256,uint256)"
@@ -3575,7 +3575,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "4146:75:12",
+                    "src": "4166:75:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$_t_uint256_$_t_uint256_$",
@@ -3583,7 +3583,7 @@
                     }
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "4110:111:12"
+                  "src": "4130:111:12"
                 },
                 {
                   "expression": {
@@ -3594,7 +3594,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2810,
-                        "src": "4268:6:12",
+                        "src": "4288:6:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -3609,7 +3609,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "4276:24:12",
+                        "src": "4296:24:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_131610640170334000000000_by_1",
                           "typeString": "int_const 131610640170334000000000"
@@ -3644,7 +3644,7 @@
                         13190
                       ],
                       "referencedDeclaration": 12030,
-                      "src": "4259:8:12",
+                      "src": "4279:8:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_nonpayable$_t_uint256_$_t_uint256_$returns$__$",
                         "typeString": "function (uint256,uint256)"
@@ -3658,7 +3658,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "4259:42:12",
+                    "src": "4279:42:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
@@ -3667,7 +3667,7 @@
                   },
                   "id": 2851,
                   "nodeType": "ExpressionStatement",
-                  "src": "4259:42:12"
+                  "src": "4279:42:12"
                 },
                 {
                   "expression": {
@@ -3678,7 +3678,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2808,
-                        "src": "4340:6:12",
+                        "src": "4360:6:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -3693,7 +3693,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "4348:27:12",
+                        "src": "4368:27:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_131610640170334000000000000_by_1",
                           "typeString": "int_const 131610640170334000000000000"
@@ -3728,7 +3728,7 @@
                         13190
                       ],
                       "referencedDeclaration": 12030,
-                      "src": "4331:8:12",
+                      "src": "4351:8:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_nonpayable$_t_uint256_$_t_uint256_$returns$__$",
                         "typeString": "function (uint256,uint256)"
@@ -3742,7 +3742,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "4331:45:12",
+                    "src": "4351:45:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
@@ -3751,7 +3751,7 @@
                   },
                   "id": 2856,
                   "nodeType": "ExpressionStatement",
-                  "src": "4331:45:12"
+                  "src": "4351:45:12"
                 },
                 {
                   "expression": {
@@ -3762,7 +3762,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2836,
-                        "src": "4407:7:12",
+                        "src": "4427:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -3777,7 +3777,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "4416:27:12",
+                        "src": "4436:27:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_131610640170334000000000000_by_1",
                           "typeString": "int_const 131610640170334000000000000"
@@ -3812,7 +3812,7 @@
                         13190
                       ],
                       "referencedDeclaration": 12030,
-                      "src": "4398:8:12",
+                      "src": "4418:8:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_nonpayable$_t_uint256_$_t_uint256_$returns$__$",
                         "typeString": "function (uint256,uint256)"
@@ -3826,7 +3826,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "4398:46:12",
+                    "src": "4418:46:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
@@ -3835,7 +3835,7 @@
                   },
                   "id": 2861,
                   "nodeType": "ExpressionStatement",
-                  "src": "4398:46:12"
+                  "src": "4418:46:12"
                 },
                 {
                   "expression": {
@@ -3846,7 +3846,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2838,
-                        "src": "4483:7:12",
+                        "src": "4503:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -3861,7 +3861,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "4492:23:12",
+                        "src": "4512:23:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_47925919677616776812811_by_1",
                           "typeString": "int_const 47925919677616776812811"
@@ -3896,7 +3896,7 @@
                         13190
                       ],
                       "referencedDeclaration": 12030,
-                      "src": "4474:8:12",
+                      "src": "4494:8:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_nonpayable$_t_uint256_$_t_uint256_$returns$__$",
                         "typeString": "function (uint256,uint256)"
@@ -3910,7 +3910,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "4474:42:12",
+                    "src": "4494:42:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
@@ -3919,7 +3919,7 @@
                   },
                   "id": 2866,
                   "nodeType": "ExpressionStatement",
-                  "src": "4474:42:12"
+                  "src": "4494:42:12"
                 }
               ]
             },
@@ -3928,18 +3928,18 @@
             "kind": "function",
             "modifiers": [],
             "name": "testChangeBase",
-            "nameLocation": "3555:14:12",
+            "nameLocation": "3575:14:12",
             "parameters": {
               "id": 2789,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "3569:2:12"
+              "src": "3589:2:12"
             },
             "returnParameters": {
               "id": 2790,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "3579:0:12"
+              "src": "3599:0:12"
             },
             "scope": 3074,
             "stateMutability": "nonpayable",
@@ -3949,11 +3949,11 @@
           {
             "id": 2902,
             "nodeType": "FunctionDefinition",
-            "src": "4541:503:12",
+            "src": "4561:503:12",
             "body": {
               "id": 2901,
               "nodeType": "Block",
-              "src": "4577:467:12",
+              "src": "4597:467:12",
               "statements": [
                 {
                   "assignments": [
@@ -3965,10 +3965,10 @@
                       "id": 2872,
                       "mutability": "mutable",
                       "name": "weth",
-                      "nameLocation": "4609:4:12",
+                      "nameLocation": "4629:4:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2901,
-                      "src": "4601:12:12",
+                      "src": "4621:12:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -3979,7 +3979,7 @@
                         "id": 2871,
                         "name": "address",
                         "nodeType": "ElementaryTypeName",
-                        "src": "4601:7:12",
+                        "src": "4621:7:12",
                         "stateMutability": "nonpayable",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
@@ -3999,7 +3999,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "4614:42:12",
+                    "src": "4634:42:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
                       "typeString": "address"
@@ -4007,7 +4007,7 @@
                     "value": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "4601:55:12"
+                  "src": "4621:55:12"
                 },
                 {
                   "assignments": [
@@ -4019,10 +4019,10 @@
                       "id": 2876,
                       "mutability": "mutable",
                       "name": "usdc",
-                      "nameLocation": "4692:4:12",
+                      "nameLocation": "4712:4:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2901,
-                      "src": "4684:12:12",
+                      "src": "4704:12:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -4033,7 +4033,7 @@
                         "id": 2875,
                         "name": "address",
                         "nodeType": "ElementaryTypeName",
-                        "src": "4684:7:12",
+                        "src": "4704:7:12",
                         "stateMutability": "nonpayable",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
@@ -4053,7 +4053,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "4697:42:12",
+                    "src": "4717:42:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
                       "typeString": "address"
@@ -4061,7 +4061,7 @@
                     "value": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "4684:55:12"
+                  "src": "4704:55:12"
                 },
                 {
                   "assignments": [
@@ -4073,10 +4073,10 @@
                       "id": 2880,
                       "mutability": "mutable",
                       "name": "ntvrk",
-                      "nameLocation": "4775:5:12",
+                      "nameLocation": "4795:5:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2901,
-                      "src": "4767:13:12",
+                      "src": "4787:13:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -4087,7 +4087,7 @@
                         "id": 2879,
                         "name": "address",
                         "nodeType": "ElementaryTypeName",
-                        "src": "4767:7:12",
+                        "src": "4787:7:12",
                         "stateMutability": "nonpayable",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
@@ -4107,7 +4107,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "4783:42:12",
+                    "src": "4803:42:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
                       "typeString": "address"
@@ -4115,7 +4115,7 @@
                     "value": "0xFc0d6Cf33e38bcE7CA7D89c0E292274031b7157A"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "4767:58:12"
+                  "src": "4787:58:12"
                 },
                 {
                   "assignments": [
@@ -4127,10 +4127,10 @@
                       "id": 2884,
                       "mutability": "mutable",
                       "name": "high",
-                      "nameLocation": "4861:4:12",
+                      "nameLocation": "4881:4:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2901,
-                      "src": "4853:12:12",
+                      "src": "4873:12:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -4141,7 +4141,7 @@
                         "id": 2883,
                         "name": "address",
                         "nodeType": "ElementaryTypeName",
-                        "src": "4853:7:12",
+                        "src": "4873:7:12",
                         "stateMutability": "nonpayable",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
@@ -4161,7 +4161,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "4866:42:12",
+                    "src": "4886:42:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
                       "typeString": "address"
@@ -4169,7 +4169,7 @@
                     "value": "0x71Ab77b7dbB4fa7e017BC15090b2163221420282"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "4853:55:12"
+                  "src": "4873:55:12"
                 },
                 {
                   "assignments": [
@@ -4181,10 +4181,10 @@
                       "id": 2888,
                       "mutability": "mutable",
                       "name": "priceWETHUSDC",
-                      "nameLocation": "4927:13:12",
+                      "nameLocation": "4947:13:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2901,
-                      "src": "4919:21:12",
+                      "src": "4939:21:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -4195,7 +4195,7 @@
                         "id": 2887,
                         "name": "uint256",
                         "nodeType": "ElementaryTypeName",
-                        "src": "4919:7:12",
+                        "src": "4939:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -4213,7 +4213,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2876,
-                        "src": "4986:4:12",
+                        "src": "5006:4:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
                           "typeString": "address"
@@ -4225,7 +4225,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2872,
-                        "src": "4991:4:12",
+                        "src": "5011:4:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
                           "typeString": "address"
@@ -4249,7 +4249,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2607,
-                        "src": "4942:19:12",
+                        "src": "4962:19:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_contract$_ConveyorLimitOrders_$2561",
                           "typeString": "contract ConveyorLimitOrders"
@@ -4263,7 +4263,7 @@
                       "memberName": "calculateUniV2SpotPrice",
                       "nodeType": "MemberAccess",
                       "referencedDeclaration": 2439,
-                      "src": "4942:43:12",
+                      "src": "4962:43:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_view$_t_address_$_t_address_$returns$_t_uint112_$",
                         "typeString": "function (address,address) view external returns (uint112)"
@@ -4277,7 +4277,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "4942:54:12",
+                    "src": "4962:54:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint112",
@@ -4285,7 +4285,7 @@
                     }
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "4919:77:12"
+                  "src": "4939:77:12"
                 },
                 {
                   "expression": {
@@ -4296,7 +4296,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2888,
-                        "src": "5022:13:12",
+                        "src": "5042:13:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -4316,7 +4316,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 11138,
-                        "src": "5006:7:12",
+                        "src": "5026:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_type$_t_contract$_console_$11138_$",
                           "typeString": "type(library console)"
@@ -4330,7 +4330,7 @@
                       "memberName": "logUint",
                       "nodeType": "MemberAccess",
                       "referencedDeclaration": 3137,
-                      "src": "5006:15:12",
+                      "src": "5026:15:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_view$_t_uint256_$returns$__$",
                         "typeString": "function (uint256) view"
@@ -4344,7 +4344,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "5006:30:12",
+                    "src": "5026:30:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
@@ -4353,7 +4353,7 @@
                   },
                   "id": 2900,
                   "nodeType": "ExpressionStatement",
-                  "src": "5006:30:12"
+                  "src": "5026:30:12"
                 }
               ]
             },
@@ -4362,18 +4362,18 @@
             "kind": "function",
             "modifiers": [],
             "name": "testUniV2SpotPrice",
-            "nameLocation": "4550:18:12",
+            "nameLocation": "4570:18:12",
             "parameters": {
               "id": 2869,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "4568:2:12"
+              "src": "4588:2:12"
             },
             "returnParameters": {
               "id": 2870,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "4577:0:12"
+              "src": "4597:0:12"
             },
             "scope": 3074,
             "stateMutability": "nonpayable",
@@ -4383,11 +4383,11 @@
           {
             "id": 2939,
             "nodeType": "FunctionDefinition",
-            "src": "5050:525:12",
+            "src": "5070:525:12",
             "body": {
               "id": 2938,
               "nodeType": "Block",
-              "src": "5086:489:12",
+              "src": "5106:489:12",
               "statements": [
                 {
                   "assignments": [
@@ -4399,10 +4399,10 @@
                       "id": 2906,
                       "mutability": "mutable",
                       "name": "weth",
-                      "nameLocation": "5118:4:12",
+                      "nameLocation": "5138:4:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2938,
-                      "src": "5110:12:12",
+                      "src": "5130:12:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -4413,7 +4413,7 @@
                         "id": 2905,
                         "name": "address",
                         "nodeType": "ElementaryTypeName",
-                        "src": "5110:7:12",
+                        "src": "5130:7:12",
                         "stateMutability": "nonpayable",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
@@ -4433,7 +4433,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "5123:42:12",
+                    "src": "5143:42:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
                       "typeString": "address"
@@ -4441,7 +4441,7 @@
                     "value": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "5110:55:12"
+                  "src": "5130:55:12"
                 },
                 {
                   "assignments": [
@@ -4453,10 +4453,10 @@
                       "id": 2910,
                       "mutability": "mutable",
                       "name": "usdc",
-                      "nameLocation": "5201:4:12",
+                      "nameLocation": "5221:4:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2938,
-                      "src": "5193:12:12",
+                      "src": "5213:12:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -4467,7 +4467,7 @@
                         "id": 2909,
                         "name": "address",
                         "nodeType": "ElementaryTypeName",
-                        "src": "5193:7:12",
+                        "src": "5213:7:12",
                         "stateMutability": "nonpayable",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
@@ -4487,7 +4487,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "5206:42:12",
+                    "src": "5226:42:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
                       "typeString": "address"
@@ -4495,7 +4495,7 @@
                     "value": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "5193:55:12"
+                  "src": "5213:55:12"
                 },
                 {
                   "assignments": [
@@ -4507,10 +4507,10 @@
                       "id": 2914,
                       "mutability": "mutable",
                       "name": "ntvrk",
-                      "nameLocation": "5284:5:12",
+                      "nameLocation": "5304:5:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2938,
-                      "src": "5276:13:12",
+                      "src": "5296:13:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -4521,7 +4521,7 @@
                         "id": 2913,
                         "name": "address",
                         "nodeType": "ElementaryTypeName",
-                        "src": "5276:7:12",
+                        "src": "5296:7:12",
                         "stateMutability": "nonpayable",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
@@ -4541,7 +4541,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "5292:42:12",
+                    "src": "5312:42:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
                       "typeString": "address"
@@ -4549,7 +4549,7 @@
                     "value": "0xFc0d6Cf33e38bcE7CA7D89c0E292274031b7157A"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "5276:58:12"
+                  "src": "5296:58:12"
                 },
                 {
                   "assignments": [
@@ -4561,10 +4561,10 @@
                       "id": 2918,
                       "mutability": "mutable",
                       "name": "high",
-                      "nameLocation": "5370:4:12",
+                      "nameLocation": "5390:4:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2938,
-                      "src": "5362:12:12",
+                      "src": "5382:12:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -4575,7 +4575,7 @@
                         "id": 2917,
                         "name": "address",
                         "nodeType": "ElementaryTypeName",
-                        "src": "5362:7:12",
+                        "src": "5382:7:12",
                         "stateMutability": "nonpayable",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
@@ -4595,7 +4595,7 @@
                     "kind": "number",
                     "lValueRequested": false,
                     "nodeType": "Literal",
-                    "src": "5375:42:12",
+                    "src": "5395:42:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
                       "typeString": "address"
@@ -4603,7 +4603,7 @@
                     "value": "0x71Ab77b7dbB4fa7e017BC15090b2163221420282"
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "5362:55:12"
+                  "src": "5382:55:12"
                 },
                 {
                   "assignments": [
@@ -4615,10 +4615,10 @@
                       "id": 2922,
                       "mutability": "mutable",
                       "name": "priceWETHUSDC",
-                      "nameLocation": "5436:13:12",
+                      "nameLocation": "5456:13:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2938,
-                      "src": "5428:21:12",
+                      "src": "5448:21:12",
                       "stateVariable": false,
                       "storageLocation": "default",
                       "typeDescriptions": {
@@ -4629,7 +4629,7 @@
                         "id": 2921,
                         "name": "uint256",
                         "nodeType": "ElementaryTypeName",
-                        "src": "5428:7:12",
+                        "src": "5448:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -4647,7 +4647,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2906,
-                        "src": "5495:4:12",
+                        "src": "5515:4:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
                           "typeString": "address"
@@ -4659,7 +4659,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2910,
-                        "src": "5500:4:12",
+                        "src": "5520:4:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
                           "typeString": "address"
@@ -4674,7 +4674,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "5506:13:12",
+                        "src": "5526:13:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_1000000000000_by_1",
                           "typeString": "int_const 1000000000000"
@@ -4690,7 +4690,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "5520:4:12",
+                        "src": "5540:4:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_3000_by_1",
                           "typeString": "int_const 3000"
@@ -4706,7 +4706,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "5525:1:12",
+                        "src": "5545:1:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_1_by_1",
                           "typeString": "int_const 1"
@@ -4743,7 +4743,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2607,
-                        "src": "5451:19:12",
+                        "src": "5471:19:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_contract$_ConveyorLimitOrders_$2561",
                           "typeString": "contract ConveyorLimitOrders"
@@ -4757,7 +4757,7 @@
                       "memberName": "calculateUniV3SpotPrice",
                       "nodeType": "MemberAccess",
                       "referencedDeclaration": 2560,
-                      "src": "5451:43:12",
+                      "src": "5471:43:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_nonpayable$_t_address_$_t_address_$_t_uint128_$_t_uint24_$_t_uint32_$returns$_t_uint256_$",
                         "typeString": "function (address,address,uint128,uint24,uint32) external returns (uint256)"
@@ -4771,7 +4771,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "5451:76:12",
+                    "src": "5471:76:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
@@ -4779,7 +4779,7 @@
                     }
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "5428:99:12"
+                  "src": "5448:99:12"
                 },
                 {
                   "expression": {
@@ -4790,7 +4790,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2922,
-                        "src": "5553:13:12",
+                        "src": "5573:13:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -4810,7 +4810,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 11138,
-                        "src": "5537:7:12",
+                        "src": "5557:7:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_type$_t_contract$_console_$11138_$",
                           "typeString": "type(library console)"
@@ -4824,7 +4824,7 @@
                       "memberName": "logUint",
                       "nodeType": "MemberAccess",
                       "referencedDeclaration": 3137,
-                      "src": "5537:15:12",
+                      "src": "5557:15:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_view$_t_uint256_$returns$__$",
                         "typeString": "function (uint256) view"
@@ -4838,7 +4838,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "5537:30:12",
+                    "src": "5557:30:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
@@ -4847,7 +4847,7 @@
                   },
                   "id": 2937,
                   "nodeType": "ExpressionStatement",
-                  "src": "5537:30:12"
+                  "src": "5557:30:12"
                 }
               ]
             },
@@ -4856,18 +4856,18 @@
             "kind": "function",
             "modifiers": [],
             "name": "testUniV3SpotPrice",
-            "nameLocation": "5059:18:12",
+            "nameLocation": "5079:18:12",
             "parameters": {
               "id": 2903,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "5077:2:12"
+              "src": "5097:2:12"
             },
             "returnParameters": {
               "id": 2904,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "5086:0:12"
+              "src": "5106:0:12"
             },
             "scope": 3074,
             "stateMutability": "nonpayable",
@@ -4877,11 +4877,11 @@
           {
             "id": 2999,
             "nodeType": "FunctionDefinition",
-            "src": "5663:449:12",
+            "src": "5683:449:12",
             "body": {
               "id": 2998,
               "nodeType": "Block",
-              "src": "5733:379:12",
+              "src": "5753:379:12",
               "statements": [
                 {
                   "expression": {
@@ -4894,7 +4894,7 @@
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
                             "referencedDeclaration": -28,
-                            "src": "5767:4:12",
+                            "src": "5787:4:12",
                             "typeDescriptions": {
                               "typeIdentifier": "t_contract$_ConveyorLimitOrdersTest_$3074",
                               "typeString": "contract ConveyorLimitOrdersTest"
@@ -4914,7 +4914,7 @@
                           "isPure": true,
                           "lValueRequested": false,
                           "nodeType": "ElementaryTypeNameExpression",
-                          "src": "5759:7:12",
+                          "src": "5779:7:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_type$_t_address_$",
                             "typeString": "type(address)"
@@ -4923,7 +4923,7 @@
                             "id": 2949,
                             "name": "address",
                             "nodeType": "ElementaryTypeName",
-                            "src": "5759:7:12",
+                            "src": "5779:7:12",
                             "typeDescriptions": {}
                           }
                         },
@@ -4935,7 +4935,7 @@
                         "lValueRequested": false,
                         "names": [],
                         "nodeType": "FunctionCall",
-                        "src": "5759:13:12",
+                        "src": "5779:13:12",
                         "tryCall": false,
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
@@ -4948,7 +4948,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2941,
-                        "src": "5774:6:12",
+                        "src": "5794:6:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -4972,7 +4972,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2610,
-                        "src": "5743:10:12",
+                        "src": "5763:10:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_contract$_CheatCodes_$2583",
                           "typeString": "contract CheatCodes"
@@ -4986,7 +4986,7 @@
                       "memberName": "deal",
                       "nodeType": "MemberAccess",
                       "referencedDeclaration": 2582,
-                      "src": "5743:15:12",
+                      "src": "5763:15:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_nonpayable$_t_address_$_t_uint256_$returns$__$",
                         "typeString": "function (address,uint256) external"
@@ -5000,7 +5000,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "5743:38:12",
+                    "src": "5763:38:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
@@ -5009,7 +5009,7 @@
                   },
                   "id": 2955,
                   "nodeType": "ExpressionStatement",
-                  "src": "5743:38:12"
+                  "src": "5763:38:12"
                 },
                 {
                   "assignments": [
@@ -5021,10 +5021,10 @@
                       "id": 2960,
                       "mutability": "mutable",
                       "name": "path",
-                      "nameLocation": "5832:4:12",
+                      "nameLocation": "5852:4:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 2998,
-                      "src": "5815:21:12",
+                      "src": "5835:21:12",
                       "stateVariable": false,
                       "storageLocation": "memory",
                       "typeDescriptions": {
@@ -5036,7 +5036,7 @@
                           "id": 2958,
                           "name": "address",
                           "nodeType": "ElementaryTypeName",
-                          "src": "5815:7:12",
+                          "src": "5835:7:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_address",
                             "typeString": "address"
@@ -5044,7 +5044,7 @@
                         },
                         "id": 2959,
                         "nodeType": "ArrayTypeName",
-                        "src": "5815:9:12",
+                        "src": "5835:9:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_array$_t_address_$dyn_storage_ptr",
                           "typeString": "address[]"
@@ -5065,7 +5065,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "5853:1:12",
+                        "src": "5873:1:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_2_by_1",
                           "typeString": "int_const 2"
@@ -5086,7 +5086,7 @@
                       "isPure": true,
                       "lValueRequested": false,
                       "nodeType": "NewExpression",
-                      "src": "5839:13:12",
+                      "src": "5859:13:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_objectcreation_pure$_t_uint256_$returns$_t_array$_t_address_$dyn_memory_ptr_$",
                         "typeString": "function (uint256) pure returns (address[] memory)"
@@ -5096,7 +5096,7 @@
                           "id": 2961,
                           "name": "address",
                           "nodeType": "ElementaryTypeName",
-                          "src": "5843:7:12",
+                          "src": "5863:7:12",
                           "stateMutability": "nonpayable",
                           "typeDescriptions": {
                             "typeIdentifier": "t_address",
@@ -5105,7 +5105,7 @@
                         },
                         "id": 2962,
                         "nodeType": "ArrayTypeName",
-                        "src": "5843:9:12",
+                        "src": "5863:9:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_array$_t_address_$dyn_storage_ptr",
                           "typeString": "address[]"
@@ -5120,7 +5120,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "5839:16:12",
+                    "src": "5859:16:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_array$_t_address_$dyn_memory_ptr",
@@ -5128,7 +5128,7 @@
                     }
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "5815:40:12"
+                  "src": "5835:40:12"
                 },
                 {
                   "expression": {
@@ -5144,7 +5144,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2960,
-                        "src": "5865:4:12",
+                        "src": "5885:4:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_array$_t_address_$dyn_memory_ptr",
                           "typeString": "address[] memory"
@@ -5160,7 +5160,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "5870:1:12",
+                        "src": "5890:1:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_0_by_1",
                           "typeString": "int_const 0"
@@ -5172,7 +5172,7 @@
                       "isPure": false,
                       "lValueRequested": true,
                       "nodeType": "IndexAccess",
-                      "src": "5865:7:12",
+                      "src": "5885:7:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_address",
                         "typeString": "address"
@@ -5186,13 +5186,13 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 2622,
-                      "src": "5875:13:12",
+                      "src": "5895:13:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_address",
                         "typeString": "address"
                       }
                     },
-                    "src": "5865:23:12",
+                    "src": "5885:23:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
                       "typeString": "address"
@@ -5200,7 +5200,7 @@
                   },
                   "id": 2972,
                   "nodeType": "ExpressionStatement",
-                  "src": "5865:23:12"
+                  "src": "5885:23:12"
                 },
                 {
                   "expression": {
@@ -5216,7 +5216,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2960,
-                        "src": "5898:4:12",
+                        "src": "5918:4:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_array$_t_address_$dyn_memory_ptr",
                           "typeString": "address[] memory"
@@ -5232,7 +5232,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "5903:1:12",
+                        "src": "5923:1:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_1_by_1",
                           "typeString": "int_const 1"
@@ -5244,7 +5244,7 @@
                       "isPure": false,
                       "lValueRequested": true,
                       "nodeType": "IndexAccess",
-                      "src": "5898:7:12",
+                      "src": "5918:7:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_address",
                         "typeString": "address"
@@ -5258,13 +5258,13 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 2943,
-                      "src": "5908:10:12",
+                      "src": "5928:10:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_address",
                         "typeString": "address"
                       }
                     },
-                    "src": "5898:20:12",
+                    "src": "5918:20:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
                       "typeString": "address"
@@ -5272,7 +5272,7 @@
                   },
                   "id": 2978,
                   "nodeType": "ExpressionStatement",
-                  "src": "5898:20:12"
+                  "src": "5918:20:12"
                 },
                 {
                   "expression": {
@@ -5286,7 +5286,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "6023:1:12",
+                        "src": "6043:1:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_1_by_1",
                           "typeString": "int_const 1"
@@ -5299,7 +5299,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2960,
-                        "src": "6038:4:12",
+                        "src": "6058:4:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_array$_t_address_$dyn_memory_ptr",
                           "typeString": "address[] memory"
@@ -5313,7 +5313,7 @@
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
                             "referencedDeclaration": -28,
-                            "src": "6064:4:12",
+                            "src": "6084:4:12",
                             "typeDescriptions": {
                               "typeIdentifier": "t_contract$_ConveyorLimitOrdersTest_$3074",
                               "typeString": "contract ConveyorLimitOrdersTest"
@@ -5333,7 +5333,7 @@
                           "isPure": true,
                           "lValueRequested": false,
                           "nodeType": "ElementaryTypeNameExpression",
-                          "src": "6056:7:12",
+                          "src": "6076:7:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_type$_t_address_$",
                             "typeString": "type(address)"
@@ -5342,7 +5342,7 @@
                             "id": 2986,
                             "name": "address",
                             "nodeType": "ElementaryTypeName",
-                            "src": "6056:7:12",
+                            "src": "6076:7:12",
                             "typeDescriptions": {}
                           }
                         },
@@ -5354,7 +5354,7 @@
                         "lValueRequested": false,
                         "names": [],
                         "nodeType": "FunctionCall",
-                        "src": "6056:13:12",
+                        "src": "6076:13:12",
                         "tryCall": false,
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
@@ -5392,7 +5392,7 @@
                                 "kind": "number",
                                 "lValueRequested": false,
                                 "nodeType": "Literal",
-                                "src": "6084:1:12",
+                                "src": "6104:1:12",
                                 "typeDescriptions": {
                                   "typeIdentifier": "t_rational_2_by_1",
                                   "typeString": "int_const 2"
@@ -5410,14 +5410,14 @@
                                 "kind": "number",
                                 "lValueRequested": false,
                                 "nodeType": "Literal",
-                                "src": "6087:3:12",
+                                "src": "6107:3:12",
                                 "typeDescriptions": {
                                   "typeIdentifier": "t_rational_256_by_1",
                                   "typeString": "int_const 256"
                                 },
                                 "value": "256"
                               },
-                              "src": "6084:6:12",
+                              "src": "6104:6:12",
                               "typeDescriptions": {
                                 "typeIdentifier": "t_rational_115792089237316195423570985008687907853269984665640564039457584007913129639936_by_1",
                                 "typeString": "int_const 1157...(70 digits omitted)...9936"
@@ -5434,14 +5434,14 @@
                               "kind": "number",
                               "lValueRequested": false,
                               "nodeType": "Literal",
-                              "src": "6093:1:12",
+                              "src": "6113:1:12",
                               "typeDescriptions": {
                                 "typeIdentifier": "t_rational_1_by_1",
                                 "typeString": "int_const 1"
                               },
                               "value": "1"
                             },
-                            "src": "6084:10:12",
+                            "src": "6104:10:12",
                             "typeDescriptions": {
                               "typeIdentifier": "t_rational_115792089237316195423570985008687907853269984665640564039457584007913129639935_by_1",
                               "typeString": "int_const 1157...(70 digits omitted)...9935"
@@ -5455,7 +5455,7 @@
                         "isPure": true,
                         "lValueRequested": false,
                         "nodeType": "TupleExpression",
-                        "src": "6083:12:12",
+                        "src": "6103:12:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_115792089237316195423570985008687907853269984665640564039457584007913129639935_by_1",
                           "typeString": "int_const 1157...(70 digits omitted)...9935"
@@ -5506,7 +5506,7 @@
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
                           "referencedDeclaration": 2613,
-                          "src": "5960:12:12",
+                          "src": "5980:12:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_contract$_IUniswapV2Router02_$778",
                             "typeString": "contract IUniswapV2Router02"
@@ -5520,7 +5520,7 @@
                         "memberName": "swapExactETHForTokens",
                         "nodeType": "MemberAccess",
                         "referencedDeclaration": 585,
-                        "src": "5960:34:12",
+                        "src": "5980:34:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_function_external_payable$_t_uint256_$_t_array$_t_address_$dyn_memory_ptr_$_t_address_$_t_uint256_$returns$_t_array$_t_uint256_$dyn_memory_ptr_$",
                           "typeString": "function (uint256,address[] memory,address,uint256) payable external returns (uint256[] memory)"
@@ -5542,14 +5542,14 @@
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
                           "referencedDeclaration": 2941,
-                          "src": "6002:6:12",
+                          "src": "6022:6:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_uint256",
                             "typeString": "uint256"
                           }
                         }
                       ],
-                      "src": "5960:49:12",
+                      "src": "5980:49:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_payable$_t_uint256_$_t_array$_t_address_$dyn_memory_ptr_$_t_address_$_t_uint256_$returns$_t_array$_t_uint256_$dyn_memory_ptr_$value",
                         "typeString": "function (uint256,address[] memory,address,uint256) payable external returns (uint256[] memory)"
@@ -5563,7 +5563,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "5960:145:12",
+                    "src": "5980:145:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_array$_t_uint256_$dyn_memory_ptr",
@@ -5572,7 +5572,7 @@
                   },
                   "id": 2997,
                   "nodeType": "ExpressionStatement",
-                  "src": "5960:145:12"
+                  "src": "5980:145:12"
                 }
               ]
             },
@@ -5580,7 +5580,7 @@
             "kind": "function",
             "modifiers": [],
             "name": "swapEthForToken",
-            "nameLocation": "5672:15:12",
+            "nameLocation": "5692:15:12",
             "parameters": {
               "id": 2944,
               "nodeType": "ParameterList",
@@ -5590,10 +5590,10 @@
                   "id": 2941,
                   "mutability": "mutable",
                   "name": "amount",
-                  "nameLocation": "5696:6:12",
+                  "nameLocation": "5716:6:12",
                   "nodeType": "VariableDeclaration",
                   "scope": 2999,
-                  "src": "5688:14:12",
+                  "src": "5708:14:12",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -5604,7 +5604,7 @@
                     "id": 2940,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
-                    "src": "5688:7:12",
+                    "src": "5708:7:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -5617,10 +5617,10 @@
                   "id": 2943,
                   "mutability": "mutable",
                   "name": "_swapToken",
-                  "nameLocation": "5712:10:12",
+                  "nameLocation": "5732:10:12",
                   "nodeType": "VariableDeclaration",
                   "scope": 2999,
-                  "src": "5704:18:12",
+                  "src": "5724:18:12",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -5631,7 +5631,7 @@
                     "id": 2942,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
-                    "src": "5704:7:12",
+                    "src": "5724:7:12",
                     "stateMutability": "nonpayable",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
@@ -5641,13 +5641,13 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "5687:36:12"
+              "src": "5707:36:12"
             },
             "returnParameters": {
               "id": 2945,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "5733:0:12"
+              "src": "5753:0:12"
             },
             "scope": 3074,
             "stateMutability": "nonpayable",
@@ -5657,11 +5657,11 @@
           {
             "id": 3029,
             "nodeType": "FunctionDefinition",
-            "src": "6118:455:12",
+            "src": "6138:455:12",
             "body": {
               "id": 3028,
               "nodeType": "Block",
-              "src": "6277:296:12",
+              "src": "6297:296:12",
               "statements": [
                 {
                   "expression": {
@@ -5676,7 +5676,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 3009,
-                      "src": "6319:5:12",
+                      "src": "6339:5:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_struct$_Order_$1801_memory_ptr",
                         "typeString": "struct ConveyorLimitOrders.Order memory"
@@ -5692,7 +5692,7 @@
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
                           "referencedDeclaration": 3001,
-                          "src": "6374:5:12",
+                          "src": "6394:5:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_address",
                             "typeString": "address"
@@ -5709,7 +5709,7 @@
                               "kind": "number",
                               "lValueRequested": false,
                               "nodeType": "Literal",
-                              "src": "6410:1:12",
+                              "src": "6430:1:12",
                               "typeDescriptions": {
                                 "typeIdentifier": "t_rational_0_by_1",
                                 "typeString": "int_const 0"
@@ -5730,7 +5730,7 @@
                             "isPure": true,
                             "lValueRequested": false,
                             "nodeType": "ElementaryTypeNameExpression",
-                            "src": "6402:7:12",
+                            "src": "6422:7:12",
                             "typeDescriptions": {
                               "typeIdentifier": "t_type$_t_bytes32_$",
                               "typeString": "type(bytes32)"
@@ -5739,7 +5739,7 @@
                               "id": 3015,
                               "name": "bytes32",
                               "nodeType": "ElementaryTypeName",
-                              "src": "6402:7:12",
+                              "src": "6422:7:12",
                               "typeDescriptions": {}
                             }
                           },
@@ -5751,7 +5751,7 @@
                           "lValueRequested": false,
                           "names": [],
                           "nodeType": "FunctionCall",
-                          "src": "6402:10:12",
+                          "src": "6422:10:12",
                           "tryCall": false,
                           "typeDescriptions": {
                             "typeIdentifier": "t_bytes32",
@@ -5766,7 +5766,7 @@
                               "nodeType": "Identifier",
                               "overloadedDeclarations": [],
                               "referencedDeclaration": 2561,
-                              "src": "6437:19:12",
+                              "src": "6457:19:12",
                               "typeDescriptions": {
                                 "typeIdentifier": "t_type$_t_contract$_ConveyorLimitOrders_$2561_$",
                                 "typeString": "type(contract ConveyorLimitOrders)"
@@ -5780,7 +5780,7 @@
                             "memberName": "OrderType",
                             "nodeType": "MemberAccess",
                             "referencedDeclaration": 1777,
-                            "src": "6437:29:12",
+                            "src": "6457:29:12",
                             "typeDescriptions": {
                               "typeIdentifier": "t_type$_t_enum$_OrderType_$1777_$",
                               "typeString": "type(enum ConveyorLimitOrders.OrderType)"
@@ -5794,7 +5794,7 @@
                           "memberName": "SELL",
                           "nodeType": "MemberAccess",
                           "referencedDeclaration": 1774,
-                          "src": "6437:34:12",
+                          "src": "6457:34:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_enum$_OrderType_$1777",
                             "typeString": "enum ConveyorLimitOrders.OrderType"
@@ -5806,7 +5806,7 @@
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
                           "referencedDeclaration": 3003,
-                          "src": "6492:5:12",
+                          "src": "6512:5:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_uint256",
                             "typeString": "uint256"
@@ -5818,7 +5818,7 @@
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
                           "referencedDeclaration": 3005,
-                          "src": "6521:8:12",
+                          "src": "6541:8:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_uint256",
                             "typeString": "uint256"
@@ -5833,7 +5833,7 @@
                           "kind": "bool",
                           "lValueRequested": false,
                           "nodeType": "Literal",
-                          "src": "6551:4:12",
+                          "src": "6571:4:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_bool",
                             "typeString": "bool"
@@ -5874,7 +5874,7 @@
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
                           "referencedDeclaration": 2561,
-                          "src": "6327:19:12",
+                          "src": "6347:19:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_type$_t_contract$_ConveyorLimitOrders_$2561_$",
                             "typeString": "type(contract ConveyorLimitOrders)"
@@ -5888,7 +5888,7 @@
                         "memberName": "Order",
                         "nodeType": "MemberAccess",
                         "referencedDeclaration": 1801,
-                        "src": "6327:25:12",
+                        "src": "6347:25:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_type$_t_struct$_Order_$1801_storage_ptr_$",
                           "typeString": "type(struct ConveyorLimitOrders.Order storage pointer)"
@@ -5909,14 +5909,14 @@
                         "exists"
                       ],
                       "nodeType": "FunctionCall",
-                      "src": "6327:239:12",
+                      "src": "6347:239:12",
                       "tryCall": false,
                       "typeDescriptions": {
                         "typeIdentifier": "t_struct$_Order_$1801_memory_ptr",
                         "typeString": "struct ConveyorLimitOrders.Order memory"
                       }
                     },
-                    "src": "6319:247:12",
+                    "src": "6339:247:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_struct$_Order_$1801_memory_ptr",
                       "typeString": "struct ConveyorLimitOrders.Order memory"
@@ -5924,7 +5924,7 @@
                   },
                   "id": 3027,
                   "nodeType": "ExpressionStatement",
-                  "src": "6319:247:12"
+                  "src": "6339:247:12"
                 }
               ]
             },
@@ -5932,7 +5932,7 @@
             "kind": "function",
             "modifiers": [],
             "name": "newOrder",
-            "nameLocation": "6127:8:12",
+            "nameLocation": "6147:8:12",
             "parameters": {
               "id": 3006,
               "nodeType": "ParameterList",
@@ -5942,10 +5942,10 @@
                   "id": 3001,
                   "mutability": "mutable",
                   "name": "token",
-                  "nameLocation": "6153:5:12",
+                  "nameLocation": "6173:5:12",
                   "nodeType": "VariableDeclaration",
                   "scope": 3029,
-                  "src": "6145:13:12",
+                  "src": "6165:13:12",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -5956,7 +5956,7 @@
                     "id": 3000,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
-                    "src": "6145:7:12",
+                    "src": "6165:7:12",
                     "stateMutability": "nonpayable",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
@@ -5970,10 +5970,10 @@
                   "id": 3003,
                   "mutability": "mutable",
                   "name": "price",
-                  "nameLocation": "6176:5:12",
+                  "nameLocation": "6196:5:12",
                   "nodeType": "VariableDeclaration",
                   "scope": 3029,
-                  "src": "6168:13:12",
+                  "src": "6188:13:12",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -5984,7 +5984,7 @@
                     "id": 3002,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
-                    "src": "6168:7:12",
+                    "src": "6188:7:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -5997,10 +5997,10 @@
                   "id": 3005,
                   "mutability": "mutable",
                   "name": "quantity",
-                  "nameLocation": "6199:8:12",
+                  "nameLocation": "6219:8:12",
                   "nodeType": "VariableDeclaration",
                   "scope": 3029,
-                  "src": "6191:16:12",
+                  "src": "6211:16:12",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -6011,7 +6011,7 @@
                     "id": 3004,
                     "name": "uint256",
                     "nodeType": "ElementaryTypeName",
-                    "src": "6191:7:12",
+                    "src": "6211:7:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -6020,7 +6020,7 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "6135:78:12"
+              "src": "6155:78:12"
             },
             "returnParameters": {
               "id": 3010,
@@ -6031,10 +6031,10 @@
                   "id": 3009,
                   "mutability": "mutable",
                   "name": "order",
-                  "nameLocation": "6270:5:12",
+                  "nameLocation": "6290:5:12",
                   "nodeType": "VariableDeclaration",
                   "scope": 3029,
-                  "src": "6237:38:12",
+                  "src": "6257:38:12",
                   "stateVariable": false,
                   "storageLocation": "memory",
                   "typeDescriptions": {
@@ -6049,10 +6049,10 @@
                       "name": "ConveyorLimitOrders.Order",
                       "nodeType": "IdentifierPath",
                       "referencedDeclaration": 1801,
-                      "src": "6237:25:12"
+                      "src": "6257:25:12"
                     },
                     "referencedDeclaration": 1801,
-                    "src": "6237:25:12",
+                    "src": "6257:25:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_struct$_Order_$1801_storage_ptr",
                       "typeString": "struct ConveyorLimitOrders.Order"
@@ -6061,7 +6061,7 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "6236:40:12"
+              "src": "6256:40:12"
             },
             "scope": 3074,
             "stateMutability": "pure",
@@ -6071,11 +6071,11 @@
           {
             "id": 3073,
             "nodeType": "FunctionDefinition",
-            "src": "6579:514:12",
+            "src": "6599:514:12",
             "body": {
               "id": 3072,
               "nodeType": "Block",
-              "src": "6698:395:12",
+              "src": "6718:395:12",
               "statements": [
                 {
                   "assignments": [
@@ -6087,10 +6087,10 @@
                       "id": 3042,
                       "mutability": "mutable",
                       "name": "orderGroup",
-                      "nameLocation": "6794:10:12",
+                      "nameLocation": "6814:10:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 3072,
-                      "src": "6747:57:12",
+                      "src": "6767:57:12",
                       "stateVariable": false,
                       "storageLocation": "memory",
                       "typeDescriptions": {
@@ -6106,10 +6106,10 @@
                             "name": "ConveyorLimitOrders.Order",
                             "nodeType": "IdentifierPath",
                             "referencedDeclaration": 1801,
-                            "src": "6747:25:12"
+                            "src": "6767:25:12"
                           },
                           "referencedDeclaration": 1801,
-                          "src": "6747:25:12",
+                          "src": "6767:25:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_struct$_Order_$1801_storage_ptr",
                             "typeString": "struct ConveyorLimitOrders.Order"
@@ -6117,7 +6117,7 @@
                         },
                         "id": 3041,
                         "nodeType": "ArrayTypeName",
-                        "src": "6747:27:12",
+                        "src": "6767:27:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_array$_t_struct$_Order_$1801_storage_$dyn_storage_ptr",
                           "typeString": "struct ConveyorLimitOrders.Order[]"
@@ -6138,7 +6138,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "6839:1:12",
+                        "src": "6859:1:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_1_by_1",
                           "typeString": "int_const 1"
@@ -6159,7 +6159,7 @@
                       "isPure": true,
                       "lValueRequested": false,
                       "nodeType": "NewExpression",
-                      "src": "6807:31:12",
+                      "src": "6827:31:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_objectcreation_pure$_t_uint256_$returns$_t_array$_t_struct$_Order_$1801_memory_ptr_$dyn_memory_ptr_$",
                         "typeString": "function (uint256) pure returns (struct ConveyorLimitOrders.Order memory[] memory)"
@@ -6173,10 +6173,10 @@
                             "name": "ConveyorLimitOrders.Order",
                             "nodeType": "IdentifierPath",
                             "referencedDeclaration": 1801,
-                            "src": "6811:25:12"
+                            "src": "6831:25:12"
                           },
                           "referencedDeclaration": 1801,
-                          "src": "6811:25:12",
+                          "src": "6831:25:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_struct$_Order_$1801_storage_ptr",
                             "typeString": "struct ConveyorLimitOrders.Order"
@@ -6184,7 +6184,7 @@
                         },
                         "id": 3045,
                         "nodeType": "ArrayTypeName",
-                        "src": "6811:27:12",
+                        "src": "6831:27:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_array$_t_struct$_Order_$1801_storage_$dyn_storage_ptr",
                           "typeString": "struct ConveyorLimitOrders.Order[]"
@@ -6199,7 +6199,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "6807:34:12",
+                    "src": "6827:34:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_array$_t_struct$_Order_$1801_memory_ptr_$dyn_memory_ptr",
@@ -6207,7 +6207,7 @@
                     }
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "6747:94:12"
+                  "src": "6767:94:12"
                 },
                 {
                   "expression": {
@@ -6223,7 +6223,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 3042,
-                        "src": "6930:10:12",
+                        "src": "6950:10:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_array$_t_struct$_Order_$1801_memory_ptr_$dyn_memory_ptr",
                           "typeString": "struct ConveyorLimitOrders.Order memory[] memory"
@@ -6239,7 +6239,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "6941:1:12",
+                        "src": "6961:1:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_0_by_1",
                           "typeString": "int_const 0"
@@ -6251,7 +6251,7 @@
                       "isPure": false,
                       "lValueRequested": true,
                       "nodeType": "IndexAccess",
-                      "src": "6930:13:12",
+                      "src": "6950:13:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_struct$_Order_$1801_memory_ptr",
                         "typeString": "struct ConveyorLimitOrders.Order memory"
@@ -6265,13 +6265,13 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 3032,
-                      "src": "6946:5:12",
+                      "src": "6966:5:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_struct$_Order_$1801_memory_ptr",
                         "typeString": "struct ConveyorLimitOrders.Order memory"
                       }
                     },
-                    "src": "6930:21:12",
+                    "src": "6950:21:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_struct$_Order_$1801_memory_ptr",
                       "typeString": "struct ConveyorLimitOrders.Order memory"
@@ -6279,7 +6279,7 @@
                   },
                   "id": 3055,
                   "nodeType": "ExpressionStatement",
-                  "src": "6930:21:12"
+                  "src": "6950:21:12"
                 },
                 {
                   "assignments": [
@@ -6291,10 +6291,10 @@
                       "id": 3060,
                       "mutability": "mutable",
                       "name": "orderIds",
-                      "nameLocation": "7001:8:12",
+                      "nameLocation": "7021:8:12",
                       "nodeType": "VariableDeclaration",
                       "scope": 3072,
-                      "src": "6984:25:12",
+                      "src": "7004:25:12",
                       "stateVariable": false,
                       "storageLocation": "memory",
                       "typeDescriptions": {
@@ -6306,7 +6306,7 @@
                           "id": 3058,
                           "name": "bytes32",
                           "nodeType": "ElementaryTypeName",
-                          "src": "6984:7:12",
+                          "src": "7004:7:12",
                           "typeDescriptions": {
                             "typeIdentifier": "t_bytes32",
                             "typeString": "bytes32"
@@ -6314,7 +6314,7 @@
                         },
                         "id": 3059,
                         "nodeType": "ArrayTypeName",
-                        "src": "6984:9:12",
+                        "src": "7004:9:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_array$_t_bytes32_$dyn_storage_ptr",
                           "typeString": "bytes32[]"
@@ -6332,7 +6332,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 3042,
-                        "src": "7043:10:12",
+                        "src": "7063:10:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_array$_t_struct$_Order_$1801_memory_ptr_$dyn_memory_ptr",
                           "typeString": "struct ConveyorLimitOrders.Order memory[] memory"
@@ -6352,7 +6352,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 2607,
-                        "src": "7012:19:12",
+                        "src": "7032:19:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_contract$_ConveyorLimitOrders_$2561",
                           "typeString": "contract ConveyorLimitOrders"
@@ -6366,7 +6366,7 @@
                       "memberName": "placeOrder",
                       "nodeType": "MemberAccess",
                       "referencedDeclaration": 2010,
-                      "src": "7012:30:12",
+                      "src": "7032:30:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_nonpayable$_t_array$_t_struct$_Order_$1801_memory_ptr_$dyn_memory_ptr_$returns$_t_array$_t_bytes32_$dyn_memory_ptr_$",
                         "typeString": "function (struct ConveyorLimitOrders.Order memory[] memory) external returns (bytes32[] memory)"
@@ -6380,7 +6380,7 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "7012:42:12",
+                    "src": "7032:42:12",
                     "tryCall": false,
                     "typeDescriptions": {
                       "typeIdentifier": "t_array$_t_bytes32_$dyn_memory_ptr",
@@ -6388,7 +6388,7 @@
                     }
                   },
                   "nodeType": "VariableDeclarationStatement",
-                  "src": "6984:70:12"
+                  "src": "7004:70:12"
                 },
                 {
                   "expression": {
@@ -6403,7 +6403,7 @@
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 3035,
-                      "src": "7065:7:12",
+                      "src": "7085:7:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_bytes32",
                         "typeString": "bytes32"
@@ -6418,7 +6418,7 @@
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 3060,
-                        "src": "7075:8:12",
+                        "src": "7095:8:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_array$_t_bytes32_$dyn_memory_ptr",
                           "typeString": "bytes32[] memory"
@@ -6434,7 +6434,7 @@
                         "kind": "number",
                         "lValueRequested": false,
                         "nodeType": "Literal",
-                        "src": "7084:1:12",
+                        "src": "7104:1:12",
                         "typeDescriptions": {
                           "typeIdentifier": "t_rational_0_by_1",
                           "typeString": "int_const 0"
@@ -6446,13 +6446,13 @@
                       "isPure": false,
                       "lValueRequested": false,
                       "nodeType": "IndexAccess",
-                      "src": "7075:11:12",
+                      "src": "7095:11:12",
                       "typeDescriptions": {
                         "typeIdentifier": "t_bytes32",
                         "typeString": "bytes32"
                       }
                     },
-                    "src": "7065:21:12",
+                    "src": "7085:21:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bytes32",
                       "typeString": "bytes32"
@@ -6460,7 +6460,7 @@
                   },
                   "id": 3071,
                   "nodeType": "ExpressionStatement",
-                  "src": "7065:21:12"
+                  "src": "7085:21:12"
                 }
               ]
             },
@@ -6468,7 +6468,7 @@
             "kind": "function",
             "modifiers": [],
             "name": "placeMockOrder",
-            "nameLocation": "6588:14:12",
+            "nameLocation": "6608:14:12",
             "parameters": {
               "id": 3033,
               "nodeType": "ParameterList",
@@ -6478,10 +6478,10 @@
                   "id": 3032,
                   "mutability": "mutable",
                   "name": "order",
-                  "nameLocation": "6636:5:12",
+                  "nameLocation": "6656:5:12",
                   "nodeType": "VariableDeclaration",
                   "scope": 3073,
-                  "src": "6603:38:12",
+                  "src": "6623:38:12",
                   "stateVariable": false,
                   "storageLocation": "memory",
                   "typeDescriptions": {
@@ -6496,10 +6496,10 @@
                       "name": "ConveyorLimitOrders.Order",
                       "nodeType": "IdentifierPath",
                       "referencedDeclaration": 1801,
-                      "src": "6603:25:12"
+                      "src": "6623:25:12"
                     },
                     "referencedDeclaration": 1801,
-                    "src": "6603:25:12",
+                    "src": "6623:25:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_struct$_Order_$1801_storage_ptr",
                       "typeString": "struct ConveyorLimitOrders.Order"
@@ -6508,7 +6508,7 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "6602:40:12"
+              "src": "6622:40:12"
             },
             "returnParameters": {
               "id": 3036,
@@ -6519,10 +6519,10 @@
                   "id": 3035,
                   "mutability": "mutable",
                   "name": "orderId",
-                  "nameLocation": "6685:7:12",
+                  "nameLocation": "6705:7:12",
                   "nodeType": "VariableDeclaration",
                   "scope": 3073,
-                  "src": "6677:15:12",
+                  "src": "6697:15:12",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -6533,7 +6533,7 @@
                     "id": 3034,
                     "name": "bytes32",
                     "nodeType": "ElementaryTypeName",
-                    "src": "6677:7:12",
+                    "src": "6697:7:12",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bytes32",
                       "typeString": "bytes32"
@@ -6542,7 +6542,7 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "6676:17:12"
+              "src": "6696:17:12"
             },
             "scope": 3074,
             "stateMutability": "nonpayable",
@@ -6558,11 +6558,11 @@
               "name": "DSTest",
               "nodeType": "IdentifierPath",
               "referencedDeclaration": 13302,
-              "src": "496:6:12"
+              "src": "516:6:12"
             },
             "id": 2585,
             "nodeType": "InheritanceSpecifier",
-            "src": "496:6:12"
+            "src": "516:6:12"
           }
         ],
         "canonicalName": "ConveyorLimitOrdersTest",
@@ -6576,7 +6576,7 @@
           13302
         ],
         "name": "ConveyorLimitOrdersTest",
-        "nameLocation": "469:23:12",
+        "nameLocation": "489:23:12",
         "scope": 3075,
         "usedErrors": []
       }
