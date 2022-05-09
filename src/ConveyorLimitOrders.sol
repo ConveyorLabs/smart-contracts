@@ -11,6 +11,11 @@ import "../lib/interfaces/IUniswapV3Factory.sol";
 import "../lib/interfaces/IUniswapV3Pool.sol";
 
 contract ConveyorLimitOrders {
+    //----------------------Constructor------------------------------------//
+    constructor() {
+        //TODO: need to fill out what we are putting in the constructor
+    }
+
     //----------------------Modifiers------------------------------------//
 
     modifier onlyEOA() {
