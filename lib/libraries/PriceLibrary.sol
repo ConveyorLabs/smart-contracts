@@ -9,7 +9,7 @@ import "../interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../interfaces/uniswap-v3/IUniswapV3Factory.sol";
 import "../interfaces/uniswap-v3/IUniswapV3Pool.sol";
-import "../interfaces/token/ERC20.sol";
+import "../interfaces/token/IERC20.sol";
 import "../../src/test/utils/Console.sol";
 import "../../src/ConveyorLimitOrders.sol";
 
@@ -24,7 +24,7 @@ library PriceLibrary {
     /// @param _factory bytes32 contract factory address
     /// @param _initBytecode bytes32 initialization bytecode for dex pair 
     /// @return spotPrice uint112 current reserve calculated spot price on dex pair
-    function calculateV2PriceSingle (address token0, address token1, address _factory, bytes32 _initBytecode) internal view returns (uint256 spotPrice) {
+    function calculateV2SpotPrice(address token0, address token1, address _factory, bytes32 _initBytecode) internal view returns (uint256 spotPrice) {
         require(token0 != token1, "Invalid Token Pair, IDENTICAL Address's");
         (address tok0, address tok1) = sortTokens(token0, token1);
         //Return Uniswap V2 Pair address
@@ -65,7 +65,7 @@ library PriceLibrary {
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
     /// @return amountOut spot price of token1 with respect to token2 i.e reserve1/reserve2
-    function calculateUniV3SpotPrice(address token0, address token1, uint112 amountIn, uint24 FEE,  address _factory) internal view returns (uint256) {
+    function calculateV3SpotPrice(address token0, address token1, uint112 amountIn, uint24 FEE,  address _factory) internal view returns (uint256) {
        
         //tickSeconds array defines our tick interval of observation over the lp
         uint32[] memory tickSeconds = new uint32[](2);
@@ -120,7 +120,7 @@ library PriceLibrary {
     /// @param tickSecond uint32 tick seconds to calculate v3 price average over
     /// @param FEE LP token pair fee
     /// @return meanSpotPrice uint112 mean spot price over all dex's specified in input parameters
-    function calculateMeanLPSpot (address token0, address token1, ConveyorLimitOrders.Dex[] memory dexes, uint32 tickSecond, uint24 FEE) internal view returns (uint256) {
+    function calculateMeanSpotPrice (address token0, address token1, ConveyorLimitOrders.Dex[] memory dexes, uint32 tickSecond, uint24 FEE) internal view returns (uint256) {
         //Initialize meanSpotPrice to 0
         uint256 meanSpotPrice=0;
         uint8 incrementor = 0;
@@ -131,14 +131,14 @@ library PriceLibrary {
         for (uint256 i =0; i<dexes.length; ++i){
             if(dexes[i].isUniV2){
                 //Right shift spot price 9 decimals and add to meanSpotPrice
-                    uint256 spotPrice = calculateV2PriceSingle(token0, token1, dexes[i].factoryAddress, dexes[i].initBytecode);
+                    uint256 spotPrice = calculateV2SpotPrice(token0, token1, dexes[i].factoryAddress, dexes[i].initBytecode);
                     meanSpotPrice += spotPrice;
 
                     incrementor+= (spotPrice==0) ? 0 : 1;
                 
                 
             }else{
-                    uint256 spotPrice = calculateUniV3SpotPrice(token0, token1, amountIn, FEE, dexes[i].factoryAddress);
+                    uint256 spotPrice = calculateV3SpotPrice(token0, token1, amountIn, FEE, dexes[i].factoryAddress);
                     meanSpotPrice += (spotPrice);
                     incrementor+= (spotPrice==0) ? 0 : 1;
            
@@ -184,7 +184,7 @@ library PriceLibrary {
     /// @param token address of token to get target decimals
     /// @return targetDecimals uint8 target decimals of token
     function getTargetDecimals (address token) internal view returns (uint8 targetDecimals) {
-        return ERC20(token).decimals();
+        return IERC20(token).decimals();
     }
 
     /// @notice Helper function to return sorted token addresses
@@ -202,7 +202,7 @@ library PriceLibrary {
     /// @param tickSecond uint32 tick seconds to calculate v3 price average over
     /// @param FEE LP token pair fee
     /// @return meanSpotPrice uint112 mean spot price over all dex's specified in input parameters
-    function calculateMinLPSpotPrice(address token0, address token1, ConveyorLimitOrders.Dex[] memory dexes, uint32 tickSecond, uint24 FEE) internal view returns (uint256) {
+    function calculateMinSpotPrice(address token0, address token1, ConveyorLimitOrders.Dex[] memory dexes, uint32 tickSecond, uint24 FEE) internal view returns (uint256) {
         //Initialize meanSpotPrice to 0
         uint256 minSpotPrice=0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
        
@@ -213,12 +213,12 @@ library PriceLibrary {
         for (uint256 i =0; i<dexes.length; ++i){
             if(dexes[i].isUniV2){
                 //Right shift spot price 9 decimals and add to meanSpotPrice
-                    uint256 spotPrice = calculateV2PriceSingle(token0, token1, dexes[i].factoryAddress, dexes[i].initBytecode);
+                    uint256 spotPrice = calculateV2SpotPrice(token0, token1, dexes[i].factoryAddress, dexes[i].initBytecode);
                     minSpotPrice = (spotPrice < minSpotPrice && spotPrice !=0) ? spotPrice : minSpotPrice;
 
                 
             }else{
-                    uint256 spotPrice = calculateUniV3SpotPrice(token0,token1, amountIn, FEE, dexes[i].factoryAddress);
+                    uint256 spotPrice = calculateV3SpotPrice(token0,token1, amountIn, FEE, dexes[i].factoryAddress);
                     minSpotPrice = ((spotPrice ) < minSpotPrice && spotPrice !=0) ? spotPrice : minSpotPrice;
                     
            

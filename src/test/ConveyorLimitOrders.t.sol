@@ -174,6 +174,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         console.logString("--------------Min Spot Price Output-------------------");
         console.logString("--------------WETH-USDC-------------------");
         console.logUint(price1);
+        console.logUint(price1);
         console.logString("Right shifted");
         console.logUint(price1 >> 9);
         console.logString("---------USDC-DAI--------------");
@@ -232,9 +233,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
 
         //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-        uint256 price1= PriceLibrary.calculateUniV3SpotPrice(weth, usdc, 1000000000000, 3000, _uniV3FactoryAddress);
-        uint256 price2= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,_uniV3FactoryAddress);
-        uint256 price3= PriceLibrary.calculateUniV3SpotPrice(weth, dai, 1, 3000, _uniV3FactoryAddress);
+        uint256 price1= PriceLibrary.calculateV3SpotPrice(weth, usdc, 1000000000000, 3000, _uniV3FactoryAddress);
+        uint256 price2= PriceLibrary.calculateV3SpotPrice(dai, usdc, 1000000000000, 3000,_uniV3FactoryAddress);
+        uint256 price3= PriceLibrary.calculateV3SpotPrice(weth, dai, 1, 3000, _uniV3FactoryAddress);
         //uint256 price4= PriceLibrary.calculateUniV3SpotPrice(wax,weth, 1, 3000,1, _uniV3FactoryAddress);
         
         console.logString("---------V3 Tick Range Price Uni----------");
@@ -255,10 +256,10 @@ contract ConveyorLimitOrdersTest is DSTest {
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
         //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-        uint256 price1= PriceLibrary.calculateV2PriceSingle(weth, usdc, _sushiFactoryAddress, _sushiHexDem);
-        uint256 price2= PriceLibrary.calculateV2PriceSingle(dai, usdc, _sushiFactoryAddress, _sushiHexDem);
-        uint256 price3= PriceLibrary.calculateV2PriceSingle(weth, dai, _sushiFactoryAddress, _sushiHexDem);
-        uint256 price4= PriceLibrary.calculateV2PriceSingle(weth, wax, _sushiFactoryAddress, _sushiHexDem);
+        uint256 price1= PriceLibrary.calculateV2SpotPrice(weth, usdc, _sushiFactoryAddress, _sushiHexDem);
+        uint256 price2= PriceLibrary.calculateV2SpotPrice(dai, usdc, _sushiFactoryAddress, _sushiHexDem);
+        uint256 price3= PriceLibrary.calculateV2SpotPrice(weth, dai, _sushiFactoryAddress, _sushiHexDem);
+        uint256 price4= PriceLibrary.calculateV2SpotPrice(weth, wax, _sushiFactoryAddress, _sushiHexDem);
         console.logString("---------V2 Spot Price Sushi----------");
         console.logString("---------USDC-WETH-------------");
         console.logUint(price1);
@@ -276,10 +277,10 @@ contract ConveyorLimitOrdersTest is DSTest {
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
         //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-        uint256 price1= PriceLibrary.calculateV2PriceSingle(weth, usdc, 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f, _uniswapV2HexDem);
-        uint256 price2= PriceLibrary.calculateV2PriceSingle(dai, usdc, 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f, _uniswapV2HexDem);
-        uint256 price3= PriceLibrary.calculateV2PriceSingle(weth, dai, 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f, _uniswapV2HexDem);
-        uint256 price4= PriceLibrary.calculateV2PriceSingle(weth, wax, 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f, _uniswapV2HexDem);
+        uint256 price1= PriceLibrary.calculateV2SpotPrice(weth, usdc, 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f, _uniswapV2HexDem);
+        uint256 price2= PriceLibrary.calculateV2SpotPrice(dai, usdc, 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f, _uniswapV2HexDem);
+        uint256 price3= PriceLibrary.calculateV2SpotPrice(weth, dai, 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f, _uniswapV2HexDem);
+        uint256 price4= PriceLibrary.calculateV2SpotPrice(weth, wax, 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f, _uniswapV2HexDem);
         console.logString("---------V2 Spot Price Uni----------");
         console.logString("---------USDC-WETH-------------");
         console.logUint(price1);

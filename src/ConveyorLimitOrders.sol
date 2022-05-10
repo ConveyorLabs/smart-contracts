@@ -316,7 +316,7 @@ contract ConveyorLimitOrders {
     /// @param token1 bytes32 address of token2
     /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
     function calculateMeanPairSpotPrice(address token0, address token1) external view returns (uint256) {
-        return PriceLibrary.calculateMeanLPSpot(token0, token1, dexes,1, 3000);
+        return PriceLibrary.calculateMeanSpotPrice(token0, token1, dexes,1, 3000);
     }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
@@ -324,7 +324,7 @@ contract ConveyorLimitOrders {
     /// @param token1 bytes32 address of token2
     /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
     function calculateMinPairSpotPrice(address token0, address token1) external view returns (uint256) {
-        return PriceLibrary.calculateMinLPSpotPrice(token0, token1, dexes,1, 3000);
+        return PriceLibrary.calculateMinSpotPrice(token0, token1, dexes,1, 3000);
     }
     
 
