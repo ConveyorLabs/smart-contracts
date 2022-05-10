@@ -70,23 +70,23 @@
     "linkReferences": {}
   },
   "ast": {
-    "absolutePath": "/Users/leyton/ConveyorLabs/limit-contract-master/limits-v0/lib/interfaces/IUniswapV3Pool.sol",
-    "id": 869,
+    "absolutePath": "/Users/leyton/ConveyorLabs/limit-contract-master/limits-v0/lib/interfaces/UniswapV3/IUniswapV3Pool.sol",
+    "id": 1502,
     "exportedSymbols": {
       "IUniswapV3Pool": [
-        868
+        1501
       ],
       "IUniswapV3PoolDerivedState": [
-        899
+        1532
       ]
     },
     "nodeType": "SourceUnit",
-    "src": "45:410:6",
+    "src": "45:410:9",
     "nodes": [
       {
-        "id": 863,
+        "id": 1496,
         "nodeType": "PragmaDirective",
-        "src": "45:24:6",
+        "src": "45:24:9",
         "literals": [
           "solidity",
           ">=",
@@ -95,53 +95,53 @@
         ]
       },
       {
-        "id": 864,
+        "id": 1497,
         "nodeType": "ImportDirective",
-        "src": "72:42:6",
-        "absolutePath": "/Users/leyton/ConveyorLabs/limit-contract-master/limits-v0/lib/interfaces/IUniswapV3PoolDerivedState.sol",
+        "src": "72:42:9",
+        "absolutePath": "/Users/leyton/ConveyorLabs/limit-contract-master/limits-v0/lib/interfaces/UniswapV3/IUniswapV3PoolDerivedState.sol",
         "file": "./IUniswapV3PoolDerivedState.sol",
         "nameLocation": "-1:-1:-1",
-        "scope": 869,
-        "sourceUnit": 900,
+        "scope": 1502,
+        "sourceUnit": 1533,
         "symbolAliases": [],
         "unitAlias": ""
       },
       {
-        "id": 868,
+        "id": 1501,
         "nodeType": "ContractDefinition",
-        "src": "382:72:6",
+        "src": "382:72:9",
         "abstract": false,
         "baseContracts": [
           {
             "baseName": {
-              "id": 866,
+              "id": 1499,
               "name": "IUniswapV3PoolDerivedState",
               "nodeType": "IdentifierPath",
-              "referencedDeclaration": 899,
-              "src": "418:26:6"
+              "referencedDeclaration": 1532,
+              "src": "418:26:9"
             },
-            "id": 867,
+            "id": 1500,
             "nodeType": "InheritanceSpecifier",
-            "src": "418:26:6"
+            "src": "418:26:9"
           }
         ],
         "canonicalName": "IUniswapV3Pool",
         "contractDependencies": [],
         "contractKind": "interface",
         "documentation": {
-          "id": 865,
+          "id": 1498,
           "nodeType": "StructuredDocumentation",
-          "src": "117:265:6",
+          "src": "117:265:9",
           "text": "@title The interface for a Uniswap V3 Pool\n @notice A Uniswap pool facilitates swapping and automated market making between any two assets that strictly conform\n to the ERC20 specification\n @dev The pool interface is broken up into many smaller pieces"
         },
         "fullyImplemented": false,
         "linearizedBaseContracts": [
-          868,
-          899
+          1501,
+          1532
         ],
         "name": "IUniswapV3Pool",
-        "nameLocation": "392:14:6",
-        "scope": 869,
+        "nameLocation": "392:14:9",
+        "scope": 1502,
         "usedErrors": []
       }
     ],

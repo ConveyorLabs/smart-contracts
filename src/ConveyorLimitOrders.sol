@@ -110,9 +110,12 @@ contract ConveyorLimitOrders {
         order = ActiveOrders[eoaAddress].orderGroup[token].orders[orderId];
     }
 
+    /// @notice Add Dex struct to dexes array from arr _factory, and arr _hexDem
+    /// @param _factory address[] dex factory address's to add
+    /// @param _hexDem Factory address create2 deployment bytecode array
+    /// @param isUniV2 Array of bool's indicating uniV2 status
     function addDex(address[] memory _factory, bytes32[] memory _hexDem, bool[] memory isUniV2) public {
         require((_factory.length == _hexDem.length && _hexDem.length== isUniV2.length), "Invalid input, Arr length mismatch");
-
         for(uint256 i = 0; i < _factory.length; i++){
             Dex memory d = Dex(_factory[i], _hexDem[i], isUniV2[i]);
             dexes.push(d);
@@ -313,7 +316,15 @@ contract ConveyorLimitOrders {
     /// @param token1 bytes32 address of token2
     /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
     function calculateMeanPairSpotPrice(address token0, address token1) external view returns (uint256) {
-        return PriceLibrary.calculateMeanLPSpot(token0, token1, dexes);
+        return PriceLibrary.calculateMeanLPSpot(token0, token1, dexes,1, 3000);
+    }
+
+    /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
+    /// @param token0 bytes32 address of token1
+    /// @param token1 bytes32 address of token2
+    /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
+    function calculateMinPairSpotPrice(address token0, address token1) external view returns (uint256) {
+        return PriceLibrary.calculateMinLPSpotPrice(token0, token1, dexes,1, 3000);
     }
     
 
