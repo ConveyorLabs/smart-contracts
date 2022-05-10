@@ -9,6 +9,7 @@ import "./test/utils/Console.sol";
 import "../lib/libraries/Uniswap/OracleLibrary.sol";
 import "../lib/interfaces/UniswapV3/IUniswapV3Factory.sol";
 import "../lib/interfaces/UniswapV3/IUniswapV3Pool.sol";
+import "../lib/libraries/PriceLibrary.sol";
 
 contract ConveyorLimitOrders {
     //----------------------Modifiers------------------------------------//
@@ -97,9 +98,7 @@ contract ConveyorLimitOrders {
 
      //----------------------Constructor------------------------------------//
 
-     constructor(Dex[] memory _dexes) public {
-        dexes= _dexes;
-     }
+     constructor() {}
 
     //----------------------Functions------------------------------------//
    
@@ -111,6 +110,14 @@ contract ConveyorLimitOrders {
         order = ActiveOrders[eoaAddress].orderGroup[token].orders[orderId];
     }
 
+    function addDex(address[] memory _factory, bytes32[] memory _hexDem, bool[] memory isUniV2) public {
+        require((_factory.length == _hexDem.length && _hexDem.length== isUniV2.length), "Invalid input, Arr length mismatch");
+
+        for(uint256 i = 0; i < _factory.length; i++){
+            Dex memory d = Dex(_factory[i], _hexDem[i], isUniV2[i]);
+            dexes.push(d);
+        }
+    }
 
     /// @notice Add user's order into the Active order's mapping conditionally if the oder passes all of the safety check criterion
     /// @param orderGroup := array of orders to be added to ActiveOrders mapping in OrderGroup struct
@@ -300,108 +307,14 @@ contract ConveyorLimitOrders {
         }
     }
 
-    /// @notice Helper function to change the base decimal value of token0 & token1 to the same target decimal value
-    /// target decimal value for both token decimals to match will be max(token0Decimals, token1Decimals)
-    /// @param reserve0 uint256 token1 value
-    /// @param token0Decimals Decimals of token0
-    /// @param reserve1 uint256 token2 value
-    /// @param token1Decimals Decimals of token1
-    function convertToCommonBase(uint256 reserve0, uint8 token0Decimals, uint256 reserve1, uint8 token1Decimals) external returns (uint256, uint256){
-
-        /// @dev Conditionally change the decimal to target := max(decimal0, decimal1)
-        /// return tuple of modified reserve values in matching decimals
-        if(token0Decimals>token1Decimals){
-            return (reserve0, reserve1*(10**(token0Decimals-token1Decimals)));
-        }else{
-            return(reserve0*(10**(token1Decimals-token0Decimals)), reserve1);
-        }
-
-    }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
     /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
-    function calculateUniV2SpotPrice(address token0, address token1) external view returns (uint112) {
-         
-        //Get Uni v2 pair address for token0, token1
-        address factory = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
-        address pair = address(uint160(uint(keccak256(abi.encodePacked(
-            hex'ff',
-            factory,
-            keccak256(abi.encodePacked(token0, token1)),
-            hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f'
-            )))));
-
-        console.log(pair);
-        (uint112 x, ,)=IUniswapV2Pair(pair).getReserves();
-        console.log(x);
-       
-        (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pair).getReserves();
-        console.log(reserve0);
-        console.log(reserve1);
-
-        return reserve0/reserve1;
-        
+    function calculateMeanPairSpotPrice(address token0, address token1) external view returns (uint256) {
+        return PriceLibrary.calculateMeanLPSpot(token0, token1, dexes);
     }
     
-    /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
-    /// @param token0 bytes32 address of token1
-    /// @param token1 bytes32 address of token2
-    /// @return amountOut spot price of token1 with respect to token2 i.e reserve1/reserve2
-    function calculateUniV3SpotPrice(address token0, address token1, uint128 amountIn, uint24 FEE, uint32 tickSecond) external returns (uint256 amountOut) {
-        //Uniswap V3 Factory
-        address factory = dexFactories[1];
-       
-        //tickSeconds array defines our tick interval of observation over the lp
-        uint32[] memory tickSeconds = new uint32[](2);
-        //int32 version of tickSecond padding in tick range
-        int32 tickSecondInt = int32(tickSecond);
-        //Populate tickSeconds array current block to tickSecond behind current block for tick range
-        tickSeconds[0] = tickSecond;
-        tickSeconds[1] = 0;
 
-        //Pool address for token pair
-        address pool = IUniswapV3Factory(factory).getPool(
-            token0,
-            token1,
-            FEE
-        );
-        
-
-         //Start observation over lp in prespecified tick range
-        (int56[] memory tickCumulatives, ) = IUniswapV3Pool(pool).observe(
-            tickSeconds
-        );
-
-        //Spot price of tickSeconds ago - spot price of current block
-        int56 tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
-
-        // int56 / uint32 = int24
-        int24 tick = int24(tickCumulativesDelta / (tickSecondInt));
-
-         //so if tickCumulativeDelta < 0 and division has remainder, then rounddown
-        
-        if (
-            tickCumulativesDelta < 0 && (tickCumulativesDelta % tickSecondInt != 0)
-        ) {
-            tick--;
-        }
-
-        //amountOut = tick range spot over specified tick interval
-        amountOut = OracleLibrary.getQuoteAtTick(
-            tick,
-            amountIn,
-            token0,
-            token1
-        );
-
-        
-    }
-
-    /// @notice Helper function to get the price average of a token between multiple pools
-    /// @param address[] pool address's to calculate the average price between
-    // function calculateMeanPoolPriceAverageToken0(address[] pairs, address token0, address token1) internal {
-    //     //Calculate mean spot price across arrTokenPairs in terms of token0, so token0/token1
-    // }
 }

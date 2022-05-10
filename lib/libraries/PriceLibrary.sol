@@ -10,16 +10,13 @@ import "../interfaces/UniswapV3/IUniswapV3Factory.sol";
 import "../interfaces/UniswapV3/IUniswapV3Pool.sol";
 import '../../src/ConveyorLimitOrders.sol';
 import "../interfaces/ERC20.sol";
+import "../../src/test/utils/Console.sol";
 
 /// @title LPMath library
 /// @notice Provides functions to get price data across multiple dex's
-library LPMathLibrary {
+library PriceLibrary {
 
-    struct Dex {
-        address factoryAddress;
-        bytes32 initBytecode;
-        bool isUniV2;
-    }
+    
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
     /// @param token0 bytes32 address of token1
@@ -27,7 +24,7 @@ library LPMathLibrary {
     /// @param _factory bytes32 contract factory address
     /// @param _initBytecode bytes32 initialization bytecode for dex pair 
     /// @return spotPrice uint112 current reserve calculated spot price on dex pair
-    function calculateV2PriceSingle (address token0, address token1, address _factory, bytes32 _initBytecode) internal pure returns (uint112 spotPrice) {
+    function calculateV2PriceSingle (address token0, address token1, address _factory, bytes32 _initBytecode) internal view returns (uint256 spotPrice) {
        
         //Return Uniswap V2 Pair address
         address pairAddress = address(uint160(uint(keccak256(abi.encodePacked(
@@ -36,10 +33,21 @@ library LPMathLibrary {
             keccak256(abi.encodePacked(token0, token1)),
             _initBytecode
             )))));
-
+        console.logString("Pair address");
+        console.log(pairAddress);
         (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pairAddress).getReserves();
+        console.logString("Got here");
+        //Get target decimals for token0 & token1
+        uint8 token0Decimals = getTargetDecimals(token0);
+        uint8 token1Decimals = getTargetDecimals(token1);
 
-        spotPrice = reserve0/reserve1;
+        //Set common based reserve values
+        (uint256 commonReserve0, uint256 commonReserve1) = convertToCommonBase(reserve0, token0Decimals, reserve1, token1Decimals);
+        //Return common base spot price
+        console.logString("R0/R1");
+        console.log(commonReserve0);
+        console.log(commonReserve1);
+        spotPrice = commonReserve0/commonReserve1;
         
     }
 
@@ -47,10 +55,8 @@ library LPMathLibrary {
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
     /// @return amountOut spot price of token1 with respect to token2 i.e reserve1/reserve2
-    function calculateUniV3SpotPrice(address token0, address token1, uint128 amountIn, uint24 FEE, uint32 tickSecond, address _factory) external returns (uint256 amountOut) {
-        //Uniswap V3 Factory
-        address factory = _factory;
-       
+    function calculateUniV3SpotPrice(address token0, address token1, uint112 amountIn, uint24 FEE, uint32 tickSecond, address _factory) public view returns (uint256 amountOut) {
+        
         //tickSeconds array defines our tick interval of observation over the lp
         uint32[] memory tickSeconds = new uint32[](2);
         //int32 version of tickSecond padding in tick range
@@ -60,7 +66,7 @@ library LPMathLibrary {
         tickSeconds[1] = 0;
 
         //Pool address for token pair
-        address pool = IUniswapV3Factory(factory).getPool(
+        address pool = IUniswapV3Factory(_factory).getPool(
             token0,
             token1,
             FEE
@@ -78,14 +84,12 @@ library LPMathLibrary {
         // int56 / uint32 = int24
         int24 tick = int24(tickCumulativesDelta / (tickSecondInt));
 
-         //so if tickCumulativeDelta < 0 and division has remainder, then rounddown
-        
+         //so if tickCumulativeDelta < 0 and division has remainder, then rounddown    
         if (
             tickCumulativesDelta < 0 && (tickCumulativesDelta % tickSecondInt != 0)
         ) {
             tick--;
         }
-
         //amountOut = tick range spot over specified tick interval
         amountOut = OracleLibrary.getQuoteAtTick(
             tick,
@@ -93,29 +97,39 @@ library LPMathLibrary {
             token0,
             token1
         );
-
         
     }
     /// @notice Helper function to get Mean spot price over multiple LP spot prices
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
-    /// @param _factoryAddressV2 address[] array of dex factory address's to target in mean spot price calculation
-    /// @param _initBytecode bytes32[] initialization bytecodes for dex pair 
+    /// @param dexes address[] array of dex factory address's to target in mean spot price calculation
     /// @return meanSpotPrice uint112 mean spot price over all dex's specified in input parameters
-    function calculateMeanLPSpot (address token0, address token1, Dex[] calldata dexes) internal pure returns (uint112 meanSpotPrice) {
-        uint112 meanSpotPrice=0;
-        uint112 n = dexes.length;
-        uint8 tokenInTarget = getTargetDecimals(token0);
-        uint128 amountIn = 1**tokenInTarget;
+    function calculateMeanLPSpot (address token0, address token1, ConveyorLimitOrders.Dex[] memory dexes) internal view returns (uint256) {
+        uint256 meanSpotPrice=0;
+        uint256 n = dexes.length;
+        uint32 tickSecond = 1;
+
+        uint8 token0Target = getTargetDecimals(token0);
+        uint8 token1Target = getTargetDecimals(token1);
+        
+        uint112 amountIn = uint112(10**((token1Target-token0Target)));
         uint24 FEE = 3000;
+        console.logString("N:");
+        console.log(n);
         
         for (uint256 i =0; i<dexes.length; ++i){
+            console.log(meanSpotPrice);
             if(dexes[i].isUniV2){
-                meanSpotPrice += calculateV2PriceSingle(token0, token1, dexes[i].factory, dexes[i].initBytecode);
+               
+                meanSpotPrice += calculateV2PriceSingle(token0, token1, dexes[i].factoryAddress, dexes[i].initBytecode);
             }else{
-                meanSpotPrice += calculateUniV3SpotPrice(token0, token1, amountIn, FEE, tickSecond, dexes[i].factory);
+                console.log(meanSpotPrice);
+                meanSpotPrice += calculateUniV3SpotPrice(token1,token0, amountIn, FEE, tickSecond, dexes[i].factoryAddress);
+                console.log(meanSpotPrice);
             }
         }
+
+        return meanSpotPrice / n;
     }
 
     /// @notice Helper function to change the base decimal value of token0 & token1 to the same target decimal value
@@ -124,7 +138,7 @@ library LPMathLibrary {
     /// @param token0Decimals Decimals of token0
     /// @param reserve1 uint256 token2 value
     /// @param token1Decimals Decimals of token1
-    function convertToCommonBase(uint256 reserve0, uint8 token0Decimals, uint256 reserve1, uint8 token1Decimals) external returns (uint256, uint256){
+    function convertToCommonBase(uint256 reserve0, uint8 token0Decimals, uint256 reserve1, uint8 token1Decimals) public view returns (uint256, uint256){
 
         /// @dev Conditionally change the decimal to target := max(decimal0, decimal1)
         /// return tuple of modified reserve values in matching decimals
@@ -139,7 +153,7 @@ library LPMathLibrary {
     /// @notice Helper function to get target decimals of ERC20 token
     /// @param token address of token to get target decimals
     /// @return targetDecimals uint8 target decimals of token
-    function getTargetDecimals (address token) internal pure returns (uint8 targetDecimals) {
+    function getTargetDecimals (address token) internal view returns (uint8 targetDecimals) {
         return ERC20(token).decimals();
     }
 
