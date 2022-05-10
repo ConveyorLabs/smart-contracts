@@ -6,9 +6,9 @@ import "./utils/Console.sol";
 import "./utils/Utils.sol";
 
 import "../ConveyorLimitOrders.sol";
-import "../../lib/interfaces/UniswapV2/IUniswapV2Router02.sol";
-import "../../lib/interfaces/UniswapV2/IUniswapV2Factory.sol";
-import "../../lib/interfaces/IERC20.sol";
+import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
+import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
+import "../../lib/interfaces/token/IERC20.sol";
 import "../../lib/libraries/PriceLibrary.sol";
 
 interface CheatCodes {
@@ -163,13 +163,15 @@ contract ConveyorLimitOrdersTest is DSTest {
         address usdc=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
-       
+        address wbtc = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
+
         uint256 price1= conveyorLimitOrders.calculateMinPairSpotPrice(weth, usdc);
         uint256 price2= conveyorLimitOrders.calculateMinPairSpotPrice(dai, usdc);
         uint256 price3= conveyorLimitOrders.calculateMinPairSpotPrice(weth, dai);
         uint256 price4= conveyorLimitOrders.calculateMinPairSpotPrice(weth, wax);
+        uint256 price5= conveyorLimitOrders.calculateMinPairSpotPrice(wbtc, weth);
         console.logString("--------------Calculate Minimum Spot Price UniV2, Sushi, UniV3-------------------");
-        console.logString("--------------Mean Price Out-------------------");
+        console.logString("--------------Min Spot Price Output-------------------");
         console.logString("--------------WETH-USDC-------------------");
         console.logUint(price1);
         console.logString("Right shifted");
@@ -178,7 +180,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         console.logUint(price2);
         console.logString("Right shifted");
         console.logUint(price2 >> 9);
-        console.logString("----------Dai-USDC-------------");
+        console.logString("----------Dai-WETH-------------");
         console.logUint(price3);
         console.logString("Right shifted");
         console.logUint(price3 >> 9);
@@ -186,7 +188,10 @@ contract ConveyorLimitOrdersTest is DSTest {
         console.logUint(price4);
         console.logString("Right shifted");
         console.logUint(price4 >> 9);
-
+        console.logString("----------WBTC-WETH-------------");
+        console.logUint(price5);
+        console.logString("Right shifted");
+        console.logUint(price5 >> 9);
     }
     function testCalculateMeanSpot() public{
         //Test Tokens
@@ -227,9 +232,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
 
         //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-        uint256 price1= PriceLibrary.calculateUniV3SpotPrice(weth, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-        uint256 price2= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-        uint256 price3= PriceLibrary.calculateUniV3SpotPrice(weth, dai, 1, 3000,1, _uniV3FactoryAddress);
+        uint256 price1= PriceLibrary.calculateUniV3SpotPrice(weth, usdc, 1000000000000, 3000, _uniV3FactoryAddress);
+        uint256 price2= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,_uniV3FactoryAddress);
+        uint256 price3= PriceLibrary.calculateUniV3SpotPrice(weth, dai, 1, 3000, _uniV3FactoryAddress);
         //uint256 price4= PriceLibrary.calculateUniV3SpotPrice(wax,weth, 1, 3000,1, _uniV3FactoryAddress);
         
         console.logString("---------V3 Tick Range Price Uni----------");

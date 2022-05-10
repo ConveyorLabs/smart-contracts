@@ -2,16 +2,16 @@
 pragma solidity >=0.8.13;
 
 
-import './Uniswap/TickMath.sol';
-import './Uniswap/FullMath.sol';
-import './Uniswap/OracleLibrary.sol';
-import "../interfaces/UniswapV2/IUniswapV2Pair.sol";
-import "../interfaces/UniswapV2/IUniswapV2Factory.sol";
-import "../interfaces/UniswapV3/IUniswapV3Factory.sol";
-import "../interfaces/UniswapV3/IUniswapV3Pool.sol";
-import '../../src/ConveyorLimitOrders.sol';
-import "../interfaces/ERC20.sol";
+import './uniswap/TickMath.sol';
+import './uniswap/FullMath.sol';
+import './uniswap/OracleLibrary.sol';
+import "../interfaces/uniswap-v2/IUniswapV2Pair.sol";
+import "../interfaces/uniswap-v2/IUniswapV2Factory.sol";
+import "../interfaces/uniswap-v3/IUniswapV3Factory.sol";
+import "../interfaces/uniswap-v3/IUniswapV3Pool.sol";
+import "../interfaces/token/ERC20.sol";
 import "../../src/test/utils/Console.sol";
+import "../../src/ConveyorLimitOrders.sol";
 
 /// @title PriceLibrary library
 /// @notice Provides functions to get price data across multiple dex's
@@ -65,14 +65,14 @@ library PriceLibrary {
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
     /// @return amountOut spot price of token1 with respect to token2 i.e reserve1/reserve2
-    function calculateUniV3SpotPrice(address token0, address token1, uint112 amountIn, uint24 FEE, uint32 tickSecond, address _factory) internal view returns (uint256 amountOut) {
-        
+    function calculateUniV3SpotPrice(address token0, address token1, uint112 amountIn, uint24 FEE,  address _factory) internal view returns (uint256) {
+       
         //tickSeconds array defines our tick interval of observation over the lp
         uint32[] memory tickSeconds = new uint32[](2);
         //int32 version of tickSecond padding in tick range
-        int32 tickSecondInt = int32(tickSecond);
+        int32 tickSecondInt = int32(1);
         //Populate tickSeconds array current block to tickSecond behind current block for tick range
-        tickSeconds[0] = tickSecond;
+        tickSeconds[0] = 1;
         tickSeconds[1] = 0;
 
         //Pool address for token pair
@@ -103,12 +103,14 @@ library PriceLibrary {
             tick--;
         }
         //amountOut = tick range spot over specified tick interval
-        amountOut = OracleLibrary.getQuoteAtTick(
+        uint256 amountOut = OracleLibrary.getQuoteAtTick(
             tick,
             amountIn,
             token0,
             token1
         );
+
+        return amountOut << 9;
         
     }
     /// @notice Helper function to get Mean spot price over multiple LP spot prices
@@ -124,7 +126,7 @@ library PriceLibrary {
         uint8 incrementor = 0;
         //Target base amount in value
         uint112 amountIn = getTargetAmountIn(token0, token1);
-
+        
         //Iterate through Dex's in dexes check if isUniV2 and accumulate spot price to meanSpotPrice
         for (uint256 i =0; i<dexes.length; ++i){
             if(dexes[i].isUniV2){
@@ -136,8 +138,8 @@ library PriceLibrary {
                 
                 
             }else{
-                    uint256 spotPrice = calculateUniV3SpotPrice(token0,token1, amountIn, FEE, tickSecond, dexes[i].factoryAddress);
-                    meanSpotPrice += (spotPrice << 9);
+                    uint256 spotPrice = calculateUniV3SpotPrice(token0, token1, amountIn, FEE, dexes[i].factoryAddress);
+                    meanSpotPrice += (spotPrice);
                     incrementor+= (spotPrice==0) ? 0 : 1;
            
             }
@@ -216,14 +218,14 @@ library PriceLibrary {
 
                 
             }else{
-                    uint256 spotPrice = calculateUniV3SpotPrice(token0,token1, amountIn, FEE, tickSecond, dexes[i].factoryAddress);
-                    minSpotPrice = ((spotPrice << 9) < minSpotPrice && spotPrice !=0) ? spotPrice : minSpotPrice;
+                    uint256 spotPrice = calculateUniV3SpotPrice(token0,token1, amountIn, FEE, dexes[i].factoryAddress);
+                    minSpotPrice = ((spotPrice ) < minSpotPrice && spotPrice !=0) ? spotPrice : minSpotPrice;
                     
            
             }
             
         }
-        
+
         assert(minSpotPrice !=0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
         return minSpotPrice;
     }

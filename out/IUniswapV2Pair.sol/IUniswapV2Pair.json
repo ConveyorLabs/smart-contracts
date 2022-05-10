@@ -663,7 +663,7 @@
     "linkReferences": {}
   },
   "ast": {
-    "absolutePath": "/Users/leyton/ConveyorLabs/limit-contract-master/limits-v0/lib/interfaces/UniswapV2/IUniswapV2Pair.sol",
+    "absolutePath": "/Users/leyton/ConveyorLabs/limit-contract-master/limits-v0/lib/interfaces/uniswap-v2/IUniswapV2Pair.sol",
     "id": 1016,
     "exportedSymbols": {
       "IUniswapV2Pair": [

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.13;
 
-import "../lib/interfaces/IERC20.sol";
-import "../lib/interfaces/UniswapV2/IUniswapV2Router02.sol";
-import "../lib/interfaces/UniswapV2/IUniswapV2Factory.sol";
-import "../lib/interfaces/UniswapV2/IUniswapV2Pair.sol";
+import "../lib/interfaces/token/IERC20.sol";
+import "../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
+import "../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
+import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "./test/utils/Console.sol";
-import "../lib/libraries/Uniswap/OracleLibrary.sol";
-import "../lib/interfaces/UniswapV3/IUniswapV3Factory.sol";
-import "../lib/interfaces/UniswapV3/IUniswapV3Pool.sol";
+import "../lib/libraries/uniswap/OracleLibrary.sol";
+import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
+import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../lib/libraries/PriceLibrary.sol";
 
 contract ConveyorLimitOrders {
