@@ -223,6 +223,8 @@ library PriceLibrary {
             }
             
         }
+        
+        assert(minSpotPrice !=0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
         return minSpotPrice;
     }
 
