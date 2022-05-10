@@ -10,12 +10,6 @@ import './FullMath.sol';
 /// @title Oracle library
 /// @notice Provides functions to integrate with V3 pool oracle
 library OracleLibrary {
-    /// @notice Calculates time-weighted means of tick and liquidity for a given Uniswap V3 pool
-    /// @param pool Address of the pool that we want to observe
-    /// @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
-    /// @return arithmeticMeanTick The arithmetic mean tick from (block.timestamp - secondsAgo) to block.timestamp
-    /// @return harmonicMeanLiquidity The harmonic mean liquidity from (block.timestamp - secondsAgo) to block.timestamp
-    
 
     /// @notice Given a tick and a token amount, calculates the amount of token received in exchange
     /// @param tick Tick value used to calculate the quote
