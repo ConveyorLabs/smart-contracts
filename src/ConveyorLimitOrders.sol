@@ -12,6 +12,7 @@ import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../lib/libraries/PriceLibrary.sol";
 
 contract ConveyorLimitOrders {
+    
     //----------------------Modifiers------------------------------------//
 
     modifier onlyEOA() {
@@ -236,7 +237,8 @@ contract ConveyorLimitOrders {
     }
 
     /// @notice Remove Order order from OrderGroup mapping by identifier orderId conditionally if order exists already in ActiveOrders
-    // / @param order the order to which the caller is removing from the OrderGroup struct
+    /// @param token the order to which the caller is removing from the OrderGroup struct
+    /// @param orderId the order to which the caller is removing from the OrderGroup struct
     function cancelOrder(address token, bytes32 orderId) public {
         /// Check if order exists in active orders. Revert if order does not exist
         if (
@@ -310,7 +312,6 @@ contract ConveyorLimitOrders {
         }
     }
 
-
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
@@ -326,6 +327,5 @@ contract ConveyorLimitOrders {
     function calculateMinPairSpotPrice(address token0, address token1) external view returns (uint256) {
         return PriceLibrary.calculateMinSpotPrice(token0, token1, dexes,1, 3000);
     }
-    
 
 }

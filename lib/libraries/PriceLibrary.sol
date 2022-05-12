@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity >=0.8.13;
 
-
 import './uniswap/TickMath.sol';
 import './uniswap/FullMath.sol';
 import './uniswap/OracleLibrary.sol';
@@ -17,7 +16,6 @@ import "../../src/ConveyorLimitOrders.sol";
 /// @notice Provides functions to get price data across multiple dex's
 library PriceLibrary {
     
-
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
@@ -37,16 +35,15 @@ library PriceLibrary {
 
         
         require(pairAddress != address(0), "Invalid token pair");
+
         if(!(IUniswapV2Factory(_factory).getPair(tok0, tok1)==pairAddress)){
             console.logString("Factory Address");
             console.log(IUniswapV2Factory(_factory).getPair(tok0, tok1));
             return 0;
         }
         
-        
         //Set reserve0, reserve1 to current LP reserves
         (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pairAddress).getReserves();
-      
 
         //Get target decimals for token0 & token1
         uint8 token0Decimals = getTargetDecimals(tok0);
@@ -113,6 +110,7 @@ library PriceLibrary {
         return amountOut << 9;
         
     }
+
     /// @notice Helper function to get Mean spot price over multiple LP spot prices
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
@@ -135,8 +133,7 @@ library PriceLibrary {
                     meanSpotPrice += spotPrice;
 
                     incrementor+= (spotPrice==0) ? 0 : 1;
-                
-                
+                  
             }else{
                     uint256 spotPrice = calculateV3SpotPrice(token0, token1, amountIn, FEE, dexes[i].factoryAddress);
                     meanSpotPrice += (spotPrice);
@@ -169,7 +166,6 @@ library PriceLibrary {
     /// @param reserve1 uint256 token2 value
     /// @param token1Decimals Decimals of token1
     function convertToCommonBase(uint256 reserve0, uint8 token0Decimals, uint256 reserve1, uint8 token1Decimals) internal pure returns (uint256, uint256){
-
         /// @dev Conditionally change the decimal to target := max(decimal0, decimal1)
         /// return tuple of modified reserve values in matching decimals
         if(token0Decimals>token1Decimals){
@@ -194,7 +190,6 @@ library PriceLibrary {
         require(token0 != address(0), 'UniswapV2Library: ZERO_ADDRESS');
     }
 
-
     /// @notice Helper function to get Min spot price over multiple LP spot prices
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
@@ -215,13 +210,11 @@ library PriceLibrary {
                 //Right shift spot price 9 decimals and add to meanSpotPrice
                     uint256 spotPrice = calculateV2SpotPrice(token0, token1, dexes[i].factoryAddress, dexes[i].initBytecode);
                     minSpotPrice = (spotPrice < minSpotPrice && spotPrice !=0) ? spotPrice : minSpotPrice;
-
-                
+       
             }else{
                     uint256 spotPrice = calculateV3SpotPrice(token0,token1, amountIn, FEE, dexes[i].factoryAddress);
-                    minSpotPrice = ((spotPrice ) < minSpotPrice && spotPrice !=0) ? spotPrice : minSpotPrice;
-                    
-           
+                    minSpotPrice = (spotPrice  < minSpotPrice && spotPrice !=0) ? spotPrice : minSpotPrice;
+
             }
             
         }
@@ -230,4 +223,37 @@ library PriceLibrary {
         return minSpotPrice;
     }
 
+    /// @notice Helper function to calculate logistic mapping of amountIn to get reward
+    /// @param amountIn uint256 transaction input amount in USD value
+    /// @return percentFee uint8 fee reward on input amount
+    function calculateOrderFee(uint256 amountIn) internal pure returns (uint8 percentFee){
+        
+    }
+
+    /// @notice Helper function to calculate transaction execution cost for the beacon
+    /// @param token Address of token to estimate execution cost
+    /// @param amount uint256 amount of token to estimate execution cost
+    /// @param gas current oracle retrieved on chain gas price
+    function calculateExecutionCost(address token, uint256 amount, uint256 gas) internal pure returns (uint256 executionCost){
+
+    }
+
+    /// @notice Helper function to calculate if transaction execution will be profitable for the beacon
+    /// @param token Address of token to estimate execution cost
+    /// @param amount uint256 amount of token to estimate execution cost
+    /// @param gas current oracle retrieved on chain gas price
+    /// @param beaconReward uint256 amount in wei rewarded to the beacon
+    /// @return isProfitable bool indicating profitability of execution
+    function calculateProfitability(address token, uint256 amount, uint256 gas, uint256 beaconReward) internal pure returns (bool isProfitable){
+
+    }
+
+    /// @notice Helper function to calculate beacon and conveyor reward on transaction execution
+    /// @param percentFee uint8 percentage of order size to be taken from user order size
+    /// @param wethValue uint256 total order value in wei at execution price
+    /// @return conveyorReward conveyor reward in terms of wei
+    /// @return beaconReward beacon reward in wei
+    function calculateReward(uint8 percentFee, uint256 wethValue) internal pure returns (uint256 conveyorReward, uint256 beaconReward){
+
+    }
 }
