@@ -10,6 +10,7 @@ import "../lib/libraries/uniswap/OracleLibrary.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../lib/libraries/PriceLibrary.sol";
+import "../lib/libraries/ConveyorMath64x64.sol";
 
 contract ConveyorLimitOrders {
     
@@ -89,6 +90,8 @@ contract ConveyorLimitOrders {
         bytes32 initBytecode;
         bool isUniV2;
     }
+
+
     //----------------------State Structures------------------------------------//
 
     /// @notice mapping from mapping(eoaAddress => mapping(token => OrderGroup)) to store the current Active orders in Conveyor state structure
@@ -326,6 +329,32 @@ contract ConveyorLimitOrders {
     /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
     function calculateMinPairSpotPrice(address token0, address token1) external view returns (uint256) {
         return PriceLibrary.calculateMinSpotPrice(token0, token1, dexes,1, 3000);
+    }
+
+    /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation
+    /// @dev calculation assumes 64x64 fixed point in128 representation for all values
+    /// @param amountIn uint128 USDC amount in 64x64 fixed point to calculate the fee % of
+    /// @return Out64x64 int128 Fee percent
+    function calculateFee(uint128 amountIn) public pure returns (int128) {
+        require(!(amountIn << 64 > 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff), "Overflow Error");
+        int128 iamountIn = int128(amountIn << 64);
+        int128 numerator = 16602069666338597000; //.9 sccale := 1e19 ==> 64x64 fixed representation
+        int128 denominator = (23058430092136940000+ConveyorMath64x64.exp(ConveyorMath64x64.div(iamountIn, int128(75000 << 64))));
+        int128 rationalFraction = ConveyorMath64x64.div(numerator, denominator);
+        int128 Out64x64 = rationalFraction + 1844674407370955300;
+        return Out64x64;
+    }
+
+    /// @notice Helper function to calculate beacon and conveyor reward on transaction execution
+    /// @param percentFee uint8 percentage of order size to be taken from user order size
+    /// @param wethValue uint256 total order value in wei at execution price
+    /// @return conveyorReward conveyor reward in terms of wei
+    /// @return beaconReward beacon reward in wei
+    function calculateReward(int128 percentFee, int128 wethValue) public pure returns (int128 conveyorReward, int128 beaconReward){
+
+        int128 wethValue64x64 = wethValue << 64;
+        int128 delta = ConveyorMath64x64.mul(percentFee, wethValue64x64)>>64;
+        (conveyorReward, beaconReward)  = (ConveyorMath64x64.div(delta, 2), ConveyorMath64x64.div(delta, 2));
     }
 
 }

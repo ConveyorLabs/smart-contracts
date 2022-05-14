@@ -34,8 +34,6 @@ contract ConveyorLimitOrdersTest is DSTest {
     address _wnatoAddress = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     //Factory and router address's
-    
-
     address _uniV2Address = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address _uniV2FactoryAddress = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address _sushiFactoryAddress = 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac;
@@ -292,9 +290,23 @@ contract ConveyorLimitOrdersTest is DSTest {
         console.logString("----------WAX-WETH-------------");
         console.logUint(price4);
     }
-   
-    //-----------------------------Helper Functions----------------------------
 
+    function testCalculateOrderFee() public {
+        int128 reward =conveyorLimitOrders.calculateFee(100000);
+        console.logString("Input 1000000");
+        console.logInt(reward);
+    }
+
+    function testCalculateOrderReward() public {
+        (int128 rewardConveyor, int128 rewardBeacon) =conveyorLimitOrders.calculateReward(5136340316587499773, 5);
+        console.logString("Input 1 CalculateReward");
+        console.logInt(rewardConveyor);
+        console.logInt(rewardBeacon);
+    }
+
+    //-----------------------------Gas Optimization Tests----------------------------
+
+    //-----------------------------Helper Functions----------------------------
 
     function swapEthForToken(uint256 amount, address _swapToken) internal {
         cheatCodes.deal(address(this), amount);

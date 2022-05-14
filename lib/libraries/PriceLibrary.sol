@@ -223,13 +223,6 @@ library PriceLibrary {
         return minSpotPrice;
     }
 
-    /// @notice Helper function to calculate logistic mapping of amountIn to get reward
-    /// @param amountIn uint256 transaction input amount in USD value
-    /// @return percentFee uint8 fee reward on input amount
-    function calculateOrderFee(uint256 amountIn) internal pure returns (uint8 percentFee){
-        
-    }
-
     /// @notice Helper function to calculate transaction execution cost for the beacon
     /// @param token Address of token to estimate execution cost
     /// @param amount uint256 amount of token to estimate execution cost
@@ -256,4 +249,5 @@ library PriceLibrary {
     function calculateReward(uint8 percentFee, uint256 wethValue) internal pure returns (uint256 conveyorReward, uint256 beaconReward){
 
     }
+
 }
