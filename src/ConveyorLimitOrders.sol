@@ -314,10 +314,10 @@ contract ConveyorLimitOrders {
             //aggregate the value of all of the orders
         }
     }
-
+    
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
-    /// @param token0 bytes32 address of token1
-    /// @param token1 bytes32 address of token2
+    /// @param token0 bytes32 address of token0
+    /// @param token1 bytes32 address of token1
     /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
     function calculateMeanPairSpotPrice(address token0, address token1) external view returns (uint256) {
         return PriceLibrary.calculateMeanSpotPrice(token0, token1, dexes,1, 3000);
@@ -335,11 +335,11 @@ contract ConveyorLimitOrders {
     /// @dev calculation assumes 64x64 fixed point in128 representation for all values
     /// @param amountIn uint128 USDC amount in 64x64 fixed point to calculate the fee % of
     /// @return Out64x64 int128 Fee percent
-    function calculateFee(uint128 amountIn) public pure returns (int128) {
-        require(!(amountIn << 64 > 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff), "Overflow Error");
-        int128 iamountIn = int128(amountIn << 64);
+    function calculateFee(int128 amountIn) public pure returns (int128) {
+        require(!(amountIn << 64 > 0xfffffffffffffffffffffffffff), "Overflow Error");
+        int128 iamountIn = amountIn << 64;
         int128 numerator = 16602069666338597000; //.9 sccale := 1e19 ==> 64x64 fixed representation
-        int128 denominator = (23058430092136940000+ConveyorMath64x64.exp(ConveyorMath64x64.div(iamountIn, int128(75000 << 64))));
+        int128 denominator = (23058430092136940000+ConveyorMath64x64.exp(ConveyorMath64x64.div(iamountIn, 75000 << 64)));
         int128 rationalFraction = ConveyorMath64x64.div(numerator, denominator);
         int128 Out64x64 = rationalFraction + 1844674407370955300;
         return Out64x64;
@@ -353,8 +353,9 @@ contract ConveyorLimitOrders {
     function calculateReward(int128 percentFee, int128 wethValue) public pure returns (int128 conveyorReward, int128 beaconReward){
 
         int128 wethValue64x64 = wethValue << 64;
-        int128 delta = ConveyorMath64x64.mul(percentFee, wethValue64x64)>>64;
+        int128 delta = ConveyorMath64x64.mul(percentFee, wethValue64x64);
         (conveyorReward, beaconReward)  = (ConveyorMath64x64.div(delta, 2), ConveyorMath64x64.div(delta, 2));
+
     }
 
 }

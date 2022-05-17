@@ -291,18 +291,29 @@ contract ConveyorLimitOrdersTest is DSTest {
         console.logUint(price4);
     }
 
+    //Test calculateFee()
     function testCalculateOrderFee() public {
-        int128 reward =conveyorLimitOrders.calculateFee(100000);
-        console.logString("Input 1000000");
-        console.logInt(reward);
+        int128 feePercent1 =conveyorLimitOrders.calculateFee(100000);
+        int128 feePercent2 =conveyorLimitOrders.calculateFee(150000);
+        int128 feePercent3 =conveyorLimitOrders.calculateFee(200000);
+        int128 feePercent4 =conveyorLimitOrders.calculateFee(50);
+        int128 feePercent5 =conveyorLimitOrders.calculateFee(250);
+        
+
+        assertEq(feePercent1,5136340316587499773);
+        assertEq(feePercent2,3766420194899018159);
+        assertEq(feePercent3,2906057780440346633);
+        assertEq(feePercent4,9221185675180287829);
+        assertEq(feePercent5,9212438618375652508);
+        
     }
 
-    function testCalculateOrderReward() public {
-        (int128 rewardConveyor, int128 rewardBeacon) =conveyorLimitOrders.calculateReward(5136340316587499773, 5);
-        console.logString("Input 1 CalculateReward");
-        console.logInt(rewardConveyor);
-        console.logInt(rewardBeacon);
-    }
+    // function testCalculateOrderReward() public {
+    //     (int128 rewardConveyor, int128 rewardBeacon) =conveyorLimitOrders.calculateReward(5136340316587499773, 5);
+    //     console.logString("Input 1 CalculateReward");
+    //     console.logInt(rewardConveyor);
+    //     console.logInt(rewardBeacon);
+    // }
 
     //-----------------------------Gas Optimization Tests----------------------------
 
