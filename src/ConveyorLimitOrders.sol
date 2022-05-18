@@ -244,13 +244,6 @@ contract ConveyorLimitOrders {
 
     function swapAndPlaceOrders() public {}
 
-    ///@notice gets all open orders for a specific wallet from ActiveOrders mapping
-
-    ///TODO: implement logic to do this
-    // function getOpenOrders() external view returns (TokenToOrderGroup memory) {
-    //     return ActiveOrders[msg.sender];
-    // }
-
     /// @notice execute all orders passed from beacon matching order execution criteria. i.e. 'orderPrice' matches observable lp price for all orders
     /// @param orders := array of orders to be executed within the mapping
     function executeOrders(Order[] memory orders) external onlyEOA {
