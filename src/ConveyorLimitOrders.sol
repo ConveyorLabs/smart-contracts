@@ -370,10 +370,11 @@ contract ConveyorLimitOrders {
 
     /// @notice Helper function to calculate the max beacon reward for a group of order's
     /// @param snapShotSpot uint256 snapShotSpot of the lowest execution spot price of the whole batch
-    /// @param currentSpot uint256 current spot price of the lp in the batch
+    /// @param reserve0 uint256 reserve0 of lp at execution time
+    /// @param reserve1 uint256 reserve1 of lp at execution time
     /// @param fee uint256 lp fee 
     /// @return maxBeaconReward uint256 maximum safe beacon reward to protect against flash loan price manipulation in the lp
-    function calculateMaxBeaconReward(uint256 snapShotSpot, uint256 currentSpot, uint8 fee) internal pure returns (uint256) {
+    function calculateMaxBeaconReward(uint256 snapShotSpot, uint256 reserve0, uint256 reserve1, uint8 fee) internal pure returns (uint256) {
         /// Todo calulate alphaX and multiply by fee to determine max beacon reward quantity
     } 
 }
