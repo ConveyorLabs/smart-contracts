@@ -91,7 +91,6 @@ contract ConveyorLimitOrders {
         bool isUniV2;
     }
 
-
     //----------------------State Structures------------------------------------//
 
     /// @notice mapping from mapping(eoaAddress => mapping(token => OrderGroup)) to store the current Active orders in Conveyor state structure
@@ -105,7 +104,7 @@ contract ConveyorLimitOrders {
      constructor() {}
 
     //----------------------Functions------------------------------------//
-   
+
     function getOrderById(
         address eoaAddress,
         address token,
@@ -314,7 +313,7 @@ contract ConveyorLimitOrders {
             //aggregate the value of all of the orders
         }
     }
-    
+
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
     /// @param token0 bytes32 address of token0
     /// @param token1 bytes32 address of token1
@@ -335,14 +334,13 @@ contract ConveyorLimitOrders {
     /// @dev calculation assumes 64x64 fixed point in128 representation for all values
     /// @param amountIn uint128 USDC amount in 64x64 fixed point to calculate the fee % of
     /// @return Out64x64 int128 Fee percent
-    function calculateFee(int128 amountIn) public pure returns (int128) {
+    function calculateFee(int128 amountIn) public pure returns (int128 Out64x64) {
         require(!(amountIn << 64 > 0xfffffffffffffffffffffffffff), "Overflow Error");
         int128 iamountIn = amountIn << 64;
         int128 numerator = 16602069666338597000; //.9 sccale := 1e19 ==> 64x64 fixed representation
         int128 denominator = (23058430092136940000+ConveyorMath64x64.exp(ConveyorMath64x64.div(iamountIn, 75000 << 64)));
         int128 rationalFraction = ConveyorMath64x64.div(numerator, denominator);
-        int128 Out64x64 = rationalFraction + 1844674407370955300;
-        return Out64x64;
+        Out64x64 = rationalFraction + 1844674407370955300;
     }
 
     /// @notice Helper function to calculate beacon and conveyor reward on transaction execution
@@ -351,11 +349,6 @@ contract ConveyorLimitOrders {
     /// @return conveyorReward conveyor reward in terms of wei
     /// @return beaconReward beacon reward in wei
     function calculateReward(int128 percentFee, int128 wethValue) public pure returns (int128 conveyorReward, int128 beaconReward){
-
-        int128 wethValue64x64 = wethValue << 64;
-        int128 delta = ConveyorMath64x64.mul(percentFee, wethValue64x64);
-        (conveyorReward, beaconReward)  = (ConveyorMath64x64.div(delta, 2), ConveyorMath64x64.div(delta, 2));
-
+        
     }
-
 }

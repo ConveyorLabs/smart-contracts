@@ -307,9 +307,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         assertEq(feePercent5,9212438618375652508);
         
     }
-
+    /// Todo
     // function testCalculateOrderReward() public {
-    //     (int128 rewardConveyor, int128 rewardBeacon) =conveyorLimitOrders.calculateReward(5136340316587499773, 5);
+    //     (int128 rewardConveyor, int128 rewardBeacon) =conveyorLimitOrders.calculateReward(5136340316587499773, 100000);
     //     console.logString("Input 1 CalculateReward");
     //     console.logInt(rewardConveyor);
     //     console.logInt(rewardBeacon);
