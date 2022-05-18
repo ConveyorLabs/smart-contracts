@@ -349,7 +349,7 @@ contract ConveyorLimitOrders {
     /// @return conveyorReward conveyor reward in terms of wei
     /// @return beaconReward beacon reward in wei
     function calculateReward(int128 percentFee, int128 wethValue) public pure returns (int128 conveyorReward, int128 beaconReward){
-        
+        /// Todo calculate the beaconReward/conveyorReward based on applying percentFee to wethValue
     }
 
     /// @notice Helper function to check if min credits needed for order placement are satisfied
@@ -368,5 +368,12 @@ contract ConveyorLimitOrders {
         /// Todo determine the execution cost based on gasPrice, and return minimum gasCredits required in wei for order placement
     }
 
-    
+    /// @notice Helper function to calculate the max beacon reward for a group of order's
+    /// @param snapShotSpot uint256 snapShotSpot of the lowest execution spot price of the whole batch
+    /// @param currentSpot uint256 current spot price of the lp in the batch
+    /// @param fee uint256 lp fee 
+    /// @return maxBeaconReward uint256 maximum safe beacon reward to protect against flash loan price manipulation in the lp
+    function calculateMaxBeaconReward(uint256 snapShotSpot, uint256 currentSpot, uint8 fee) internal pure returns (uint256) {
+        /// Todo calulate alphaX and multiply by fee to determine max beacon reward quantity
+    } 
 }
