@@ -351,4 +351,22 @@ contract ConveyorLimitOrders {
     function calculateReward(int128 percentFee, int128 wethValue) public pure returns (int128 conveyorReward, int128 beaconReward){
         
     }
+
+    /// @notice Helper function to check if min credits needed for order placement are satisfied
+    /// @param orderGroup := array of order's to be placed
+    /// @param gasPrice uint256 in gwei
+    /// @return bool := boolean value indicating whether gas credit's provide coverage over all orders in the orderGroup
+    function hasMinGasCredits(Order[] calldata orderGroup, uint256 gasPrice) internal pure returns (bool) {
+        /// Todo iterate through each order in orderGroup, check if gas credits is satisfied for each order
+    }
+
+    /// @notice Helper function to calculate min gas credit quantity for singular order
+    /// @param order Order struct to be checked for minimum gas credits
+    /// @param gasPrice uint256 in gwei
+    /// @return minCredits uint256 minimum gas credits required represented in wei
+    function calculateMinGasCredits(Order calldata order, uint256 gasPrice) internal pure returns (uint256) {
+        /// Todo determine the execution cost based on gasPrice, and return minimum gasCredits required in wei for order placement
+    }
+
+    
 }
