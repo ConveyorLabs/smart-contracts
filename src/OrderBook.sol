@@ -65,11 +65,11 @@ contract OrderBook {
 
     //----------------------Functions------------------------------------//
 
-    function getOrderById(
-        address eoaAddress,
-        address token,
-        bytes32 orderId
-    ) public view returns (Order memory order) {
+    function getOrderById(bytes32 orderId)
+        public
+        view
+        returns (Order memory order)
+    {
         order = orderIdToOrder[orderId];
         return order;
     }
