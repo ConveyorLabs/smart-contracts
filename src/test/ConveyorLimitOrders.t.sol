@@ -451,7 +451,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         address token,
         uint256 price,
         uint256 quantity
-    ) internal pure returns (ConveyorLimitOrders.Order memory order) {
+    ) internal view returns (ConveyorLimitOrders.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
             tokenIn: token,
