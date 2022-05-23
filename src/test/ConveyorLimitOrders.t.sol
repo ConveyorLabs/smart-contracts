@@ -168,7 +168,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         assertEq(r1_out1, 47925919677616776812811); //No change
     }
 
-    function testCalculateMinSpot() public {
+    function testCalculateMinSpot() public view {
         //Test Tokens
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -225,7 +225,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         console.logUint(price5 >> 9);
     }
 
-    function testCalculateMeanSpot() public {
+    function testCalculateMeanSpot() public view {
         //Test Tokens
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -269,12 +269,12 @@ contract ConveyorLimitOrdersTest is DSTest {
         console.logUint(price4 >> 9);
     }
 
-    function testCalculateV3Spot() public {
+    function testCalculateV3Spot() public view {
         //Test Tokens
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
+        // address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
 
         //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
         uint256 price1 = PriceLibrary.calculateV3SpotPrice(
@@ -353,7 +353,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         console.logUint(price4);
     }
 
-    function testCalculateV2SpotUni() public {
+    function testCalculateV2SpotUni() public view {
         //Test tokens
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
