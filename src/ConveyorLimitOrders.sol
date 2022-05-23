@@ -28,7 +28,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     //----------------------Constructor------------------------------------//
 
-    constructor(address _gasOracle, address other) OrderBook(_gasOracle) {}
+    constructor(address _gasOracle) OrderBook(_gasOracle) {}
 
     //----------------------Functions------------------------------------//
 

@@ -67,7 +67,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     ConveyorLimitOrders.Dex[] public dexesArr;
 
     function setUp() public {
-        conveyorLimitOrders = new ConveyorLimitOrders();
+        conveyorLimitOrders = new ConveyorLimitOrders(_gasOracle);
         conveyorLimitOrders.addDex(_dexFactories, _hexDems, _isUniV2);
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         _uniV2Router = IUniswapV2Router02(_uniV2Address);
@@ -454,7 +454,8 @@ contract ConveyorLimitOrdersTest is DSTest {
     ) internal pure returns (ConveyorLimitOrders.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
-            token: token,
+            tokenIn: token,
+            tokenOut: _wnatoAddress,
             orderId: bytes32(0),
             orderType: OrderBook.OrderType.SELL,
             price: price,
