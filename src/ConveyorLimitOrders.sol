@@ -10,7 +10,7 @@ import "../lib/libraries/uniswap/OracleLibrary.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../lib/libraries/PriceLibrary.sol";
-import "../lib/libraries/ConveyorMath64x64.sol";
+import "../lib/libraries/ConveyorMath.sol";
 
 import "./OrderBook.sol";
 import "./OrderRouter.sol";

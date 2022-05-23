@@ -80,7 +80,7 @@ contract OrderRouter {
                 ConveyorMath.div64x64(iamountIn, 75000 << 64)
             ));
         uint128 rationalFraction = ConveyorMath.div64x64(numerator, denominator);
-        Out64x64 = rationalFraction + 1844674407370955300;
+        Out64x64 = (rationalFraction + 1844674407370955300)/10**2;
     }
 
     /// @notice Helper function to calculate beacon and conveyor reward on transaction execution

@@ -403,11 +403,11 @@ contract ConveyorLimitOrdersTest is DSTest {
         uint128 feePercent4 = conveyorLimitOrders.calculateFee(50);
         uint128 feePercent5 = conveyorLimitOrders.calculateFee(250);
 
-        assertEq(feePercent1, 5136340316587499773);
-        assertEq(feePercent2, 3766420194899018159);
-        assertEq(feePercent3, 2906057780440346633);
-        assertEq(feePercent4, 9221185675180287829);
-        assertEq(feePercent5, 9212438618375652508);
+        assertEq(feePercent1, 51363403165874997);
+        assertEq(feePercent2, 37664201948990181);
+        assertEq(feePercent3, 29060577804403466);
+        assertEq(feePercent4, 92211856751802878);
+        assertEq(feePercent5, 92124386183756525);
     }
 
     /// Todo
