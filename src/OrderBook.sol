@@ -86,9 +86,7 @@ contract OrderBook {
         //token that the orders are being placed on
         address orderToken = orderGroup[0].token;
 
-        //TODO: sum all orders to check against total order value
-        uint256 totalOrdersValue;
-
+        uint256 totalOrdersValue = getTotalOrdersValue(orderToken);
         uint256 tokenBalance = IERC20(orderToken).balanceOf(msg.sender);
 
         for (uint256 i = 0; i < orderGroup.length; ++i) {
@@ -105,7 +103,7 @@ contract OrderBook {
                 revert InsufficientWalletBalance();
             }
 
-            //TODO: create new order id construction that is simpler
+            //TODO: create new order id construction that is simpler, also use assembly to hash this
             bytes32 orderId = keccak256(
                 abi.encodePacked(
                     msg.sender,
@@ -116,7 +114,7 @@ contract OrderBook {
                 )
             );
 
-            //add new order
+            //add new order to state
             orderIdToOrder[orderId] = newOrder;
             addressToOrderIds[msg.sender][orderId] = true;
 
@@ -159,9 +157,8 @@ contract OrderBook {
         //update the order
         orderIdToOrder[oldOrder.orderId] = newOrder;
 
-        //emit order updated
-        //TODO: still need to decide on contents of events
-
+        //emit an updated order event
+        //TODO: do this in assembly
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = newOrder.orderId;
         emit OrderEvent(EventType.UPDATE, msg.sender, orderIds);
@@ -183,6 +180,8 @@ contract OrderBook {
         delete orderIdToOrder[orderId];
         delete addressToOrderIds[msg.sender][orderId];
 
+        //emit a canceled order event
+        //TODO: do this in assembly
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = order.orderId;
         emit OrderEvent(EventType.CANCEL, msg.sender, orderIds);
@@ -205,7 +204,10 @@ contract OrderBook {
             delete orderIdToOrder[orderId];
             canceledOrderIds[i] = orderId;
         }
-
+        //emit an updated order event
+        //TODO: do this in assembly
         emit OrderEvent(EventType.PLACE, msg.sender, canceledOrderIds);
     }
+
+    function getTotalOrdersValue(address token) internal returns (uint256) {}
 }
