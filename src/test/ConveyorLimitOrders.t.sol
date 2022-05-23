@@ -361,47 +361,47 @@ contract ConveyorLimitOrdersTest is DSTest {
         console.logUint(price4);
     }
 
-    function testCalculateV2SpotUni() public view {
-        //Test tokens
-        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
-        //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-        uint256 price1 = PriceLibrary.calculateV2SpotPrice(
-            weth,
-            usdc,
-            0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
-            _uniswapV2HexDem
-        );
-        uint256 price2 = PriceLibrary.calculateV2SpotPrice(
-            dai,
-            usdc,
-            0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
-            _uniswapV2HexDem
-        );
-        uint256 price3 = PriceLibrary.calculateV2SpotPrice(
-            weth,
-            dai,
-            0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
-            _uniswapV2HexDem
-        );
-        uint256 price4 = PriceLibrary.calculateV2SpotPrice(
-            weth,
-            wax,
-            0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
-            _uniswapV2HexDem
-        );
-        console.logString("---------V2 Spot Price Uni----------");
-        console.logString("---------USDC-WETH-------------");
-        console.logUint(price1);
-        console.logString("---------USDC-DAI--------------");
-        console.logUint(price2);
-        console.logString("----------Dai-USDC-------------");
-        console.logUint(price3);
-        console.logString("----------WAX-WETH-------------");
-        console.logUint(price4);
-    }
+    // function testCalculateV2SpotUni() public view {
+    //     //Test tokens
+    //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    //     address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    //     address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
+    //     //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
+    //     uint256 price1 = PriceLibrary.calculateV2SpotPrice(
+    //         weth,
+    //         usdc,
+    //         0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
+    //         _uniswapV2HexDem
+    //     );
+    //     uint256 price2 = PriceLibrary.calculateV2SpotPrice(
+    //         dai,
+    //         usdc,
+    //         0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
+    //         _uniswapV2HexDem
+    //     );
+    //     uint256 price3 = PriceLibrary.calculateV2SpotPrice(
+    //         weth,
+    //         dai,
+    //         0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
+    //         _uniswapV2HexDem
+    //     );
+    //     uint256 price4 = PriceLibrary.calculateV2SpotPrice(
+    //         weth,
+    //         wax,
+    //         0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
+    //         _uniswapV2HexDem
+    //     );
+    //     console.logString("---------V2 Spot Price Uni----------");
+    //     console.logString("---------USDC-WETH-------------");
+    //     console.logUint(price1);
+    //     console.logString("---------USDC-DAI--------------");
+    //     console.logUint(price2);
+    //     console.logString("----------Dai-USDC-------------");
+    //     console.logUint(price3);
+    //     console.logString("----------WAX-WETH-------------");
+    //     console.logUint(price4);
+    // }
 
     //Test calculateFee()
     function testCalculateOrderFee() public {
@@ -411,20 +411,20 @@ contract ConveyorLimitOrdersTest is DSTest {
         uint128 feePercent4 = conveyorLimitOrders.calculateFee(50);
         uint128 feePercent5 = conveyorLimitOrders.calculateFee(250);
 
-        assertEq(feePercent1, 5136340316587499773);
-        assertEq(feePercent2, 3766420194899018159);
-        assertEq(feePercent3, 2906057780440346633);
-        assertEq(feePercent4, 9221185675180287829);
-        assertEq(feePercent5, 9212438618375652508);
+        assertEq(feePercent1, 51363403165874997);
+        assertEq(feePercent2, 37664201948990181);
+        assertEq(feePercent3, 29060577804403466);
+        assertEq(feePercent4, 92211856751802878);
+        assertEq(feePercent5, 92124386183756525);
     }
 
     /// Todo
-    // function testCalculateOrderReward() public {
-    //     (uint128 rewardConveyor, uint128 rewardBeacon) =conveyorLimitOrders.calculateReward(5136340316587499773, 100000);
-    //     console.logString("Input 1 CalculateReward");
-    //     console.logUint(rewardConveyor);
-    //     console.logUint(rewardBeacon);
-    // }
+    function testCalculateOrderReward() public { //1.8446744073709550
+        (uint128 rewardConveyor, uint128 rewardBeacon) =conveyorLimitOrders.calculateReward(18446744073709550, 100000);
+        console.logString("Input 1 CalculateReward");
+        assertEq(39, rewardConveyor);
+        assertEq(59, rewardBeacon);
+    }
 
     function testCalculateAlphaX() public {
         uint128 reserve0SnapShot = 47299249002010446421409070433015781392384000000>>64;

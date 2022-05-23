@@ -78,7 +78,7 @@ contract OrderRouter {
                 ConveyorMath.div64x64(iamountIn, 75000 << 64)
             ));
         uint128 rationalFraction = ConveyorMath.div64x64(numerator, denominator);
-        Out64x64 = rationalFraction + 1844674407370955300;
+        Out64x64 = (rationalFraction + 1844674407370955300)/10**2;
     }
 
     /// @notice Helper function to calculate beacon and conveyor reward on transaction execution
@@ -86,12 +86,19 @@ contract OrderRouter {
     /// @param wethValue uint256 total order value in wei at execution price
     /// @return conveyorReward conveyor reward in terms of wei
     /// @return beaconReward beacon reward in wei
-    function calculateReward(int128 percentFee, int128 wethValue)
+    function calculateReward(uint128 percentFee, uint128 wethValue)
         public
         pure
-        returns (int128 conveyorReward, int128 beaconReward)
+        returns (uint128 conveyorReward, uint128 beaconReward)
     {
-        /// Todo calculate the beaconReward/conveyorReward based on applying percentFee to wethValue
+        
+        uint128 conveyorPercent = (percentFee + ConveyorMath.div64x64(92233720368547760-percentFee,uint128(2)<<64)+uint128(18446744073709550))*10**2;
+        uint128 beaconPercent = (uint128(1)<<64)-conveyorPercent;
+        
+        conveyorReward=ConveyorMath.mul64x64(ConveyorMath.mul64x64(percentFee, wethValue), conveyorPercent);
+        beaconReward= ConveyorMath.mul64x64(ConveyorMath.mul64x64(percentFee, wethValue), beaconPercent);
+
+        return(conveyorReward, beaconReward);
     }
 
     /// @notice Helper function to check if min credits needed for order placement are satisfied

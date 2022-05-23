@@ -7,7 +7,6 @@ library ConveyorMath {
     uint128 private constant MAX_64x64 =0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
 
     int128 private constant MIN_64x64 = -0x80000000000000000000000000000000;
-    
     /// @notice maximum uint256 128.128 fixed point number
     uint256 private constant MAX_128x128 =  0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
@@ -73,6 +72,14 @@ library ConveyorMath {
             return uint128 (answer);
         }
     }
+
+    function sub (int128 x, int128 y) internal pure returns (int128) {
+        unchecked {
+        int256 result = int256(x) - y;
+        require (result >= MIN_64x64 && result <= int128(MAX_64x64));
+        return int128 (result);
+        }
+  }
 
     /// @notice helper to add two unsigened 128.128 fixed point numbers
     /// @param x 128.128 unsigned fixed point number
