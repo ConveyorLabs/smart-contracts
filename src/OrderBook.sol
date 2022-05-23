@@ -67,7 +67,7 @@ contract OrderBook is GasOracle {
 
     //struct to check if order exists, as well as get all orders for a wallet
     mapping(address => mapping(bytes32 => bool)) addressToOrderIds;
-
+    
     //----------------------Functions------------------------------------//
 
     function getOrderById(bytes32 orderId)
