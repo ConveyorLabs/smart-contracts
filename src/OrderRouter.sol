@@ -16,8 +16,6 @@ import "./test/utils/Console.sol";
 contract OrderRouter {
     //----------------------Constructor------------------------------------//
 
-    constructor() {}
-
     //----------------------Structs------------------------------------//
 
     /// @notice Struct to store important Dex specifications
