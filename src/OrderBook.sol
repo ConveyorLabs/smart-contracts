@@ -116,10 +116,11 @@ contract OrderBook {
                 )
             );
 
-            //TODO: add order to all necessary state
+            //add new order
+            orderIdToOrder[orderId] = newOrder;
+            addressToOrderIds[msg.sender][orderId] = true;
 
-            //TODO: add the order to active orders
-
+            //update order ids for event emission
             orderIds[orderIdIndex] = orderId;
             ++orderIdIndex;
         }
