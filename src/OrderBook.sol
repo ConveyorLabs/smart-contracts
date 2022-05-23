@@ -2,11 +2,12 @@
 pragma solidity >=0.8.13;
 
 import "../lib/interfaces/token/IERC20.sol";
+import "./GasOracle.sol";
 
-contract OrderBook {
+contract OrderBook is GasOracle {
     //----------------------Constructor------------------------------------//
 
-    constructor() {}
+    constructor(address _gasOracle) GasOracle(_gasOracle) {}
 
     //----------------------Events------------------------------------//
 
@@ -48,7 +49,8 @@ contract OrderBook {
 
     /// @notice Struct containing the token, orderId, OrderType enum type, price, and quantity for each order
     struct Order {
-        address token;
+        address tokenIn;
+        address tokenOut;
         bytes32 orderId;
         OrderType orderType;
         uint256 price;
@@ -59,6 +61,9 @@ contract OrderBook {
 
     //order id  to order
     mapping(bytes32 => Order) orderIdToOrder;
+
+    //keccak256(msg.sender, tokenAddress) -> total orders quantity
+    mapping(bytes32 => uint256) totalOrdersQuantity;
 
     //struct to check if order exists, as well as get all orders for a wallet
     mapping(address => mapping(bytes32 => bool)) addressToOrderIds;
@@ -84,15 +89,17 @@ contract OrderBook {
         uint256 orderIdIndex;
         bytes32[] memory orderIds = new bytes32[](orderGroup.length);
         //token that the orders are being placed on
-        address orderToken = orderGroup[0].token;
+        address orderToken = orderGroup[0].tokenIn;
 
         uint256 totalOrdersValue = getTotalOrdersValue(orderToken);
         uint256 tokenBalance = IERC20(orderToken).balanceOf(msg.sender);
 
+        //TODO: check for tokenIn/weth and tokenOut/weth else revert
+
         for (uint256 i = 0; i < orderGroup.length; ++i) {
             Order memory newOrder = orderGroup[i];
 
-            if (!(orderToken == newOrder.token)) {
+            if (!(orderToken == newOrder.tokenIn)) {
                 revert IncongruentTokenInOrderGroup();
             }
 

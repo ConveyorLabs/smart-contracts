@@ -11,7 +11,6 @@ import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../lib/libraries/PriceLibrary.sol";
 import "../lib/libraries/ConveyorMath64x64.sol";
-import "../lib/AggregatorV3Interface.sol";
 
 import "./OrderBook.sol";
 import "./OrderRouter.sol";
@@ -27,14 +26,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         _;
     }
 
-    //----------------------State Variables------------------------------------//
-    address gasOracle;
-
     //----------------------Constructor------------------------------------//
 
-    constructor(address _gasOracle) {
-        gasOracle = _gasOracle;
-    }
+    constructor(address _gasOracle, address other) OrderBook(_gasOracle) {}
 
     //----------------------Functions------------------------------------//
 
@@ -57,10 +51,5 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
             //aggregate the value of all of the orders
         }
-    }
-
-    function getGasPrice() public view returns (uint256) {
-        (, int256 answer, , , ) = IAggregatorV3(gasOracle).latestRoundData();
-        return uint256(answer);
     }
 }

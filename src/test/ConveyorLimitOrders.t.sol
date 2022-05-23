@@ -67,7 +67,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     ConveyorLimitOrders.Dex[] public dexesArr;
 
     function setUp() public {
-        conveyorLimitOrders = new ConveyorLimitOrders(_gasOracle);
+        conveyorLimitOrders = new ConveyorLimitOrders();
         conveyorLimitOrders.addDex(_dexFactories, _hexDems, _isUniV2);
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         _uniV2Router = IUniswapV2Router02(_uniV2Address);
@@ -78,7 +78,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     receive() external payable {}
 
-    function testGetGasPrice() public {
+    function testGetGasPrice() public view {
         uint256 gasPrice = conveyorLimitOrders.getGasPrice();
         console.log(gasPrice);
     }

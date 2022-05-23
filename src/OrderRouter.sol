@@ -11,11 +11,10 @@ pragma solidity >=0.8.13;
 import "../lib/libraries/PriceLibrary.sol";
 import "../lib/libraries/ConveyorMath64x64.sol";
 import "./OrderBook.sol";
+import "../lib/AggregatorV3Interface.sol";
 
 contract OrderRouter {
     //----------------------Constructor------------------------------------//
-
-    constructor() {}
 
     //----------------------Structs------------------------------------//
 
