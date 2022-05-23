@@ -93,11 +93,16 @@ contract OrderRouter {
         pure
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
+        
         uint128 conveyorPercent = (percentFee + (uint128(92233720368547760)-percentFee)/2+uint128(18446744073709550))*10**2;
-        uint128 beaconPercent = uint128(1)<<64-conveyorReward;
+        // assembly {
+        //     mstore(0x00, conveyorPercent)
+        //     revert(0x00, 0x20)
+        // }
+        uint128 beaconPercent = (uint128(1)<<64)-conveyorPercent;
 
 
-        (conveyorReward, beaconReward)= (ConveyorMath.mul64x64(ConveyorMath.mul64x64(percentFee, wethValue), conveyorPercent), ConveyorMath.mul64x64(ConveyorMath.mul64x64(percentFee, wethValue), conveyorPercent));
+        (conveyorReward, beaconReward)= (ConveyorMath.mul64x64(ConveyorMath.mul64x64(percentFee, wethValue), conveyorPercent), ConveyorMath.mul64x64(ConveyorMath.mul64x64(percentFee, wethValue), beaconPercent));
     }
 
     /// @notice Helper function to check if min credits needed for order placement are satisfied

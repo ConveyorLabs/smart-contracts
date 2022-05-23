@@ -412,10 +412,10 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     /// Todo
     function testCalculateOrderReward() public {
-        (uint128 rewardConveyor, uint128 rewardBeacon) =conveyorLimitOrders.calculateReward(5136340316587499773, 100000);
+        (uint128 rewardConveyor, uint128 rewardBeacon) =conveyorLimitOrders.calculateReward(51363403165874997, 100000);
         console.logString("Input 1 CalculateReward");
-        console.logUint(rewardConveyor);
-        console.logUint(rewardBeacon);
+        assertEq(136, rewardConveyor);
+        assertEq(141, rewardBeacon);
     }
 
     function testCalculateAlphaX() public {
