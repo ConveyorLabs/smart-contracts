@@ -88,12 +88,16 @@ contract OrderRouter {
     /// @param wethValue uint256 total order value in wei at execution price
     /// @return conveyorReward conveyor reward in terms of wei
     /// @return beaconReward beacon reward in wei
-    function calculateReward(int128 percentFee, int128 wethValue)
+    function calculateReward(uint128 percentFee, uint128 wethValue)
         public
         pure
-        returns (int128 conveyorReward, int128 beaconReward)
+        returns (uint128 conveyorReward, uint128 beaconReward)
     {
-        /// Todo calculate the beaconReward/conveyorReward based on applying percentFee to wethValue
+        uint128 conveyorPercent = (percentFee + (uint128(92233720368547760)-percentFee)/2+uint128(18446744073709550))*10**2;
+        uint128 beaconPercent = uint128(1)<<64-conveyorReward;
+
+
+        (conveyorReward, beaconReward)= (ConveyorMath.mul64x64(ConveyorMath.mul64x64(percentFee, wethValue), conveyorPercent), ConveyorMath.mul64x64(ConveyorMath.mul64x64(percentFee, wethValue), conveyorPercent));
     }
 
     /// @notice Helper function to check if min credits needed for order placement are satisfied

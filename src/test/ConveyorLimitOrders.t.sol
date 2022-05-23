@@ -411,12 +411,12 @@ contract ConveyorLimitOrdersTest is DSTest {
     }
 
     /// Todo
-    // function testCalculateOrderReward() public {
-    //     (uint128 rewardConveyor, uint128 rewardBeacon) =conveyorLimitOrders.calculateReward(5136340316587499773, 100000);
-    //     console.logString("Input 1 CalculateReward");
-    //     console.logUint(rewardConveyor);
-    //     console.logUint(rewardBeacon);
-    // }
+    function testCalculateOrderReward() public {
+        (uint128 rewardConveyor, uint128 rewardBeacon) =conveyorLimitOrders.calculateReward(5136340316587499773, 100000);
+        console.logString("Input 1 CalculateReward");
+        console.logUint(rewardConveyor);
+        console.logUint(rewardBeacon);
+    }
 
     function testCalculateAlphaX() public {
         uint128 reserve0SnapShot = 47299249002010446421409070433015781392384000000>>64;
