@@ -15,7 +15,7 @@ import "./test/utils/Console.sol";
 
 contract OrderRouter {
     //----------------------Constructor------------------------------------//
-
+    
     //----------------------Errors------------------------------------//
     error InsufficientOutputAmount();
 
@@ -174,17 +174,13 @@ contract OrderRouter {
     /// @param reserve0Execution snapShot of reserve0 at snapShot time
     /// @param reserve1Execution snapShot of reserve1 at snapShot time
     /// @return alphaX alphaX amount to manipulate the spot price of the respective lp to execution trigger
-
-
-
     function calculateAlphaX(
         uint128 reserve0SnapShot,
         uint128 reserve1SnapShot,
         uint128 reserve0Execution,
         uint128 reserve1Execution
 
-    ) external view returns (uint256 alphaX) {
-
+    ) public pure returns (uint256 alphaX) {
 
         //Store execution spot price in int128 executionSpot
         uint128 executionSpot = ConveyorMath.div64x64(

@@ -429,23 +429,42 @@ contract ConveyorLimitOrdersTest is DSTest {
     }
 
     function testCalculateAlphaX() public {
-        uint128 reserve0SnapShot = 47299249002010446421409070433015781392384000000 >>
+        //-------------Test set 1 Uniswap V2 USDC/WETH 0.014 Proportional spot change----------------------
+        uint128 reserve0SnapShot1 = 47299249002010446421409070433015781392384000000 >>
                 64;
-        uint128 reserve1SnapShot = 16441701632611160000000000000000000000000000 >>
+        uint128 reserve1SnapShot1 = 16441701632611160000000000000000000000000000 >>
                 64;
-        uint128 reserve0Execution = 47639531368931384884872445040447549603840000000 >>
+        uint128 reserve0Execution1 = 47639531368931384884872445040447549603840000000 >>
                 64;
-        uint128 reserve1Execution = 16324260906687270000000000000000000000000000 >>
+        uint128 reserve1Execution1 = 16324260906687270000000000000000000000000000 >>
                 64;
 
-        uint256 alphaX = conveyorLimitOrders.calculateAlphaX(
-            reserve0SnapShot,
-            reserve1SnapShot,
-            reserve0Execution,
-            reserve1Execution
+        //-------------Test set 2---------------------- 
+        uint128 reserve0SnapShot2 = 47299249002010446421409070433015781392384000000 >>
+                64;
+        uint128 reserve1SnapShot2= 16441701632611160000000000000000000000000000 >>
+                64;
+        uint128 reserve0Execution2 = 47639531368931384884872445040447549603840000000 >>
+                64;
+        uint128 reserve1Execution2 = 16324260906687270000000000000000000000000000 >>
+                64; 
+
+        //---------------Test 1 out--------------------------
+        uint256 alphaX1 = conveyorLimitOrders.calculateAlphaX(
+            reserve0SnapShot1,
+            reserve1SnapShot1,
+            reserve0Execution1,
+            reserve1Execution1
+        );
+        //---------------Test 2 out--------------------------
+        uint256 alphaX2 = conveyorLimitOrders.calculateAlphaX(
+            reserve0SnapShot2,
+            reserve1SnapShot2,
+            reserve0Execution2,
+            reserve1Execution2
         );
         console.logString("----------------AlphaX-----------------");
-        console.logUint(alphaX);
+        assertEq(340282366886892426828258718426375055715247042, alphaX1);
     }
 
     function testCalculateMaxBeaconReward() public {
