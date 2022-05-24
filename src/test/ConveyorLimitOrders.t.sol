@@ -419,20 +419,31 @@ contract ConveyorLimitOrdersTest is DSTest {
     }
 
     /// Todo
-    function testCalculateOrderReward() public { //1.8446744073709550
-        (uint128 rewardConveyor, uint128 rewardBeacon) =conveyorLimitOrders.calculateReward(18446744073709550, 100000);
+    function testCalculateOrderReward() public {
+        //1.8446744073709550
+        (uint128 rewardConveyor, uint128 rewardBeacon) = conveyorLimitOrders
+            .calculateReward(18446744073709550, 100000);
         console.logString("Input 1 CalculateReward");
         assertEq(39, rewardConveyor);
         assertEq(59, rewardBeacon);
     }
 
     function testCalculateAlphaX() public {
-        uint128 reserve0SnapShot = 47299249002010446421409070433015781392384000000>>64;
-        uint128 reserve1SnapShot = 16441701632611160000000000000000000000000000>>64;
-        uint128 reserve0Execution =47639531368931384884872445040447549603840000000>>64;
-        uint128 reserve1Execution =16324260906687270000000000000000000000000000>>64;
+        uint128 reserve0SnapShot = 47299249002010446421409070433015781392384000000 >>
+                64;
+        uint128 reserve1SnapShot = 16441701632611160000000000000000000000000000 >>
+                64;
+        uint128 reserve0Execution = 47639531368931384884872445040447549603840000000 >>
+                64;
+        uint128 reserve1Execution = 16324260906687270000000000000000000000000000 >>
+                64;
 
-        uint256 alphaX = conveyorLimitOrders.calculateAlphaX(reserve0SnapShot, reserve1SnapShot, reserve0Execution, reserve1Execution);
+        uint256 alphaX = conveyorLimitOrders.calculateAlphaX(
+            reserve0SnapShot,
+            reserve1SnapShot,
+            reserve0Execution,
+            reserve1Execution
+        );
         console.logString("----------------AlphaX-----------------");
         console.logUint(alphaX);
     }
