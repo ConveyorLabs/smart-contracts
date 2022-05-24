@@ -6,7 +6,9 @@ library ConveyorMath {
     /// @notice maximum uint128 64.64 fixed point number
     uint128 private constant MAX_64x64 =0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
 
+    /// @notice minimum int128 64.64 fixed point number
     int128 private constant MIN_64x64 = -0x80000000000000000000000000000000;
+
     /// @notice maximum uint256 128.128 fixed point number
     uint256 private constant MAX_128x128 =  0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 

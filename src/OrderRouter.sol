@@ -112,18 +112,26 @@ contract OrderRouter {
     }
 
     /// @notice Helper function to calculate the max beacon reward for a group of order's
-    /// @param snapShotSpot uint256 snapShotSpot of the lowest execution spot price of the whole batch
+    /// @param reserve0SnapShot uint256 snapShotSpot of the lowest execution spot price of the whole batch
+    /// @param reserve1SnapShot uint256 snapShotSpot of the lowest execution spot price of the whole batch
     /// @param reserve0 uint256 reserve0 of lp at execution time
     /// @param reserve1 uint256 reserve1 of lp at execution time
     /// @param fee uint256 lp fee
-    /// @return maxBeaconReward uint256 maximum safe beacon reward to protect against flash loan price manipulation in the lp
+    /// @return maxReward uint256 maximum safe beacon reward to protect against flash loan price manipulation in the lp
     function calculateMaxBeaconReward(
-        uint256 snapShotSpot,
-        uint256 reserve0,
-        uint256 reserve1,
-        uint8 fee
-    ) internal pure returns (uint256) {
-        /// Todo calulate alphaX and multiply by fee to determine max beacon reward quantity
+        uint128 reserve0SnapShot,
+        uint128 reserve1SnapShot,
+        uint128 reserve0,
+        uint128 reserve1,
+        uint128 fee
+    ) public pure returns (uint128) {
+        unchecked {
+
+            uint128 maxReward = ConveyorMath.mul64x64(fee,uint128(calculateAlphaX(reserve0SnapShot, reserve1SnapShot, reserve0, reserve1)>>64));
+            require(maxReward<= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
+            return maxReward;
+        }
+        
     }
 
     /// @notice Helper function to calculate the input amount needed to manipulate the spot price of the pool from snapShot to executionPrice
@@ -132,12 +140,14 @@ contract OrderRouter {
     /// @param reserve0Execution snapShot of reserve0 at snapShot time
     /// @param reserve1Execution snapShot of reserve1 at snapShot time
     /// @return alphaX alphaX amount to manipulate the spot price of the respective lp to execution trigger
+
     function calculateAlphaX(
         uint128 reserve0SnapShot,
         uint128 reserve1SnapShot,
         uint128 reserve0Execution,
         uint128 reserve1Execution
     ) internal pure returns (uint256 alphaX) {
+
         //Store execution spot price in int128 executionSpot
         uint128 executionSpot = ConveyorMath.div64x64(
             reserve0Execution,
