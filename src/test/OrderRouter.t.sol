@@ -16,9 +16,8 @@ interface CheatCodes {
     function deal(address who, uint256 amount) external;
 }
 
-contract OrderRouterTest is DSTest {
+contract OrderRouterTest is DSTest, OrderRouter {
     CheatCodes cheatCodes;
-    OrderRouterWrapper orderRouter;
 
     IUniswapV2Router02 uniV2Router;
     IUniswapV2Factory uniV2Factory;
@@ -54,7 +53,7 @@ contract OrderRouterTest is DSTest {
     ConveyorLimitOrders.Dex[] public dexesArr;
 
     function setUp() public {
-        orderRouter.addDex(_dexFactories, _hexDems, _isUniV2);
+        addDex(_dexFactories, _hexDems, _isUniV2);
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         uniV2Router = IUniswapV2Router02(_uniV2Address);
         uniV2Factory = IUniswapV2Factory(_uniV2FactoryAddress);
@@ -62,9 +61,7 @@ contract OrderRouterTest is DSTest {
         console.log("here");
     }
 
-    function setup() public {
-        orderRouter = new OrderRouterWrapper();
-    }
+    function setup() public {}
 
     function testCalculateMinSpot() public view {
         //Test Tokens
@@ -74,11 +71,11 @@ contract OrderRouterTest is DSTest {
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
         address wbtc = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
 
-        uint256 price1 = orderRouter.calculateMinPairSpotPrice(weth, usdc);
-        uint256 price2 = orderRouter.calculateMinPairSpotPrice(dai, usdc);
-        uint256 price3 = orderRouter.calculateMinPairSpotPrice(weth, dai);
-        uint256 price4 = orderRouter.calculateMinPairSpotPrice(weth, wax);
-        uint256 price5 = orderRouter.calculateMinPairSpotPrice(wbtc, weth);
+        uint256 price1 = calculateMinSpotPrice(weth, usdc);
+        uint256 price2 = calculateMinSpotPrice(dai, usdc);
+        uint256 price3 = calculateMinSpotPrice(weth, dai);
+        uint256 price4 = calculateMinSpotPrice(weth, wax);
+        uint256 price5 = calculateMinSpotPrice(wbtc, weth);
         console.logString(
             "--------------Calculate Minimum Spot Price UniV2, Sushi, UniV3-------------------"
         );
@@ -115,10 +112,10 @@ contract OrderRouterTest is DSTest {
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
 
-        uint256 price1 = orderRouter.calculateMeanPairSpotPrice(weth, usdc);
-        uint256 price2 = orderRouter.calculateMeanPairSpotPrice(dai, usdc);
-        uint256 price3 = orderRouter.calculateMeanPairSpotPrice(weth, dai);
-        uint256 price4 = orderRouter.calculateMeanPairSpotPrice(weth, wax);
+        uint256 price1 = calculateMinSpotPrice(weth, usdc);
+        uint256 price2 = calculateMinSpotPrice(dai, usdc);
+        uint256 price3 = calculateMinSpotPrice(weth, dai);
+        uint256 price4 = calculateMinSpotPrice(weth, wax);
         console.logString(
             "--------------Calculate Mean Spot Price UniV2, Sushi, UniV3-------------------"
         );
@@ -156,7 +153,7 @@ contract OrderRouterTest is DSTest {
             _uniV3FactoryAddress
         );
 
-        uint256 price2 = PriceLibrary.calculateV3SpotPrice(
+        uint256 price2 = calculateV3SpotPrice(
             dai,
             usdc,
             1000000000000,
@@ -164,7 +161,7 @@ contract OrderRouterTest is DSTest {
             _uniV3FactoryAddress
         );
 
-        uint256 price3 = PriceLibrary.calculateV3SpotPrice(
+        uint256 price3 = calculateV3SpotPrice(
             weth,
             dai,
             1,
@@ -192,25 +189,25 @@ contract OrderRouterTest is DSTest {
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
         //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-        uint256 price1 = PriceLibrary.calculateV2SpotPrice(
+        uint256 price1 = calculateV2SpotPrice(
             weth,
             usdc,
             _sushiFactoryAddress,
             _sushiHexDem
         );
-        uint256 price2 = PriceLibrary.calculateV2SpotPrice(
+        uint256 price2 = calculateV2SpotPrice(
             dai,
             usdc,
             _sushiFactoryAddress,
             _sushiHexDem
         );
-        uint256 price3 = PriceLibrary.calculateV2SpotPrice(
+        uint256 price3 = calculateV2SpotPrice(
             weth,
             dai,
             _sushiFactoryAddress,
             _sushiHexDem
         );
-        uint256 price4 = PriceLibrary.calculateV2SpotPrice(
+        uint256 price4 = calculateV2SpotPrice(
             weth,
             wax,
             _sushiFactoryAddress,
@@ -271,11 +268,11 @@ contract OrderRouterTest is DSTest {
 
     //Test calculateFee()
     function testCalculateOrderFee() public {
-        uint128 feePercent1 = orderRouter.calculateFee(100000);
-        uint128 feePercent2 = orderRouter.calculateFee(150000);
-        uint128 feePercent3 = orderRouter.calculateFee(200000);
-        uint128 feePercent4 = orderRouter.calculateFee(50);
-        uint128 feePercent5 = orderRouter.calculateFee(250);
+        uint128 feePercent1 = calculateFee(100000);
+        uint128 feePercent2 = calculateFee(150000);
+        uint128 feePercent3 = calculateFee(200000);
+        uint128 feePercent4 = calculateFee(50);
+        uint128 feePercent5 = calculateFee(250);
 
         assertEq(feePercent1, 51363403165874997);
         assertEq(feePercent2, 37664201948990181);
@@ -287,8 +284,10 @@ contract OrderRouterTest is DSTest {
     /// Todo
     function testCalculateOrderReward() public {
         //1.8446744073709550
-        (uint128 rewardConveyor, uint128 rewardBeacon) = orderRouter
-            .calculateReward(18446744073709550, 100000);
+        (uint128 rewardConveyor, uint128 rewardBeacon) = calculateReward(
+            18446744073709550,
+            100000
+        );
         console.logString("Input 1 CalculateReward");
         assertEq(39, rewardConveyor);
         assertEq(59, rewardBeacon);
@@ -304,7 +303,7 @@ contract OrderRouterTest is DSTest {
         uint128 reserve1Execution = 16324260906687270000000000000000000000000000 >>
                 64;
 
-        uint256 alphaX = orderRouter.calculateAlphaX(
+        uint256 alphaX = calculateAlphaX(
             reserve0SnapShot,
             reserve1SnapShot,
             reserve0Execution,
@@ -320,7 +319,7 @@ contract OrderRouterTest is DSTest {
         uint8 dec0 = 18;
         uint256 reserve1 = 131610640170334;
         uint8 dec1 = 9;
-        (uint256 r0_out, uint256 r1_out) = PriceLibrary.convertToCommonBase(
+        (uint256 r0_out, uint256 r1_out) = convertToCommonBase(
             reserve0,
             dec0,
             reserve1,
@@ -332,7 +331,8 @@ contract OrderRouterTest is DSTest {
         uint8 dec01 = 6;
         uint256 reserve11 = 47925919677616776812811;
         uint8 dec11 = 18;
-        (uint256 r0_out1, uint256 r1_out1) = PriceLibrary.convertToCommonBase(
+
+        (uint256 r0_out1, uint256 r1_out1) = convertToCommonBase(
             reserve01,
             dec01,
             reserve11,
@@ -344,18 +344,5 @@ contract OrderRouterTest is DSTest {
         assertEq(r0_out, 131610640170334000000000000); //No change
         assertEq(r0_out1, 131610640170334000000000000); //12 decimals added
         assertEq(r1_out1, 47925919677616776812811); //No change
-    }
-}
-
-///@notice wrapper contract to expose internal functions for testing
-contract OrderRouterWrapper is OrderRouter {
-    function swap(
-        address _tokenIn,
-        address _tokenOut,
-        address _lp,
-        uint256 _amountIn,
-        uint256 _amountOutMin
-    ) public {
-        _swapV2(_tokenIn, _tokenOut, _lp, _amountIn, _amountOutMin);
     }
 }
