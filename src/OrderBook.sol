@@ -67,6 +67,9 @@ contract OrderBook is GasOracle {
 
     //struct to check if order exists, as well as get all orders for a wallet
     mapping(address => mapping(bytes32 => bool)) addressToOrderIds;
+
+    //mapping to hold users gas credit balances
+    mapping(address => uint256) creditBalance;
     
     //----------------------Functions------------------------------------//
 
@@ -78,6 +81,8 @@ contract OrderBook is GasOracle {
         order = orderIdToOrder[orderId];
         return order;
     }
+
+    
 
     /// @notice Add user's order into the Active order's mapping conditionally if the oder passes all of the safety check criterion
     /// @param orderGroup := array of orders to be added to ActiveOrders mapping in OrderGroup struct

@@ -61,7 +61,7 @@ contract OrderRouterTest is DSTest, OrderRouter {
         console.log("here");
     }
 
-    function setup() public {}
+    
 
     function testCalculateMinSpot() public view {
         //Test Tokens
@@ -71,11 +71,11 @@ contract OrderRouterTest is DSTest, OrderRouter {
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
         address wbtc = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
 
-        uint256 price1 = calculateMinSpotPrice(weth, usdc);
-        uint256 price2 = calculateMinSpotPrice(dai, usdc);
-        uint256 price3 = calculateMinSpotPrice(weth, dai);
-        uint256 price4 = calculateMinSpotPrice(weth, wax);
-        uint256 price5 = calculateMinSpotPrice(wbtc, weth);
+        uint256 price1 = calculateMinSpotPrice(weth, usdc,1, 3000);
+        uint256 price2 = calculateMinSpotPrice(dai, usdc, 1, 3000);
+        uint256 price3 = calculateMinSpotPrice(weth, dai, 1, 3000);
+        uint256 price4 = calculateMinSpotPrice(weth, wax, 1, 3000);
+        uint256 price5 = calculateMinSpotPrice(wbtc, weth, 1, 3000);
         console.logString(
             "--------------Calculate Minimum Spot Price UniV2, Sushi, UniV3-------------------"
         );
@@ -112,10 +112,10 @@ contract OrderRouterTest is DSTest, OrderRouter {
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
 
-        uint256 price1 = calculateMinSpotPrice(weth, usdc);
-        uint256 price2 = calculateMinSpotPrice(dai, usdc);
-        uint256 price3 = calculateMinSpotPrice(weth, dai);
-        uint256 price4 = calculateMinSpotPrice(weth, wax);
+        uint256 price1 = calculateMinSpotPrice(weth, usdc,1,3000);
+        uint256 price2 = calculateMinSpotPrice(dai, usdc, 1, 3000);
+        uint256 price3 = calculateMinSpotPrice(weth, dai, 1, 3000);
+        uint256 price4 = calculateMinSpotPrice(weth, wax, 1, 3000);
         console.logString(
             "--------------Calculate Mean Spot Price UniV2, Sushi, UniV3-------------------"
         );
@@ -150,6 +150,7 @@ contract OrderRouterTest is DSTest, OrderRouter {
             usdc,
             1000000000000,
             3000,
+            1,
             _uniV3FactoryAddress
         );
 
@@ -158,6 +159,7 @@ contract OrderRouterTest is DSTest, OrderRouter {
             usdc,
             1000000000000,
             3000,
+            1,
             _uniV3FactoryAddress
         );
 
@@ -166,6 +168,7 @@ contract OrderRouterTest is DSTest, OrderRouter {
             dai,
             1,
             3000,
+            1,
             _uniV3FactoryAddress
         );
 

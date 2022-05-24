@@ -339,45 +339,58 @@ contract OrderRouter {
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
+    /// @param amountIn amountIn to get out amount spot
+    /// @param FEE lp fee
+    /// @param tickSecond the tick second range to get the lp spot price from
+    /// @param _factory Uniswap v3 factory address
     /// @return amountOut spot price of token1 with respect to token2 i.e reserve1/reserve2
     function calculateV3SpotPrice(
         address token0,
         address token1,
         uint112 amountIn,
         uint24 FEE,
+        uint32 tickSecond,
         address _factory
     ) internal view returns (uint256) {
         //tickSeconds array defines our tick interval of observation over the lp
         uint32[] memory tickSeconds = new uint32[](2);
         //int32 version of tickSecond padding in tick range
         int32 tickSecondInt = int32(1);
+        
         //Populate tickSeconds array current block to tickSecond behind current block for tick range
-        tickSeconds[0] = 1;
+        tickSeconds[0] = tickSecond;
         tickSeconds[1] = 0;
+        int24 tick; 
 
-        //Pool address for token pair
-        address pool = IUniswapV3Factory(_factory).getPool(token0, token1, FEE);
+        //Scope to prevent stack too deep error
+        {
+            //Pool address for token pair
+            address pool = IUniswapV3Factory(_factory).getPool(token0, token1, FEE);
+            
+            if (pool == address(0)) {
+                return 0;
+            }
+            //Start observation over lp in prespecified tick range
+            (int56[] memory tickCumulatives, ) = IUniswapV3Pool(pool).observe(
+                tickSeconds
+            );
+            //Scope to prevent deep stack error
+            //Spot price of tickSeconds ago - spot price of current block
+            int56 tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
 
-        if (pool == address(0)) {
-            return 0;
-        }
-        //Start observation over lp in prespecified tick range
-        (int56[] memory tickCumulatives, ) = IUniswapV3Pool(pool).observe(
-            tickSeconds
-        );
-
-        //Spot price of tickSeconds ago - spot price of current block
-        int56 tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
-
-        // int56 / uint32 = int24
-        int24 tick = int24(tickCumulativesDelta / (tickSecondInt));
-
-        //so if tickCumulativeDelta < 0 and division has remainder, then rounddown
-        if (
-            tickCumulativesDelta < 0 &&
-            (tickCumulativesDelta % tickSecondInt != 0)
-        ) {
-            tick--;
+            // int56 / uint32 = int24
+            tick = int24(tickCumulativesDelta / (tickSecondInt));
+            
+            
+            
+            //so if tickCumulativeDelta < 0 and division has remainder, then rounddown
+            if (
+                tickCumulativesDelta < 0 &&
+                (tickCumulativesDelta % tickSecondInt != 0)
+            ) {
+                tick--;
+            }
+        
         }
         //amountOut = tick range spot over specified tick interval
         uint256 amountOut = getQuoteAtTick(tick, amountIn, token0, token1);
@@ -422,6 +435,7 @@ contract OrderRouter {
                     token1,
                     amountIn,
                     FEE,
+                    tickSecond,
                     dexes[i].factoryAddress
                 );
                 meanSpotPrice += (spotPrice);
@@ -539,6 +553,7 @@ contract OrderRouter {
                     token1,
                     amountIn,
                     FEE,
+                    tickSecond,
                     dexes[i].factoryAddress
                 );
                 minSpotPrice = (spotPrice < minSpotPrice && spotPrice != 0)
