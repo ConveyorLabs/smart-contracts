@@ -40,7 +40,7 @@ contract OrderRouter {
     /// @param token1 bytes32 address of token1
     /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
     function calculateMeanPairSpotPrice(address token0, address token1)
-        external
+        internal
         view
         returns (uint256)
     {
@@ -53,7 +53,7 @@ contract OrderRouter {
     /// @param token1 bytes32 address of token2
     /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
     function calculateMinPairSpotPrice(address token0, address token1)
-        external
+        internal
         view
         returns (uint256)
     {
@@ -66,7 +66,7 @@ contract OrderRouter {
     /// @param amountIn uint128 USDC amount in 64x64 fixed point to calculate the fee % of
     /// @return Out64x64 int128 Fee percent
     function calculateFee(uint128 amountIn)
-        public
+        internal
         pure
         returns (uint128 Out64x64)
     {
@@ -91,7 +91,7 @@ contract OrderRouter {
     /// @return conveyorReward conveyor reward in terms of wei
     /// @return beaconReward beacon reward in wei
     function calculateReward(uint128 percentFee, uint128 wethValue)
-        public
+        internal
         pure
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
@@ -163,7 +163,7 @@ contract OrderRouter {
         uint128 reserve1SnapShot,
         uint128 reserve0Execution,
         uint128 reserve1Execution
-    ) external view returns (uint256 alphaX) {
+    ) internal view returns (uint256 alphaX) {
         //Store execution spot price in int128 executionSpot
         uint128 executionSpot = ConveyorMath.div64x64(
             reserve0Execution,
@@ -221,6 +221,7 @@ contract OrderRouter {
 
     //------------------------Admin Functions----------------------------
 
+    //TODO: add onlyOwner
     /// @notice Add Dex struct to dexes array from arr _factory, and arr _hexDem
     /// @param _factory address[] dex factory address's to add
     /// @param _hexDem Factory address create2 deployment bytecode array
