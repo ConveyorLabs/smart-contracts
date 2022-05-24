@@ -4,14 +4,7 @@ pragma solidity >=0.8.0;
 import "../../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 
-interface CheatCodes {
-    function prank(address) external;
-
-    function deal(address who, uint256 amount) external;
-}
-
 contract Swap {
-    CheatCodes cheatCodes;
     address wnato;
 
     IUniswapV2Router02 uniV2Router;
@@ -19,11 +12,8 @@ contract Swap {
     constructor(
         address uniV2Addr,
         address uniV3Addr,
-        address _wnato,
-        address hevm
+        address _wnato
     ) {
-        cheatCodes = CheatCodes(hevm);
-
         wnato = _wnato;
         uniV2Router = IUniswapV2Router02(uniV2Addr);
     }
