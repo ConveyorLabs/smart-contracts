@@ -448,6 +448,17 @@ contract ConveyorLimitOrdersTest is DSTest {
         console.logUint(alphaX);
     }
 
+    function testCalculateMaxBeaconReward() public {
+        uint128 reserve0SnapShot = 47299249002010446421409070433015781392384000000>>64;
+        uint128 reserve1SnapShot = 16441701632611160000000000000000000000000000>>64;
+        uint128 reserve0Execution =47639531368931384884872445040447549603840000000>>64;
+        uint128 reserve1Execution =16324260906687270000000000000000000000000000>>64;
+
+        uint256 maxReward = conveyorLimitOrders.calculateMaxBeaconReward(reserve0SnapShot, reserve1SnapShot, reserve0Execution, reserve1Execution, 55340232221128660);
+        console.logString("----------------Max Reward-----------------");
+        assertEq(55340232215591741967352, maxReward);
+    }
+
     //-----------------------------Gas Optimization Tests----------------------------
 
     //-----------------------------Helper Functions----------------------------
