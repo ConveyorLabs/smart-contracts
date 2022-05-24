@@ -17,8 +17,16 @@ interface CheatCodes {
     function deal(address who, uint256 amount) external;
 }
 
-contract GasOracleTest is DSTest {}
+contract GasOracleTest is DSTest {
+    GasOracle gasOracle;
 
-contract GasOracleWrapper is GasOracle {
-    constructor(address _gasOracle) GasOracle(_gasOracle) {}
+    function setUp() public {
+        address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
+
+        gasOracle = new GasOracle(aggregatorV3Address);
+    }
+
+    function testGetPrice() public view {
+        gasOracle.getGasPrice();
+    }
 }
