@@ -9,7 +9,6 @@ import "../ConveyorLimitOrders.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
-import "../PriceLibrary.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -149,7 +148,7 @@ contract OrderRouterTest is DSTest {
         // address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
 
         //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-        uint256 price1 = PriceLibrary.calculateV3SpotPrice(
+        uint256 price1 = calculateV3SpotPrice(
             weth,
             usdc,
             1000000000000,

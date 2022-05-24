@@ -137,7 +137,7 @@ contract OrderRouter {
         uint128 reserve1SnapShot,
         uint128 reserve0Execution,
         uint128 reserve1Execution
-    ) internal view returns (uint256 alphaX) {
+    ) internal pure returns (uint256 alphaX) {
         //Store execution spot price in int128 executionSpot
         uint128 executionSpot = ConveyorMath.div64x64(
             reserve0Execution,
