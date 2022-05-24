@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.13;
 
-// import "../lib/interfaces/token/IERC20.sol";
+import "../lib/interfaces/token/IERC20.sol";
 // import "../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 // import "../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
-// import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
+import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 // import "../lib/libraries/uniswap/OracleLibrary.sol";
 // import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 // import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
@@ -16,7 +16,8 @@ import "./test/utils/Console.sol";
 contract OrderRouter {
     //----------------------Constructor------------------------------------//
 
-    constructor() {}
+    //----------------------Errors------------------------------------//
+    error InsufficientOutputAmount();
 
     //----------------------Structs------------------------------------//
 
@@ -76,11 +77,12 @@ contract OrderRouter {
         uint128 iamountIn = amountIn << 64;
         uint128 numerator = 16602069666338597000; //.9 sccale := 1e19 ==> 64x64 fixed representation
         uint128 denominator = (23058430092136940000 +
-            ConveyorMath.exp(
-                ConveyorMath.div64x64(iamountIn, 75000 << 64)
-            ));
-        uint128 rationalFraction = ConveyorMath.div64x64(numerator, denominator);
-        Out64x64 = (rationalFraction + 1844674407370955300)/10**2;
+            ConveyorMath.exp(ConveyorMath.div64x64(iamountIn, 75000 << 64)));
+        uint128 rationalFraction = ConveyorMath.div64x64(
+            numerator,
+            denominator
+        );
+        Out64x64 = (rationalFraction + 1844674407370955300) / 10**2;
     }
 
     /// @notice Helper function to calculate beacon and conveyor reward on transaction execution
@@ -93,14 +95,24 @@ contract OrderRouter {
         pure
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
-        
-        uint128 conveyorPercent = (percentFee + ConveyorMath.div64x64(92233720368547760-percentFee,uint128(2)<<64)+uint128(18446744073709550))*10**2;
-        uint128 beaconPercent = (uint128(1)<<64)-conveyorPercent;
-        
-        conveyorReward=ConveyorMath.mul64x64(ConveyorMath.mul64x64(percentFee, wethValue), conveyorPercent);
-        beaconReward= ConveyorMath.mul64x64(ConveyorMath.mul64x64(percentFee, wethValue), beaconPercent);
+        uint128 conveyorPercent = (percentFee +
+            ConveyorMath.div64x64(
+                92233720368547760 - percentFee,
+                uint128(2) << 64
+            ) +
+            uint128(18446744073709550)) * 10**2;
+        uint128 beaconPercent = (uint128(1) << 64) - conveyorPercent;
 
-        return(conveyorReward, beaconReward);
+        conveyorReward = ConveyorMath.mul64x64(
+            ConveyorMath.mul64x64(percentFee, wethValue),
+            conveyorPercent
+        );
+        beaconReward = ConveyorMath.mul64x64(
+            ConveyorMath.mul64x64(percentFee, wethValue),
+            beaconPercent
+        );
+
+        return (conveyorReward, beaconReward);
     }
 
     /// @notice Helper function to check if min credits needed for order placement are satisfied
@@ -154,33 +166,67 @@ contract OrderRouter {
     /// @param reserve0Execution snapShot of reserve0 at snapShot time
     /// @param reserve1Execution snapShot of reserve1 at snapShot time
     /// @return alphaX alphaX amount to manipulate the spot price of the respective lp to execution trigger
-    function calculateAlphaX(uint128 reserve0SnapShot, uint128 reserve1SnapShot, uint128 reserve0Execution, uint128 reserve1Execution) public pure returns (uint256 alphaX) {
+
+    function calculateAlphaX(
+        uint128 reserve0SnapShot,
+        uint128 reserve1SnapShot,
+        uint128 reserve0Execution,
+        uint128 reserve1Execution
+    ) external view returns (uint256 alphaX) {
+
         //Store execution spot price in int128 executionSpot
-        uint128 executionSpot = ConveyorMath.div64x64(reserve0Execution, reserve1Execution);
-      
+        uint128 executionSpot = ConveyorMath.div64x64(
+            reserve0Execution,
+            reserve1Execution
+        );
+
         //Store snapshot spot price in int128 snapshotSpot
-        uint128 snapShotSpot = ConveyorMath.div64x64(reserve0SnapShot, reserve1SnapShot);
-     
+        uint128 snapShotSpot = ConveyorMath.div64x64(
+            reserve0SnapShot,
+            reserve1SnapShot
+        );
+
         //Store difference proportional difference between executionSpot and snapShotSpot in int128 delta
-        uint128 delta = uint128(ConveyorMath.abs(int128(ConveyorMath.div64x64(executionSpot, snapShotSpot))-(1<<64)));
-        
+        uint128 delta = uint128(
+            ConveyorMath.abs(
+                int128(ConveyorMath.div64x64(executionSpot, snapShotSpot)) -
+                    (1 << 64)
+            )
+        );
+
         //Store k=reserve0SnapShot*reserve1SnapShot in int256 k
-        uint256 k = uint256(ConveyorMath.mul64x64(reserve0SnapShot, reserve1SnapShot))<<64;
-        
+        uint256 k = uint256(
+            ConveyorMath.mul64x64(reserve0SnapShot, reserve1SnapShot)
+        ) << 64;
+
         //Store sqrt k in sqrtK int128
         uint128 sqrtK = ConveyorMath.sqrtu(k);
-        
-        //Store sqrt of reserve0SnapShot in sqrtReserve0Snap
-        uint128 sqrtReserve0Snap = ConveyorMath.sqrtu(uint256(reserve0SnapShot)<<64);
-        
-        //sqrtNumPartial := sqrt(delta*r_y+r_y)
-        uint128 sqrtNumPartial = ConveyorMath.sqrtu(uint256(ConveyorMath.mul64x64(delta, reserve1SnapShot)+reserve1SnapShot)<<64);
-       
-        //Full numerator in numerator uint256 of alphaX fraction ==> sqrt(k)*sqrt(r_x)*sqrt(delta*r_y+r_y)-k
-        uint256 numerator = (uint256(ConveyorMath.mul64x64(ConveyorMath.mul64x64(sqrtK, sqrtReserve0Snap), sqrtNumPartial))<<64)-k;
-        
-        alphaX= ConveyorMath.div128x128(numerator, (uint256(reserve1SnapShot)<<64));
 
+        //Store sqrt of reserve0SnapShot in sqrtReserve0Snap
+        uint128 sqrtReserve0Snap = ConveyorMath.sqrtu(
+            uint256(reserve0SnapShot) << 64
+        );
+
+        //sqrtNumPartial := sqrt(delta*r_y+r_y)
+        uint128 sqrtNumPartial = ConveyorMath.sqrtu(
+            uint256(
+                ConveyorMath.mul64x64(delta, reserve1SnapShot) +
+                    reserve1SnapShot
+            ) << 64
+        );
+
+        //Full numerator in numerator uint256 of alphaX fraction ==> sqrt(k)*sqrt(r_x)*sqrt(delta*r_y+r_y)-k
+        uint256 numerator = (uint256(
+            ConveyorMath.mul64x64(
+                ConveyorMath.mul64x64(sqrtK, sqrtReserve0Snap),
+                sqrtNumPartial
+            )
+        ) << 64) - k;
+
+        alphaX = ConveyorMath.div128x128(
+            numerator,
+            (uint256(reserve1SnapShot) << 64)
+        );
     }
 
     //------------------------Admin Functions----------------------------
@@ -203,5 +249,61 @@ contract OrderRouter {
             Dex memory d = Dex(_factory[i], _hexDem[i], isUniV2[i]);
             dexes.push(d);
         }
+    }
+
+    function _swapV2(
+        address _tokenIn,
+        address _tokenOut,
+        address _lp,
+        uint256 _amountIn,
+        uint256 _amountOutMin
+    ) internal returns (uint256) {
+        /// transfer the tokens to the lp
+        IERC20(_tokenIn).transferFrom(msg.sender, _lp, _amountIn);
+
+        //Sort the tokens
+        (address token0, ) = sortTokens(_tokenIn, _tokenOut);
+
+        //Initialize the amount out depending on the token order
+        (uint256 amount0Out, uint256 amount1Out) = _tokenIn == token0
+            ? (uint256(0), _amountOutMin)
+            : (_amountOutMin, uint256(0));
+
+        ///@notice get the balance before
+        uint256 balanceBefore = IERC20(_tokenOut).balanceOf(address(this));
+
+        /// @notice Swap tokens for wrapped native tokens (nato).
+        IUniswapV2Pair(_lp).swap(
+            amount0Out,
+            amount1Out,
+            address(this),
+            new bytes(0)
+        );
+
+        ///@notice calculate the amount recieved
+        uint256 amountRecieved = IERC20(_tokenOut).balanceOf(address(this)) -
+            balanceBefore;
+
+        ///@notice if the amount recieved is less than the amount out min, revert
+        if (amountRecieved >= _amountOutMin) {
+            revert InsufficientOutputAmount();
+        }
+
+        return amountRecieved;
+    }
+
+    function _swapV3() internal {}
+
+    /// @notice Returns sorted token addresses, used to handle return values from pairs sorted in this order. Code from the univ2library.
+    function sortTokens(address tokenA, address tokenB)
+        internal
+        pure
+        returns (address token0, address token1)
+    {
+        require(tokenA != tokenB, "UniswapV2Library: IDENTICAL_ADDRESSES");
+        (token0, token1) = tokenA < tokenB
+            ? (tokenA, tokenB)
+            : (tokenB, tokenA);
+        require(token0 != address(0), "UniswapV2Library: ZERO_ADDRESS");
     }
 }
