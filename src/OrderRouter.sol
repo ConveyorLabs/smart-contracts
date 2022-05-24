@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.13;
 
-// import "../lib/interfaces/token/IERC20.sol";
+import "../lib/interfaces/token/IERC20.sol";
 // import "../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 // import "../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
-// import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
+import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 // import "../lib/libraries/uniswap/OracleLibrary.sol";
 // import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 // import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
@@ -16,7 +16,8 @@ import "./test/utils/Console.sol";
 contract OrderRouter {
     //----------------------Constructor------------------------------------//
 
-    constructor() {}
+    //----------------------Errors------------------------------------//
+    error InsufficientOutputAmount();
 
     //----------------------Structs------------------------------------//
 
@@ -173,12 +174,18 @@ contract OrderRouter {
     /// @param reserve0Execution snapShot of reserve0 at snapShot time
     /// @param reserve1Execution snapShot of reserve1 at snapShot time
     /// @return alphaX alphaX amount to manipulate the spot price of the respective lp to execution trigger
+
+
+
     function calculateAlphaX(
         uint128 reserve0SnapShot,
         uint128 reserve1SnapShot,
         uint128 reserve0Execution,
         uint128 reserve1Execution
-    ) public pure returns (uint256 alphaX) {
+
+    ) external view returns (uint256 alphaX) {
+
+
         //Store execution spot price in int128 executionSpot
         uint128 executionSpot = ConveyorMath.div64x64(
             reserve0Execution,
@@ -254,5 +261,61 @@ contract OrderRouter {
             Dex memory d = Dex(_factory[i], _hexDem[i], isUniV2[i]);
             dexes.push(d);
         }
+    }
+
+    function _swapV2(
+        address _tokenIn,
+        address _tokenOut,
+        address _lp,
+        uint256 _amountIn,
+        uint256 _amountOutMin
+    ) internal returns (uint256) {
+        /// transfer the tokens to the lp
+        IERC20(_tokenIn).transferFrom(msg.sender, _lp, _amountIn);
+
+        //Sort the tokens
+        (address token0, ) = sortTokens(_tokenIn, _tokenOut);
+
+        //Initialize the amount out depending on the token order
+        (uint256 amount0Out, uint256 amount1Out) = _tokenIn == token0
+            ? (uint256(0), _amountOutMin)
+            : (_amountOutMin, uint256(0));
+
+        ///@notice get the balance before
+        uint256 balanceBefore = IERC20(_tokenOut).balanceOf(address(this));
+
+        /// @notice Swap tokens for wrapped native tokens (nato).
+        IUniswapV2Pair(_lp).swap(
+            amount0Out,
+            amount1Out,
+            address(this),
+            new bytes(0)
+        );
+
+        ///@notice calculate the amount recieved
+        uint256 amountRecieved = IERC20(_tokenOut).balanceOf(address(this)) -
+            balanceBefore;
+
+        ///@notice if the amount recieved is less than the amount out min, revert
+        if (amountRecieved >= _amountOutMin) {
+            revert InsufficientOutputAmount();
+        }
+
+        return amountRecieved;
+    }
+
+    function _swapV3() internal {}
+
+    /// @notice Returns sorted token addresses, used to handle return values from pairs sorted in this order. Code from the univ2library.
+    function sortTokens(address tokenA, address tokenB)
+        internal
+        pure
+        returns (address token0, address token1)
+    {
+        require(tokenA != tokenB, "UniswapV2Library: IDENTICAL_ADDRESSES");
+        (token0, token1) = tokenA < tokenB
+            ? (tokenA, tokenB)
+            : (tokenB, tokenA);
+        require(token0 != address(0), "UniswapV2Library: ZERO_ADDRESS");
     }
 }

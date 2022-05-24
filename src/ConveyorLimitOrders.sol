@@ -26,6 +26,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         _;
     }
 
+    //----------------------Constructor------------------------------------//
+
+    constructor(address _gasOracle) OrderBook(_gasOracle) {}
+
     //----------------------Functions------------------------------------//
 
     /// @notice execute all orders passed from beacon matching order execution criteria. i.e. 'orderPrice' matches observable lp price for all orders

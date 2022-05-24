@@ -33,6 +33,9 @@ contract ConveyorLimitOrdersTest is DSTest {
     //Native token address WETH
     address _wnatoAddress = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
+    //Gas Oracle address for testing
+    address _gasOracle = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
+
     //Factory and router address's
     address _uniV2Address = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address _uniV2FactoryAddress = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
@@ -64,7 +67,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     ConveyorLimitOrders.Dex[] public dexesArr;
 
     function setUp() public {
-        conveyorLimitOrders = new ConveyorLimitOrders();
+        conveyorLimitOrders = new ConveyorLimitOrders(_gasOracle);
         conveyorLimitOrders.addDex(_dexFactories, _hexDems, _isUniV2);
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         _uniV2Router = IUniswapV2Router02(_uniV2Address);
@@ -74,6 +77,11 @@ contract ConveyorLimitOrdersTest is DSTest {
     }
 
     receive() external payable {}
+
+    function testGetGasPrice() public view {
+        uint256 gasPrice = conveyorLimitOrders.getGasPrice();
+        console.log(gasPrice);
+    }
 
     function testPlaceOrder() public {
         cheatCodes.deal(address(this), MAX_UINT);
@@ -411,20 +419,31 @@ contract ConveyorLimitOrdersTest is DSTest {
     }
 
     /// Todo
-    function testCalculateOrderReward() public { //1.8446744073709550
-        (uint128 rewardConveyor, uint128 rewardBeacon) =conveyorLimitOrders.calculateReward(18446744073709550, 100000);
+    function testCalculateOrderReward() public {
+        //1.8446744073709550
+        (uint128 rewardConveyor, uint128 rewardBeacon) = conveyorLimitOrders
+            .calculateReward(18446744073709550, 100000);
         console.logString("Input 1 CalculateReward");
         assertEq(39, rewardConveyor);
         assertEq(59, rewardBeacon);
     }
 
     function testCalculateAlphaX() public {
-        uint128 reserve0SnapShot = 47299249002010446421409070433015781392384000000>>64;
-        uint128 reserve1SnapShot = 16441701632611160000000000000000000000000000>>64;
-        uint128 reserve0Execution =47639531368931384884872445040447549603840000000>>64;
-        uint128 reserve1Execution =16324260906687270000000000000000000000000000>>64;
+        uint128 reserve0SnapShot = 47299249002010446421409070433015781392384000000 >>
+                64;
+        uint128 reserve1SnapShot = 16441701632611160000000000000000000000000000 >>
+                64;
+        uint128 reserve0Execution = 47639531368931384884872445040447549603840000000 >>
+                64;
+        uint128 reserve1Execution = 16324260906687270000000000000000000000000000 >>
+                64;
 
-        uint256 alphaX = conveyorLimitOrders.calculateAlphaX(reserve0SnapShot, reserve1SnapShot, reserve0Execution, reserve1Execution);
+        uint256 alphaX = conveyorLimitOrders.calculateAlphaX(
+            reserve0SnapShot,
+            reserve1SnapShot,
+            reserve0Execution,
+            reserve1Execution
+        );
         console.logString("----------------AlphaX-----------------");
         console.logUint(alphaX);
     }
@@ -465,10 +484,11 @@ contract ConveyorLimitOrdersTest is DSTest {
         address token,
         uint256 price,
         uint256 quantity
-    ) internal pure returns (ConveyorLimitOrders.Order memory order) {
+    ) internal view returns (ConveyorLimitOrders.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
-            token: token,
+            tokenIn: token,
+            tokenOut: _wnatoAddress,
             orderId: bytes32(0),
             orderType: OrderBook.OrderType.SELL,
             price: price,
