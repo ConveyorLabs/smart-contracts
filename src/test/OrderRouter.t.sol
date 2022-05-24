@@ -21,5 +21,13 @@ contract OrderRouterTest is DSTest {}
 
 ///@notice wrapper contract to expose internal functions for testing
 contract OrderRouterWrapper is OrderRouter {
-
+    function swap(
+        address _tokenIn,
+        address _tokenOut,
+        address _lp,
+        uint256 _amountIn,
+        uint256 _amountOutMin
+    ) public {
+        _swapV2(_tokenIn, _tokenOut, _lp, _amountIn, _amountOutMin);
+    }
 }
