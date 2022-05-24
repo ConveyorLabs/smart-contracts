@@ -9,7 +9,7 @@ import "../ConveyorLimitOrders.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
-import "../../lib/libraries/PriceLibrary.sol";
+import "../PriceLibrary.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -313,6 +313,38 @@ contract OrderRouterTest is DSTest {
         );
         console.logString("----------------AlphaX-----------------");
         console.logUint(alphaX);
+    }
+
+    function testChangeBase() public {
+        //----------Test 1 setup----------------------//
+        uint256 reserve0 = 131610640170334000000000000;
+        uint8 dec0 = 18;
+        uint256 reserve1 = 131610640170334;
+        uint8 dec1 = 9;
+        (uint256 r0_out, uint256 r1_out) = PriceLibrary.convertToCommonBase(
+            reserve0,
+            dec0,
+            reserve1,
+            dec1
+        );
+
+        //----------Test 2 setup-----------------//
+        uint256 reserve01 = 131610640170334;
+        uint8 dec01 = 6;
+        uint256 reserve11 = 47925919677616776812811;
+        uint8 dec11 = 18;
+        (uint256 r0_out1, uint256 r1_out1) = PriceLibrary.convertToCommonBase(
+            reserve01,
+            dec01,
+            reserve11,
+            dec11
+        );
+
+        //Assertion checks
+        assertEq(r1_out, 131610640170334000000000); // 9 decimals added
+        assertEq(r0_out, 131610640170334000000000000); //No change
+        assertEq(r0_out1, 131610640170334000000000000); //12 decimals added
+        assertEq(r1_out1, 47925919677616776812811); //No change
     }
 }
 
