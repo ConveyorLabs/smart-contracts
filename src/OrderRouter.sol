@@ -3,15 +3,15 @@ pragma solidity >=0.8.13;
 
 import "../lib/interfaces/token/IERC20.sol";
 // import "../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
-// import "../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
+import "../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
-// import "../lib/libraries/uniswap/OracleLibrary.sol";
-// import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
-// import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
+import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
+import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../lib/libraries/ConveyorMath.sol";
 import "./OrderBook.sol";
 import "./test/utils/Console.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
+import "../lib/libraries/Uniswap/TickMath.sol";
 
 contract OrderRouter {
     //----------------------Constructor------------------------------------//
@@ -34,30 +34,6 @@ contract OrderRouter {
     Dex[] public dexes;
 
     //----------------------Functions------------------------------------//
-
-    /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
-    /// @param token0 bytes32 address of token0
-    /// @param token1 bytes32 address of token1
-    /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
-    function calculateMeanPairSpotPrice(address token0, address token1)
-        internal
-        view
-        returns (uint256)
-    {
-        return calculateMeanSpotPrice(token0, token1, dexes, 1, 3000);
-    }
-
-    /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
-    /// @param token0 bytes32 address of token1
-    /// @param token1 bytes32 address of token2
-    /// @return uint256 spot price of token1 with respect to token2 i.e reserve1/reserve2
-    function calculateMinPairSpotPrice(address token0, address token1)
-        internal
-        view
-        returns (uint256)
-    {
-        return calculateMinSpotPrice(token0, token1, dexes, 1, 3000);
-    }
 
     /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation
     /// @dev calculation assumes 64x64 fixed point in128 representation for all values
@@ -282,19 +258,6 @@ contract OrderRouter {
     }
 
     function _swapV3() internal {}
-
-    /// @notice Returns sorted token addresses, used to handle return values from pairs sorted in this order. Code from the univ2library.
-    function sortTokens(address tokenA, address tokenB)
-        internal
-        pure
-        returns (address token0, address token1)
-    {
-        require(tokenA != tokenB, "UniswapV2Library: IDENTICAL_ADDRESSES");
-        (token0, token1) = tokenA < tokenB
-            ? (tokenA, tokenB)
-            : (tokenB, tokenA);
-        require(token0 != address(0), "UniswapV2Library: ZERO_ADDRESS");
-    }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
     /// @param token0 bytes32 address of token1
