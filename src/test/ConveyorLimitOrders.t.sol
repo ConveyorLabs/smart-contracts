@@ -83,67 +83,6 @@ contract ConveyorLimitOrdersTest is DSTest {
         console.log(gasPrice);
     }
 
-    function testPlaceOrder() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-
-        //swap 20 ether for the swap token
-        swapEthForToken(20 ether, swapToken);
-
-        ConveyorLimitOrders.Order memory order = newOrder(
-            swapToken,
-            245000000000000000000,
-            5
-        );
-
-        placeMockOrder(order);
-    }
-
-    function testUpdateOrder() public {
-        //swap 20 ether for the swap token
-        swapEthForToken(20 ether, swapToken);
-
-        //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
-            swapToken,
-            245000000000000000000,
-            5
-        );
-        //place a mock order
-        bytes32 orderId = placeMockOrder(order);
-
-        //create a new order to replace the old order
-        ConveyorLimitOrders.Order memory updatedOrder = newOrder(
-            swapToken,
-            245000000000000000000,
-            5
-        );
-        updatedOrder.orderId = orderId;
-
-        //submit the updated order
-        conveyorLimitOrders.updateOrder(updatedOrder);
-    }
-
-    function testCancelOrder() public {
-        //swap 20 ether for the swap token
-        swapEthForToken(20 ether, 0x514910771AF9Ca656af840dff83E8264EcF986CA);
-
-        //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
-            swapToken,
-            245000000000000000000,
-            5
-        );
-        //place a mock order
-        bytes32 orderId = placeMockOrder(order);
-
-        //submit the updated order
-        conveyorLimitOrders.cancelOrder(orderId);
-    }
-
-    function testCancelAllOrders() public {}
-
-    function testExecuteOrder() public {}
-
     function testChangeBase() public {
         //----------Test 1 setup----------------------//
         uint256 reserve0 = 131610640170334000000000000;
@@ -451,23 +390,6 @@ contract ConveyorLimitOrdersTest is DSTest {
     //-----------------------------Gas Optimization Tests----------------------------
 
     //-----------------------------Helper Functions----------------------------
-
-    function swapEthForToken(uint256 amount, address _swapToken) internal {
-        cheatCodes.deal(address(this), amount);
-
-        //set the path
-        address[] memory path = new address[](2);
-        path[0] = _wnatoAddress;
-        path[1] = _swapToken;
-
-        // swap eth for tokens
-        _uniV2Router.swapExactETHForTokens{value: amount}(
-            1,
-            path,
-            address(this),
-            (2**256 - 1)
-        );
-    }
 
     function newOrder(
         address token,

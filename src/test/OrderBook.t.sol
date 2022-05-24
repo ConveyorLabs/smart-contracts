@@ -30,6 +30,8 @@ contract OrderBookTest is DSTest {
     address uniV3Addr = address(0);
     address wnato = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
+    address swapToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
+
     uint256 immutable MAX_UINT = type(uint256).max;
 
     function setUp() public {
@@ -44,7 +46,6 @@ contract OrderBookTest is DSTest {
     function testPlaceOrder() public {
         cheatCodes.deal(address(this), MAX_UINT);
 
-        address swapToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
         //swap 20 ether for the swap token
         swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
 
@@ -58,9 +59,54 @@ contract OrderBookTest is DSTest {
         placeMockOrder(order);
     }
 
-    function testUpdateOrder() public {}
+    function testUpdateOrder() public {
+        //swap 20 ether for the swap token
+        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
 
-    function testCancelOrder() public {}
+        //create a new order
+        ConveyorLimitOrders.Order memory order = newOrder(
+            swapToken,
+            wnato,
+            245000000000000000000,
+            5
+        );
+        //place a mock order
+        bytes32 orderId = placeMockOrder(order);
+
+        //create a new order to replace the old order
+        ConveyorLimitOrders.Order memory updatedOrder = newOrder(
+            swapToken,
+            wnato,
+            245000000000000000000,
+            5
+        );
+        updatedOrder.orderId = orderId;
+
+        //submit the updated order
+        orderBook.updateOrder(updatedOrder);
+    }
+
+    function testCancelOrder() public {
+        //swap 20 ether for the swap token
+        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+
+        //create a new order
+        ConveyorLimitOrders.Order memory order = newOrder(
+            swapToken,
+            wnato,
+            245000000000000000000,
+            5
+        );
+        //place a mock order
+        bytes32 orderId = placeMockOrder(order);
+
+        //submit the updated order
+        orderBook.cancelOrder(orderId);
+    }
+
+    function testCancelAllOrders() public {}
+
+    function testExecuteOrder() public {}
 
     //------------------Helper functions-----------------------
 
@@ -69,7 +115,7 @@ contract OrderBookTest is DSTest {
         address tokenOut,
         uint256 price,
         uint256 quantity
-    ) internal view returns (ConveyorLimitOrders.Order memory order) {
+    ) internal pure returns (ConveyorLimitOrders.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
             tokenIn: tokenIn,
