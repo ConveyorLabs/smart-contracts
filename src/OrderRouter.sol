@@ -76,11 +76,12 @@ contract OrderRouter {
         uint128 iamountIn = amountIn << 64;
         uint128 numerator = 16602069666338597000; //.9 sccale := 1e19 ==> 64x64 fixed representation
         uint128 denominator = (23058430092136940000 +
-            ConveyorMath.exp(
-                ConveyorMath.div64x64(iamountIn, 75000 << 64)
-            ));
-        uint128 rationalFraction = ConveyorMath.div64x64(numerator, denominator);
-        Out64x64 = (rationalFraction + 1844674407370955300)/10**2;
+            ConveyorMath.exp(ConveyorMath.div64x64(iamountIn, 75000 << 64)));
+        uint128 rationalFraction = ConveyorMath.div64x64(
+            numerator,
+            denominator
+        );
+        Out64x64 = (rationalFraction + 1844674407370955300) / 10**2;
     }
 
     /// @notice Helper function to calculate beacon and conveyor reward on transaction execution
@@ -93,14 +94,24 @@ contract OrderRouter {
         pure
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
-        
-        uint128 conveyorPercent = (percentFee + ConveyorMath.div64x64(92233720368547760-percentFee,uint128(2)<<64)+uint128(18446744073709550))*10**2;
-        uint128 beaconPercent = (uint128(1)<<64)-conveyorPercent;
-        
-        conveyorReward=ConveyorMath.mul64x64(ConveyorMath.mul64x64(percentFee, wethValue), conveyorPercent);
-        beaconReward= ConveyorMath.mul64x64(ConveyorMath.mul64x64(percentFee, wethValue), beaconPercent);
+        uint128 conveyorPercent = (percentFee +
+            ConveyorMath.div64x64(
+                92233720368547760 - percentFee,
+                uint128(2) << 64
+            ) +
+            uint128(18446744073709550)) * 10**2;
+        uint128 beaconPercent = (uint128(1) << 64) - conveyorPercent;
 
-        return(conveyorReward, beaconReward);
+        conveyorReward = ConveyorMath.mul64x64(
+            ConveyorMath.mul64x64(percentFee, wethValue),
+            conveyorPercent
+        );
+        beaconReward = ConveyorMath.mul64x64(
+            ConveyorMath.mul64x64(percentFee, wethValue),
+            beaconPercent
+        );
+
+        return (conveyorReward, beaconReward);
     }
 
     /// @notice Helper function to check if min credits needed for order placement are satisfied
@@ -140,12 +151,20 @@ contract OrderRouter {
         uint128 fee
     ) public pure returns (uint128) {
         unchecked {
-
-            uint128 maxReward = ConveyorMath.mul64x64(fee,uint128(calculateAlphaX(reserve0SnapShot, reserve1SnapShot, reserve0, reserve1)>>64));
-            require(maxReward<= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
+            uint128 maxReward = ConveyorMath.mul64x64(
+                fee,
+                uint128(
+                    calculateAlphaX(
+                        reserve0SnapShot,
+                        reserve1SnapShot,
+                        reserve0,
+                        reserve1
+                    ) >> 64
+                )
+            );
+            require(maxReward <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
             return maxReward;
         }
-        
     }
 
     /// @notice Helper function to calculate the input amount needed to manipulate the spot price of the pool from snapShot to executionPrice
@@ -154,33 +173,65 @@ contract OrderRouter {
     /// @param reserve0Execution snapShot of reserve0 at snapShot time
     /// @param reserve1Execution snapShot of reserve1 at snapShot time
     /// @return alphaX alphaX amount to manipulate the spot price of the respective lp to execution trigger
-    function calculateAlphaX(uint128 reserve0SnapShot, uint128 reserve1SnapShot, uint128 reserve0Execution, uint128 reserve1Execution) public pure returns (uint256 alphaX) {
+    function calculateAlphaX(
+        uint128 reserve0SnapShot,
+        uint128 reserve1SnapShot,
+        uint128 reserve0Execution,
+        uint128 reserve1Execution
+    ) public pure returns (uint256 alphaX) {
         //Store execution spot price in int128 executionSpot
-        uint128 executionSpot = ConveyorMath.div64x64(reserve0Execution, reserve1Execution);
-      
+        uint128 executionSpot = ConveyorMath.div64x64(
+            reserve0Execution,
+            reserve1Execution
+        );
+
         //Store snapshot spot price in int128 snapshotSpot
-        uint128 snapShotSpot = ConveyorMath.div64x64(reserve0SnapShot, reserve1SnapShot);
-     
+        uint128 snapShotSpot = ConveyorMath.div64x64(
+            reserve0SnapShot,
+            reserve1SnapShot
+        );
+
         //Store difference proportional difference between executionSpot and snapShotSpot in int128 delta
-        uint128 delta = uint128(ConveyorMath.abs(int128(ConveyorMath.div64x64(executionSpot, snapShotSpot))-(1<<64)));
-        
+        uint128 delta = uint128(
+            ConveyorMath.abs(
+                int128(ConveyorMath.div64x64(executionSpot, snapShotSpot)) -
+                    (1 << 64)
+            )
+        );
+
         //Store k=reserve0SnapShot*reserve1SnapShot in int256 k
-        uint256 k = uint256(ConveyorMath.mul64x64(reserve0SnapShot, reserve1SnapShot))<<64;
-        
+        uint256 k = uint256(
+            ConveyorMath.mul64x64(reserve0SnapShot, reserve1SnapShot)
+        ) << 64;
+
         //Store sqrt k in sqrtK int128
         uint128 sqrtK = ConveyorMath.sqrtu(k);
-        
-        //Store sqrt of reserve0SnapShot in sqrtReserve0Snap
-        uint128 sqrtReserve0Snap = ConveyorMath.sqrtu(uint256(reserve0SnapShot)<<64);
-        
-        //sqrtNumPartial := sqrt(delta*r_y+r_y)
-        uint128 sqrtNumPartial = ConveyorMath.sqrtu(uint256(ConveyorMath.mul64x64(delta, reserve1SnapShot)+reserve1SnapShot)<<64);
-       
-        //Full numerator in numerator uint256 of alphaX fraction ==> sqrt(k)*sqrt(r_x)*sqrt(delta*r_y+r_y)-k
-        uint256 numerator = (uint256(ConveyorMath.mul64x64(ConveyorMath.mul64x64(sqrtK, sqrtReserve0Snap), sqrtNumPartial))<<64)-k;
-        
-        alphaX= ConveyorMath.div128x128(numerator, (uint256(reserve1SnapShot)<<64));
 
+        //Store sqrt of reserve0SnapShot in sqrtReserve0Snap
+        uint128 sqrtReserve0Snap = ConveyorMath.sqrtu(
+            uint256(reserve0SnapShot) << 64
+        );
+
+        //sqrtNumPartial := sqrt(delta*r_y+r_y)
+        uint128 sqrtNumPartial = ConveyorMath.sqrtu(
+            uint256(
+                ConveyorMath.mul64x64(delta, reserve1SnapShot) +
+                    reserve1SnapShot
+            ) << 64
+        );
+
+        //Full numerator in numerator uint256 of alphaX fraction ==> sqrt(k)*sqrt(r_x)*sqrt(delta*r_y+r_y)-k
+        uint256 numerator = (uint256(
+            ConveyorMath.mul64x64(
+                ConveyorMath.mul64x64(sqrtK, sqrtReserve0Snap),
+                sqrtNumPartial
+            )
+        ) << 64) - k;
+
+        alphaX = ConveyorMath.div128x128(
+            numerator,
+            (uint256(reserve1SnapShot) << 64)
+        );
     }
 
     //------------------------Admin Functions----------------------------
