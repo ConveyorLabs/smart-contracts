@@ -144,6 +144,7 @@ contract OrderBookTest is DSTest {
     }
 }
 
+///@notice wrapper around the OrderBook contract to expose internal functions for testing
 contract OrderBookWrapper is DSTest, OrderBook {
     constructor(address _gasOracle) OrderBook(_gasOracle) {}
 }
