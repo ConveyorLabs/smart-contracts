@@ -35,14 +35,15 @@ contract ConveyorLimitOrdersTest is DSTest {
     
 
     function testDepositGasCredits() public {
-        cheatCodes.deal(address(1352), 1 ether);
-        cheatCodes.prank(address(1352));
-        // require(false, "got here")       
+        cheatCodes.deal(address(1337), 1 ether);
+        cheatCodes.prank(address(1337));
+
         uint256 balanceBefore = address(conveyorLimitOrders).balance;
         console.logUint(balanceBefore);
-        // require(false, "Got here");
         
-        conveyorLimitOrders.depositCredits{value: 1 ether};
+        (bool success, ) = address(conveyorLimitOrders).call{value: 100}(
+            abi.encodeWithSignature("depositCredits()")
+        );
         console.log(address(this).balance);
         assertTrue(balanceBefore < address(conveyorLimitOrders).balance);
     }

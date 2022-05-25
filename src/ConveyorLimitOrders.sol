@@ -39,7 +39,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address indexed sender,
         uint256 amount
     );
-    
+
     //----------------------Functions------------------------------------//
 
     /// @notice execute all orders passed from beacon matching order execution criteria. i.e. 'orderPrice' matches observable lp price for all orders
@@ -64,23 +64,23 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     /// @notice deposit gas credits publicly callable function
-    
+
     /// @return bool boolean indicator whether deposit was successfully transferred into user's gas credit balance
-    function depositCredits() payable public returns (bool) {
-        //Require that deposit amount is strictly == ethAmount
+    function depositCredits() public payable returns (bool) {
+        //Require that deposit amount is strictly == ethAmount maybe keep this 
         // require(msg.value == ethAmount, "Deposit amount misnatch");
 
         //Check if sender balance can cover eth deposit
         // Todo write this in assembly
-        if(address(msg.sender).balance<msg.value){
+        if (address(msg.sender).balance < msg.value) {
             return false;
         }
 
         //Add amount deposited to creditBalance of the user
-        creditBalance[msg.sender]+=msg.value;
+        creditBalance[msg.sender] += msg.value;
 
         //Emit credit deposit event for beacon
-        emit GasCreditEvent(true, msg.sender, msg.value); 
+        emit GasCreditEvent(true, msg.sender, msg.value);
 
         //return bool success
         return true;
