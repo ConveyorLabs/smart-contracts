@@ -24,10 +24,26 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         _;
     }
 
+    //----------------------Mappings------------------------------------//
+
+    //mapping to hold users gas credit balances
+    mapping(address => uint256) creditBalance;
+
     //----------------------Constructor------------------------------------//
 
     constructor(address _gasOracle) OrderBook(_gasOracle) {}
 
+
+    //----------------------Constants------------------------------------//
+    address eth = 0x2170Ed0880ac9A755fd29B2688956BD959F933F8;
+
+    //----------------------Events------------------------------------//
+    event GasCreditEvent(
+        bool indexed deposit,
+        address indexed sender,
+        uint256 amount
+    );
+    
     //----------------------Functions------------------------------------//
 
     /// @notice execute all orders passed from beacon matching order execution criteria. i.e. 'orderPrice' matches observable lp price for all orders
@@ -49,5 +65,26 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
             //aggregate the value of all of the orders
         }
+    }
+
+    /// @notice deposit gas credits publicly callable function
+    /// @param ethAmount amount of Eth to deposit into user's gas credit balance
+    /// @return bool boolean indicator whether deposit was successfully transferred into user's gas credit balance
+    function depositCredits(uint256 ethAmount) payable public returns (bool) {
+        //Require that deposit amount is strictly == ethAmount
+        require(msg.value == ethAmount, "Deposit amount misnatch");
+        //Check if sender balance can cover eth deposit
+        if(IERC20(eth).balanceOf(msg.sender)<ethAmount){
+            return false;
+        }
+
+        //Add amount deposited to creditBalance of the user
+        creditBalance[msg.sender]+=msg.value;
+
+        //Emit credit deposit event for beacon
+        emit GasCreditEvent(true, msg.sender, ethAmount); 
+
+        //return bool success
+        return true;
     }
 }

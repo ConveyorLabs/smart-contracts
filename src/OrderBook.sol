@@ -67,10 +67,10 @@ contract OrderBook is GasOracle {
 
     //struct to check if order exists, as well as get all orders for a wallet
     mapping(address => mapping(bytes32 => bool)) addressToOrderIds;
-
-    //mapping to hold users gas credit balances
-    mapping(address => uint256) creditBalance;
     
+    //Mapping to get total order count for a users address
+    mapping (address=> uint256) totalOrdersPerAddress;
+
     //----------------------Functions------------------------------------//
 
     function getOrderById(bytes32 orderId)
@@ -222,4 +222,25 @@ contract OrderBook is GasOracle {
     }
 
     function getTotalOrdersValue(address token) internal returns (uint256) {}
+
+    /// @notice Internal helper function to approximate the minimum gas credits for a user assuming all Order's are standard erc20 compliant
+    /// @param gasPrice uint256 current gas price in gwei
+    /// @param executionCost uint256 total internal contract execution cost
+    /// @param userAddress bytes32 address of the user to which calculation will be made
+    /// @param multiplier uint256 margin multiplier to account for gas volatility
+    /// @return unsigned uint256 total ETH required to cover execution
+    function calculateMinGasCredits(uint256 gasPrice, uint256 executionCost, address userAddress, uint256 multiplier) internal view returns (uint256){
+        uint256 totalOrderCount = totalOrdersPerAddress[userAddress];
+        return totalOrderCount * gasPrice * executionCost * multiplier;
+    }
+
+    /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders
+    /// @param gasPrice uint256 current gas price in gwei
+    /// @param executionCost static execution cost for contract execution call
+    /// @param userAddress bytes32 address of the user to be checked
+    /// @param gasCreditBalance uint256 current gas credit balance of the user
+    /// @return bool indicator whether user does have minimum gas credit requirements
+    function hasMinGasCredits(uint256 gasPrice, uint256 executionCost, address userAddress, uint256 gasCreditBalance) internal view returns (bool){
+        return gasCreditBalance >= calculateMinGasCredits(gasPrice, executionCost, userAddress, 150);
+    }
 }
