@@ -27,12 +27,23 @@ contract ConveyorLimitOrdersTest is DSTest {
     uint256 constant MAX_UINT =
         115792089237316195423570985008687907853269984665640564039457584007913129639935;
 
-    function setUp() public {}
+    function setUp() public {
+       cheatCodes = CheatCodes(HEVM_ADDRESS);
+    }
 
     function testExecuteOrder() public {}
     
 
-    // function testDepositGasCredits() {
-
-    // }
+    function testDepositGasCredits() public {
+        cheatCodes.deal(address(1352), 1 ether);
+        cheatCodes.prank(address(1352));
+        // require(false, "got here")       
+        uint256 balanceBefore = address(conveyorLimitOrders).balance;
+        console.logUint(balanceBefore);
+        // require(false, "Got here");
+        
+        conveyorLimitOrders.depositCredits{value: 1 ether};
+        console.log(address(this).balance);
+        assertTrue(balanceBefore < address(conveyorLimitOrders).balance);
+    }
 }

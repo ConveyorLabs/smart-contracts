@@ -240,7 +240,7 @@ contract OrderBook is GasOracle {
     /// @param userAddress bytes32 address of the user to be checked
     /// @param gasCreditBalance uint256 current gas credit balance of the user
     /// @return bool indicator whether user does have minimum gas credit requirements
-    function hasMinGasCredits(uint256 gasPrice, uint256 executionCost, address userAddress, uint256 gasCreditBalance) internal view returns (bool){
+    function hasMinGasCredits(uint256 gasPrice, uint256 executionCost, address userAddress, uint256 gasCreditBalance) external view returns (bool){
         return gasCreditBalance >= calculateMinGasCredits(gasPrice, executionCost, userAddress, 2);
     }
 }

@@ -33,10 +33,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     constructor(address _gasOracle) OrderBook(_gasOracle) {}
 
-
-    //----------------------Constants------------------------------------//
-    address eth = 0x2170Ed0880ac9A755fd29B2688956BD959F933F8;
-
     //----------------------Events------------------------------------//
     event GasCreditEvent(
         bool indexed deposit,
@@ -68,13 +64,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     /// @notice deposit gas credits publicly callable function
-    /// @param ethAmount amount of Eth to deposit into user's gas credit balance
+    
     /// @return bool boolean indicator whether deposit was successfully transferred into user's gas credit balance
-    function depositCredits(uint256 ethAmount) payable public returns (bool) {
+    function depositCredits() payable public returns (bool) {
         //Require that deposit amount is strictly == ethAmount
-        require(msg.value == ethAmount, "Deposit amount misnatch");
+        // require(msg.value == ethAmount, "Deposit amount misnatch");
+
         //Check if sender balance can cover eth deposit
-        if(IERC20(eth).balanceOf(msg.sender)<ethAmount){
+        // Todo write this in assembly
+        if(address(msg.sender).balance<msg.value){
             return false;
         }
 
@@ -82,7 +80,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         creditBalance[msg.sender]+=msg.value;
 
         //Emit credit deposit event for beacon
-        emit GasCreditEvent(true, msg.sender, ethAmount); 
+        emit GasCreditEvent(true, msg.sender, msg.value); 
 
         //return bool success
         return true;

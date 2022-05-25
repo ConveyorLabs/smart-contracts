@@ -42,14 +42,27 @@ contract OrderBookTest is DSTest {
         orderBook = new OrderBookWrapper(aggregatorV3Address);
     }
 
-    // function testHasMinGasCredits() {
-    //     uint256 executionCost = 300000;
-    //     uint256
-    // }
+    
 
-    // function testCalculateMinGasCredits() {
+    function testMinGasCredits() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        
+        //swap 20 ether for the swap token
+        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+    
+        OrderBook.Order memory order = newOrder(
+            swapToken,
+            wnato,
+            245000000000000000000,
+            5
+        );
 
-    // }
+        placeMockOrder(order);
+
+        bool hasMinGasCredits=orderBook.hasMinGasCredits(50000000000, 300000, address(this), 15000000000000000);
+        
+        assertTrue(hasMinGasCredits==true);
+    }
 
     function testPlaceOrder() public {
         cheatCodes.deal(address(this), MAX_UINT);
