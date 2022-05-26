@@ -289,7 +289,7 @@ contract OrderRouter {
         address token1,
         address _factory,
         bytes32 _initBytecode
-    ) internal view returns (uint256 spotPrice) {
+    ) internal view returns (uint256 spotPrice, address lpAddress) {
         require(token0 != token1, "Invalid Token Pair, IDENTICAL Address's");
         (address tok0, address tok1) = sortTokens(token0, token1);
         //Return Uniswap V2 Pair address
@@ -333,7 +333,7 @@ contract OrderRouter {
         );
 
         // Left shift commonReserve0 9 digits i.e. commonReserve0 = commonReserve0 * 2 ** 9
-        spotPrice = ((commonReserve0 << 9) / commonReserve1);
+        (spotPrice, lpAddress) = (((commonReserve0 << 9) / commonReserve1), pairAddress);
     }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
@@ -343,7 +343,7 @@ contract OrderRouter {
     /// @param FEE lp fee
     /// @param tickSecond the tick second range to get the lp spot price from
     /// @param _factory Uniswap v3 factory address
-    /// @return amountOut spot price of token1 with respect to token2 i.e reserve1/reserve2
+   
     function calculateV3SpotPrice(
         address token0,
         address token1,
@@ -351,7 +351,7 @@ contract OrderRouter {
         uint24 FEE,
         uint32 tickSecond,
         address _factory
-    ) internal view returns (uint256) {
+    ) internal view returns (uint256 spotPrice, address poolAddress) {
         //tickSeconds array defines our tick interval of observation over the lp
         uint32[] memory tickSeconds = new uint32[](2);
         //int32 version of tickSecond padding in tick range
@@ -368,7 +368,7 @@ contract OrderRouter {
             address pool = IUniswapV3Factory(_factory).getPool(token0, token1, FEE);
             
             if (pool == address(0)) {
-                return 0;
+                return (0, address(0));
             }
             //Start observation over lp in prespecified tick range
             (int56[] memory tickCumulatives, ) = IUniswapV3Pool(pool).observe(
@@ -395,7 +395,7 @@ contract OrderRouter {
         //amountOut = tick range spot over specified tick interval
         uint256 amountOut = getQuoteAtTick(tick, amountIn, token0, token1);
 
-        return amountOut << 9;
+        (spotPrice, poolAddress) = (amountOut << 9, poolAddress);
     }
 
     /// @notice Helper function to get Mean spot price over multiple LP spot prices
@@ -409,7 +409,7 @@ contract OrderRouter {
         address token1,
         uint32 tickSecond,
         uint24 FEE
-    ) internal view returns (uint256) {
+    ) internal view returns (uint256 meanSpot, address pairAddress) {
         //Initialize meanSpotPrice to 0
         uint256 meanSpotPrice = 0;
         uint8 incrementor = 0;
@@ -420,7 +420,7 @@ contract OrderRouter {
         for (uint256 i = 0; i < dexes.length; ++i) {
             if (dexes[i].isUniV2) {
                 //Right shift spot price 9 decimals and add to meanSpotPrice
-                uint256 spotPrice = calculateV2SpotPrice(
+                (uint256 spotPrice, address pairAddress) = calculateV2SpotPrice(
                     token0,
                     token1,
                     dexes[i].factoryAddress,
@@ -443,7 +443,7 @@ contract OrderRouter {
             }
         }
 
-        return meanSpotPrice / incrementor;
+        (meanSpotPrice, pairAddress) = (meanSpotPrice / incrementor, pairAddress);
     }
 
     /// @notice Helper to get amountIn amount for token pair
@@ -522,6 +522,7 @@ contract OrderRouter {
     /// @param tickSecond uint32 tick seconds to calculate v3 price average over
     /// @param FEE LP token pair fee
     /// @return meanSpotPrice uint112 mean spot price over all dex's specified in input parameters
+    /// Todo revisit this one
     function calculateMinSpotPrice(
         address token0,
         address token1,
@@ -538,7 +539,7 @@ contract OrderRouter {
         for (uint256 i = 0; i < dexes.length; ++i) {
             if (dexes[i].isUniV2) {
                 //Right shift spot price 9 decimals and add to meanSpotPrice
-                uint256 spotPrice = calculateV2SpotPrice(
+                (uint256 spotPrice, address pairAddress) = calculateV2SpotPrice(
                     token0,
                     token1,
                     dexes[i].factoryAddress,
