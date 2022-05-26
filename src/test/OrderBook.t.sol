@@ -35,19 +35,41 @@ contract OrderBookTest is DSTest {
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
-
+        
         swapHelper = new Swap(uniV2Addr, uniV3Addr, wnato);
-
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
         address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
         orderBook = new OrderBookWrapper(aggregatorV3Address);
     }
 
-    function testPlaceOrder() public {
-        cheatCodes.deal(address(this), MAX_UINT);
+    
 
+    function testMinGasCredits() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        
         //swap 20 ether for the swap token
         swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+    
+        OrderBook.Order memory order = newOrder(
+            swapToken,
+            wnato,
+            245000000000000000000,
+            5
+        );
 
+        placeMockOrder(order);
+
+        bool hasMinGasCredits=orderBook.hasMinGasCredits(50000000000, 300000, address(this), 15000000000000000);
+        
+        assertTrue(hasMinGasCredits==true);
+    }
+
+    function testPlaceOrder() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        
+        //swap 20 ether for the swap token
+        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+    
         OrderBook.Order memory order = newOrder(
             swapToken,
             wnato,
@@ -61,6 +83,7 @@ contract OrderBookTest is DSTest {
     function testUpdateOrder() public {
         //swap 20 ether for the swap token
         swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+
 
         //create a new order
         ConveyorLimitOrders.Order memory order = newOrder(
@@ -141,6 +164,8 @@ contract OrderBookTest is DSTest {
 
         orderId = orderIds[0];
     }
+
+
 }
 
 ///@notice wrapper around the OrderBook contract to expose internal functions for testing

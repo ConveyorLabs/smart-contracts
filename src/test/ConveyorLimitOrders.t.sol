@@ -27,8 +27,21 @@ contract ConveyorLimitOrdersTest is DSTest {
     uint256 constant MAX_UINT =
         115792089237316195423570985008687907853269984665640564039457584007913129639935;
 
-    function setUp() public {}
+    function setUp() public {
+        cheatCodes = CheatCodes(HEVM_ADDRESS);
+    }
 
     function testExecuteOrder() public {}
 
+    function testDepositGasCredits() public {
+        cheatCodes.deal(address(1337), MAX_UINT);
+        cheatCodes.prank(address(1337));
+
+        uint256 balanceBefore = address(conveyorLimitOrders).balance;
+        (bool success, ) = address(conveyorLimitOrders).call{value: 100}(
+            abi.encodeWithSignature("depositCredits()")
+        );
+
+        assertTrue(balanceBefore < address(conveyorLimitOrders).balance);
+    }
 }
