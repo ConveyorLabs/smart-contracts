@@ -150,10 +150,17 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     /// @notice private order execution function, assumes all orders passed to it will execute
     /// @param orders orders to be executed through swap
-    function _executeOrder(Order calldata orders, address[] optimallyOrderedPair) private returns (bool) {}
+    /// @param optimallyOrderedPair optimally ordered execution route for all orders in orders
+    /// Note orders.length :== optimallyOrderedPair.length
+    /// @return bool indicating whether all orders were successfully executed in the batch
+    function _executeOrder(Order calldata orders, address[] optimallyOrderedPair) private returns (bool) {
 
-    ////
-    function hasMinCreditsForOrder() internal pure returns (bool) {
+    }
+
+    /// @notice Helper to check if user has minGasCredits for order execution
+    /// @param order order to be checked for minimum gas credits
+    /// @return bool indicating whether the user has the min gas credits for order
+    function hasMinCreditsForOrder(Order calldata order) internal pure returns (bool) {
 
     }
 
