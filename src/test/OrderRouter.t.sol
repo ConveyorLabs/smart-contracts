@@ -63,169 +63,139 @@ contract OrderRouterTest is DSTest, OrderRouter {
 
     
 
-    function testCalculateMinSpot() public view {
-        //Test Tokens
-        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
-        address wbtc = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
+    // function testCalculateMinSpot() public view {
+    //     //Test Tokens
+    //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    //     address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    //     address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
+    //     address wbtc = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
 
-        uint256 price1 = calculateMinSpotPrice(weth, usdc,1, 3000);
-        uint256 price2 = calculateMinSpotPrice(dai, usdc, 1, 3000);
-        uint256 price3 = calculateMinSpotPrice(weth, dai, 1, 3000);
-        uint256 price4 = calculateMinSpotPrice(weth, wax, 1, 3000);
-        uint256 price5 = calculateMinSpotPrice(wbtc, weth, 1, 3000);
-        console.logString(
-            "--------------Calculate Minimum Spot Price UniV2, Sushi, UniV3-------------------"
-        );
-        console.logString(
-            "--------------Min Spot Price Output-------------------"
-        );
-        console.logString("--------------WETH-USDC-------------------");
-        console.logUint(price1);
-        console.logUint(price1);
-        console.logString("Right shifted");
-        console.logUint(price1 >> 9);
-        console.logString("---------USDC-DAI--------------");
-        console.logUint(price2);
-        console.logString("Right shifted");
-        console.logUint(price2 >> 9);
-        console.logString("----------Dai-WETH-------------");
-        console.logUint(price3);
-        console.logString("Right shifted");
-        console.logUint(price3 >> 9);
-        console.logString("----------WAX-WETH-------------");
-        console.logUint(price4);
-        console.logString("Right shifted");
-        console.logUint(price4 >> 9);
-        console.logString("----------WBTC-WETH-------------");
-        console.logUint(price5);
-        console.logString("Right shifted");
-        console.logUint(price5 >> 9);
-    }
+    //     uint256 price1 = calculateMinSpotPrice(weth, usdc,1, 3000);
+    //     uint256 price2 = calculateMinSpotPrice(dai, usdc, 1, 3000);
+    //     uint256 price3 = calculateMinSpotPrice(weth, dai, 1, 3000);
+    //     uint256 price4 = calculateMinSpotPrice(weth, wax, 1, 3000);
+    //     uint256 price5 = calculateMinSpotPrice(wbtc, weth, 1, 3000);
+    //     console.logString(
+    //         "--------------Calculate Minimum Spot Price UniV2, Sushi, UniV3-------------------"
+    //     );
+    //     console.logString(
+    //         "--------------Min Spot Price Output-------------------"
+    //     );
+    //     console.logString("--------------WETH-USDC-------------------");
+    //     console.logUint(price1);
+    //     console.logUint(price1);
+    //     console.logString("Right shifted");
+    //     console.logUint(price1 >> 9);
+    //     console.logString("---------USDC-DAI--------------");
+    //     console.logUint(price2);
+    //     console.logString("Right shifted");
+    //     console.logUint(price2 >> 9);
+    //     console.logString("----------Dai-WETH-------------");
+    //     console.logUint(price3);
+    //     console.logString("Right shifted");
+    //     console.logUint(price3 >> 9);
+    //     console.logString("----------WAX-WETH-------------");
+    //     console.logUint(price4);
+    //     console.logString("Right shifted");
+    //     console.logUint(price4 >> 9);
+    //     console.logString("----------WBTC-WETH-------------");
+    //     console.logUint(price5);
+    //     console.logString("Right shifted");
+    //     console.logUint(price5 >> 9);
+    // }
 
-    function testCalculateMeanSpot() public view {
-        //Test Tokens
-        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
+    
 
-        uint256 price1 = calculateMinSpotPrice(weth, usdc,1,3000);
-        uint256 price2 = calculateMinSpotPrice(dai, usdc, 1, 3000);
-        uint256 price3 = calculateMinSpotPrice(weth, dai, 1, 3000);
-        uint256 price4 = calculateMinSpotPrice(weth, wax, 1, 3000);
-        console.logString(
-            "--------------Calculate Mean Spot Price UniV2, Sushi, UniV3-------------------"
-        );
-        console.logString("--------------Mean Price Out-------------------");
-        console.logString("--------------WETH-USDC-------------------");
-        console.logUint(price1);
-        console.logString("Right shifted");
-        console.logUint(price1 >> 9);
-        console.logString("---------USDC-DAI--------------");
-        console.logUint(price2);
-        console.logString("Right shifted");
-        console.logUint(price2 >> 9);
-        console.logString("----------Dai-USDC-------------");
-        console.logUint(price3);
-        console.logString("Right shifted");
-        console.logUint(price3 >> 9);
-        console.logString("----------WAX-WETH-------------");
-        console.logUint(price4);
-        console.logUint(price4 >> 9);
-    }
+    // function testCalculateV3Spot() public view {
+    //     //Test Tokens
+    //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    //     address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    //     // address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
 
-    function testCalculateV3Spot() public view {
-        //Test Tokens
-        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        // address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
+    //     //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
+    //     uint256 price1 = calculateV3SpotPrice(
+    //         weth,
+    //         usdc,
+    //         1000000000000,
+    //         3000,
+    //         1,
+    //         _uniV3FactoryAddress
+    //     );
 
-        //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-        uint256 price1 = calculateV3SpotPrice(
-            weth,
-            usdc,
-            1000000000000,
-            3000,
-            1,
-            _uniV3FactoryAddress
-        );
+    //     uint256 price2 = calculateV3SpotPrice(
+    //         dai,
+    //         usdc,
+    //         1000000000000,
+    //         3000,
+    //         1,
+    //         _uniV3FactoryAddress
+    //     );
 
-        uint256 price2 = calculateV3SpotPrice(
-            dai,
-            usdc,
-            1000000000000,
-            3000,
-            1,
-            _uniV3FactoryAddress
-        );
+    //     uint256 price3 = calculateV3SpotPrice(
+    //         weth,
+    //         dai,
+    //         1,
+    //         3000,
+    //         1,
+    //         _uniV3FactoryAddress
+    //     );
 
-        uint256 price3 = calculateV3SpotPrice(
-            weth,
-            dai,
-            1,
-            3000,
-            1,
-            _uniV3FactoryAddress
-        );
+    //     //uint256 price4= PriceLibrary.calculateUniV3SpotPrice(wax,weth, 1, 3000,1, _uniV3FactoryAddress);
 
-        //uint256 price4= PriceLibrary.calculateUniV3SpotPrice(wax,weth, 1, 3000,1, _uniV3FactoryAddress);
+    //     console.logString("---------V3 Tick Range Price Uni----------");
+    //     console.logString("---------USDC-WETH-------------");
+    //     console.logUint(price1);
+    //     console.logString("---------USDC-DAI--------------");
+    //     console.logUint(price2);
+    //     console.logString("----------Dai-WETH-------------");
+    //     console.logUint(price3);
+    //     console.logString("----------WAX-WETH-------------");
+    //     //console.logUint(price4);
+    // }
 
-        console.logString("---------V3 Tick Range Price Uni----------");
-        console.logString("---------USDC-WETH-------------");
-        console.logUint(price1);
-        console.logString("---------USDC-DAI--------------");
-        console.logUint(price2);
-        console.logString("----------Dai-WETH-------------");
-        console.logUint(price3);
-        console.logString("----------WAX-WETH-------------");
-        //console.logUint(price4);
-    }
-
-    function testCalculateV2SpotSushi() public view {
-        //Test tokens
-        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
-        //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-        uint256 price1 = calculateV2SpotPrice(
-            weth,
-            usdc,
-            _sushiFactoryAddress,
-            _sushiHexDem
-        );
-        uint256 price2 = calculateV2SpotPrice(
-            dai,
-            usdc,
-            _sushiFactoryAddress,
-            _sushiHexDem
-        );
-        uint256 price3 = calculateV2SpotPrice(
-            weth,
-            dai,
-            _sushiFactoryAddress,
-            _sushiHexDem
-        );
-        uint256 price4 = calculateV2SpotPrice(
-            weth,
-            wax,
-            _sushiFactoryAddress,
-            _sushiHexDem
-        );
-        console.logString("---------V2 Spot Price Sushi----------");
-        console.logString("---------USDC-WETH-------------");
-        console.logUint(price1);
-        console.logString("---------USDC-DAI--------------");
-        console.logUint(price2);
-        console.logString("----------Dai-USDC-------------");
-        console.logUint(price3);
-        console.logString("----------WAX-WETH-------------");
-        console.logUint(price4);
-    }
+    // function testCalculateV2SpotSushi() public view {
+    //     //Test tokens
+    //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    //     address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    //     address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
+    //     //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
+    //     uint256 price1 = calculateV2SpotPrice(
+    //         weth,
+    //         usdc,
+    //         _sushiFactoryAddress,
+    //         _sushiHexDem
+    //     );
+    //     uint256 price2 = calculateV2SpotPrice(
+    //         dai,
+    //         usdc,
+    //         _sushiFactoryAddress,
+    //         _sushiHexDem
+    //     );
+    //     uint256 price3 = calculateV2SpotPrice(
+    //         weth,
+    //         dai,
+    //         _sushiFactoryAddress,
+    //         _sushiHexDem
+    //     );
+    //     uint256 price4 = calculateV2SpotPrice(
+    //         weth,
+    //         wax,
+    //         _sushiFactoryAddress,
+    //         _sushiHexDem
+    //     );
+    //     console.logString("---------V2 Spot Price Sushi----------");
+    //     console.logString("---------USDC-WETH-------------");
+    //     console.logUint(price1);
+    //     console.logString("---------USDC-DAI--------------");
+    //     console.logUint(price2);
+    //     console.logString("----------Dai-USDC-------------");
+    //     console.logUint(price3);
+    //     console.logString("----------WAX-WETH-------------");
+    //     console.logUint(price4);
+    // }
 
     // function testCalculateV2SpotUni() public view {
     //     //Test tokens
@@ -269,6 +239,30 @@ contract OrderRouterTest is DSTest, OrderRouter {
     //     console.logUint(price4);
     // }
 
+    function testGetAllPrices() public view {
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        
+        
+        //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
+        (uint256[] memory prices, address[] memory lps) = getAllPrices(
+            weth,
+            usdc,
+            1,
+            300
+        );
+
+        console.logString("-----------------------All Dex Prices--------------------");
+        console.logUint(prices[0]);
+        console.logUint(prices[1]);
+        console.logUint(prices[2]);
+        console.logString("-----------------------All dex Addresses--------------------");
+        console.log(lps[0]);
+        console.log(lps[1]);
+        console.log(lps[2]);
+
+    }
+
     //Test calculateFee()
     function testCalculateOrderFee() public {
         uint128 feePercent1 = calculateFee(100000);
@@ -296,7 +290,7 @@ contract OrderRouterTest is DSTest, OrderRouter {
         assertEq(59, rewardBeacon);
     }
 
-    function testCalculateAlphaX() public {
+    function testCalculateAlphaX() public view {
         uint128 reserve0SnapShot = 47299249002010446421409070433015781392384000000 >>
                 64;
         uint128 reserve1SnapShot = 16441701632611160000000000000000000000000000 >>
