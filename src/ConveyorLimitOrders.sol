@@ -82,33 +82,22 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @notice Helper function to determine the spot price change to the lp after introduction alphaX amount into the reserve pool
     /// @param alphaX uint256 amount to be added to reserve_x to get out token_y
     /// @param reserves current lp reserves for tokenIn and tokenOut
-    /// @return spotPrice the amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
-    function simulatePriceChange(uint256 alphaX, uint256[] memory reserves) external pure returns (uint256) {
+    /// @return unsigned the amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
+    function simulatePriceChange(uint128 alphaX, uint128[] memory reserves) external pure returns (uint256) {
         
-       
-            // uint256 numerator = 1;
-            // require(false, "Lfjappfa");
-
-            // assembly {
-            //     mstore(0x00, numerator)
-            //     revert(0x00, 0x20)
-            // }
-
-            // uint256 k = uint256(ConveyorMath.mul64x64(uint128(reserves[0])<<64, uint128(reserves[1])<<64))<<64;
-            // console.logString("k");
-            // // assembly {
-            // //     mstore(0x00, k)
-            // //     revert(0x00, 0x20)
-            // // }
-            // uint256 denPartial = ConveyorMath.div128x128(k, uint128(reserves[0]+alphaX)<<64); 
-            // uint256 denominator = uint256(ConveyorMath.mul64x64(uint128(denPartial>>64), uint128(reserves[0])<<64))<<64;
-            // uint256 spotPrice = uint256(ConveyorMath.div128x128(numerator,denominator))<<64;
-            // require(spotPrice<=0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
-            return uint256(1);
+        unchecked {
+            uint128 numerator = reserves[0]+alphaX;
+            uint256 k = uint256(reserves[0]*reserves[1]);
+            
+            uint128 denominator = ConveyorMath.divUI(k, uint256(reserves[0]+alphaX)); 
         
+            uint256 spotPrice = uint256(ConveyorMath.div128x128(uint256(numerator)<<128,uint256(denominator)<<64));
             
-
+            require(spotPrice<=0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, "overflow");
+            return uint256(spotPrice);
+        }
             
+   
         
         
     }
