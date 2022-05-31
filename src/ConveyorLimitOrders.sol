@@ -9,7 +9,7 @@ import "./test/utils/Console.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../lib/libraries/ConveyorMath.sol";
-
+import "./test/utils/Console.sol";
 import "./OrderBook.sol";
 import "./OrderRouter.sol";
 
@@ -130,39 +130,76 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     }
 
+
+   
+
+    // /// @notice helper function to determine the most spot price advantagous trade route for lp ordering of the batch
+    // /// @notice Should be called prior to batch execution time to generate the final lp ordering on execution
+    // /// @param orders all of the verifiably executable orders in the batch filtered prior to passing as parameter
+    // /// @param reserveSizes nested array of uint256 reserve0,reserv1 for each lp 
+    // /// @param pairAddress address[] ordered by [uniswapV2, Sushiswap, UniswapV3]
+    // /// @return optimalOrder array of pair addresses of size orders.length corresponding to the indexed pair address to use for each order
+    // function optimizeBatchLPOrder(Order[] memory orders, uint256[][] calldata reserveSizes, address[] memory pairAddress) internal view returns (address[] memory optimallyOrderedPair) {
+    //     //continually mock the execution of each order and find the most advantagios spot price after each simulated execution
+    //     // aggregate address[] optimallyOrderedPair to be an order's array of the optimal pair address to perform execution on for the respective indexed order in orders
+    //     // Note order.length == optimallyOrderedPair.length
+
+
+    // }
+
     /// @notice Helper function to determine the spot price change to the lp after introduction alphaX amount into the reserve pool
     /// @param alphaX uint256 amount to be added to reserve_x to get out token_y
     /// @param reserves current lp reserves for tokenIn and tokenOut
-    /// @return unsigned the amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
-    function _phi(uint256 alphaX, uint256[] reserves) internal pure returns (uint256) {
+    /// @return unsigned t
+
+he amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
+
+    function simulatePriceChange(uint128 alphaX, uint128[] memory reserves) external pure returns (uint256) {
+        
+        unchecked {
+            uint128 numerator = reserves[0]+alphaX;
+            uint256 k = uint256(reserves[0]*reserves[1]);
+            
+            uint128 denominator = ConveyorMath.divUI(k, uint256(reserves[0]+alphaX)); 
+        
+            uint256 spotPrice = uint256(ConveyorMath.div128x128(uint256(numerator)<<128,uint256(denominator)<<64));
+            
+            require(spotPrice<=0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, "overflow");
+            return uint256(spotPrice);
+        }
+            
+   
+        
+
         
     }
 
 
-    /// @notice Helper function to determine if order can execute based on the spot price of the lp, the determinig factor is the order.orderType
-    /// @param order Order order.price to be checked against realtime lp spot price for execution
-    /// @param lpSpotPrice realtime best lpSpotPrice found for the order
-    /// @return bool indicator whether order can be executed or not
-    function orderCanExecute(Order calldata order, uint256 lpSpotPrice) internal returns (bool) {
-            /// Should be a very quick boolean check against the two values
 
-    }
+    // /// @notice Helper function to determine if order can execute based on the spot price of the lp, the determinig factor is the order.orderType
+    // /// @param order Order order.price to be checked against realtime lp spot price for execution
+    // /// @param lpSpotPrice realtime best lpSpotPrice found for the order
+    // /// @return bool indicator whether order can be executed or not
+    // function orderCanExecute(Order calldata order, uint256 lpSpotPrice) internal returns (bool) {
+    //         /// Should be a very quick boolean check against the two values
 
-    /// @notice private order execution function, assumes all orders passed to it will execute
-    /// @param orders orders to be executed through swap
-    /// @param optimallyOrderedPair optimally ordered execution route for all orders in orders
-    /// Note orders.length :== optimallyOrderedPair.length
-    /// @return bool indicating whether all orders were successfully executed in the batch
-    function _executeOrder(Order calldata orders, address[] optimallyOrderedPair) private returns (bool) {
+    // }
 
-    }
+    // / @notice private order execution function, assumes all orders passed to it will execute
+    // / @param orders orders to be executed through swap
+    // / @param optimallyOrderedPair optimally ordered execution route for all orders in orders
+    // / Note orders.length :== optimallyOrderedPair.length
+    // / @return bool indicating whether all orders were successfully executed in the batch
+    // function _executeOrder(Order calldata orders, address[] memory optimallyOrderedPair) private returns (bool) {
 
-    /// @notice Helper to check if user has minGasCredits for order execution
-    /// @param order order to be checked for minimum gas credits
-    /// @return bool indicating whether the user has the min gas credits for order
-    function hasMinCreditsForOrder(Order calldata order) internal pure returns (bool) {
+    // }
 
-    }
+    // /// @notice Helper to check if user has minGasCredits for order execution
+    // /// @param order order to be checked for minimum gas credits
+    // /// @return bool indicating whether the user has the min gas credits for order
+    // function hasMinCreditsForOrder(Order calldata order) internal pure returns (bool) {
+
+    // }
 
 
     /// @notice deposit gas credits publicly callable function

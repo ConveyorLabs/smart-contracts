@@ -128,7 +128,11 @@ library ConveyorMath {
             if(x==0 || y==0){
                 return 0;
             }
-            uint256 answer = (x * y)>>128;
+        
+            uint256 hi = (x*(y & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF));
+            uint256 lo = (x*(y >> 128))<<128;
+
+            uint256 answer = hi +lo;
             require (answer <= MAX_128x128);
             return answer;
         }
