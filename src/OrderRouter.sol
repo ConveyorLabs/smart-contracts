@@ -23,6 +23,7 @@ contract OrderRouter {
 
     /// @notice Struct to store important Dex specifications
     struct Dex {
+        
         address factoryAddress;
         bytes32 initBytecode;
         bool isUniV2;
@@ -33,6 +34,11 @@ contract OrderRouter {
     /// @notice Array of dex structures to be used throughout the contract for pair spot price calculations
     Dex[] public dexes;
 
+    struct SpotReserve {
+        uint256 spotPrice;
+        uint256 res0;
+        uint256 res1;
+    }
     //----------------------Functions------------------------------------//
 
     /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation
@@ -244,7 +250,7 @@ contract OrderRouter {
 
         //Sort the tokens
         (address token0, ) = sortTokens(_tokenIn, _tokenOut);
-
+        
         //Initialize the amount out depending on the token order
         (uint256 amount0Out, uint256 amount1Out) = _tokenIn == token0
             ? (uint256(0), _amountOutMin)
@@ -280,15 +286,18 @@ contract OrderRouter {
     /// @param token1 bytes32 address of token2
     /// @param _factory bytes32 contract factory address
     /// @param _initBytecode bytes32 initialization bytecode for dex pair
-    /// @return spotPrice uint112 current reserve calculated spot price on dex pair
+    
     function calculateV2SpotPrice(
         address token0,
         address token1,
         address _factory,
         bytes32 _initBytecode
-    ) internal view returns (uint256 spotPrice, address poolAddress) {
+    ) internal view returns (SpotReserve memory spRes, address poolAddress) {
         require(token0 != token1, "Invalid Token Pair, IDENTICAL Address's");
         (address tok0, address tok1) = sortTokens(token0, token1);
+        
+        SpotReserve memory _spRes;
+
         //Return Uniswap V2 Pair address
         address pairAddress = address(
             uint160(
@@ -306,16 +315,16 @@ contract OrderRouter {
         );
 
         require(pairAddress != address(0), "Invalid token pair");
-
+        
         if (!(IUniswapV2Factory(_factory).getPair(tok0, tok1) == pairAddress)) {
-            console.logString("Factory Address");
-            console.log(IUniswapV2Factory(_factory).getPair(tok0, tok1));
-            return (0, address(0));
+            return (_spRes, address(0));
         }
-
+        
         //Set reserve0, reserve1 to current LP reserves
         (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pairAddress)
             .getReserves();
+
+        (_spRes.res0, _spRes.res1)= (reserve0, reserve1);
 
         //Get target decimals for token0 & token1
         uint8 token0Decimals = getTargetDecimals(tok0);
@@ -329,8 +338,10 @@ contract OrderRouter {
             token1Decimals
         );
 
+        _spRes.spotPrice = (commonReserve0 << 9) / commonReserve1;
+
         // Left shift commonReserve0 9 digits i.e. commonReserve0 = commonReserve0 * 2 ** 9
-        (spotPrice, poolAddress) = ((commonReserve0 << 9) / commonReserve1, pairAddress);
+        (spRes, poolAddress) = (_spRes, pairAddress);
     }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
@@ -340,7 +351,6 @@ contract OrderRouter {
     /// @param FEE lp fee
     /// @param tickSecond the tick second range to get the lp spot price from
     /// @param _factory Uniswap v3 factory address
-    
     function calculateV3SpotPrice(
         address token0,
         address token1,
@@ -348,55 +358,75 @@ contract OrderRouter {
         uint24 FEE,
         uint32 tickSecond,
         address _factory
-    ) internal view returns (uint256 price, address poolAddress) {
-        //tickSeconds array defines our tick interval of observation over the lp
-        uint32[] memory tickSeconds = new uint32[](2);
-        //int32 version of tickSecond padding in tick range
-        int32 tickSecondInt = int32(1);
+    ) internal view returns (SpotReserve memory, address) {
 
-        //Populate tickSeconds array current block to tickSecond behind current block for tick range
-        tickSeconds[0] = tickSecond;
-        tickSeconds[1] = 0;
+        SpotReserve memory _spRes;
+        
+        address pool;
+        
         int24 tick;
-
+        int56 tickCumulativesDelta;
+        
         //Scope to prevent stack too deep error
         {
             //Pool address for token pair
-            address pool = IUniswapV3Factory(_factory).getPool(
+            pool = IUniswapV3Factory(_factory).getPool(
                 token0,
                 token1,
                 FEE
             );
 
             if (pool == address(0)) {
-                return (0, address(0));
+                return (_spRes, address(0));
             }
-            //Start observation over lp in prespecified tick range
-            (int56[] memory tickCumulatives, ) = IUniswapV3Pool(pool).observe(
-                tickSeconds
-            );
-            //Scope to prevent deep stack error
-            //Spot price of tickSeconds ago - spot price of current block
-            int56 tickCumulativesDelta = tickCumulatives[1] -
-                tickCumulatives[0];
 
+            _spRes.res0 = IERC20(token0).balanceOf(pool);
+             _spRes.res1 = IERC20(token1).balanceOf(pool);
+            {
             // int56 / uint32 = int24
-            tick = int24(tickCumulativesDelta / (tickSecondInt));
-
+                tick = getTick(pool, tickSecond);
+            }
             //so if tickCumulativeDelta < 0 and division has remainder, then rounddown
             if (
                 tickCumulativesDelta < 0 &&
-                (tickCumulativesDelta % tickSecondInt != 0)
+                (tickCumulativesDelta % int32(1) != 0)
             ) {
                 tick--;
             }
         }
-        //amountOut = tick range spot over specified tick interval
-        uint256 amountOut = getQuoteAtTick(tick, amountIn, token0, token1);
 
-        return (amountOut << 9, poolAddress);
+            //amountOut = tick range spot over specified tick interval
+            _spRes.spotPrice = getQuoteAtTick(tick, amountIn, token0, token1)<<9;
+                
+            
+        
+        return (_spRes, pool);
     }
 
+    function getTick(address pool, uint32 tickSecond) internal view returns (int24 tick){
+
+        int56 tickCumulativesDelta;
+        //tickSeconds array defines our tick interval of observation over the lp
+        uint32[] memory tickSeconds = new uint32[](2);
+        //Populate tickSeconds array current block to tickSecond behind current block for tick range
+        tickSeconds[0] = tickSecond;
+        tickSeconds[1] = 0;
+
+        {
+            (int56[] memory tickCumulatives, ) = IUniswapV3Pool(pool).observe(
+                    tickSeconds
+                );
+
+                //Scope to prevent deep stack error
+                //Spot price of tickSeconds ago - spot price of current block
+                tickCumulativesDelta= tickCumulatives[1] -
+                    tickCumulatives[0];
+
+        }
+            // int56 / uint32 = int24
+            tick = int24(tickCumulativesDelta / (1));
+
+    }
     
     /// @notice Helper to get all lps and prices across multiple dexes
     /// @param token0 address of token0
@@ -408,49 +438,64 @@ contract OrderRouter {
         address token1,
         uint32 tickSecond,
         uint24 FEE
-    ) internal view returns (uint256[] memory prices, address[] memory lps) {
+    ) internal view returns (SpotReserve[] memory prices, address[] memory lps) {
         //Target base amount in value
         uint112 amountIn = getTargetAmountIn(token0, token1);
 
-        uint256[] memory _spotPrices= new uint256[](dexes.length);
+        SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
         address[] memory _lps = new address[](dexes.length);
-
-
+        
         //Iterate through Dex's in dexes check if isUniV2 and accumulate spot price to meanSpotPrice
         for (uint256 i = 0; i < dexes.length; ++i) {
+            
             if (dexes[i].isUniV2) {
-                //Right shift spot price 9 decimals and add to meanSpotPrice
-                (uint256 spotPrice, address poolAddress) = calculateV2SpotPrice(
-                    token0,
-                    token1,
-                    dexes[i].factoryAddress,
-                    dexes[i].initBytecode
-                );
-                if(spotPrice != 0){
-                    _spotPrices[i]= spotPrice;
-                    _lps[i] = poolAddress;
+                {
+                    //Right shift spot price 9 decimals and add to meanSpotPrice
+                    (SpotReserve memory spotPrice, address poolAddress) = calculateV2SpotPrice(
+                        token0,
+                        token1,
+                        dexes[i].factoryAddress,
+                        dexes[i].initBytecode
+                    );
+                    if(spotPrice.spotPrice != 0){
+                        _spotPrices[i]= spotPrice;
+                        _lps[i] = poolAddress;
+                    
+
+                    }
                 }
                 
-
                 
             } else {
-                (uint256 spotPrice, address poolAddress) = calculateV3SpotPrice(
-                    token0,
-                    token1,
-                    amountIn,
-                    FEE,
-                    tickSecond,
-                    dexes[i].factoryAddress
-                );
-                if(spotPrice != 0){
-                    _lps[i]= poolAddress;
-                    _spotPrices[i] = spotPrice;
-                }
+                {
+                    {
+                        (SpotReserve memory spotPrice, address poolAddress) = calculateV3SpotPrice(
+                            token0,
+                            token1,
+                            amountIn,
+                            FEE,
+                            tickSecond,
+                            dexes[i].factoryAddress
+                        );
+                        if(spotPrice.spotPrice != 0){
+                            _lps[i]= poolAddress;
+                            _spotPrices[i]= spotPrice;
+                            
+                            
+                        }
+                    }
                 
-            }
+                }
+            
         }
+        }
+        
+        
         (prices, lps)= (_spotPrices, _lps);
+        
     }
+
+    
 
     /// @notice Helper to get amountIn amount for token pair
     function getTargetAmountIn(address token0, address token1)

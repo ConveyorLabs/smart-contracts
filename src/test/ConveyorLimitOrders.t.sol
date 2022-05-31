@@ -44,4 +44,15 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         assertTrue(balanceBefore < address(conveyorLimitOrders).balance);
     }
+
+    function testSimulatePriceChange() public  view{
+        uint256[] memory reserves = new uint256[](2);
+        reserves[0]= 8363;
+        reserves[1]=42574176;
+        uint256 alphaX = 10;
+        console.logString("TEST SIMULATE PRICE CHANGE");
+        uint256 spot = conveyorLimitOrders.simulatePriceChange(alphaX, reserves);
+        console.logString("Got here");
+        
+    }
 }

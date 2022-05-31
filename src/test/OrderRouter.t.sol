@@ -245,7 +245,7 @@ contract OrderRouterTest is DSTest, OrderRouter {
         
         
         //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-        (uint256[] memory prices, address[] memory lps) = getAllPrices(
+        (SpotReserve[] memory prices, address[] memory lps) = getAllPrices(
             weth,
             usdc,
             1,
@@ -253,13 +253,16 @@ contract OrderRouterTest is DSTest, OrderRouter {
         );
 
         console.logString("-----------------------All Dex Prices--------------------");
-        console.logUint(prices[0]);
-        console.logUint(prices[1]);
-        console.logUint(prices[2]);
-        console.logString("-----------------------All dex Addresses--------------------");
+        console.logUint(prices[0].res0);
+        console.logUint(prices[0].res1);
+        console.logUint(prices[0].spotPrice);
+        
+        console.logString("-----------------------All lp Addresses--------------------");
         console.log(lps[0]);
         console.log(lps[1]);
         console.log(lps[2]);
+        console.logString("-----------------------All lp reserves--------------------");
+        
 
     }
 
