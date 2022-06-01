@@ -338,6 +338,7 @@ contract OrderRouter {
         (spRes, poolAddress) = (_spRes, pairAddress);
     }
 
+    // function _getV3PairAddress(address token0, address token1)
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2

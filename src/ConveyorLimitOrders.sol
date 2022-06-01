@@ -70,45 +70,61 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         /// @dev Require all orders in the calldata are organized in order of quantity
         /// This will simplify computational complexity on chain
 
-        //(uint256 realTimeSpotPrice, address uniV2PairAddress) = calculateMeanSpotPrice(order.tokenIn, order.tokenOut, 1,300);
+        //Initialize boolean variable dependent on OrderType of batch 
+        bool high;
+
+        //Scope logic to make stack leaner
+        {
+            //Determine high bool from batched OrderType
+            if(orders[0].orderType == OrderType.BUY || orders[0].orderType == OrderType.TAKE_PROFIT){
+                high = true;
+            }else {
+                high = false;
+            }
+        }
+        //Retrive Array of SpotReserve structs as well as lpPairAddress's, strict indexing is assumed between both structures
+        (SpotReserve[] memory spotReserve, address[] memory lpPairAddress) = _getAllPrices(orders[0].tokenIn, orders[0].tokenOut, 300, 1);
+
+        
+        //Initialize lpReserves and populate with spotReserve indexed reserve values to pass into optimizeBatchLPOrder
+        uint128[][] memory lpReserves = new uint128[][](spotReserve.length);
+
+        //Initialize batchSize array to index orderBatches[n]
+        uint256[] memory batchSize = new uint256[](spotReserve.length);
+        {
+            for(uint256 k =0; k<spotReserve.length; ++k){
+                batchSize[k]=0;
+                (lpReserves[k][0], lpReserves[k][1])=(uint128(spotReserve[k].res0),uint128(spotReserve[k].res1));
+            }
+        }
+
+        //Simulated pairAddress and spotPrice Order of entire order batch
+        (address[] memory pairAddressOrder, uint256[] memory simulatedSpotPrices) = _optimizeBatchLPOrder(orders, lpReserves, lpPairAddress, high);
+
+        //Initialize structure to hold order batches per lp
+        Order[][] memory orderBatches = new Order[][](lpPairAddress.length);
 
         //iterate through orders and try to fill order
         for (uint256 i = 0; i < orders.length; ++i) {
             //Pass in single order
             Order memory order = orders[i];
-            // @todo get lp spot price for uniswap v3
-            // Store realtime lp spot price for token pair in
-
-            // @note to self MSG.SENDER beacon
-            // bool canExeute = orderCanExecute(order,realTimeSpotPrice);
-            // Grab order ExecutionPrice
-
-            uint256 orderExecutionPrice = order.price;
-
-            //get the lp execution price lpExecutionPrice = calculateMeanSpotPrice(address order.tokenIn, address tokenOut,uint32 1,uint24 300);
-
-            //check if order executionPrice of the lp
-            //if it is execute the order i.e swap the tokenIn to the tokenOut token through the respective lp router
-
-            // if(order.price <
-            //check the execution price of the order
-
-            //check the price of the lp
-
-            //note: can either loop through and execute or aggregate and execute
-
-            //loop through orders and see which ones hit the execution price
-
-            //if execution price hit
-            //add the order to executableOrders, update total
-
-            //aggregate the value of all of the orders
-
-            //_executeOrder();
+            
+            //Check if order can execute at simulated price and add to orderBatches on the respective lp
+            if(orderCanExecute(order, simulatedSpotPrices[i])){
+                for(uint256 j=0; j<lpPairAddress.length; ++j){
+                    if(pairAddressOrder[i]==lpPairAddress[j]){
+                        orderBatches[j][batchSize[j]]= order;
+                        ++batchSize[j];
+                    }
+                }
+            }
+  
         }
 
-        //at the end reward beacon and reward conveyor
-        // call maxBeaconReward() check if maxBeaconReward >= beacon reward
+        //Pass each batch into private execution function
+        for(uint256 index = 0; index<orderBatches.length;++index){
+            _executeOrder(orderBatches[index]);
+        }
     }
 
     /// @notice helper function to determine the most spot price advantagous trade route for lp ordering of the batch
@@ -117,12 +133,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @param reserveSizes nested array of uint256 reserve0,reserv1 for each lp
     /// @param pairAddress address[] ordered by [uniswapV2, Sushiswap, UniswapV3]
     // /// @return optimalOrder array of pair addresses of size orders.length corresponding to the indexed pair address to use for each order
-    function optimizeBatchLPOrder(
+    function _optimizeBatchLPOrder(
         Order[] memory orders,
-        uint128[][] calldata reserveSizes,
+        uint128[][] memory reserveSizes,
         address[] memory pairAddress,
         bool high
-    ) external pure returns (address[] memory) {
+    ) internal pure returns (address[] memory, uint256[] memory) {
         //continually mock the execution of each order and find the most advantagios spot price after each simulated execution
         // aggregate address[] optimallyOrderedPair to be an order's array of the optimal pair address to perform execution on for the respective indexed order in orders
         // Note order.length == optimallyOrderedPair.length
@@ -130,6 +146,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256[] memory tempSpots = new uint256[](reserveSizes.length);
         address[] memory orderedPairs = new address[](orders.length);
         uint128[][] memory tempReserves = new uint128[][](reserveSizes.length);
+        uint256[] memory simulatedSpotPrices = new uint256[](orders.length);
         uint256 targetSpot = (!high)
             ? 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
             : 0;
@@ -171,11 +188,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     tempReserves[index]
                 );
             }
-
+            simulatedSpotPrices[i]= targetSpot;
             orderedPairs[i] = pairAddress[index];
         }
 
-        return orderedPairs;
+        return (orderedPairs, simulatedSpotPrices);
     }
 
     /// @notice Helper function to determine the spot price change to the lp after introduction alphaX amount into the reserve pool
@@ -220,7 +237,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @param order Order order.price to be checked against realtime lp spot price for execution
     /// @param lpSpotPrice realtime best lpSpotPrice found for the order
     /// @return bool indicator whether order can be executed or not
-    function orderCanExecute(Order calldata order, uint256 lpSpotPrice)
+    function orderCanExecute(Order memory order, uint256 lpSpotPrice)
         internal
         pure
         returns (bool)
@@ -249,10 +266,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     /// @notice private order execution function, assumes all orders passed to it will execute
     /// @param orders orders to be executed through swap
-    /// @param optimallyOrderedPair optimally ordered execution route for all orders in orders
     /// Note orders.length :== optimallyOrderedPair.length
     /// @return bool indicating whether all orders were successfully executed in the batch
-    function _executeOrder(Order calldata orders, address[] memory optimallyOrderedPair) private returns (bool) {
+    function _executeOrder(Order[] memory orders) private returns (bool) {
 
     }
 

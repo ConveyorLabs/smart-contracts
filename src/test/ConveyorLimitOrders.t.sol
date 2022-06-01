@@ -19,7 +19,7 @@ interface CheatCodes {
 contract ConveyorLimitOrdersTest is DSTest {
     //Initialize limit-v0 contract for testing
     ConveyorLimitOrders conveyorLimitOrders;
-
+    ConveyorLimitOrdersWrapper limitOrderWrapper;
     //Initialize cheatcodes
     CheatCodes cheatCodes;
 
@@ -32,6 +32,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         conveyorLimitOrders = new ConveyorLimitOrders(
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C
         );
+        
     }
 
     function testExecuteOrder() public {}
@@ -129,14 +130,28 @@ contract ConveyorLimitOrdersTest is DSTest {
         orders[1] = order2;
         orders[2] = order3;
 
-        address[] memory pairAddressOrder = conveyorLimitOrders
-            .optimizeBatchLPOrder(orders, reserveSizes, pairAddress, false);
+        (address[] memory pairAddressOrder, uint256[] memory simulatedSpotPrices) = limitOrderWrapper.optimizeBatchLPOrder(orders, reserveSizes, pairAddress, false);
 
         console.logString("PAIR ADDRESS ORDER");
         console.logAddress(pairAddressOrder[0]);
         console.logAddress(pairAddressOrder[1]);
         console.logAddress(pairAddressOrder[2]);
+        console.logUint(simulatedSpotPrices[0]);
+        console.logUint(simulatedSpotPrices[1]);
+        console.logUint(simulatedSpotPrices[2]);
     }
 
     function testOptimizeBatchLPOrderWithCancellation() public {}
+}
+
+abstract contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
+    function optimizeBatchLPOrder(
+        Order[] memory orders,
+        uint128[][] memory reserveSizes,
+        address[] memory pairAddress,
+        bool high
+    ) public pure returns (address[] memory, uint256[] memory) {
+        return _optimizeBatchLPOrder(orders, reserveSizes, pairAddress, high);
+    }
+    
 }
