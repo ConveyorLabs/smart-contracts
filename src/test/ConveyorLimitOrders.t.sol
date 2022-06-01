@@ -29,7 +29,9 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
-        conveyorLimitOrders = new ConveyorLimitOrders(0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C);
+        conveyorLimitOrders = new ConveyorLimitOrders(
+            0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C
+        );
     }
 
     function testExecuteOrder() public {}
@@ -43,8 +45,18 @@ contract ConveyorLimitOrdersTest is DSTest {
             abi.encodeWithSignature("depositCredits()")
         );
 
+        require(success, "testDepositGasCredits: deposit failed");
+
         assertTrue(balanceBefore < address(conveyorLimitOrders).balance);
     }
+
+    function testFailDepositGasCredits() public {}
+
+    function testRemoveGasCredits() public {}
+
+    function testFailRemoveGasCredits() public {}
+
+    function testSimulatePriceChange() public {}
 
     // function testSimulatePriceChange() public {
     //     uint128[] memory reserves = new uint128[](2);
@@ -54,9 +66,10 @@ contract ConveyorLimitOrdersTest is DSTest {
     //     console.logString("TEST SIMULATE PRICE CHANGE");
     //     uint256 spot = conveyorLimitOrders.simulatePriceChange(alphaX, reserves);
     //     assertEq(0x000000000000000000000000000007bc019f93509a129114c8df914ab5340000, spot);
-        
+
     // }
-    function newOrder(
+
+    function newMockOrder(
         address tokenIn,
         address tokenOut,
         uint256 price,
@@ -72,38 +85,39 @@ contract ConveyorLimitOrdersTest is DSTest {
             quantity: quantity
         });
     }
-    function testOptimizeBatchLPOrder() public  {
+
+    function testOptimizeBatchLPOrder() public {
         address token0 = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address token1 = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         uint128[][] memory reserveSizes = new uint128[][](2);
         uint128[] memory reserve1 = new uint128[](2);
         uint128[] memory reserve2 = new uint128[](2);
-        reserve1[0]=82965859*2**18;
-        reserve1[1]=42918*2**18;
-        reserve2[0]=82965959*2**18;
-        reserve2[1]=42918*2**18;
-        reserveSizes[0]= reserve1;
-        reserveSizes[1]=reserve2;
-        
-        reserveSizes[1][0]= 82965858*2**18;
-        reserveSizes[1][1]=42918*2**18;
-        
+        reserve1[0] = 82965859 * 2**18;
+        reserve1[1] = 42918 * 2**18;
+        reserve2[0] = 82965959 * 2**18;
+        reserve2[1] = 42918 * 2**18;
+        reserveSizes[0] = reserve1;
+        reserveSizes[1] = reserve2;
+
+        reserveSizes[1][0] = 82965858 * 2**18;
+        reserveSizes[1][1] = 42918 * 2**18;
+
         address[] memory pairAddress = new address[](2);
-        pairAddress[0]=0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
-        pairAddress[1]=0xB4e16D0168E52d35cacd2c6185B44281eC28c9Dd;
-         OrderBook.Order memory order1 = newOrder(
+        pairAddress[0] = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
+        pairAddress[1] = 0xB4e16D0168E52d35cacd2c6185B44281eC28c9Dd;
+        OrderBook.Order memory order1 = newMockOrder(
             token0,
             token1,
             245000000000000000000,
             5
         );
-        OrderBook.Order memory order2 = newOrder(
+        OrderBook.Order memory order2 = newMockOrder(
             token0,
             token1,
             245000000000000000000,
             8
         );
-        OrderBook.Order memory order3 = newOrder(
+        OrderBook.Order memory order3 = newMockOrder(
             token0,
             token1,
             245000000000000000000,
@@ -112,15 +126,17 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         OrderBook.Order[] memory orders = new OrderBook.Order[](3);
         orders[0] = order1;
-        orders[1]= order2;
-        orders[2]= order3;
-        
-        address[] memory pairAddressOrder = conveyorLimitOrders.optimizeBatchLPOrder(orders, reserveSizes, pairAddress, false);
-        
+        orders[1] = order2;
+        orders[2] = order3;
+
+        address[] memory pairAddressOrder = conveyorLimitOrders
+            .optimizeBatchLPOrder(orders, reserveSizes, pairAddress, false);
 
         console.logString("PAIR ADDRESS ORDER");
         console.logAddress(pairAddressOrder[0]);
         console.logAddress(pairAddressOrder[1]);
         console.logAddress(pairAddressOrder[2]);
     }
+
+    function testOptimizeBatchLPOrderWithCancellation() public {}
 }

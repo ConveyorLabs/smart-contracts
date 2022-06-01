@@ -16,11 +16,13 @@ interface CheatCodes {
     function deal(address who, uint256 amount) external;
 }
 
-contract OrderRouterTest is DSTest, OrderRouter {
+contract OrderRouterTest is DSTest {
     CheatCodes cheatCodes;
 
     IUniswapV2Router02 uniV2Router;
     IUniswapV2Factory uniV2Factory;
+
+    OrderRouterWrapper orderRouter;
 
     //Factory and router address's
     address _uniV2Address = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
@@ -53,15 +55,14 @@ contract OrderRouterTest is DSTest, OrderRouter {
     ConveyorLimitOrders.Dex[] public dexesArr;
 
     function setUp() public {
-        addDex(_dexFactories, _hexDems, _isUniV2);
+        orderRouter = new OrderRouterWrapper();
+
+        orderRouter.addDex(_dexFactories, _hexDems, _isUniV2);
+
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         uniV2Router = IUniswapV2Router02(_uniV2Address);
         uniV2Factory = IUniswapV2Factory(_uniV2FactoryAddress);
-
-        console.log("here");
     }
-
-    
 
     // function testCalculateMinSpot() public view {
     //     //Test Tokens
@@ -104,8 +105,6 @@ contract OrderRouterTest is DSTest, OrderRouter {
     //     console.logString("Right shifted");
     //     console.logUint(price5 >> 9);
     // }
-
-    
 
     // function testCalculateV3Spot() public view {
     //     //Test Tokens
@@ -239,40 +238,41 @@ contract OrderRouterTest is DSTest, OrderRouter {
     //     console.logUint(price4);
     // }
 
-    function testGetAllPrices() public view {
+    function testGetAllPrices() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        
-        
-        //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-        (SpotReserve[] memory prices, address[] memory lps) = getAllPrices(
-            weth,
-            usdc,
-            1,
-            300
-        );
 
-        console.logString("-----------------------All Dex Prices--------------------");
+        //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
+        (
+            OrderRouter.SpotReserve[] memory prices,
+            address[] memory lps
+        ) = orderRouter.getAllPrices(weth, usdc, 1, 300);
+
+        console.logString(
+            "-----------------------All Dex Prices--------------------"
+        );
         console.logUint(prices[0].res0);
         console.logUint(prices[0].res1);
         console.logUint(prices[0].spotPrice);
-        
-        console.logString("-----------------------All lp Addresses--------------------");
+
+        console.logString(
+            "-----------------------All lp Addresses--------------------"
+        );
         console.log(lps[0]);
         console.log(lps[1]);
         console.log(lps[2]);
-        console.logString("-----------------------All lp reserves--------------------");
-        
-
+        console.logString(
+            "-----------------------All lp reserves--------------------"
+        );
     }
 
-    //Test calculateFee()
-    function testCalculateOrderFee() public {
-        uint128 feePercent1 = calculateFee(100000);
-        uint128 feePercent2 = calculateFee(150000);
-        uint128 feePercent3 = calculateFee(200000);
-        uint128 feePercent4 = calculateFee(50);
-        uint128 feePercent5 = calculateFee(250);
+    //TODO: fuzz this
+    function testCalculateFee() public {
+        uint128 feePercent1 = orderRouter.calculateFee(100000);
+        uint128 feePercent2 = orderRouter.calculateFee(150000);
+        uint128 feePercent3 = orderRouter.calculateFee(200000);
+        uint128 feePercent4 = orderRouter.calculateFee(50);
+        uint128 feePercent5 = orderRouter.calculateFee(250);
 
         assertEq(feePercent1, 51363403165874997);
         assertEq(feePercent2, 37664201948990181);
@@ -281,19 +281,20 @@ contract OrderRouterTest is DSTest, OrderRouter {
         assertEq(feePercent5, 92124386183756525);
     }
 
-    /// Todo
+    /// TODO: fuzz this
     function testCalculateOrderReward() public {
         //1.8446744073709550
-        (uint128 rewardConveyor, uint128 rewardBeacon) = calculateReward(
-            18446744073709550,
-            100000
-        );
+        (uint128 rewardConveyor, uint128 rewardBeacon) = orderRouter
+            .calculateReward(18446744073709550, 100000);
         console.logString("Input 1 CalculateReward");
         assertEq(39, rewardConveyor);
         assertEq(59, rewardBeacon);
     }
 
-    function testCalculateAlphaX() public view {
+    function testCalculateMaxBeaconReward() public {}
+
+    //TODO: fuzz this
+    function testCalculateAlphaX() public {
         uint128 reserve0SnapShot = 47299249002010446421409070433015781392384000000 >>
                 64;
         uint128 reserve1SnapShot = 16441701632611160000000000000000000000000000 >>
@@ -303,14 +304,14 @@ contract OrderRouterTest is DSTest, OrderRouter {
         uint128 reserve1Execution = 16324260906687270000000000000000000000000000 >>
                 64;
 
-        uint256 alphaX = calculateAlphaX(
+        uint256 alphaX = orderRouter.calculateAlphaX(
             reserve0SnapShot,
             reserve1SnapShot,
             reserve0Execution,
             reserve1Execution
         );
-        console.logString("----------------AlphaX-----------------");
-        console.logUint(alphaX);
+
+        assertEq(340282366886892426828258718426375055715247042, alphaX);
     }
 
     function testChangeBase() public {
@@ -319,7 +320,7 @@ contract OrderRouterTest is DSTest, OrderRouter {
         uint8 dec0 = 18;
         uint256 reserve1 = 131610640170334;
         uint8 dec1 = 9;
-        (uint256 r0_out, uint256 r1_out) = convertToCommonBase(
+        (uint256 r0_out, uint256 r1_out) = orderRouter.convertToCommonBase(
             reserve0,
             dec0,
             reserve1,
@@ -332,7 +333,7 @@ contract OrderRouterTest is DSTest, OrderRouter {
         uint256 reserve11 = 47925919677616776812811;
         uint8 dec11 = 18;
 
-        (uint256 r0_out1, uint256 r1_out1) = convertToCommonBase(
+        (uint256 r0_out1, uint256 r1_out1) = orderRouter.convertToCommonBase(
             reserve01,
             dec01,
             reserve11,
@@ -344,5 +345,163 @@ contract OrderRouterTest is DSTest, OrderRouter {
         assertEq(r0_out, 131610640170334000000000000); //No change
         assertEq(r0_out1, 131610640170334000000000000); //12 decimals added
         assertEq(r1_out1, 47925919677616776812811); //No change
+    }
+
+    function testAddDex() public {
+        // addDex(_factory, _hexDem, isUniV2);
+    }
+}
+
+//wrapper around OrderRouter to expose internal functions for testing
+contract OrderRouterWrapper is OrderRouter {
+    function calculateFee(uint128 amountIn) public returns (uint128 Out64x64) {
+        return _calculateFee(amountIn);
+    }
+
+    function calculateReward(uint128 percentFee, uint128 wethValue)
+        public
+        returns (uint128 conveyorReward, uint128 beaconReward)
+    {
+        return _calculateReward(percentFee, wethValue);
+    }
+
+    function hasMinGasCredits(
+        OrderBook.Order[] calldata orderGroup,
+        uint256 gasPrice
+    ) public returns (bool) {
+        return _hasMinGasCredits(orderGroup, gasPrice);
+    }
+
+    function calculateMaxBeaconReward(
+        uint128 reserve0SnapShot,
+        uint128 reserve1SnapShot,
+        uint128 reserve0,
+        uint128 reserve1,
+        uint128 fee
+    ) public returns (uint128) {
+        return
+            _calculateMaxBeaconReward(
+                reserve0SnapShot,
+                reserve1SnapShot,
+                reserve0,
+                reserve1,
+                fee
+            );
+    }
+
+    function calculateAlphaX(
+        uint128 reserve0SnapShot,
+        uint128 reserve1SnapShot,
+        uint128 reserve0Execution,
+        uint128 reserve1Execution
+    ) public returns (uint256 alphaX) {
+        _calculateAlphaX(
+            reserve0SnapShot,
+            reserve1SnapShot,
+            reserve0Execution,
+            reserve1Execution
+        );
+    }
+
+    function swapV2(
+        address _tokenIn,
+        address _tokenOut,
+        address _lp,
+        uint256 _amountIn,
+        uint256 _amountOutMin
+    ) public returns (uint256) {
+        return _swapV2(_tokenIn, _tokenOut, _lp, _amountIn, _amountOutMin);
+    }
+
+    function swapV3() public returns (uint256) {
+        return swapV3();
+    }
+
+    function calculateV2SpotPrice(
+        address token0,
+        address token1,
+        address _factory,
+        bytes32 _initBytecode
+    ) public returns (SpotReserve memory spRes, address poolAddress) {
+        return _calculateV2SpotPrice(token0, token1, _factory, _initBytecode);
+    }
+
+    function calculateV3SpotPrice(
+        address token0,
+        address token1,
+        uint112 amountIn,
+        uint24 FEE,
+        uint32 tickSecond,
+        address _factory
+    ) public returns (SpotReserve memory, address) {
+        return
+            _calculateV3SpotPrice(
+                token0,
+                token1,
+                amountIn,
+                FEE,
+                tickSecond,
+                _factory
+            );
+    }
+
+    /// @notice Helper to get all lps and prices across multiple dexes
+    /// @param token0 address of token0
+    /// @param token1 address of token1
+    /// @param tickSecond tick second range on univ3
+    /// @param FEE uniV3 fee
+    function getAllPrices(
+        address token0,
+        address token1,
+        uint32 tickSecond,
+        uint24 FEE
+    ) public returns (SpotReserve[] memory prices, address[] memory lps) {
+        return _getAllPrices(token0, token1, tickSecond, FEE);
+    }
+
+    /// @notice Helper to get amountIn amount for token pair
+    function getTargetAmountIn(address token0, address token1)
+        public
+        returns (uint112 amountIn)
+    {
+        return _getTargetAmountIn(token0, token1);
+    }
+
+    function convertToCommonBase(
+        uint256 reserve0,
+        uint8 token0Decimals,
+        uint256 reserve1,
+        uint8 token1Decimals
+    ) public returns (uint256, uint256) {
+        return
+            _convertToCommonBase(
+                reserve0,
+                token0Decimals,
+                reserve1,
+                token1Decimals
+            );
+    }
+
+    function getTargetDecimals(address token)
+        public
+        returns (uint8 targetDecimals)
+    {
+        return _getTargetDecimals(token);
+    }
+
+    function sortTokens(address tokenA, address tokenB)
+        public
+        returns (address token0, address token1)
+    {
+        return _sortTokens(tokenA, tokenB);
+    }
+
+    function getQuoteAtTick(
+        int24 tick,
+        uint128 baseAmount,
+        address baseToken,
+        address quoteToken
+    ) public returns (uint256 quoteAmount) {
+        return _getQuoteAtTick(tick, baseAmount, baseToken, quoteToken);
     }
 }
