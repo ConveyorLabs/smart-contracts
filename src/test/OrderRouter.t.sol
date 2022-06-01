@@ -239,6 +239,10 @@ contract OrderRouterTest is DSTest, OrderRouter {
     //     console.logUint(price4);
     // }
 
+    function testGetPoolFee() public {
+        address pairAddress = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+        assertEq(500,_getV3PoolFee(pairAddress));
+    }
     function testGetAllPrices() public view {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;

@@ -23,7 +23,6 @@ contract OrderRouter {
 
     /// @notice Struct to store important Dex specifications
     struct Dex {
-        
         address factoryAddress;
         bytes32 initBytecode;
         bool isUniV2;
@@ -39,6 +38,7 @@ contract OrderRouter {
         uint256 res0;
         uint256 res1;
     }
+
     //----------------------Functions------------------------------------//
 
     /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation
@@ -50,18 +50,23 @@ contract OrderRouter {
         pure
         returns (uint128 Out64x64)
     {
+
         require(
             !(amountIn << 64 > 0xfffffffffffffffffffffffffff),
             "Overflow Error"
         );
+
         uint128 iamountIn = amountIn << 64;
         uint128 numerator = 16602069666338597000; //.9 sccale := 1e19 ==> 64x64 fixed representation
+
         uint128 denominator = (23058430092136940000 +
             ConveyorMath.exp(ConveyorMath.div64x64(iamountIn, 75000 << 64)));
+
         uint128 rationalFraction = ConveyorMath.div64x64(
             numerator,
             denominator
         );
+
         Out64x64 = (rationalFraction + 1844674407370955300) / 10**2;
     }
 
@@ -286,7 +291,6 @@ contract OrderRouter {
     /// @param token1 bytes32 address of token2
     /// @param _factory bytes32 contract factory address
     /// @param _initBytecode bytes32 initialization bytecode for dex pair
-    
     function calculateV2SpotPrice(
         address token0,
         address token1,
@@ -315,7 +319,6 @@ contract OrderRouter {
                 )
             )
         );
-
         require(pairAddress != address(0), "Invalid token pair");
         
         if (!(IUniswapV2Factory(_factory).getPair(tok0, tok1) == pairAddress)) {
@@ -343,9 +346,7 @@ contract OrderRouter {
         _spRes.spotPrice = (commonReserve0 << 9) / commonReserve1;
 
         // Left shift commonReserve0 9 digits i.e. commonReserve0 = commonReserve0 * 2 ** 9
-
         (spRes, poolAddress) = (_spRes, pairAddress);
-
     }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
@@ -355,9 +356,6 @@ contract OrderRouter {
     /// @param FEE lp fee
     /// @param tickSecond the tick second range to get the lp spot price from
     /// @param _factory Uniswap v3 factory address
-
-   
-
     function calculateV3SpotPrice(
         address token0,
         address token1,
@@ -368,9 +366,7 @@ contract OrderRouter {
 
     ) internal view returns (SpotReserve memory, address) {
 
-
         SpotReserve memory _spRes;
-        
         address pool;
         
         int24 tick;
@@ -386,11 +382,8 @@ contract OrderRouter {
             );
 
             if (pool == address(0)) {
-
                 return (_spRes, address(0));
-
             }
-
             _spRes.res0 = IERC20(token0).balanceOf(pool);
              _spRes.res1 = IERC20(token1).balanceOf(pool);
             {
@@ -406,12 +399,9 @@ contract OrderRouter {
             }
         }
 
-
-            //amountOut = tick range spot over specified tick interval
-            _spRes.spotPrice = getQuoteAtTick(tick, amountIn, token0, token1)<<9;
-                
-            
-        
+        //amountOut = tick range spot over specified tick interval
+        _spRes.spotPrice = getQuoteAtTick(tick, amountIn, token0, token1)<<9;
+     
         return (_spRes, pool);
 
     }
@@ -451,9 +441,7 @@ contract OrderRouter {
         address token1,
         uint32 tickSecond,
         uint24 FEE
-
     ) internal view returns (SpotReserve[] memory prices, address[] memory lps) {
-
         //Target base amount in value
         uint112 amountIn = getTargetAmountIn(token0, token1);
 
@@ -461,10 +449,8 @@ contract OrderRouter {
         address[] memory _lps = new address[](dexes.length);
         
         //Iterate through Dex's in dexes check if isUniV2 and accumulate spot price to meanSpotPrice
-        for (uint256 i = 0; i < dexes.length; ++i) {
-            
+        for (uint256 i = 0; i < dexes.length; ++i) { 
             if (dexes[i].isUniV2) {
-
                 {
                     //Right shift spot price 9 decimals and add to meanSpotPrice
                     (SpotReserve memory spotPrice, address poolAddress) = calculateV2SpotPrice(
@@ -480,9 +466,6 @@ contract OrderRouter {
 
                     }
                 }
-                
-                
-
             } else {
                 {
                     {
@@ -496,25 +479,21 @@ contract OrderRouter {
                         );
                         if(spotPrice.spotPrice != 0){
                             _lps[i]= poolAddress;
-                            _spotPrices[i]= spotPrice;
-                            
-                            
+                            _spotPrices[i]= spotPrice;     
                         }
                     }
-                
                 }
-            
+            }
         }
-
-        }
-        
-        
         (prices, lps)= (_spotPrices, _lps);
-        
-
     }
 
-    
+    /// @notice Helper to get the lp fee from a v3 pair address
+    /// @param pairAddress address of v3 lp pair
+    /// @return poolFee uint24 fee of the pool
+    function _getV3PoolFee(address pairAddress) internal view returns (uint24 poolFee){
+        poolFee = IUniswapV3Pool(pairAddress).fee();
+    }
 
     /// @notice Helper to get amountIn amount for token pair
     function getTargetAmountIn(address token0, address token1)
