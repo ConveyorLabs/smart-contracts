@@ -238,6 +238,13 @@ contract OrderRouterTest is DSTest {
     //     console.logUint(price4);
     // }
 
+
+    function testGetPoolFee() public {
+        address pairAddress = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+        assertEq(500,orderRouter.getV3PoolFee(pairAddress));
+    }
+    
+
     function testGetAllPrices() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -357,7 +364,9 @@ contract OrderRouterWrapper is OrderRouter {
     function calculateFee(uint128 amountIn) public returns (uint128 Out64x64) {
         return _calculateFee(amountIn);
     }
-
+    function getV3PoolFee(address pairAddress) public view returns (uint24 poolFee){
+        return _getV3PoolFee(pairAddress);
+    }
     function calculateReward(uint128 percentFee, uint128 wethValue)
         public
         returns (uint128 conveyorReward, uint128 beaconReward)

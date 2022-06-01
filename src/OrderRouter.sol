@@ -50,18 +50,23 @@ contract OrderRouter {
         pure
         returns (uint128 Out64x64)
     {
+
         require(
             !(amountIn << 64 > 0xfffffffffffffffffffffffffff),
             "Overflow Error"
         );
+
         uint128 iamountIn = amountIn << 64;
         uint128 numerator = 16602069666338597000; //.9 sccale := 1e19 ==> 64x64 fixed representation
+
         uint128 denominator = (23058430092136940000 +
             ConveyorMath.exp(ConveyorMath.div64x64(iamountIn, 75000 << 64)));
+
         uint128 rationalFraction = ConveyorMath.div64x64(
             numerator,
             denominator
         );
+
         Out64x64 = (rationalFraction + 1844674407370955300) / 10**2;
     }
 
@@ -303,7 +308,6 @@ contract OrderRouter {
                 )
             )
         );
-
         require(pairAddress != address(0), "Invalid token pair");
 
         if (!(IUniswapV2Factory(_factory).getPair(tok0, tok1) == pairAddress)) {
@@ -331,7 +335,6 @@ contract OrderRouter {
         _spRes.spotPrice = (commonReserve0 << 9) / commonReserve1;
 
         // Left shift commonReserve0 9 digits i.e. commonReserve0 = commonReserve0 * 2 ** 9
-
         (spRes, poolAddress) = (_spRes, pairAddress);
     }
 
@@ -366,7 +369,6 @@ contract OrderRouter {
             if (pool == address(0)) {
                 return (_spRes, address(0));
             }
-
             _spRes.res0 = IERC20(token0).balanceOf(pool);
             _spRes.res1 = IERC20(token1).balanceOf(pool);
             {
@@ -475,8 +477,14 @@ contract OrderRouter {
                 }
             }
         }
+        (prices, lps)= (_spotPrices, _lps);
+    }
 
-        (prices, lps) = (_spotPrices, _lps);
+    /// @notice Helper to get the lp fee from a v3 pair address
+    /// @param pairAddress address of v3 lp pair
+    /// @return poolFee uint24 fee of the pool
+    function _getV3PoolFee(address pairAddress) internal view returns (uint24 poolFee){
+        poolFee = IUniswapV3Pool(pairAddress).fee();
     }
 
     /// @notice Helper to get amountIn amount for token pair
