@@ -369,6 +369,7 @@ contract OrderRouterWrapper is OrderRouter {
     }
     function calculateReward(uint128 percentFee, uint128 wethValue)
         public
+        pure
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
         return _calculateReward(percentFee, wethValue);
@@ -377,7 +378,7 @@ contract OrderRouterWrapper is OrderRouter {
     function hasMinGasCredits(
         OrderBook.Order[] calldata orderGroup,
         uint256 gasPrice
-    ) public returns (bool) {
+    ) public pure returns (bool) {
         return _hasMinGasCredits(orderGroup, gasPrice);
     }
 
@@ -387,7 +388,7 @@ contract OrderRouterWrapper is OrderRouter {
         uint128 reserve0,
         uint128 reserve1,
         uint128 fee
-    ) public returns (uint128) {
+    ) public pure returns (uint128) {
         return
             _calculateMaxBeaconReward(
                 reserve0SnapShot,
@@ -403,7 +404,7 @@ contract OrderRouterWrapper is OrderRouter {
         uint128 reserve1SnapShot,
         uint128 reserve0Execution,
         uint128 reserve1Execution
-    ) public returns (uint256 alphaX) {
+    ) public pure returns (uint256 alphaX) {
         _calculateAlphaX(
             reserve0SnapShot,
             reserve1SnapShot,
@@ -431,7 +432,7 @@ contract OrderRouterWrapper is OrderRouter {
         address token1,
         address _factory,
         bytes32 _initBytecode
-    ) public returns (SpotReserve memory spRes, address poolAddress) {
+    ) public view returns (SpotReserve memory spRes, address poolAddress) {
         return _calculateV2SpotPrice(token0, token1, _factory, _initBytecode);
     }
 
@@ -442,7 +443,7 @@ contract OrderRouterWrapper is OrderRouter {
         uint24 FEE,
         uint32 tickSecond,
         address _factory
-    ) public returns (SpotReserve memory, address) {
+    ) public view returns (SpotReserve memory, address) {
         return
             _calculateV3SpotPrice(
                 token0,
@@ -464,13 +465,14 @@ contract OrderRouterWrapper is OrderRouter {
         address token1,
         uint32 tickSecond,
         uint24 FEE
-    ) public returns (SpotReserve[] memory prices, address[] memory lps) {
+    ) public view returns (SpotReserve[] memory prices, address[] memory lps) {
         return _getAllPrices(token0, token1, tickSecond, FEE);
     }
 
     /// @notice Helper to get amountIn amount for token pair
     function getTargetAmountIn(address token0, address token1)
         public
+        view
         returns (uint112 amountIn)
     {
         return _getTargetAmountIn(token0, token1);
@@ -481,7 +483,7 @@ contract OrderRouterWrapper is OrderRouter {
         uint8 token0Decimals,
         uint256 reserve1,
         uint8 token1Decimals
-    ) public returns (uint256, uint256) {
+    ) public pure returns (uint256, uint256) {
         return
             _convertToCommonBase(
                 reserve0,
