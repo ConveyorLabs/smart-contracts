@@ -67,9 +67,9 @@ contract OrderBook is GasOracle {
 
     //struct to check if order exists, as well as get all orders for a wallet
     mapping(address => mapping(bytes32 => bool)) addressToOrderIds;
-    
+
     //Mapping to get total order count for a users address
-    mapping (address=> uint256) totalOrdersPerAddress;
+    mapping(address => uint256) totalOrdersPerAddress;
 
     //----------------------Functions------------------------------------//
 
@@ -81,8 +81,6 @@ contract OrderBook is GasOracle {
         order = orderIdToOrder[orderId];
         return order;
     }
-
-    
 
     /// @notice Add user's order into the Active order's mapping conditionally if the oder passes all of the safety check criterion
     /// @param orderGroup := array of orders to be added to ActiveOrders mapping in OrderGroup struct
@@ -129,6 +127,8 @@ contract OrderBook is GasOracle {
             //add new order to state
             orderIdToOrder[orderId] = newOrder;
             addressToOrderIds[msg.sender][orderId] = true;
+            //update total orders per address
+            ++totalOrdersPerAddress[msg.sender];
 
             //update order ids for event emission
             orderIds[orderIdIndex] = orderId;
@@ -191,6 +191,8 @@ contract OrderBook is GasOracle {
         // Delete Order Orders[order.orderId] from ActiveOrders mapping
         delete orderIdToOrder[orderId];
         delete addressToOrderIds[msg.sender][orderId];
+        //decrement from total orders per address
+        --totalOrdersPerAddress[msg.sender];
 
         //emit a canceled order event
         //TODO: do this in assembly
@@ -229,7 +231,12 @@ contract OrderBook is GasOracle {
     /// @param userAddress bytes32 address of the user to which calculation will be made
     /// @param multiplier uint256 margin multiplier to account for gas volatility
     /// @return unsigned uint256 total ETH required to cover execution
-    function calculateMinGasCredits(uint256 gasPrice, uint256 executionCost, address userAddress, uint256 multiplier) internal view returns (uint256){
+    function calculateMinGasCredits(
+        uint256 gasPrice,
+        uint256 executionCost,
+        address userAddress,
+        uint256 multiplier
+    ) internal view returns (uint256) {
         uint256 totalOrderCount = totalOrdersPerAddress[userAddress];
         return totalOrderCount * gasPrice * executionCost * multiplier;
     }
@@ -240,7 +247,14 @@ contract OrderBook is GasOracle {
     /// @param userAddress bytes32 address of the user to be checked
     /// @param gasCreditBalance uint256 current gas credit balance of the user
     /// @return bool indicator whether user does have minimum gas credit requirements
-    function hasMinGasCredits(uint256 gasPrice, uint256 executionCost, address userAddress, uint256 gasCreditBalance) external view returns (bool){
-        return gasCreditBalance >= calculateMinGasCredits(gasPrice, executionCost, userAddress, 5);
+    function hasMinGasCredits(
+        uint256 gasPrice,
+        uint256 executionCost,
+        address userAddress,
+        uint256 gasCreditBalance
+    ) external view returns (bool) {
+        return
+            gasCreditBalance >=
+            calculateMinGasCredits(gasPrice, executionCost, userAddress, 5);
     }
 }
