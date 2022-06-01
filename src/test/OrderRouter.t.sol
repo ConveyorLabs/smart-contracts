@@ -55,7 +55,9 @@ contract OrderRouterTest is DSTest {
     ConveyorLimitOrders.Dex[] public dexesArr;
 
     function setUp() public {
-        orderRouter = new OrderRouterWrapper(_dexFactories, _hexDems, _isUniV2);
+        orderRouter = new OrderRouterWrapper();
+
+        orderRouter.addDex(_dexFactories, _hexDems, _isUniV2);
 
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         uniV2Router = IUniswapV2Router02(_uniV2Address);
@@ -236,17 +238,15 @@ contract OrderRouterTest is DSTest {
     //     console.logUint(price4);
     // }
 
-    function testGetAllPrices() public view {
+    function testGetAllPrices() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
         //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-        (SpotReserve[] memory prices, address[] memory lps) = getAllPrices(
-            weth,
-            usdc,
-            1,
-            300
-        );
+        (
+            OrderRouter.SpotReserve[] memory prices,
+            address[] memory lps
+        ) = orderRouter.getAllPrices(weth, usdc, 1, 300);
 
         console.logString(
             "-----------------------All Dex Prices--------------------"
@@ -268,11 +268,11 @@ contract OrderRouterTest is DSTest {
 
     //TODO: fuzz this
     function testCalculateFee() public {
-        uint128 feePercent1 = calculateFee(100000);
-        uint128 feePercent2 = calculateFee(150000);
-        uint128 feePercent3 = calculateFee(200000);
-        uint128 feePercent4 = calculateFee(50);
-        uint128 feePercent5 = calculateFee(250);
+        uint128 feePercent1 = orderRouter.calculateFee(100000);
+        uint128 feePercent2 = orderRouter.calculateFee(150000);
+        uint128 feePercent3 = orderRouter.calculateFee(200000);
+        uint128 feePercent4 = orderRouter.calculateFee(50);
+        uint128 feePercent5 = orderRouter.calculateFee(250);
 
         assertEq(feePercent1, 51363403165874997);
         assertEq(feePercent2, 37664201948990181);
@@ -284,10 +284,8 @@ contract OrderRouterTest is DSTest {
     /// TODO: fuzz this
     function testCalculateOrderReward() public {
         //1.8446744073709550
-        (uint128 rewardConveyor, uint128 rewardBeacon) = calculateReward(
-            18446744073709550,
-            100000
-        );
+        (uint128 rewardConveyor, uint128 rewardBeacon) = orderRouter
+            .calculateReward(18446744073709550, 100000);
         console.logString("Input 1 CalculateReward");
         assertEq(39, rewardConveyor);
         assertEq(59, rewardBeacon);
@@ -306,7 +304,7 @@ contract OrderRouterTest is DSTest {
         uint128 reserve1Execution = 16324260906687270000000000000000000000000000 >>
                 64;
 
-        uint256 alphaX = calculateAlphaX(
+        uint256 alphaX = orderRouter.calculateAlphaX(
             reserve0SnapShot,
             reserve1SnapShot,
             reserve0Execution,
@@ -322,7 +320,7 @@ contract OrderRouterTest is DSTest {
         uint8 dec0 = 18;
         uint256 reserve1 = 131610640170334;
         uint8 dec1 = 9;
-        (uint256 r0_out, uint256 r1_out) = convertToCommonBase(
+        (uint256 r0_out, uint256 r1_out) = orderRouter.convertToCommonBase(
             reserve0,
             dec0,
             reserve1,
@@ -335,7 +333,7 @@ contract OrderRouterTest is DSTest {
         uint256 reserve11 = 47925919677616776812811;
         uint8 dec11 = 18;
 
-        (uint256 r0_out1, uint256 r1_out1) = convertToCommonBase(
+        (uint256 r0_out1, uint256 r1_out1) = orderRouter.convertToCommonBase(
             reserve01,
             dec01,
             reserve11,
