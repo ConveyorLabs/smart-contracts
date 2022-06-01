@@ -292,7 +292,9 @@ contract OrderRouter {
         address token1,
         address _factory,
         bytes32 _initBytecode
+
     ) internal view returns (SpotReserve memory spRes, address poolAddress) {
+
         require(token0 != token1, "Invalid Token Pair, IDENTICAL Address's");
         (address tok0, address tok1) = sortTokens(token0, token1);
         
@@ -341,7 +343,9 @@ contract OrderRouter {
         _spRes.spotPrice = (commonReserve0 << 9) / commonReserve1;
 
         // Left shift commonReserve0 9 digits i.e. commonReserve0 = commonReserve0 * 2 ** 9
+
         (spRes, poolAddress) = (_spRes, pairAddress);
+
     }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
@@ -351,6 +355,8 @@ contract OrderRouter {
     /// @param FEE lp fee
     /// @param tickSecond the tick second range to get the lp spot price from
     /// @param _factory Uniswap v3 factory address
+
+   
     function calculateV3SpotPrice(
         address token0,
         address token1,
@@ -359,6 +365,7 @@ contract OrderRouter {
         uint32 tickSecond,
         address _factory
     ) internal view returns (SpotReserve memory, address) {
+
 
         SpotReserve memory _spRes;
         
@@ -377,7 +384,9 @@ contract OrderRouter {
             );
 
             if (pool == address(0)) {
+
                 return (_spRes, address(0));
+
             }
 
             _spRes.res0 = IERC20(token0).balanceOf(pool);
@@ -395,12 +404,14 @@ contract OrderRouter {
             }
         }
 
+
             //amountOut = tick range spot over specified tick interval
             _spRes.spotPrice = getQuoteAtTick(tick, amountIn, token0, token1)<<9;
                 
             
         
         return (_spRes, pool);
+
     }
 
     function getTick(address pool, uint32 tickSecond) internal view returns (int24 tick){
@@ -438,7 +449,9 @@ contract OrderRouter {
         address token1,
         uint32 tickSecond,
         uint24 FEE
+
     ) internal view returns (SpotReserve[] memory prices, address[] memory lps) {
+
         //Target base amount in value
         uint112 amountIn = getTargetAmountIn(token0, token1);
 
@@ -449,6 +462,7 @@ contract OrderRouter {
         for (uint256 i = 0; i < dexes.length; ++i) {
             
             if (dexes[i].isUniV2) {
+
                 {
                     //Right shift spot price 9 decimals and add to meanSpotPrice
                     (SpotReserve memory spotPrice, address poolAddress) = calculateV2SpotPrice(
@@ -466,6 +480,7 @@ contract OrderRouter {
                 }
                 
                 
+
             } else {
                 {
                     {
@@ -488,11 +503,13 @@ contract OrderRouter {
                 }
             
         }
+
         }
         
         
         (prices, lps)= (_spotPrices, _lps);
         
+
     }
 
     
@@ -598,38 +615,4 @@ contract OrderRouter {
                 : FullMath.mulDiv(1 << 128, baseAmount, ratioX128);
         }
     }
-
-    /// @notice Helper function to calculate transaction execution cost for the beacon
-    /// @param token Address of token to estimate execution cost
-    /// @param amount uint256 amount of token to estimate execution cost
-    /// @param gas current oracle retrieved on chain gas price
-    function calculateExecutionCost(
-        address token,
-        uint256 amount,
-        uint256 gas
-    ) internal pure returns (uint256 executionCost) {}
-
-    /// @notice Helper function to calculate if transaction execution will be profitable for the beacon
-    /// @param token Address of token to estimate execution cost
-    /// @param amount uint256 amount of token to estimate execution cost
-    /// @param gas current oracle retrieved on chain gas price
-    /// @param beaconReward uint256 amount in wei rewarded to the beacon
-    /// @return isProfitable bool indicating profitability of execution
-    function calculateProfitability(
-        address token,
-        uint256 amount,
-        uint256 gas,
-        uint256 beaconReward
-    ) internal pure returns (bool isProfitable) {}
-
-    /// @notice Helper function to calculate beacon and conveyor reward on transaction execution
-    /// @param percentFee uint8 percentage of order size to be taken from user order size
-    /// @param wethValue uint256 total order value in wei at execution price
-    /// @return conveyorReward conveyor reward in terms of wei
-    /// @return beaconReward beacon reward in wei
-    function calculateReward(uint8 percentFee, uint256 wethValue)
-        internal
-        pure
-        returns (uint256 conveyorReward, uint256 beaconReward)
-    {}
 }

@@ -42,12 +42,58 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     //----------------------Functions------------------------------------//
 
+
+    /// @notice Struct containing the token, orderId, OrderType enum type, price, and quantity for each order
+    //
+    // struct Order {
+    //     address tokenIn;
+    //     address tokenOut;
+    //     bytes32 orderId;
+    //     OrderType orderType;
+    //     uint256 price;
+    //     uint256 quantity;
+    // }
+
+
+    // /// @notice enumeration of type of Order to be executed within the 'Order' Struct
+    // enum OrderType {
+    //     BUY,  -
+    //     SELL, +
+    //     STOP, +
+    //     TAKE_PROFIT +
+    // }
+    //
+    //
+
+
     /// @notice execute all orders passed from beacon matching order execution criteria. i.e. 'orderPrice' matches observable lp price for all orders
     /// @param orders := array of orders to be executed within the mapping
-    function executeOrders(Order[] memory orders) external onlyEOA {
+    function executeOrders(Order[] calldata orders) external onlyEOA {
+        
+        /// @dev Require all orders in the calldata are organized in order of quantity
+        /// This will simplify computational complexity on chain 
+        //(uint256 realTimeSpotPrice, address uniV2PairAddress) = calculateMeanSpotPrice(order.tokenIn, order.tokenOut, 1,300);  
+
+
         //iterate through orders and try to fill order
         for (uint256 i = 0; i < orders.length; ++i) {
+            //Pass in single order
             Order memory order = orders[i];
+            // @todo get lp spot price for uniswap v3
+            // Store realtime lp spot price for token pair in 
+            
+            // @note to self MSG.SENDER beacon
+            // bool canExeute = orderCanExecute(order,realTimeSpotPrice);
+            // Grab order ExecutionPrice
+
+            uint256 orderExecutionPrice = order.price;
+
+            //get the lp execution price lpExecutionPrice = calculateMeanSpotPrice(address order.tokenIn, address tokenOut,uint32 1,uint24 300);
+           
+            //check if order executionPrice of the lp 
+            //if it is execute the order i.e swap the tokenIn to the tokenOut token through the respective lp router
+            
+            // if(order.price <
             //check the execution price of the order
 
             //check the price of the lp
@@ -60,11 +106,17 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             //add the order to executableOrders, update total
 
             //aggregate the value of all of the orders
+
+            //_executeOrder();
         }
+
+        //at the end reward beacon and reward conveyor 
+        // call maxBeaconReward() check if maxBeaconReward >= beacon reward
+
     }
 
-   
 
+ 
     /// @notice helper function to determine the most spot price advantagous trade route for lp ordering of the batch
     /// @notice Should be called prior to batch execution time to generate the final lp ordering on execution
     /// @param orders all of the verifiably executable orders in the batch filtered prior to passing as parameter
@@ -125,9 +177,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @notice Helper function to determine the spot price change to the lp after introduction alphaX amount into the reserve pool
     /// @param alphaX uint256 amount to be added to reserve_x to get out token_y
     /// @param reserves current lp reserves for tokenIn and tokenOut
-    /// @return unsigned the amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
-    function simulatePriceChange(uint128 alphaX, uint128[] memory reserves) internal pure returns (uint256, uint128[] memory) {
+    /// @return unsigned The amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
+     function simulatePriceChange(uint128 alphaX, uint128[] memory reserves) internal pure returns (uint256, uint128[] memory) {
         uint128[] memory newReserves = new uint128[](2);
+
         unchecked {
             uint128 numerator = reserves[0]+alphaX;
             uint256 k = uint256(reserves[0]*reserves[1]);
@@ -141,8 +194,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             newReserves[1] = denominator;
             return (uint256(spotPrice), newReserves);
         }
-    
-    }
+     }
 
 
     // /// @notice Helper function to determine if order can execute based on the spot price of the lp, the determinig factor is the order.orderType
