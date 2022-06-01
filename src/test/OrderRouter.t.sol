@@ -241,7 +241,7 @@ contract OrderRouterTest is DSTest {
 
     function testGetPoolFee() public {
         address pairAddress = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
-        assertEq(500,_getV3PoolFee(pairAddress));
+        assertEq(500,orderRouter.getV3PoolFee(pairAddress));
     }
     
 
@@ -364,7 +364,9 @@ contract OrderRouterWrapper is OrderRouter {
     function calculateFee(uint128 amountIn) public returns (uint128 Out64x64) {
         return _calculateFee(amountIn);
     }
-
+    function getV3PoolFee(address pairAddress) public view returns (uint24 poolFee){
+        return _getV3PoolFee(pairAddress);
+    }
     function calculateReward(uint128 percentFee, uint128 wethValue)
         public
         returns (uint128 conveyorReward, uint128 beaconReward)
