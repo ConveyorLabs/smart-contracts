@@ -133,29 +133,71 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
    
 
-    // /// @notice helper function to determine the most spot price advantagous trade route for lp ordering of the batch
-    // /// @notice Should be called prior to batch execution time to generate the final lp ordering on execution
-    // /// @param orders all of the verifiably executable orders in the batch filtered prior to passing as parameter
-    // /// @param reserveSizes nested array of uint256 reserve0,reserv1 for each lp 
-    // /// @param pairAddress address[] ordered by [uniswapV2, Sushiswap, UniswapV3]
+    /// @notice helper function to determine the most spot price advantagous trade route for lp ordering of the batch
+    /// @notice Should be called prior to batch execution time to generate the final lp ordering on execution
+    /// @param orders all of the verifiably executable orders in the batch filtered prior to passing as parameter
+    /// @param reserveSizes nested array of uint256 reserve0,reserv1 for each lp 
+    /// @param pairAddress address[] ordered by [uniswapV2, Sushiswap, UniswapV3]
     // /// @return optimalOrder array of pair addresses of size orders.length corresponding to the indexed pair address to use for each order
-    // function optimizeBatchLPOrder(Order[] memory orders, uint256[][] calldata reserveSizes, address[] memory pairAddress) internal view returns (address[] memory optimallyOrderedPair) {
-    //     //continually mock the execution of each order and find the most advantagios spot price after each simulated execution
-    //     // aggregate address[] optimallyOrderedPair to be an order's array of the optimal pair address to perform execution on for the respective indexed order in orders
-    //     // Note order.length == optimallyOrderedPair.length
+    function optimizeBatchLPOrder(Order[] memory orders, uint128[][] calldata reserveSizes, address[] memory pairAddress, bool high) external pure returns (address[] memory) {
+        //continually mock the execution of each order and find the most advantagios spot price after each simulated execution
+        // aggregate address[] optimallyOrderedPair to be an order's array of the optimal pair address to perform execution on for the respective indexed order in orders
+        // Note order.length == optimallyOrderedPair.length
+      
+        uint256[] memory tempSpots = new uint256[](reserveSizes.length); 
+        address[] memory orderedPairs = new address[](orders.length);
+        uint128[][] memory tempReserves= new uint128[][](reserveSizes.length);
+        uint256 targetSpot = (!high) ? 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff : 0;
+        for(uint256 i = 0; i< orders.length; i++){
+            uint256 index;
+            
+            if(i==0){
+                for(uint256 j =0; j< tempSpots.length;j++){
+                    
+                    tempSpots[j]=uint256(ConveyorMath.divUI(reserveSizes[j][0], reserveSizes[j][1]));
+                    tempReserves[j]= reserveSizes[j];
+                }
+            }
+            
+            for(uint256 k = 0; k< tempSpots.length;k++){
+                if(!high){
+                    if(tempSpots[k]<targetSpot){
+                        index = k;
+                        targetSpot = tempSpots[k];
+                    }
+
+                }else {
+                    if(tempSpots[k]>targetSpot){
+                        index = k;
+                        targetSpot = tempSpots[k];
+                    }
+                }
+                  
+            }
+            
+            Order memory order = orders[i];
+            //console.logAddress(orderedPairs[i]);
+            if(i != orders.length-1){
+                (tempSpots[index], tempReserves[index]) = simulatePriceChange(uint128(order.quantity), tempReserves[index]);
+            }
+        
+            orderedPairs[i]=pairAddress[index];
+            
+        }
 
 
-    // }
+        return orderedPairs;
+
+    }
 
     /// @notice Helper function to determine the spot price change to the lp after introduction alphaX amount into the reserve pool
     /// @param alphaX uint256 amount to be added to reserve_x to get out token_y
     /// @param reserves current lp reserves for tokenIn and tokenOut
-    /// @return unsigned t
 
-he amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
+    /// @return unsigned the amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
+    function simulatePriceChange(uint128 alphaX, uint128[] memory reserves) internal pure returns (uint256, uint128[] memory) {
+        uint128[] memory newReserves = new uint128[](2);
 
-    function simulatePriceChange(uint128 alphaX, uint128[] memory reserves) external pure returns (uint256) {
-        
         unchecked {
             uint128 numerator = reserves[0]+alphaX;
             uint256 k = uint256(reserves[0]*reserves[1]);
@@ -165,13 +207,14 @@ he amount of proportional spot price change in the pool after adding alphaX to t
             uint256 spotPrice = uint256(ConveyorMath.div128x128(uint256(numerator)<<128,uint256(denominator)<<64));
             
             require(spotPrice<=0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, "overflow");
-            return uint256(spotPrice);
+            newReserves[0]= numerator;
+            newReserves[1] = denominator;
+            return (uint256(spotPrice), newReserves);
         }
+
             
    
-        
-
-        
+    
     }
 
 
