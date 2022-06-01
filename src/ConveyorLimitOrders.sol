@@ -72,7 +72,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         
         /// @dev Require all orders in the calldata are organized in order of quantity
         /// This will simplify computational complexity on chain 
-        (uint256 realTimeSpotPrice, address uniV2PairAddress) = calculateMeanSpotPrice(order.tokenIn, order.tokenOut, 1,300);  
+
+        //(uint256 realTimeSpotPrice, address uniV2PairAddress) = calculateMeanSpotPrice(order.tokenIn, order.tokenOut, 1,300);  
+
 
 
         //iterate through orders and try to fill order
@@ -107,7 +109,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
             //aggregate the value of all of the orders
 
-            _executeOrder();
+
+            //_executeOrder();
+
         }
 
         //at the end reward beacon and reward conveyor 
@@ -116,23 +120,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
 
-    /// @notice helper function to determine the most spot price advantagous trade route for lp ordering of the batch
-    /// @notice Should be called prior to batch execution time to generate the final lp ordering on execution
-    /// @param orders all of the verifiably executable orders in the batch filtered prior to passing as parameter
-    /// @param reserveSizes nested array of uint256 reserve0,reserv1 for each lp 
-    /// @param pairAddress address[] ordered by [uniswapV2, Sushiswap, UniswapV3]
-    /// @return optimalOrder array of pair addresses of size orders.length corresponding to the indexed pair address to use for each order
-    function optimizeBatchLPOrder(Order[] memory orders, uint256[][] calldata reserveSizes, address[] pairAddress) internal view returns (address[] optimallyOrderedPair) {
-        //continually mock the execution of each order and find the most advantagios spot price after each simulated execution
-        // aggregate address[] optimallyOrderedPair to be an order's array of the optimal pair address to perform execution on for the respective indexed order in orders
-        // Note order.length == optimallyOrderedPair.length
 
-
-    }
-
-
-   
-
+ 
     /// @notice helper function to determine the most spot price advantagous trade route for lp ordering of the batch
     /// @notice Should be called prior to batch execution time to generate the final lp ordering on execution
     /// @param orders all of the verifiably executable orders in the batch filtered prior to passing as parameter
@@ -193,9 +182,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @notice Helper function to determine the spot price change to the lp after introduction alphaX amount into the reserve pool
     /// @param alphaX uint256 amount to be added to reserve_x to get out token_y
     /// @param reserves current lp reserves for tokenIn and tokenOut
+    /// @return unsigned The amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
+     function simulatePriceChange(uint128 alphaX, uint128[] memory reserves) internal pure returns (uint256, uint128[] memory) {
 
-    /// @return unsigned the amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
-    function simulatePriceChange(uint128 alphaX, uint128[] memory reserves) internal pure returns (uint256, uint128[] memory) {
         uint128[] memory newReserves = new uint128[](2);
 
         unchecked {
@@ -212,10 +201,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             return (uint256(spotPrice), newReserves);
         }
 
+     }
+
+
             
-   
-    
-    }
+
 
 
 
