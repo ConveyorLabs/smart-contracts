@@ -182,14 +182,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @notice Helper function to determine the spot price change to the lp after introduction alphaX amount into the reserve pool
     /// @param alphaX uint256 amount to be added to reserve_x to get out token_y
     /// @param reserves current lp reserves for tokenIn and tokenOut
-<<<<<<< HEAD
     /// @return unsigned The amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
      function simulatePriceChange(uint128 alphaX, uint128[] memory reserves) internal pure returns (uint256, uint128[] memory) {
-=======
 
-    /// @return unsigned the amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
-    function simulatePriceChange(uint128 alphaX, uint128[] memory reserves) internal pure returns (uint256, uint128[] memory) {
->>>>>>> 8e36004203f2142d956092280ad842e29780e5c6
         uint128[] memory newReserves = new uint128[](2);
 
         unchecked {
@@ -205,15 +200,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             newReserves[1] = denominator;
             return (uint256(spotPrice), newReserves);
         }
-<<<<<<< HEAD
+
      }
-=======
+
 
             
-   
-    
-    }
->>>>>>> 8e36004203f2142d956092280ad842e29780e5c6
+
 
 
 
