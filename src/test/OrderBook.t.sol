@@ -51,6 +51,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         //place a mock order
@@ -74,6 +75,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         //place a mock order
@@ -101,6 +103,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
 
@@ -123,6 +126,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
 
@@ -146,6 +150,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
 
@@ -155,6 +160,7 @@ contract OrderBookTest is DSTest {
             swapToken1,
             wnato,
             24500000000000000,
+            5,
             5
         );
 
@@ -178,6 +184,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         //place a mock order
@@ -190,6 +197,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         updatedOrder.orderId = orderId;
@@ -207,6 +215,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
 
@@ -218,6 +227,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         updatedOrder
@@ -237,6 +247,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             2450000000000000,
+            5,
             5
         );
 
@@ -262,6 +273,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         placeMockOrder(order);
@@ -286,6 +298,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         //place a mock order
@@ -304,6 +317,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         //place a mock order
@@ -326,6 +340,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
 
@@ -335,6 +350,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             24500000000000000,
+            5,
             5
         );
 
@@ -361,6 +377,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
 
@@ -370,6 +387,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             24500000000000000,
+            5,
             5
         );
 
@@ -400,7 +418,8 @@ contract OrderBookTest is DSTest {
         address tokenIn,
         address tokenOut,
         uint256 price,
-        uint256 quantity
+        uint256 quantity,
+        uint256 amountOutMin
     ) internal pure returns (ConveyorLimitOrders.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
@@ -409,7 +428,8 @@ contract OrderBookTest is DSTest {
             orderId: bytes32(0),
             orderType: OrderBook.OrderType.SELL,
             price: price,
-            quantity: quantity
+            quantity: quantity,
+            amountOutMin: amountOutMin
         });
     }
 
