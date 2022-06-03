@@ -193,11 +193,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ? 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
             : 0;
 
-        for (uint256 i = 0; i < orders.length; i++) {
-            uint256 index;
-
-            if (i == 0) {
-                for (uint256 j = 0; j < tempSpots.length; j++) {
+        // Fill tempSpots array
+        for (uint256 j = 0; j < tempSpots.length; j++) {
                     
                     tempSpots[j] = (pairAddress[j]==address(0)) ? 0 : uint256(
                         ConveyorMath.divUI(
@@ -206,8 +203,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         )
                     );
                     tempReserves[j] = reserveSizes[j];
-                }
-            }
+        }
+
+        for (uint256 i = 0; i < orders.length; i++) {
+            uint256 index;
 
             for (uint256 k = 0; k < tempSpots.length; k++) {
                 if(!(tempSpots[k]==0)){
