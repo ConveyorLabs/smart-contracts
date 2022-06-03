@@ -74,6 +74,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         address tokenIn,
         address tokenOut,
         uint256 price,
+        uint256 amountOutMin,
         uint256 quantity
     ) internal pure returns (ConveyorLimitOrders.Order memory order) {
         //Initialize mock order
@@ -83,6 +84,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             orderId: bytes32(0),
             orderType: OrderBook.OrderType.SELL,
             price: price,
+            amountOutMin:amountOutMin,
             quantity: quantity
         });
     }
@@ -110,18 +112,21 @@ contract ConveyorLimitOrdersTest is DSTest {
             token0,
             token1,
             245000000000000000000,
+            5,
             5
         );
         OrderBook.Order memory order2 = newMockOrder(
             token0,
             token1,
             245000000000000000000,
+            8,
             8
         );
         OrderBook.Order memory order3 = newMockOrder(
             token0,
             token1,
             245000000000000000000,
+            10,
             10
         );
 
@@ -130,7 +135,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         orders[1] = order2;
         orders[2] = order3;
 
-        (address[] memory pairAddressOrder, uint256[] memory simulatedSpotPrices) = limitOrderWrapper.optimizeBatchLPOrder(orders, reserveSizes, pairAddress, false);
+        (address[] memory pairAddressOrder, uint256[] memory simulatedSpotPrices) = conveyorLimitOrders._optimizeBatchLPOrder(orders, reserveSizes, pairAddress, false);
 
         console.logString("PAIR ADDRESS ORDER");
         console.logAddress(pairAddressOrder[0]);

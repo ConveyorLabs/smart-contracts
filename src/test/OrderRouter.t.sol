@@ -404,8 +404,8 @@ contract OrderRouterWrapper is OrderRouter {
         uint128 reserve1SnapShot,
         uint128 reserve0Execution,
         uint128 reserve1Execution
-    ) public pure returns (uint256 alphaX) {
-        _calculateAlphaX(
+    ) public pure returns (uint256) {
+        return _calculateAlphaX(
             reserve0SnapShot,
             reserve1SnapShot,
             reserve0Execution,

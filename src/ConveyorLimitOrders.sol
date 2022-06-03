@@ -30,6 +30,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     //mapping to hold users gas credit balances
     mapping(address => uint256) creditBalance;
 
+    //----------------------State Variables------------------------------------//
+
+    address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
     //----------------------Constructor------------------------------------//
 
     constructor(address _gasOracle) OrderBook(_gasOracle) {}
@@ -67,8 +71,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @notice execute all orders passed from beacon matching order execution criteria. i.e. 'orderPrice' matches observable lp price for all orders
     /// @param orders := array of orders to be executed within the mapping
     function executeOrders(Order[] calldata orders) external onlyEOA {
+        /// @dev The lpAddress's passed in from the helpers have strict ordering solely dependent on "dexes" structure
+        /// Even if the dex does not provide a pairing for the token pair in the batch it will still be a part of the structure
+        /// With [0,0] reserve sizes and pool address := address(0)
         /// @dev Require all orders in the calldata are organized in order of quantity
         /// This will simplify computational complexity on chain
+        {
+            for(uint256 j=0; j<orders.length-1;j++){
+                require(orders[j].quantity <= orders[j+1].quantity, "Invalid Batch Ordering");
+            }
+        }
 
         //Initialize boolean variable dependent on OrderType of batch 
         bool high;
@@ -82,15 +94,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 high = false;
             }
         }
+
         //Retrive Array of SpotReserve structs as well as lpPairAddress's, strict indexing is assumed between both structures
         (SpotReserve[] memory spotReserve, address[] memory lpPairAddress) = _getAllPrices(orders[0].tokenIn, orders[0].tokenOut, 300, 1);
-
         
         //Initialize lpReserves and populate with spotReserve indexed reserve values to pass into optimizeBatchLPOrder
         uint128[][] memory lpReserves = new uint128[][](spotReserve.length);
 
         //Initialize batchSize array to index orderBatches[n]
         uint256[] memory batchSize = new uint256[](spotReserve.length);
+
         {
             for(uint256 k =0; k<spotReserve.length; ++k){
                 batchSize[k]=0;
@@ -113,6 +126,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             if(orderCanExecute(order, simulatedSpotPrices[i])){
                 for(uint256 j=0; j<lpPairAddress.length; ++j){
                     if(pairAddressOrder[i]==lpPairAddress[j]){
+                        //Batch size is used here to be accumulating index of 2nd order orderBatches array
+                        //To know how many orders there are per batch
                         orderBatches[j][batchSize[j]]= order;
                         ++batchSize[j];
                     }
@@ -123,10 +138,35 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         //Pass each batch into private execution function
         for(uint256 index = 0; index<orderBatches.length;++index){
-            _executeOrder(orderBatches[index]);
+            if(batchSize[index]>0){
+                _executeOrder(orderBatches[index], index, lpPairAddress[index], 300);
+            }
         }
     }
 
+    /// @notice private order execution function, assumes all orders passed to it will execute
+    /// @param orders orders to be executed through swap
+    /// @param dexIndex index of dex in dexes arr
+    /// @param pairAddress lp pair address to execute the order batch on
+    /// @param FEE lp spot trading fee
+    /// @return bool indicating whether all orders were successfully executed in the batch
+    function _executeOrder(Order[] memory orders, uint256 dexIndex, address pairAddress, uint24 FEE) private returns (bool) {
+        if(dexes[dexIndex].isUniV2){
+            for(uint256 i=0;i<orders.length;++i){
+                uint128 amountOutWeth=uint128(_swapV2(orders[i].tokenIn, WETH, pairAddress, orders[i].quantity, orders[i].amountOutMin));
+                uint128 _userFee = _calculateFee(amountOutWeth);
+                (uint128 conveyorReward, uint128 beaconReward) = _calculateReward(_userFee, amountOutWeth);
+
+            }
+        }else{
+            for(uint256 i=0; i< orders.length;++i){
+                uint128 amountOutWeth=uint128(_swapV3(orders[i].tokenIn, WETH, FEE, pairAddress, orders[i].amountOutMin, orders[i].quantity));
+                uint128 _userFee = _calculateFee(amountOutWeth);
+                (uint128 conveyorReward, uint128 beaconReward) = _calculateReward(_userFee, amountOutWeth);
+            }
+        }
+    }
+    
     /// @notice helper function to determine the most spot price advantagous trade route for lp ordering of the batch
     /// @notice Should be called prior to batch execution time to generate the final lp ordering on execution
     /// @param orders all of the verifiably executable orders in the batch filtered prior to passing as parameter
@@ -138,15 +178,17 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128[][] memory reserveSizes,
         address[] memory pairAddress,
         bool high
-    ) internal pure returns (address[] memory, uint256[] memory) {
+    ) public pure returns (address[] memory, uint256[] memory) {
         //continually mock the execution of each order and find the most advantagios spot price after each simulated execution
         // aggregate address[] optimallyOrderedPair to be an order's array of the optimal pair address to perform execution on for the respective indexed order in orders
         // Note order.length == optimallyOrderedPair.length
 
         uint256[] memory tempSpots = new uint256[](reserveSizes.length);
         address[] memory orderedPairs = new address[](orders.length);
+
         uint128[][] memory tempReserves = new uint128[][](reserveSizes.length);
         uint256[] memory simulatedSpotPrices = new uint256[](orders.length);
+
         uint256 targetSpot = (!high)
             ? 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
             : 0;
@@ -156,7 +198,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
             if (i == 0) {
                 for (uint256 j = 0; j < tempSpots.length; j++) {
-                    tempSpots[j] = uint256(
+                    
+                    tempSpots[j] = (pairAddress[j]==address(0)) ? 0 : uint256(
                         ConveyorMath.divUI(
                             reserveSizes[j][0],
                             reserveSizes[j][1]
@@ -167,15 +210,19 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
 
             for (uint256 k = 0; k < tempSpots.length; k++) {
-                if (!high) {
-                    if (tempSpots[k] < targetSpot) {
-                        index = k;
-                        targetSpot = tempSpots[k];
-                    }
-                } else {
-                    if (tempSpots[k] > targetSpot) {
-                        index = k;
-                        targetSpot = tempSpots[k];
+                if(!(tempSpots[k]==0)){
+                    if (!high) {
+                        
+                        if (tempSpots[k] < targetSpot) {
+                            index = k;
+                            targetSpot = tempSpots[k];
+                        }
+
+                    } else {
+                        if (tempSpots[k] > targetSpot) {
+                            index = k;
+                            targetSpot = tempSpots[k];
+                        }
                     }
                 }
             }
@@ -204,6 +251,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         pure
         returns (uint256, uint128[] memory)
     {
+
         uint128[] memory newReserves = new uint128[](2);
 
         unchecked {
@@ -263,14 +311,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
             return false;
         }
-
-    /// @notice private order execution function, assumes all orders passed to it will execute
-    /// @param orders orders to be executed through swap
-    /// Note orders.length :== optimallyOrderedPair.length
-    /// @return bool indicating whether all orders were successfully executed in the batch
-    function _executeOrder(Order[] memory orders) private returns (bool) {
-
-    }
 
     /// @notice deposit gas credits publicly callable function
     /// @return bool boolean indicator whether deposit was successfully transferred into user's gas credit balance

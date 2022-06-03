@@ -54,6 +54,7 @@ contract OrderBook is GasOracle {
         bytes32 orderId;
         OrderType orderType;
         uint256 price;
+        uint256 amountOutMin;
         uint256 quantity;
     }
 

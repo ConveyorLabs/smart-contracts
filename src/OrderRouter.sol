@@ -12,7 +12,7 @@ import "./OrderBook.sol";
 import "./test/utils/Console.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/libraries/Uniswap/TickMath.sol";
-
+import "../lib/interfaces/uniswap-v3/ISwapRouter.sol";
 contract OrderRouter {
     //----------------------Constructor------------------------------------//
 
@@ -274,7 +274,52 @@ contract OrderRouter {
         return amountRecieved;
     }
 
-    function _swapV3() internal returns (uint256) {}
+    
+
+    function _swapV3(
+        address _tokenIn,
+        address _tokenOut,
+        uint24 _fee,
+        address _lp,
+        uint256 _amountOut,
+        uint256 _amountInMaximum
+    ) internal returns (uint256) {
+        /// transfer the tokens to the lp
+        IERC20(_tokenIn).transferFrom(msg.sender, _lp, _amountInMaximum);
+
+        //Sort the tokens
+        (address token0, address token1) = _sortTokens(_tokenIn, _tokenOut);
+
+        //Initialize the amount out depending on the token order
+        (uint256 amount0Out, uint256 amount1Out) = _tokenIn == token0
+            ? (uint256(0), _amountOut)
+            : (_amountOut, uint256(0));
+
+        ///@notice get the balance before
+        uint256 balanceBefore = IERC20(_tokenOut).balanceOf(address(this));
+
+        /// @notice Swap tokens for wrapped native tokens (nato).
+        ISwapRouter(_lp).exactInputSingle(
+            _tokenIn,
+            _tokenOut,
+            _fee,
+            address(this),
+            block.timestamp+5,
+            _amountInMaximum,
+            _amountOut,
+            0
+        );
+
+        ///@notice calculate the amount recieved
+        uint256 amountRecieved = IERC20(_tokenOut).balanceOf(address(this));
+
+        ///@notice if the amount recieved is less than the amount out min, revert
+        if (amountRecieved >= _amountOut) {
+            revert InsufficientOutputAmount();
+        }
+
+        return amountRecieved;
+    }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
     /// @param token0 bytes32 address of token1
