@@ -288,26 +288,28 @@ contract OrderRouter {
         IERC20(_tokenIn).transferFrom(msg.sender, _lp, _amountInMaximum);
 
         //Sort the tokens
-        (address token0, address token1) = _sortTokens(_tokenIn, _tokenOut);
+        // (address token0, address token1) = _sortTokens(_tokenIn, _tokenOut);
 
-        //Initialize the amount out depending on the token order
-        (uint256 amount0Out, uint256 amount1Out) = _tokenIn == token0
-            ? (uint256(0), _amountOut)
-            : (_amountOut, uint256(0));
+        // //Initialize the amount out depending on the token order
+        // (uint256 amount0Out, uint256 amount1Out) = _tokenIn == token0
+        //     ? (uint256(0), _amountOut)
+        //     : (_amountOut, uint256(0));
 
-        ///@notice get the balance before
-        uint256 balanceBefore = IERC20(_tokenOut).balanceOf(address(this));
-
-        /// @notice Swap tokens for wrapped native tokens (nato).
-        ISwapRouter(_lp).exactInputSingle(
-            _tokenIn,
-            _tokenOut,
-            _fee,
+        // ///@notice get the balance before
+        // uint256 balanceBefore = IERC20(_tokenOut).balanceOf(address(this));
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams (
+             _tokenIn,
+             _tokenOut,
+             _fee,
             address(this),
             block.timestamp+5,
             _amountInMaximum,
             _amountOut,
             0
+        );
+        /// @notice Swap tokens for wrapped native tokens (nato).
+        ISwapRouter(_lp).exactInputSingle(
+           params
         );
 
         ///@notice calculate the amount recieved
