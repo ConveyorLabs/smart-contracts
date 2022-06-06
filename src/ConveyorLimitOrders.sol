@@ -250,13 +250,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                                 reserveSizesFirst[j][0],
                                 reserveSizesFirst[j][1]
                             )
-                        );
+                        )<<64;
                         tempSpotsSecond[j] = (pairAddressSecond[j]==address(0)) ? 0 : uint256(
                             ConveyorMath.divUI(
                                 reserveSizesSecond[j][0],
                                 reserveSizesSecond[j][1]
                             )
-                        );
+                        )<<64;
                         tempReservesFirst[j] = reserveSizesFirst[j];
                         tempReservesSecond[j] = reserveSizesSecond[j];
             }
@@ -306,7 +306,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     tempReservesFirst[indexFirst]
                 );
                 (tempSpotsSecond[indexSecond], tempReservesSecond[indexSecond]) = simulatePriceChange(
-                    uint128(order.quantity*tempSpotsFirst[indexFirst]),
+                    ConveyorMath.mul128I(order.quantity, tempSpotsFirst[indexFirst]),
                     tempReservesSecond[indexSecond]
                 );
             }
