@@ -275,7 +275,7 @@ contract OrderRouter {
     }
 
     
-
+    /// @notice Helper function to perform a swapExactInputSingle on Uniswap V3
     function _swapV3(
         address _tokenIn,
         address _tokenOut,
@@ -307,6 +307,7 @@ contract OrderRouter {
             _amountOut,
             0
         );
+        
         /// @notice Swap tokens for wrapped native tokens (nato).
         ISwapRouter(_lp).exactInputSingle(
            params
@@ -328,7 +329,6 @@ contract OrderRouter {
     /// @param token1 bytes32 address of token2
     /// @param _factory bytes32 contract factory address
     /// @param _initBytecode bytes32 initialization bytecode for dex pair
-
     function _calculateV2SpotPrice(
         address token0,
         address token1,
@@ -393,7 +393,6 @@ contract OrderRouter {
     /// @param FEE lp fee
     /// @param tickSecond the tick second range to get the lp spot price from
     /// @param _factory Uniswap v3 factory address
-
     function _calculateV3SpotPrice(
         address token0,
         address token1,

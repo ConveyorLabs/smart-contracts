@@ -96,49 +96,79 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
 
         //Retrive Array of SpotReserve structs as well as lpPairAddress's, strict indexing is assumed between both structures
-        (SpotReserve[] memory spotReserve, address[] memory lpPairAddress) = _getAllPrices(orders[0].tokenIn, orders[0].tokenOut, 300, 1);
+        //SpotReserve[] indicates the spot price and reserves across the first pairing in the two hop router
+        (SpotReserve[] memory spotReserveFirst, address[] memory lpPairAddressFirst) = _getAllPrices(orders[0].tokenIn, WETH, 300, 1);
+
+        //Retrive Array of SpotReserve structs as well as lpPairAddress's, strict indexing is assumed between both structures
+        //SpotReserve[] indicates the spot price and reserves across the second pairing in the two hop router
+        (SpotReserve[] memory spotReserveSecond, address[] memory lpPairAddressSecond) = _getAllPrices(WETH, orders[0].tokenOut, 300, 1);
         
         //Initialize lpReserves and populate with spotReserve indexed reserve values to pass into optimizeBatchLPOrder
-        uint128[][] memory lpReserves = new uint128[][](spotReserve.length);
+        uint128[][] memory lpReservesFirst = new uint128[][](spotReserveFirst.length);
 
         //Initialize batchSize array to index orderBatches[n]
-        uint256[] memory batchSize = new uint256[](spotReserve.length);
+        uint256[] memory batchSizeFirst = new uint256[](spotReserveFirst.length);
+
+        //Initialize lpReserves and populate with spotReserve indexed reserve values to pass into optimizeBatchLPOrder
+        uint128[][] memory lpReservesSecond = new uint128[][](spotReserveSecond.length);
+
+        //Initialize batchSize array to index orderBatches[n]
+        uint256[] memory batchSizeSecond = new uint256[](spotReserveSecond.length);
 
         {
-            for(uint256 k =0; k<spotReserve.length; ++k){
-                batchSize[k]=0;
-                (lpReserves[k][0], lpReserves[k][1])=(uint128(spotReserve[k].res0),uint128(spotReserve[k].res1));
+            for(uint256 k =0; k<spotReserveFirst.length; ++k){
+                batchSizeFirst[k]=0;
+                (lpReservesFirst[k][0], lpReservesFirst[k][1])=(uint128(spotReserveFirst[k].res0),uint128(spotReserveFirst[k].res1));
+            }
+
+            for(uint256 k =0; k<spotReserveSecond.length; ++k){
+                batchSizeSecond[k]=0;
+                (lpReservesSecond[k][0], lpReservesSecond[k][1])=(uint128(spotReserveSecond[k].res0),uint128(spotReserveSecond[k].res1));
             }
         }
 
         //Simulated pairAddress and spotPrice Order of entire order batch
-        (address[] memory pairAddressOrder, uint256[] memory simulatedSpotPrices) = _optimizeBatchLPOrder(orders, lpReserves, lpPairAddress, high);
-
+        (address[][] memory pairAddressOrder, uint256[][] memory simulatedSpotPrices) = _optimizeBatchLPOrder(orders, lpReservesFirst, lpReservesSecond, lpPairAddressFirst, lpPairAddressSecond, high);
+        
+    
         //Initialize structure to hold order batches per lp
-        Order[][] memory orderBatches = new Order[][](lpPairAddress.length);
+        Order[][] memory orderBatches = new Order[][](pairAddressOrder.length);
+        
 
-        //iterate through orders and try to fill order
-        for (uint256 i = 0; i < orders.length; ++i) {
-            //Pass in single order
-            Order memory order = orders[i];
-            
-            //Check if order can execute at simulated price and add to orderBatches on the respective lp
-            if(orderCanExecute(order, simulatedSpotPrices[i])){
-                for(uint256 j=0; j<lpPairAddress.length; ++j){
-                    if(pairAddressOrder[i]==lpPairAddress[j]){
-                        //Batch size is used here to be accumulating index of 2nd order orderBatches array
-                        //To know how many orders there are per batch
-                        orderBatches[j][batchSize[j]]= order;
-                        ++batchSize[j];
+        {
+            //iterate through orders and try to fill order
+            for (uint256 i = 0; i < orders.length; ++i) {
+
+                //Pass in single order
+                Order memory order = orders[i];
+
+                //Check if order can execute at simulated price and add to orderBatches on the respective lp
+                if(orderCanExecute(order, simulatedSpotPrices)){
+                    for(uint256 j=0; j<lpPairAddressFirst.length; ++j){
+                        if(pairAddressOrder[i][0]==lpPairAddressFirst[j]){
+                            //Batch size is used here to be accumulating index of 2nd order orderBatches array
+                            //To know how many orders there are per batch
+                            orderBatchesFirst[j][batchSize[j]]= order;
+                            ++batchSize[j];
+                        }
+                    }
+
+                    for(uint256 j=0; j<lpPairAddressSecond.length; ++j){
+                        if(pairAddressOrderSecond[i]==lpPairAddressSecond[j]){
+                            //Batch size is used here to be accumulating index of 2nd order orderBatches array
+                            //To know how many orders there are per batch
+                            orderBatchesSecond[j][batchSizeSecond[j]]= order;
+                            ++batchSizeSecond[j];
+                        }
                     }
                 }
+    
             }
-  
         }
 
         //Pass each batch into private execution function
         for(uint256 index = 0; index<orderBatches.length;++index){
-            if(batchSize[index]>0){
+            if(batchSizeFirst[index]>0){
                 _executeOrder(orderBatches[index], index, lpPairAddress[index], 300);
             }
         }
@@ -153,89 +183,137 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _executeOrder(Order[] memory orders, uint256 dexIndex, address pairAddress, uint24 FEE) private returns (bool) {
         if(dexes[dexIndex].isUniV2){
             for(uint256 i=0;i<orders.length;++i){
+
                 uint128 amountOutWeth=uint128(_swapV2(orders[i].tokenIn, WETH, pairAddress, orders[i].quantity, orders[i].amountOutMin));
                 uint128 _userFee = _calculateFee(amountOutWeth);
+
                 (uint128 conveyorReward, uint128 beaconReward) = _calculateReward(_userFee, amountOutWeth);
+                
 
             }
         }else{
             for(uint256 i=0; i< orders.length;++i){
+
                 uint128 amountOutWeth=uint128(_swapV3(orders[i].tokenIn, WETH, FEE, pairAddress, orders[i].amountOutMin, orders[i].quantity));
                 uint128 _userFee = _calculateFee(amountOutWeth);
+
                 (uint128 conveyorReward, uint128 beaconReward) = _calculateReward(_userFee, amountOutWeth);
+
+
             }
         }
     }
-    
+
     /// @notice helper function to determine the most spot price advantagous trade route for lp ordering of the batch
     /// @notice Should be called prior to batch execution time to generate the final lp ordering on execution
     /// @param orders all of the verifiably executable orders in the batch filtered prior to passing as parameter
-    /// @param reserveSizes nested array of uint256 reserve0,reserv1 for each lp
-    /// @param pairAddress address[] ordered by [uniswapV2, Sushiswap, UniswapV3]
+    /// @param reserveSizesFirst nested array of uint256 reserve0,reserv1 for each lp on first hop
+    /// @param reserveSizesSecond nested array of uint256 reserve0, reserve1 for each lp on second hop
+    /// @param pairAddressFirst address[] ordered by [uniswapV2, Sushiswap, UniswapV3] for first hop
+    /// @param pairAddressSecond address[] ordered by [uniswapV2, Sushiswap, UniswapV3] for second hop
     // /// @return optimalOrder array of pair addresses of size orders.length corresponding to the indexed pair address to use for each order
     function _optimizeBatchLPOrder(
         Order[] memory orders,
-        uint128[][] memory reserveSizes,
-        address[] memory pairAddress,
+        uint128[][] memory reserveSizesFirst,
+        uint128[][] memory reserveSizesSecond,
+        address[] memory pairAddressFirst,
+        address[] memory pairAddressSecond,
         bool high
-    ) public pure returns (address[] memory, uint256[] memory) {
+    ) public pure returns (address[][] memory, uint256[][] memory) {
         //continually mock the execution of each order and find the most advantagios spot price after each simulated execution
         // aggregate address[] optimallyOrderedPair to be an order's array of the optimal pair address to perform execution on for the respective indexed order in orders
         // Note order.length == optimallyOrderedPair.length
+        uint256[] memory tempSpotsFirst = new uint256[](reserveSizesFirst.length);
+        uint256[] memory tempSpotsSecond = new uint256[](reserveSizesSecond.length);
+        address[][] memory orderedPairs = new address[](orders.length);
 
-        uint256[] memory tempSpots = new uint256[](reserveSizes.length);
-        address[] memory orderedPairs = new address[](orders.length);
+        uint128[][] memory tempReservesFirst = new uint128[][](reserveSizesFirst.length);
+        uint128[][] memory tempReservesSecond = new uint128[][](reserveSizesSecond.length);
 
-        uint128[][] memory tempReserves = new uint128[][](reserveSizes.length);
-        uint256[] memory simulatedSpotPrices = new uint256[](orders.length);
+        uint256[][] memory simulatedSpotPrices = new uint256[](orders.length);
 
-        uint256 targetSpot = (!high)
+        uint256 targetSpotFirst = (!high)
+            ? 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+            : 0;
+        
+        uint256 targetSpotSecond = (!high)
             ? 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
             : 0;
 
-        // Fill tempSpots array
-        for (uint256 j = 0; j < tempSpots.length; j++) {
-                    
-                    tempSpots[j] = (pairAddress[j]==address(0)) ? 0 : uint256(
-                        ConveyorMath.divUI(
-                            reserveSizes[j][0],
-                            reserveSizes[j][1]
-                        )
-                    );
-                    tempReserves[j] = reserveSizes[j];
+        //Scope everything where possible 
+        {
+            // Fill tempSpots array
+            for (uint256 j = 0; j < tempSpotsFirst.length; j++) {
+                        
+                        tempSpotsFirst[j] = (pairAddressFirst[j]==address(0)) ? 0 : uint256(
+                            ConveyorMath.divUI(
+                                reserveSizesFirst[j][0],
+                                reserveSizesFirst[j][1]
+                            )
+                        );
+                        tempSpotsSecond[j] = (pairAddressSecond[j]==address(0)) ? 0 : uint256(
+                            ConveyorMath.divUI(
+                                reserveSizesSecond[j][0],
+                                reserveSizesSecond[j][1]
+                            )
+                        );
+                        tempReservesFirst[j] = reserveSizesFirst[j];
+                        tempReservesSecond[j] = reserveSizesSecond[j];
+            }
         }
 
         for (uint256 i = 0; i < orders.length; i++) {
-            uint256 index;
 
-            for (uint256 k = 0; k < tempSpots.length; k++) {
-                if(!(tempSpots[k]==0)){
+            uint256 indexFirst;
+            uint256 indexSecond;
+
+            for (uint256 k = 0; k < tempSpotsFirst.length; k++) {
+                if(!(tempSpotsFirst[k]==0)){
                     if (!high) {
-                        
-                        if (tempSpots[k] < targetSpot) {
-                            index = k;
-                            targetSpot = tempSpots[k];
+                        if (tempSpotsFirst[k] < targetSpotFirst) {
+                            indexFirst = k;
+                            targetSpotFirst = tempSpotsFirst[k];
                         }
-
                     } else {
-                        if (tempSpots[k] > targetSpot) {
-                            index = k;
-                            targetSpot = tempSpots[k];
+                        if (tempSpotsFirst[k] > targetSpotFirst) {
+                            indexFirst = k;
+                            targetSpotFirst = tempSpotsFirst[k];
+                        }
+                    }
+                }
+
+                if(!(tempSpotsSecond[k]==0)){
+                    if (!high) {
+                        if (tempSpotsSecond[k] < targetSpotSecond) {
+                            indexSecond = k;
+                            targetSpotSecond = tempSpotsSecond[k];
+                        }
+                    } else {
+                        if (tempSpotsSecond[k] > targetSpotSecond) {
+                            indexSecond = k;
+                            targetSpotSecond = tempSpotsSecond[k];
                         }
                     }
                 }
             }
 
             Order memory order = orders[i];
+
             //console.logAddress(orderedPairs[i]);
             if (i != orders.length - 1) {
-                (tempSpots[index], tempReserves[index]) = simulatePriceChange(
+                (tempSpotsFirst[indexFirst], tempReservesFirst[indexFirst]) = simulatePriceChange(
                     uint128(order.quantity),
-                    tempReserves[index]
+                    tempReservesFirst[indexFirst]
+                );
+                (tempSpotsSecond[indexSecond], tempReservesSecond[indexSecond]) = simulatePriceChange(
+                    uint128(order.quantity*tempSpotsFirst[indexFirst]),
+                    tempReservesSecond[indexSecond]
                 );
             }
-            simulatedSpotPrices[i]= targetSpot;
-            orderedPairs[i] = pairAddress[index];
+            simulatedSpotPrices[i][0]= targetSpotFirst;
+            simulatedSpotPrices[i][1]= targetSpotSecond;
+            orderedPairs[i][0] = pairAddressFirst[indexFirst];
+            orderedPairs[i][1] = pairAddressSecond[indexSecond];
         }
 
         return (orderedPairs, simulatedSpotPrices);
@@ -254,6 +332,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128[] memory newReserves = new uint128[](2);
 
         unchecked {
+            
             uint128 numerator = reserves[0] + alphaX;
             uint256 k = uint256(reserves[0] * reserves[1]);
 
@@ -294,7 +373,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ) 
             {
                 return lpSpotPrice <= order.price;
-            } 
+           } 
             else if (
                 order.orderType == OrderType.SELL
             ) 
@@ -307,7 +386,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             else if (order.orderType == OrderType.TAKE_PROFIT){
                 return lpSpotPrice >= order.price;
             }
-
             return false;
         }
 
