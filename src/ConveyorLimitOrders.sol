@@ -163,6 +163,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
     function _initializeTokenToWethExecutionPrices(Order[] calldata orders)
         internal
+        view
         returns (TokenToWethExecutionPrice[] memory executionPrices)
     {
         (
@@ -185,6 +186,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
     function _initializeTokenToTokenExecutionPrices(Order[] calldata orders)
         internal
+        view
         returns (TokenToTokenExecutionPrice[] memory executionPrices)
     {
         (
@@ -214,7 +216,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    function _validateOrderSequencing(Order[] calldata orders) internal {
+    function _validateOrderSequencing(Order[] calldata orders) internal pure {
         for (uint256 j = 0; j < orders.length - 1; j++) {
             //TODO: change this to custom errors
             require(
@@ -232,7 +234,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return orders;
     }
 
-    function _buyOrSell(Order calldata order) internal returns (bool) {
+    function _buyOrSell(Order memory order) internal pure returns (bool) {
         //Determine high bool from batched OrderType
         if (
             order.orderType == OrderType.BUY ||
@@ -256,51 +258,83 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address pairAddress,
         uint24 FEE
     ) private returns (bool) {
-        // if (dexes[dexIndex].isUniV2) {
-        //     for (uint256 i = 0; i < orders.length; ++i) {
-        //         uint128 amountOutWeth = uint128(
-        //             _swapV2(
-        //                 orders[i].tokenIn,
-        //                 WETH,
-        //                 pairAddress,
-        //                 orders[i].quantity,
-        //                 orders[i].amountOutMin
-        //             )
-        //         );
-        //         uint128 _userFee = _calculateFee(amountOutWeth);
-        //         (
-        //             uint128 conveyorReward,
-        //             uint128 beaconReward
-        //         ) = _calculateReward(_userFee, amountOutWeth);
-        //     }
-        // } else {
-        //     for (uint256 i = 0; i < orders.length; ++i) {
-        //         uint128 amountOutWeth = uint128(
-        //             _swapV3(
-        //                 orders[i].tokenIn,
-        //                 WETH,
-        //                 FEE,
-        //                 pairAddress,
-        //                 orders[i].amountOutMin,
-        //                 orders[i].quantity
-        //             )
-        //         );
-        //         uint128 _userFee = _calculateFee(amountOutWeth);
-        //         (
-        //             uint128 conveyorReward,
-        //             uint128 beaconReward
-        //         ) = _calculateReward(_userFee, amountOutWeth);
-        //     }
-        // }
+        if (dexes[dexIndex].isUniV2) {
+            for (uint256 i = 0; i < orders.length; ++i) {
+                uint128 amountOutWeth = uint128(
+                    _swapV2(
+                        orders[i].tokenIn,
+                        WETH,
+                        pairAddress,
+                        orders[i].quantity,
+                        orders[i].amountOutMin
+                    )
+                );
+                uint128 _userFee = _calculateFee(amountOutWeth);
+                (
+                    uint128 conveyorReward,
+                    uint128 beaconReward
+                ) = _calculateReward(_userFee, amountOutWeth);
+            }
+        } else {
+            for (uint256 i = 0; i < orders.length; ++i) {
+                uint128 amountOutWeth = uint128(
+                    _swapV3(
+                        orders[i].tokenIn,
+                        WETH,
+                        FEE,
+                        pairAddress,
+                        orders[i].amountOutMin,
+                        orders[i].quantity
+                    )
+                );
+                uint128 _userFee = _calculateFee(amountOutWeth);
+                (
+                    uint128 conveyorReward,
+                    uint128 beaconReward
+                ) = _calculateReward(_userFee, amountOutWeth);
+            }
+        }
     }
 
     function _executeTokenToWethBatchOrders(
         TokenToWethBatchOrder[] memory tokenToWethBatchOrders
-    ) private returns (bool) {}
+    ) private returns (bool) {
+        //TODO: totalProtocolRevenue (the profit for the protocol)
+
+        for (uint256 i = 0; i < tokenToWethBatchOrders.length; i++) {
+            ///@notice _execute order
+            //TODO: return the (amountOut, protocolRevenue)
+            _executeTokenToWethBatch(orders, dexIndex, pairAddress, FEE);
+
+            ///@notice add the protocol revenue to the totalProtocolRevenue
+
+            ///@notice calculate how much to pay each user from the shares they own
+
+            ///@notice for each user, pay out in a loop
+        }
+
+        ///@notice calculate the beacon runner profit and pay the beacon
+    }
 
     function _executeTokenToTokenBatchOrders(
         TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders
-    ) private returns (bool) {}
+    ) private returns (bool) {
+        //TODO: totalProtocolRevenue (the profit for the protocol)
+
+        for (uint256 i = 0; i < tokenToTokenBatchOrders.length; i++) {
+            ///@notice _execute order
+            //TODO: return the (amountOut, protocolRevenue)
+            _executeTokenToTokenBatch(orders, dexIndex, pairAddress, FEE);
+
+            ///@notice add the protocol revenue to the totalProtocolRevenue
+
+            ///@notice calculate how much to pay each user from the shares they own
+
+            ///@notice for each user, pay out in a loop
+        }
+
+        ///@notice calculate the beacon runner profit and pay the beacon
+    }
 
     function _calculateTokenToTokenPrice(
         Order[] memory orders,
@@ -324,83 +358,169 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _batchTokenToTokenOrders(
         Order[] memory orders,
         TokenToTokenExecutionPrice[] memory executionPrices
-    ) internal returns (TokenToTokenBatchOrder[] memory) {
-        ///@notice
-        /*
+    )
+        internal
+        returns (TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders)
+    {
+        bool buyOrder = _buyOrSell(orders[0]);
 
-        go through each order
-        check best price
-        add to batch order 
+        uint256 currentBestPriceIndex = _findBestTokenToTokenExecutionPrice(
+            executionPrices,
+            buyOrder
+        );
 
+        TokenToTokenBatchOrder
+            memory currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
+                orders.length,
+                executionPrices[currentBestPriceIndex].lpAddressAToWeth,
+                executionPrices[currentBestPriceIndex].lpAddressWethToB
+            );
 
+        //loop each order
+        for (uint256 i = 0; i < orders.length; i++) {
+            //TODO: this is repetitive, we can do the first iteration and then start from n=1
+            ///@notice get the index of the best exectuion price
+            uint256 bestPriceIndex = _findBestTokenToTokenExecutionPrice(
+                executionPrices,
+                buyOrder
+            );
 
+            ///@notice if the best price has changed since the last order
+            if (i > 0 && currentBestPriceIndex != bestPriceIndex) {
+                ///@notice add the current batch order to the batch orders array
+                tokenToTokenBatchOrders[
+                    tokenToTokenBatchOrders.length
+                ] = currentTokenToTokenBatchOrder;
 
+                //-
+                ///@notice update the currentBestPriceIndex
+                currentBestPriceIndex = bestPriceIndex;
 
-        */
-        // (uint256 targetSpotFirst, uint256 targetSpotSecond) = (!high)
-        //     ? (
-        //         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
-        //         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-        //     )
-        //     : (0, 0);
-        // for (uint256 i = 0; i < orders.length; i++) {
-        //     uint256 indexFirst;
-        //     uint256 indexSecond;
-        //     for (uint256 k = 0; k < tempSpotsFirst.length; k++) {
-        //         if (!(tempSpotsFirst[k] == 0)) {
-        //             if (!high) {
-        //                 if (tempSpotsFirst[k] < targetSpotFirst) {
-        //                     indexFirst = k;
-        //                     targetSpotFirst = tempSpotsFirst[k];
-        //                 }
-        //             } else {
-        //                 if (tempSpotsFirst[k] > targetSpotFirst) {
-        //                     indexFirst = k;
-        //                     targetSpotFirst = tempSpotsFirst[k];
-        //                 }
-        //             }
-        //         }
-        //         if (!(tempSpotsSecond[k] == 0)) {
-        //             if (!high) {
-        //                 if (tempSpotsSecond[k] < targetSpotSecond) {
-        //                     indexSecond = k;
-        //                     targetSpotSecond = tempSpotsSecond[k];
-        //                 }
-        //             } else {
-        //                 if (tempSpotsSecond[k] > targetSpotSecond) {
-        //                     indexSecond = k;
-        //                     targetSpotSecond = tempSpotsSecond[k];
-        //                 }
-        //             }
-        //         }
-        //     }
-        //     Order memory order = orders[i];
-        //     //console.logAddress(orderedPairs[i]);
-        //     if (i != orders.length - 1) {
-        //         (
-        //             tempSpotsFirst[indexFirst],
-        //             tempReservesFirst[indexFirst]
-        //         ) = simulatePriceChange(
-        //             uint128(order.quantity),
-        //             tempReservesFirst[indexFirst]
-        //         );
-        //         (
-        //             tempSpotsSecond[indexSecond],
-        //             tempReservesSecond[indexSecond]
-        //         ) = simulatePriceChange(
-        //             ConveyorMath.mul128I(
-        //                 order.quantity,
-        //                 tempSpotsFirst[indexFirst]
-        //             ),
-        //             tempReservesSecond[indexSecond]
-        //         );
-        //     }
-        //     simulatedSpotPrices[i][0] = targetSpotFirst;
-        //     simulatedSpotPrices[i][1] = targetSpotSecond;
-        //     orderedPairs[i][0] = pairAddressFirst[indexFirst];
-        //     orderedPairs[i][1] = pairAddressSecond[indexSecond];
-        // }
-        // return (orderedPairs, simulatedSpotPrices);
+                ///@notice add the batch order to tokenToTokenBatchOrders
+                tokenToTokenBatchOrders[
+                    tokenToTokenBatchOrders.length
+                ] = currentTokenToTokenBatchOrder;
+
+                ///@notice initialize a new batch order
+                //TODO: need to implement logic to trim 0 val orders
+                currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
+                    orders.length,
+                    executionPrices[bestPriceIndex].lpAddressAToWeth,
+                    executionPrices[bestPriceIndex].lpAddressWethToB
+                );
+            }
+
+            ///@notice get the best execution price
+            uint256 executionPrice = executionPrices[bestPriceIndex].price;
+
+            Order memory currentOrder = orders[i];
+
+            ///@notice if the order meets the execution price
+            if (
+                _orderMeetsExecutionPrice(
+                    currentOrder.price,
+                    executionPrice,
+                    buyOrder
+                )
+            ) {
+                ///@notice if the order can execute without hitting slippage
+                if (_orderCanExecute()) {
+                    uint256 batchOrderLength = currentTokenToTokenBatchOrder
+                        .batchOwners
+                        .length;
+
+                    ///@notice add the order to the current batch order
+                    //TODO: can reduce size by just adding ownerShares on execution
+                    currentTokenToTokenBatchOrder.amountIn += currentOrder
+                        .quantity;
+
+                    ///@notice add owner of the order to the batchOwners
+                    currentTokenToTokenBatchOrder.batchOwners[
+                        batchOrderLength
+                    ] = currentOrder.owner;
+
+                    ///@notice add the order quantity of the order to ownerShares
+                    currentTokenToTokenBatchOrder.ownerShares[
+                        batchOrderLength
+                    ] = currentOrder.quantity;
+
+                    ///@notice add the orderId to the batch order
+                    currentTokenToTokenBatchOrder.orderIds[
+                        batchOrderLength
+                    ] = currentOrder.orderId;
+
+                    ///TODO: update execution price at the previous index
+                } else {
+                    //TODO:
+                    ///@notice cancel the order due to insufficient slippage
+                }
+            }
+        }
+    }
+
+    function _initializeNewTokenToTokenBatchOrder(
+        uint256 initArrayLength,
+        address lpAddressAToWeth,
+        address lpAddressWethToB
+    ) internal pure returns (TokenToTokenBatchOrder memory) {
+        ///@notice initialize a new batch order
+        return
+            TokenToTokenBatchOrder(
+                ///@notice initialize amountIn
+                0,
+                ///@notice initialize amountOutMin
+                0,
+                ///@notice initialize A to weth lp
+                lpAddressAToWeth,
+                ///@notice initialize weth to B lp
+                lpAddressWethToB,
+                ///@notice initialize batchOwners
+                new address[](initArrayLength),
+                ///@notice initialize ownerShares
+                new uint256[](initArrayLength),
+                ///@notice initialize orderIds
+                new bytes32[](initArrayLength)
+            );
+    }
+
+    ///@notice returns the index of the best price in the executionPrices array
+    ///@param buyOrder indicates if the batch is a buy or a sell
+    function _findBestTokenToTokenExecutionPrice(
+        TokenToTokenExecutionPrice[] memory executionPrices,
+        bool buyOrder
+    ) internal pure returns (uint256 bestPriceIndex) {
+        ///@notice if the order is a buy order, set the initial best price at 0, else set the initial best price at max uint256
+        uint256 bestPrice = buyOrder
+            ? 0
+            : 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+
+        for (uint256 i = 0; i < executionPrices.length; i++) {
+            uint256 executionPrice = executionPrices[i].price;
+            if (executionPrice > bestPrice) {
+                bestPrice = executionPrice;
+                bestPriceIndex = i;
+            }
+        }
+    }
+
+    ///@notice returns the index of the best price in the executionPrices array
+
+    function _findBestTokenToWethExecutionPrice(
+        TokenToWethExecutionPrice[] memory executionPrices,
+        bool buyOrder
+    ) internal pure returns (uint256 bestPriceIndex) {
+        ///@notice if the order is a buy order, set the initial best price at 0, else set the initial best price at max uint256
+        uint256 bestPrice = buyOrder
+            ? 0
+            : 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+
+        for (uint256 i = 0; i < executionPrices.length; i++) {
+            uint256 executionPrice = executionPrices[i].price;
+            if (executionPrice > bestPrice) {
+                bestPrice = executionPrice;
+                bestPriceIndex = i;
+            }
+        }
     }
 
     /// @notice Helper function to determine the spot price change to the lp after introduction alphaX amount into the reserve pool
@@ -442,32 +562,22 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     /// @notice Helper function to determine if order can execute based on the spot price of the lp, the determinig factor is the order.orderType
-    /// @param order Order order.price to be checked against realtime lp spot price for execution
-    /// @param lpSpotPrice realtime best lpSpotPrice found for the order
-    /// @return bool indicator whether order can be executed or not
-    function orderCanExecute(Order memory order, uint256[] memory lpSpotPrice)
-        internal
-        pure
-        returns (bool)
-    {
-        uint128 spotInWeth = uint128(lpSpotPrice[0] >> 64);
-        uint128 spotWethOut = uint128(lpSpotPrice[1] >> 64);
 
-        if (order.orderType == OrderType.BUY) {
-            return
-                ConveyorMath.mul64x64(spotInWeth, spotWethOut) <= order.price;
-        } else if (order.orderType == OrderType.SELL) {
-            return
-                ConveyorMath.mul64x64(spotInWeth, spotWethOut) >= order.price;
-        } else if (order.orderType == OrderType.STOP) {
-            return
-                ConveyorMath.mul64x64(spotInWeth, spotWethOut) <= order.price;
-        } else if (order.orderType == OrderType.TAKE_PROFIT) {
-            return
-                ConveyorMath.mul64x64(spotInWeth, spotWethOut) >= order.price;
+    function _orderMeetsExecutionPrice(
+        uint256 orderPrice,
+        uint256 executionPrice,
+        bool buyOrder
+    ) internal pure returns (bool) {
+        if (buyOrder) {
+            return executionPrice <= orderPrice;
+        } else {
+            return executionPrice >= orderPrice;
         }
-        return false;
     }
+
+    ///@notice checks if order can complete without hitting slippage
+    //TODO:
+    function _orderCanExecute() internal pure returns (bool) {}
 
     /// @notice deposit gas credits publicly callable function
     /// @return bool boolean indicator whether deposit was successfully transferred into user's gas credit balance

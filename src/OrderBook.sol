@@ -56,6 +56,7 @@ contract OrderBook is GasOracle {
         uint256 price;
         uint256 amountOutMin;
         uint256 quantity;
+        address owner;
     }
 
     //----------------------State Structures------------------------------------//

@@ -33,6 +33,7 @@ contract OrderRouter {
 
     /// @notice Array of dex structures to be used throughout the contract for pair spot price calculations
     Dex[] public dexes;
+    mapping(address => uint256) dexToIndex;
 
     struct SpotReserve {
         uint256 spotPrice;
