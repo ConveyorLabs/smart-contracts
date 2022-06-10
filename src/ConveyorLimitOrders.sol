@@ -44,7 +44,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 amount
     );
 
-    //----------------------Functions------------------------------------//
+    //----------------------Structs------------------------------------//
 
     /// @notice Struct containing the token, orderId, OrderType enum type, price, and quantity for each order
     //
@@ -67,139 +67,124 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     //
     //
 
-    /// @notice execute all orders passed from beacon matching order execution criteria. i.e. 'orderPrice' matches observable lp price for all orders
+    struct TokenToTokenExecutionPrice {
+        uint128 aToWethReserve0;
+        uint128 aToWethReserve1;
+        uint128 wethToBReserve0;
+        uint128 wethToBReserve1;
+        uint256 price;
+        address lpAddressAToWeth;
+        address lpAddressWethToB;
+    }
+
+    struct TokenToWethExecutionPrice {
+        uint128 aToWethReserve0;
+        uint128 aToWethReserve1;
+        uint256 price;
+        address lpAddressAToWeth;
+    }
+
+    struct TokenToWethBatchOrder {
+        uint256 amountIn;
+        uint256 amountOutMin;
+        address lpAddress;
+        address[] batchOwners;
+        uint256[] ownerShares;
+    }
+
+    struct TokenToTokenBatchOrder {
+        uint256 amountIn;
+        uint256 amountOutMin;
+        address lpAddressAToWeth;
+        address lpAddressWethToB;
+        address[] batchOwners;
+        uint256[] ownerShares;
+    }
+
+    //----------------------Functions------------------------------------//
+
+    ///@notice This function takes in an array of orders,
     /// @param orders array of orders to be executed within the mapping
     function executeOrders(Order[] calldata orders) external onlyEOA {
         ///@notice validate that the order array is in ascending order by quantity
         _validateOrderSequencing(orders);
 
-        ///@notice Initialize a bool to determine if the batch is a buy or sell
-        bool buy = _buyOrSell(orders[0]);
+        ///@notice Sequence the orders by priority fee
+        // Order[] memory sequencedOrders = _sequenceOrdersByPriorityFee(orders);
 
-        //TODO: initialize reserves, lpaddresses, batches
-
-        //TODO: return batch order, only orders that return can execute
-        //Simulated pairAddress and spotPrice Order of entire order batch
-        (
-            address[][] memory pairAddressOrder,
-            uint256[][] memory simulatedSpotPrices
-        ) = _optimizeBatchLPOrder(
-                orders,
-                lpReservesAToWeth,
-                lpReservesWethToB,
-                lpPairAddressAToWeth,
-                lpPairAddressWethToB,
-                buy
-            );
-
-        //TODO: create logic to execute each batch order
-        //TODO: after swap, payout and rebase math logic
-
-        // //Initialize structure to hold order batches per lp
-        // Order[][] memory orderBatches = new Order[][](pairAddressOrder.length);
-
-        // {
-        //     //iterate through orders and try to fill order
-        //     for (uint256 i = 0; i < orders.length; ++i) {
-        //         //Pass in single order
-        //         Order memory order = orders[i];
-
-        //         //Check if order can execute at simulated price and add to orderBatches on the respective lp
-        //         if (orderCanExecute(order, simulatedSpotPrices)) {
-        //             for (uint256 j = 0; j < lpPairAddressFirst.length; ++j) {
-        //                 if (pairAddressOrder[i][0] == lpPairAddressFirst[j]) {
-        //                     //Batch size is used here to be accumulating index of 2nd order orderBatches array
-        //                     //To know how many orders there are per batch
-        //                     orderBatchesFirst[j][batchSize[j]] = order;
-        //                     ++batchSize[j];
-        //                 }
-        //             }
-
-        //             for (uint256 j = 0; j < lpPairAddressSecond.length; ++j) {
-        //                 if (
-        //                     pairAddressOrderSecond[i] == lpPairAddressSecond[j]
-        //                 ) {
-        //                     //Batch size is used here to be accumulating index of 2nd order orderBatches array
-        //                     //To know how many orders there are per batch
-        //                     orderBatchesSecond[j][batchSizeSecond[j]] = order;
-        //                     ++batchSizeSecond[j];
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
-        // //Pass each batch into private execution function
-        // for (uint256 index = 0; index < orderBatches.length; ++index) {
-        //     if (batchSizeFirst[index] > 0) {
-        //         _executeOrder(
-        //             orderBatches[index],
-        //             index,
-        //             lpPairAddress[index],
-        //             300
-        //         );
-        //     }
-        // }
+        ///@notice check if the token out is weth to determine what type of order execution to use
+        if (orders[0].tokenOut == WETH) {
+            _executeTokenToWethOrders(orders);
+        } else {
+            _executeTokenToTokenOrders(orders);
+        }
     }
 
-    function _initializeReservesAndLPAddresses(Order[] calldata orders)
+    ///@notice execute an array of orders from token to weth
+    function _executeTokenToWethOrders(Order[] calldata orders) internal {}
+
+    ///@notice execute an array of orders from token to token
+    function _executeTokenToTokenOrders(Order[] calldata orders) internal {
+        ///@notice get all execution price possibilities
+        TokenToTokenExecutionPrice[]
+            memory executionPrices = _initializeTokenToTokenExecutionPrices(
+                orders
+            );
+
+        ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
+        _batchTokentoTokenOrders(orders, executionPrices);
+    }
+
+    ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
+    function _initializeTokenToWethExecutionPrices(Order[] calldata orders)
         internal
-        returns (
-            //TODO: return values
-            uint128[][] memory lpReservesAToWeth,
-            uint128[][] memory lpReservesWethToB,
-            uint256[] memory batchSizeAToWeth,
-            uint256[] memory batchSizeWethToB
-        )
+        returns (TokenToWethExecutionPrice[] memory executionPrices)
     {
-        //Retrive Array of SpotReserve structs as well as lpPairAddress's, strict indexing is assumed between both structures
-        //SpotReserve[] indicates the spot price and reserves across the first pairing in the two hop router
         (
             SpotReserve[] memory spotReserveAToWeth,
-            address[] memory lpPairAddressAToWeth
+            address[] memory lpAddressesAToWeth
         ) = _getAllPrices(orders[0].tokenIn, WETH, 300, 1);
 
-        //Retrive Array of SpotReserve structs as well as lpPairAddress's, strict indexing is assumed between both structures
-        //SpotReserve[] indicates the spot price and reserves across the second pairing in the two hop router
-        (
-            SpotReserve[] memory spotReserveWethToB,
-            address[] memory lpPairAddressWethToB
-        ) = _getAllPrices(WETH, orders[0].tokenOut, 300, 1);
-
-        //Initialize lpReserves and populate with spotReserve indexed reserve values to pass into optimizeBatchLPOrder
-        uint128[][] memory lpReservesAToWeth = new uint128[][](
-            spotReserveAToWeth.length
-        );
-
-        //Initialize lpReserves and populate with spotReserve indexed reserve values to pass into optimizeBatchLPOrder
-        uint128[][] memory lpReservesWethToB = new uint128[][](
-            spotReserveWethToB.length
-        );
-
-        //Initialize batchSize array to index orderBatches[n]
-        uint256[] memory batchSizeAToWeth = new uint256[](
-            spotReserveAToWeth.length
-        );
-
-        //Initialize batchSize array to index orderBatches[n]
-        uint256[] memory batchSizeWethToB = new uint256[](
-            spotReserveWethToB.length
-        );
-
         {
-            for (uint256 k = 0; k < spotReserveAToWeth.length; ++k) {
-                (lpReservesAToWeth[k][0], lpReservesAToWeth[k][1]) = (
-                    uint128(spotReserveAToWeth[k].res0),
-                    uint128(spotReserveAToWeth[k].res1)
+            for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
+                executionPrices[i] = TokenToWethExecutionPrice(
+                    spotReserveAToWeth[i].res0,
+                    spotReserveAToWeth[i].res1,
+                    0, //TODO: calculate initial price
+                    lpAddressesAToWeth[i]
                 );
             }
+        }
+    }
 
-            //TODO: determine which token is weth, weth must be the denominator ie, res 1
-            for (uint256 k = 0; k < spotReserveWethToB.length; ++k) {
-                (lpReservesWethToB[k][0], lpReservesWethToB[k][1]) = (
-                    uint128(spotReserveWethToB[k].res0),
-                    uint128(spotReserveWethToB[k].res1)
-                );
+    ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
+    function _initializeTokenToTokenExecutionPrices(Order[] calldata orders)
+        internal
+        returns (TokenToTokenExecutionPrice[] memory executionPrices)
+    {
+        (
+            SpotReserve[] memory spotReserveAToWeth,
+            address[] memory lpAddressesAToWeth
+        ) = _getAllPrices(orders[0].tokenIn, WETH, 300, 1);
+
+        (
+            SpotReserve[] memory spotReserveWethToB,
+            address[] memory lpAddressWethToB
+        ) = _getAllPrices(WETH, orders[0].tokenOut, 300, 1);
+
+        {
+            for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
+                for (uint256 j = 0; j < spotReserveWethToB.length; ++j) {
+                    executionPrices[i] = TokenToTokenExecutionPrice(
+                        spotReserveAToWeth[i].res0,
+                        spotReserveAToWeth[i].res1,
+                        spotReserveWethToB[j].res0,
+                        spotReserveWethToB[j].res1,
+                        0, //TODO: calculate initial price
+                        lpAddressesAToWeth[i],
+                        lpAddressWethToB[j]
+                    );
+                }
             }
         }
     }
@@ -214,7 +199,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    function _buyOrSell(Order calldata order) internal {
+    //TODO:
+    function _sequenceOrdersByPriorityFee(Order[] calldata orders)
+        internal
+        returns (Order[] memory)
+    {
+        return orders;
+    }
+
+    function _buyOrSell(Order calldata order) internal returns (bool) {
         //Determine high bool from batched OrderType
         if (
             order.orderType == OrderType.BUY ||
@@ -278,179 +271,88 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    /// @notice helper function to determine the most spot price advantagous trade route for lp ordering of the batch
-    /// @notice Should be called prior to batch execution time to generate the final lp ordering on execution
-    /// @param orders all of the verifiably executable orders in the batch filtered prior to passing as parameter
-    /// @param reserveSizesFirst nested array of uint256 reserve0,reserv1 for each lp on first hop
-    /// @param reserveSizesSecond nested array of uint256 reserve0, reserve1 for each lp on second hop
-    /// @param pairAddressFirst address[] ordered by [uniswapV2, Sushiswap, UniswapV3] for first hop
-    /// @param pairAddressSecond address[] ordered by [uniswapV2, Sushiswap, UniswapV3] for second hop
-    // /// @return optimalOrder array of pair addresses of size orders.length corresponding to the indexed pair address to use for each order
-    function _optimizeBatchLPOrder(
+    function _calculateTokenToTokenPrice(
         Order[] memory orders,
-        uint128[][] memory reserveSizesFirst,
-        uint128[][] memory reserveSizesSecond,
-        address[] memory pairAddressFirst,
-        address[] memory pairAddressSecond,
-        bool high
-    ) public pure returns (address[][] memory, uint256[][] memory) {
-        (
-            uint256[][] simulatedSpotPrices,
-            uint256[] tempSpotsFirst,
-            uint256[] tempSpotsSecond,
-            uint128[][] tempReservesFirst,
-            uint128[][] tempReservesSecond,
-            address[][] orderedPairs
-        ) = _initializeSpotPriceAndReserves(
-                orders,
-                reserveSizesFirst,
-                reserveSizesSecond,
-                pairAddressFirst,
-                pairAddressSecond,
-                high
-            );
+        uint128 aToWethReserve0,
+        uint128 aToWethReserve1,
+        uint128 wethToBReserve0,
+        uint128 wethToBReserve1
+    ) internal returns (uint256 spotPrice) {}
 
-        return
-            _batchOrders(
-                orders,
-                simulatedSpotPrices,
-                tempSpotsFirst,
-                tempSpotsSecond,
-                tempReservesFirst,
-                tempReservesSecond,
-                orderedPairs,
-                pairAddressFirst,
-                pairAddressSecond,
-                high
-            );
-    }
-
-    function _initializeSpotPriceAndReserves(
+    function _calculateTokenToWethPrice(
         Order[] memory orders,
-        uint128[][] memory reserveSizesFirst,
-        uint128[][] memory reserveSizesSecond,
-        address[] memory pairAddressFirst,
-        address[] memory pairAddressSecond,
-        bool high
-    )
-        internal
-        returns (
-            uint256[][] simulatedSpotPrices,
-            uint256[] tempSpotsFirst,
-            uint256[] tempSpotsSecond,
-            uint128[][] tempReservesFirst,
-            uint128[][] tempReservesSecond,
-            address[][] orderedPairs
-        )
-    {
-        //Scope everything where possible
-        {
-            // Fill tempSpots array
-            for (uint256 j = 0; j < tempSpotsFirst.length; j++) {
-                tempSpotsFirst[j] = (pairAddressFirst[j] == address(0))
-                    ? 0
-                    : uint256(
-                        ConveyorMath.divUI(
-                            reserveSizesFirst[j][0],
-                            reserveSizesFirst[j][1]
-                        )
-                    ) << 64;
-                tempSpotsSecond[j] = (pairAddressSecond[j] == address(0))
-                    ? 0
-                    : uint256(
-                        ConveyorMath.divUI(
-                            reserveSizesSecond[j][0],
-                            reserveSizesSecond[j][1]
-                        )
-                    ) << 64;
-                tempReservesFirst[j] = reserveSizesFirst[j];
-                tempReservesSecond[j] = reserveSizesSecond[j];
-            }
-        }
-    }
+        uint128 aToWethReserve0,
+        uint128 aToWethReserve1
+    ) internal returns (uint256 spotPrice) {}
 
-    function _batchOrders(
+    function _batchTokentoTokenOrders(
         Order[] memory orders,
-        uint256[][] simulatedSpotPrices,
-        uint256[] tempSpotsFirst,
-        uint256[] tempSpotsSecond,
-        uint128[][] tempReservesFirst,
-        uint128[][] tempReservesSecond,
-        address[][] orderedPairs,
-        address[] memory pairAddressFirst,
-        address[] memory pairAddressSecond,
-        bool high
-    ) internal returns (address[][], uint256[][]) {
-        (uint256 targetSpotFirst, uint256 targetSpotSecond) = (!high)
-            ? (
-                0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
-                0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-            )
-            : (0, 0);
-
-        for (uint256 i = 0; i < orders.length; i++) {
-            uint256 indexFirst;
-            uint256 indexSecond;
-
-            for (uint256 k = 0; k < tempSpotsFirst.length; k++) {
-                if (!(tempSpotsFirst[k] == 0)) {
-                    if (!high) {
-                        if (tempSpotsFirst[k] < targetSpotFirst) {
-                            indexFirst = k;
-                            targetSpotFirst = tempSpotsFirst[k];
-                        }
-                    } else {
-                        if (tempSpotsFirst[k] > targetSpotFirst) {
-                            indexFirst = k;
-                            targetSpotFirst = tempSpotsFirst[k];
-                        }
-                    }
-                }
-
-                if (!(tempSpotsSecond[k] == 0)) {
-                    if (!high) {
-                        if (tempSpotsSecond[k] < targetSpotSecond) {
-                            indexSecond = k;
-                            targetSpotSecond = tempSpotsSecond[k];
-                        }
-                    } else {
-                        if (tempSpotsSecond[k] > targetSpotSecond) {
-                            indexSecond = k;
-                            targetSpotSecond = tempSpotsSecond[k];
-                        }
-                    }
-                }
-            }
-
-            Order memory order = orders[i];
-
-            //console.logAddress(orderedPairs[i]);
-            if (i != orders.length - 1) {
-                (
-                    tempSpotsFirst[indexFirst],
-                    tempReservesFirst[indexFirst]
-                ) = simulatePriceChange(
-                    uint128(order.quantity),
-                    tempReservesFirst[indexFirst]
-                );
-                (
-                    tempSpotsSecond[indexSecond],
-                    tempReservesSecond[indexSecond]
-                ) = simulatePriceChange(
-                    ConveyorMath.mul128I(
-                        order.quantity,
-                        tempSpotsFirst[indexFirst]
-                    ),
-                    tempReservesSecond[indexSecond]
-                );
-            }
-            simulatedSpotPrices[i][0] = targetSpotFirst;
-            simulatedSpotPrices[i][1] = targetSpotSecond;
-            orderedPairs[i][0] = pairAddressFirst[indexFirst];
-            orderedPairs[i][1] = pairAddressSecond[indexSecond];
-        }
-
-        return (orderedPairs, simulatedSpotPrices);
+        TokenToTokenExecutionPrice[] memory executionPrices
+    ) internal returns (TokenToTokenBatchOrder[] memory) {
+        // (uint256 targetSpotFirst, uint256 targetSpotSecond) = (!high)
+        //     ? (
+        //         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
+        //         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+        //     )
+        //     : (0, 0);
+        // for (uint256 i = 0; i < orders.length; i++) {
+        //     uint256 indexFirst;
+        //     uint256 indexSecond;
+        //     for (uint256 k = 0; k < tempSpotsFirst.length; k++) {
+        //         if (!(tempSpotsFirst[k] == 0)) {
+        //             if (!high) {
+        //                 if (tempSpotsFirst[k] < targetSpotFirst) {
+        //                     indexFirst = k;
+        //                     targetSpotFirst = tempSpotsFirst[k];
+        //                 }
+        //             } else {
+        //                 if (tempSpotsFirst[k] > targetSpotFirst) {
+        //                     indexFirst = k;
+        //                     targetSpotFirst = tempSpotsFirst[k];
+        //                 }
+        //             }
+        //         }
+        //         if (!(tempSpotsSecond[k] == 0)) {
+        //             if (!high) {
+        //                 if (tempSpotsSecond[k] < targetSpotSecond) {
+        //                     indexSecond = k;
+        //                     targetSpotSecond = tempSpotsSecond[k];
+        //                 }
+        //             } else {
+        //                 if (tempSpotsSecond[k] > targetSpotSecond) {
+        //                     indexSecond = k;
+        //                     targetSpotSecond = tempSpotsSecond[k];
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     Order memory order = orders[i];
+        //     //console.logAddress(orderedPairs[i]);
+        //     if (i != orders.length - 1) {
+        //         (
+        //             tempSpotsFirst[indexFirst],
+        //             tempReservesFirst[indexFirst]
+        //         ) = simulatePriceChange(
+        //             uint128(order.quantity),
+        //             tempReservesFirst[indexFirst]
+        //         );
+        //         (
+        //             tempSpotsSecond[indexSecond],
+        //             tempReservesSecond[indexSecond]
+        //         ) = simulatePriceChange(
+        //             ConveyorMath.mul128I(
+        //                 order.quantity,
+        //                 tempSpotsFirst[indexFirst]
+        //             ),
+        //             tempReservesSecond[indexSecond]
+        //         );
+        //     }
+        //     simulatedSpotPrices[i][0] = targetSpotFirst;
+        //     simulatedSpotPrices[i][1] = targetSpotSecond;
+        //     orderedPairs[i][0] = pairAddressFirst[indexFirst];
+        //     orderedPairs[i][1] = pairAddressSecond[indexSecond];
+        // }
+        // return (orderedPairs, simulatedSpotPrices);
     }
 
     /// @notice Helper function to determine the spot price change to the lp after introduction alphaX amount into the reserve pool
