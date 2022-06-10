@@ -281,8 +281,8 @@ contract OrderRouter {
         address _tokenOut,
         uint24 _fee,
         address _lp,
-        uint256 _amountOut,
-        uint256 _amountInMaximum
+        uint256 _amountInMaximum,
+        uint256 _amountOut
     ) internal returns (uint256) {
         /// transfer the tokens to the lp
         IERC20(_tokenIn).transferFrom(msg.sender, _lp, _amountInMaximum);

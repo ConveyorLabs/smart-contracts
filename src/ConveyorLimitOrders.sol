@@ -87,6 +87,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     struct TokenToWethBatchOrder {
         uint256 amountIn;
         uint256 amountOutMin;
+        address tokenIn;
         address lpAddress;
         address[] batchOwners;
         uint256[] ownerShares;
@@ -95,7 +96,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     struct TokenToTokenBatchOrder {
         uint256 amountIn;
+        //TODO: need to set amount out min somewhere
         uint256 amountOutMin;
+        address tokenIn;
+        address tokenOut;
         address lpAddressAToWeth;
         address lpAddressWethToB;
         address[] batchOwners;
@@ -246,6 +250,79 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
+    ///@notice agnostic swap function that determines whether or not to swap on univ2 or univ3
+    function _swap(
+        address tokenIn,
+        address tokenOut,
+        address lpAddress,
+        uint256 amountIn,
+        uint256 amountOutMin
+    ) internal returns (uint256 amountOut) {
+        if (_lpIsUniV2(lpAddress)) {
+            amountOut = _swapV2(
+                tokenIn,
+                tokenOut,
+                lpAddress,
+                amountIn,
+                amountOutMin
+            );
+        } else {
+            amountOut = _swapV3(
+                tokenIn,
+                tokenOut,
+                _getUniV3Fee(),
+                lpAddress,
+                amountIn,
+                amountOutMin
+            );
+        }
+    }
+
+    //TODO:
+    function _getUniV3Fee() internal returns (uint24 fee) {}
+
+    ///@return (amountOut, beaconReward)
+    ///@dev the amountOut is the amount out - protocol fees
+    function _executeTokenToTokenBatch(TokenToTokenBatchOrder memory batch)
+        internal
+        returns (uint256, uint256)
+    {
+        ///@notice swap from A to weth
+        uint128 amountOutWeth = uint128(
+            _swap(
+                batch.tokenIn,
+                WETH,
+                batch.lpAddressAToWeth,
+                batch.amountIn,
+                batch.amountOutMin
+            )
+        );
+
+        ///@notice take out fees
+        uint128 protocolFee = _calculateFee(amountOutWeth);
+        (uint128 conveyorReward, uint128 beaconReward) = _calculateReward(
+            protocolFee,
+            amountOutWeth
+        );
+
+        ///@notice get amount in for weth to B
+        uint256 amountInWethToB = amountOutWeth - protocolFee;
+
+        ///@notice swap weth for B
+        uint256 amountOutInB = _swap(
+            WETH,
+            batch.tokenOut,
+            batch.lpAddressWethToB,
+            amountInWethToB,
+            //TODO: determine how much for amount out min
+            batch.amountOutMin
+        );
+
+        return (amountOutInB, uint256(beaconReward));
+    }
+
+    function _lpIsUniV2(address lp) internal returns (bool) {}
+
     /// @notice private order execution function, assumes all orders passed to it will execute
     /// @param orders orders to be executed through swap
     /// @param dexIndex index of dex in dexes arr
@@ -304,12 +381,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         for (uint256 i = 0; i < tokenToWethBatchOrders.length; i++) {
             ///@notice _execute order
             //TODO: return the (amountOut, protocolRevenue)
-            _executeTokenToWethBatch(orders, dexIndex, pairAddress, FEE);
-
+            // _executeTokenToWethBatch(tokenToWethBatchOrders[i]);
             ///@notice add the protocol revenue to the totalProtocolRevenue
-
             ///@notice calculate how much to pay each user from the shares they own
-
             ///@notice for each user, pay out in a loop
         }
 
@@ -319,14 +393,18 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _executeTokenToTokenBatchOrders(
         TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders
     ) private returns (bool) {
-        //TODO: totalProtocolRevenue (the profit for the protocol)
+        uint256 totalBeaconReward;
 
         for (uint256 i = 0; i < tokenToTokenBatchOrders.length; i++) {
             ///@notice _execute order
             //TODO: return the (amountOut, protocolRevenue)
-            _executeTokenToTokenBatch(orders, dexIndex, pairAddress, FEE);
+            (
+                uint256 amountOut,
+                uint256 beaconReward
+            ) = _executeTokenToTokenBatch(tokenToTokenBatchOrders[i]);
 
-            ///@notice add the protocol revenue to the totalProtocolRevenue
+            ///@notice add the beacon reward to the totalBeaconReward
+            totalBeaconReward += beaconReward;
 
             ///@notice calculate how much to pay each user from the shares they own
 
@@ -362,7 +440,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         internal
         returns (TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders)
     {
-        bool buyOrder = _buyOrSell(orders[0]);
+        Order memory firstOrder = orders[0];
+        bool buyOrder = _buyOrSell(firstOrder);
+
+        address batchOrderTokenIn = firstOrder.tokenIn;
+        address batchOrderTokenOut = firstOrder.tokenOut;
 
         uint256 currentBestPriceIndex = _findBestTokenToTokenExecutionPrice(
             executionPrices,
@@ -372,6 +454,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         TokenToTokenBatchOrder
             memory currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
                 orders.length,
+                batchOrderTokenIn,
+                batchOrderTokenOut,
                 executionPrices[currentBestPriceIndex].lpAddressAToWeth,
                 executionPrices[currentBestPriceIndex].lpAddressWethToB
             );
@@ -405,6 +489,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 //TODO: need to implement logic to trim 0 val orders
                 currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
                     orders.length,
+                    batchOrderTokenIn,
+                    batchOrderTokenOut,
                     executionPrices[bestPriceIndex].lpAddressAToWeth,
                     executionPrices[bestPriceIndex].lpAddressWethToB
                 );
@@ -460,6 +546,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     function _initializeNewTokenToTokenBatchOrder(
         uint256 initArrayLength,
+        address tokenIn,
+        address tokenOut,
         address lpAddressAToWeth,
         address lpAddressWethToB
     ) internal pure returns (TokenToTokenBatchOrder memory) {
@@ -470,6 +558,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 0,
                 ///@notice initialize amountOutMin
                 0,
+                ///@notice add the token in
+                tokenIn,
+                ///@notice add the token out
+                tokenOut,
                 ///@notice initialize A to weth lp
                 lpAddressAToWeth,
                 ///@notice initialize weth to B lp
