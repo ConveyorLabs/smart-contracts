@@ -121,7 +121,22 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     ///@notice execute an array of orders from token to weth
-    function _executeTokenToWethOrders(Order[] calldata orders) internal {}
+    function _executeTokenToWethOrders(Order[] calldata orders) internal {
+        ///@notice get all execution price possibilities
+        TokenToWethExecutionPrice[]
+            memory executionPrices = _initializeTokenToWethExecutionPrices(
+                orders
+            );
+
+        ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
+        TokenToWethBatchOrder[]
+            memory tokenToWethBatchOrders = _batchTokenToWethOrders(
+                orders,
+                executionPrices
+            );
+
+        bool success = _executeTokenToWethBatchOrders(tokenToWethBatchOrders);
+    }
 
     ///@notice execute an array of orders from token to token
     function _executeTokenToTokenOrders(Order[] calldata orders) internal {
@@ -132,7 +147,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
 
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
-        _batchTokentoTokenOrders(orders, executionPrices);
+        TokenToTokenBatchOrder[]
+            memory tokenToTokenBatchOrders = _batchTokenToTokenOrders(
+                orders,
+                executionPrices
+            );
+
+        bool success = _executeTokenToTokenBatchOrders(tokenToTokenBatchOrders);
     }
 
     ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
@@ -231,45 +252,51 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address pairAddress,
         uint24 FEE
     ) private returns (bool) {
-        if (dexes[dexIndex].isUniV2) {
-            for (uint256 i = 0; i < orders.length; ++i) {
-                uint128 amountOutWeth = uint128(
-                    _swapV2(
-                        orders[i].tokenIn,
-                        WETH,
-                        pairAddress,
-                        orders[i].quantity,
-                        orders[i].amountOutMin
-                    )
-                );
-                uint128 _userFee = _calculateFee(amountOutWeth);
-
-                (
-                    uint128 conveyorReward,
-                    uint128 beaconReward
-                ) = _calculateReward(_userFee, amountOutWeth);
-            }
-        } else {
-            for (uint256 i = 0; i < orders.length; ++i) {
-                uint128 amountOutWeth = uint128(
-                    _swapV3(
-                        orders[i].tokenIn,
-                        WETH,
-                        FEE,
-                        pairAddress,
-                        orders[i].amountOutMin,
-                        orders[i].quantity
-                    )
-                );
-                uint128 _userFee = _calculateFee(amountOutWeth);
-
-                (
-                    uint128 conveyorReward,
-                    uint128 beaconReward
-                ) = _calculateReward(_userFee, amountOutWeth);
-            }
-        }
+        // if (dexes[dexIndex].isUniV2) {
+        //     for (uint256 i = 0; i < orders.length; ++i) {
+        //         uint128 amountOutWeth = uint128(
+        //             _swapV2(
+        //                 orders[i].tokenIn,
+        //                 WETH,
+        //                 pairAddress,
+        //                 orders[i].quantity,
+        //                 orders[i].amountOutMin
+        //             )
+        //         );
+        //         uint128 _userFee = _calculateFee(amountOutWeth);
+        //         (
+        //             uint128 conveyorReward,
+        //             uint128 beaconReward
+        //         ) = _calculateReward(_userFee, amountOutWeth);
+        //     }
+        // } else {
+        //     for (uint256 i = 0; i < orders.length; ++i) {
+        //         uint128 amountOutWeth = uint128(
+        //             _swapV3(
+        //                 orders[i].tokenIn,
+        //                 WETH,
+        //                 FEE,
+        //                 pairAddress,
+        //                 orders[i].amountOutMin,
+        //                 orders[i].quantity
+        //             )
+        //         );
+        //         uint128 _userFee = _calculateFee(amountOutWeth);
+        //         (
+        //             uint128 conveyorReward,
+        //             uint128 beaconReward
+        //         ) = _calculateReward(_userFee, amountOutWeth);
+        //     }
+        // }
     }
+
+    function _executeTokenToWethBatchOrders(
+        TokenToWethBatchOrder[] memory tokenToWethBatchOrders
+    ) private returns (bool) {}
+
+    function _executeTokenToTokenBatchOrders(
+        TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders
+    ) private returns (bool) {}
 
     function _calculateTokenToTokenPrice(
         Order[] memory orders,
@@ -285,7 +312,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 aToWethReserve1
     ) internal returns (uint256 spotPrice) {}
 
-    function _batchTokentoTokenOrders(
+    function _batchTokenToWethOrders(
+        Order[] memory orders,
+        TokenToWethExecutionPrice[] memory executionPrices
+    ) internal returns (TokenToWethBatchOrder[] memory) {}
+
+    function _batchTokenToTokenOrders(
         Order[] memory orders,
         TokenToTokenExecutionPrice[] memory executionPrices
     ) internal returns (TokenToTokenBatchOrder[] memory) {
