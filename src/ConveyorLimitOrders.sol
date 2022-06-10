@@ -90,6 +90,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address lpAddress;
         address[] batchOwners;
         uint256[] ownerShares;
+        bytes32[] orderIds;
     }
 
     struct TokenToTokenBatchOrder {
@@ -99,6 +100,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address lpAddressWethToB;
         address[] batchOwners;
         uint256[] ownerShares;
+        bytes32[] orderIds;
     }
 
     //----------------------Functions------------------------------------//
@@ -135,6 +137,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices
             );
 
+        ///@notice execute the batch orders
         bool success = _executeTokenToWethBatchOrders(tokenToWethBatchOrders);
     }
 
@@ -153,6 +156,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices
             );
 
+        ///@notice execute the batch orders
         bool success = _executeTokenToTokenBatchOrders(tokenToTokenBatchOrders);
     }
 
@@ -321,6 +325,18 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         Order[] memory orders,
         TokenToTokenExecutionPrice[] memory executionPrices
     ) internal returns (TokenToTokenBatchOrder[] memory) {
+        ///@notice
+        /*
+
+        go through each order
+        check best price
+        add to batch order 
+
+
+
+
+
+        */
         // (uint256 targetSpotFirst, uint256 targetSpotSecond) = (!high)
         //     ? (
         //         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,

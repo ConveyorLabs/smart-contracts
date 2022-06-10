@@ -13,6 +13,7 @@ import "./test/utils/Console.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/libraries/Uniswap/TickMath.sol";
 import "../lib/interfaces/uniswap-v3/ISwapRouter.sol";
+
 contract OrderRouter {
     //----------------------Constructor------------------------------------//
 
@@ -35,8 +36,8 @@ contract OrderRouter {
 
     struct SpotReserve {
         uint256 spotPrice;
-        uint256 res0;
-        uint256 res1;
+        uint128 res0;
+        uint128 res1;
     }
 
     //----------------------Functions------------------------------------//
@@ -50,7 +51,6 @@ contract OrderRouter {
         pure
         returns (uint128 Out64x64)
     {
-
         require(
             !(amountIn << 64 > 0xfffffffffffffffffffffffffff),
             "Overflow Error"
@@ -274,7 +274,6 @@ contract OrderRouter {
         return amountRecieved;
     }
 
-    
     /// @notice Helper function to perform a swapExactInputSingle on Uniswap V3
     function _swapV3(
         address _tokenIn,
@@ -297,21 +296,20 @@ contract OrderRouter {
 
         // ///@notice get the balance before
         // uint256 balanceBefore = IERC20(_tokenOut).balanceOf(address(this));
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams (
-             _tokenIn,
-             _tokenOut,
-             _fee,
-            address(this),
-            block.timestamp+5,
-            _amountInMaximum,
-            _amountOut,
-            0
-        );
-        
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
+            .ExactInputSingleParams(
+                _tokenIn,
+                _tokenOut,
+                _fee,
+                address(this),
+                block.timestamp + 5,
+                _amountInMaximum,
+                _amountOut,
+                0
+            );
+
         /// @notice Swap tokens for wrapped native tokens (nato).
-        ISwapRouter(_lp).exactInputSingle(
-           params
-        );
+        ISwapRouter(_lp).exactInputSingle(params);
 
         ///@notice calculate the amount recieved
         uint256 amountRecieved = IERC20(_tokenOut).balanceOf(address(this));
@@ -416,8 +414,15 @@ contract OrderRouter {
             if (pool == address(0)) {
                 return (_spRes, address(0));
             }
-            _spRes.res0 = IERC20(token0).balanceOf(pool);
-            _spRes.res1 = IERC20(token1).balanceOf(pool);
+
+            unchecked {
+                _spRes.res0 = uint128(IERC20(token0).balanceOf(pool));
+                _spRes.res1 = uint128(IERC20(token1).balanceOf(pool));
+
+                require(_spRes.res0 <= type(uint128).max);
+                require(_spRes.res1 <= type(uint128).max);
+            }
+
             {
                 // int56 / uint32 = int24
                 tick = getTick(pool, tickSecond);
@@ -524,13 +529,17 @@ contract OrderRouter {
                 }
             }
         }
-        (prices, lps)= (_spotPrices, _lps);
+        (prices, lps) = (_spotPrices, _lps);
     }
 
     /// @notice Helper to get the lp fee from a v3 pair address
     /// @param pairAddress address of v3 lp pair
     /// @return poolFee uint24 fee of the pool
-    function _getV3PoolFee(address pairAddress) internal view returns (uint24 poolFee){
+    function _getV3PoolFee(address pairAddress)
+        internal
+        view
+        returns (uint24 poolFee)
+    {
         poolFee = IUniswapV3Pool(pairAddress).fee();
     }
 
