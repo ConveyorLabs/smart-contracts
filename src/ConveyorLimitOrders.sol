@@ -323,71 +323,53 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     function _lpIsUniV2(address lp) internal returns (bool) {}
 
-    /// @notice private order execution function, assumes all orders passed to it will execute
-    /// @param orders orders to be executed through swap
-    /// @param dexIndex index of dex in dexes arr
-    /// @param pairAddress lp pair address to execute the order batch on
-    /// @param FEE lp spot trading fee
-    /// @return bool indicating whether all orders were successfully executed in the batch
-    function _executeOrder(
-        Order[] memory orders,
-        uint256 dexIndex,
-        address pairAddress,
-        uint24 FEE
-    ) private returns (bool) {
-        if (dexes[dexIndex].isUniV2) {
-            for (uint256 i = 0; i < orders.length; ++i) {
-                uint128 amountOutWeth = uint128(
-                    _swapV2(
-                        orders[i].tokenIn,
-                        WETH,
-                        pairAddress,
-                        orders[i].quantity,
-                        orders[i].amountOutMin
-                    )
-                );
-                uint128 _userFee = _calculateFee(amountOutWeth);
-                (
-                    uint128 conveyorReward,
-                    uint128 beaconReward
-                ) = _calculateReward(_userFee, amountOutWeth);
-            }
-        } else {
-            for (uint256 i = 0; i < orders.length; ++i) {
-                uint128 amountOutWeth = uint128(
-                    _swapV3(
-                        orders[i].tokenIn,
-                        WETH,
-                        FEE,
-                        pairAddress,
-                        orders[i].amountOutMin,
-                        orders[i].quantity
-                    )
-                );
-                uint128 _userFee = _calculateFee(amountOutWeth);
-                (
-                    uint128 conveyorReward,
-                    uint128 beaconReward
-                ) = _calculateReward(_userFee, amountOutWeth);
-            }
-        }
-    }
-
     function _executeTokenToWethBatchOrders(
         TokenToWethBatchOrder[] memory tokenToWethBatchOrders
     ) private returns (bool) {
-        //TODO: totalProtocolRevenue (the profit for the protocol)
+        uint256 totalBeaconReward;
 
         for (uint256 i = 0; i < tokenToWethBatchOrders.length; i++) {
             ///@notice _execute order
             //TODO: return the (amountOut, protocolRevenue)
-            // _executeTokenToWethBatch(tokenToWethBatchOrders[i]);
-            ///@notice add the protocol revenue to the totalProtocolRevenue
+            (
+                uint256 amountOut,
+                uint256 beaconReward
+            ) = _executeTokenToWethBatch(tokenToWethBatchOrders[i]);
+
+            ///@notice add the beacon reward to the totalBeaconReward
+            totalBeaconReward += beaconReward;
+
             ///@notice calculate how much to pay each user from the shares they own
+
             ///@notice for each user, pay out in a loop
         }
 
         ///@notice calculate the beacon runner profit and pay the beacon
+    }
+
+    function _executeTokenToWethBatch(TokenToWethBatchOrder memory batch)
+        internal
+        returns (uint256, uint256)
+    {
+        ///@notice swap from A to weth
+        uint128 amountOutWeth = uint128(
+            _swap(
+                batch.tokenIn,
+                WETH,
+                batch.lpAddress,
+                batch.amountIn,
+                batch.amountOutMin
+            )
+        );
+
+        ///@notice take out fees
+        uint128 protocolFee = _calculateFee(amountOutWeth);
+        (uint128 conveyorReward, uint128 beaconReward) = _calculateReward(
+            protocolFee,
+            amountOutWeth
+        );
+
+        return (uint256(amountOutWeth - protocolFee), uint256(beaconReward));
     }
 
     function _executeTokenToTokenBatchOrders(
