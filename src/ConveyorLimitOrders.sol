@@ -224,6 +224,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
         }
     }
+
     ///@notice Helper to calculate the multiplicative spot price over both router hops
     ///@param spotPriceAToWeth spotPrice of Token A relative to Weth
     ///@param spotPriceWethToB spotPrice of Weth relative to Token B
@@ -281,7 +282,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             amountOut = _swapV3(
                 tokenIn,
                 tokenOut,
-                _getUniV3Fee(),
+                _getUniV3Fee(lpAddress),
                 lpAddress,
                 amountIn,
                 amountOutMin
@@ -290,7 +291,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     //TODO:
-    function _getUniV3Fee() internal returns (uint24 fee) {}
+    function _getUniV3Fee(address lpAddress) internal view returns (uint24 fee) {
+        return IUniswapV3Pool(lpAddress).fee();
+    }
 
     ///@return (amountOut, beaconReward)
     ///@dev the amountOut is the amount out - protocol fees
@@ -349,11 +352,21 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ) = _executeTokenToWethBatch(tokenToWethBatchOrders[i]);
 
             ///@notice add the beacon reward to the totalBeaconReward
-            totalBeaconReward += beaconReward;
+            totalBeaconReward += beaconReward;tokenToWethBatchOrders[i].ownerShares.length;
 
-            ///@notice calculate how much to pay each user from the shares they own
+            uint256 ownerSharesLength = tokenToWethBatchOrders[i].ownerShares.length;
 
+            uint256[] memory ownerShares =tokenToWethBatchOrders[i].ownerShares;
+            uint256 amountIn = tokenToWethBatchOrders[i].amountIn;
+
+            for(uint256 j=0; j < ownerSharesLength; ++j){
+                ///@notice calculate how much to pay each user from the shares they own
+                ///@notice calculate how much to pay each user from the shares they own
+                uint128 orderShare = ConveyorMath.divUI(ownerShares[j], amountIn);
+                    
+                uint256 orderPayout = ConveyorMath.mul64I(orderShare, amountOut);
             ///@notice for each user, pay out in a loop
+            }
         }
 
         ///@notice calculate the beacon runner profit and pay the beacon
@@ -400,11 +413,24 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ///@notice add the beacon reward to the totalBeaconReward
             totalBeaconReward += beaconReward;
 
-            //TODO:
-            ///@notice calculate how much to pay each user from the shares they own
+            uint256 ownerSharesLength = tokenToTokenBatchOrders[i].ownerShares.length;
+            uint256[] memory ownerShares =tokenToTokenBatchOrders[i].ownerShares;
+            uint256 amountIn = tokenToTokenBatchOrders[i].amountIn;
+
+            for(uint256 j=0; j < ownerSharesLength; ++j){
+
+                //64.64
+                ///@notice calculate how much to pay each user from the shares they own
+                uint128 orderShare = ConveyorMath.divUI(ownerShares[j], amountIn);
+                
+                uint256 orderPayout = ConveyorMath.mul64I(orderShare, amountOut);
 
             //TODO:
             ///@notice for each user, pay out in a loop
+
+
+            }
+            
         }
 
         ///@notice calculate the beacon runner profit and pay the beacon
