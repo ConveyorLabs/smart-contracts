@@ -118,6 +118,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ///@notice Sequence the orders by priority fee
         // Order[] memory sequencedOrders = _sequenceOrdersByPriorityFee(orders);
 
+        //TODO: figure out weth to token
+
         ///@notice check if the token out is weth to determine what type of order execution to use
         if (orders[0].tokenOut == WETH) {
             _executeTokenToWethOrders(orders);
@@ -321,6 +323,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return (amountOutInB, uint256(beaconReward));
     }
 
+    //TODO:
     function _lpIsUniV2(address lp) internal returns (bool) {}
 
     function _executeTokenToWethBatchOrders(
@@ -388,8 +391,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ///@notice add the beacon reward to the totalBeaconReward
             totalBeaconReward += beaconReward;
 
+            //TODO:
             ///@notice calculate how much to pay each user from the shares they own
 
+            //TODO:
             ///@notice for each user, pay out in a loop
         }
 
@@ -461,11 +466,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 //-
                 ///@notice update the currentBestPriceIndex
                 currentBestPriceIndex = bestPriceIndex;
-
-                ///@notice add the batch order to tokenToTokenBatchOrders
-                tokenToTokenBatchOrders[
-                    tokenToTokenBatchOrders.length
-                ] = currentTokenToTokenBatchOrder;
 
                 ///@notice initialize a new batch order
                 //TODO: need to implement logic to trim 0 val orders
