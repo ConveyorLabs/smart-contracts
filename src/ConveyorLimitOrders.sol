@@ -183,7 +183,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices[i] = TokenToWethExecutionPrice(
                     spotReserveAToWeth[i].res0,
                     spotReserveAToWeth[i].res1,
-                    0, //TODO: calculate initial price
+                    spotReserveAToWeth[i].spotPrice, //TODO: calculate initial price
                     lpAddressesAToWeth[i]
                 );
             }
