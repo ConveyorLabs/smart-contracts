@@ -164,6 +164,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         ///@notice execute the batch orders
         bool success = _executeTokenToTokenBatchOrders(tokenToTokenBatchOrders);
+
     }
 
     ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
@@ -204,16 +205,18 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
         ) = _getAllPrices(WETH, orders[0].tokenOut, 300, 1);
-
+        
         {
             for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
                 for (uint256 j = 0; j < spotReserveWethToB.length; ++j) {
+                    
+                    uint128 spotPriceFinal = _calculateTokenToWethToTokenSpotPrice(spotReserveAToWeth[i].spotPrice, spotReserveWethToB[j].spotPrice);
                     executionPrices[i] = TokenToTokenExecutionPrice(
                         spotReserveAToWeth[i].res0,
                         spotReserveAToWeth[i].res1,
                         spotReserveWethToB[j].res0,
                         spotReserveWethToB[j].res1,
-                        0, //TODO: calculate initial price
+                        spotPriceFinal, 
                         lpAddressesAToWeth[i],
                         lpAddressWethToB[j]
                     );
@@ -221,7 +224,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
         }
     }
-
+    ///@notice Helper to calculate the multiplicative spot price over both router hops
+    ///@param spotPriceAToWeth spotPrice of Token A relative to Weth
+    ///@param spotPriceWethToB spotPrice of Weth relative to Token B
+    ///@return spotPriceFinal multiplicative finalSpot 
+    function _calculateTokenToWethToTokenSpotPrice(uint256 spotPriceAToWeth, uint256 spotPriceWethToB) internal pure returns (uint128 spotPriceFinal){
+        spotPriceFinal = ConveyorMath.mul64x64(uint128(spotPriceAToWeth >>64), uint128(spotPriceWethToB >>64));
+    }
     function _validateOrderSequencing(Order[] calldata orders) internal pure {
         for (uint256 j = 0; j < orders.length - 1; j++) {
             //TODO: change this to custom errors
