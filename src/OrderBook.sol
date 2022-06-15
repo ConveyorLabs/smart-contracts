@@ -254,7 +254,7 @@ contract OrderBook is GasOracle {
         uint256 executionCost,
         address userAddress,
         uint256 gasCreditBalance
-    ) external view returns (bool) {
+    ) internal view returns (bool) {
         return
             gasCreditBalance >=
             calculateMinGasCredits(gasPrice, executionCost, userAddress, 5);

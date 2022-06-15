@@ -101,17 +101,6 @@ contract OrderRouter {
         return (conveyorReward, beaconReward);
     }
 
-    /// @notice Helper function to check if min credits needed for order placement are satisfied
-    /// @param orderGroup := array of order's to be placed
-    /// @param gasPrice uint256 in gwei
-    /// @return bool := boolean value indicating whether gas credit's provide coverage over all orders in the orderGroup
-    function _hasMinGasCredits(
-        OrderBook.Order[] calldata orderGroup,
-        uint256 gasPrice
-    ) internal pure returns (bool) {
-        /// Todo iterate through each order in orderGroup, check if gas credits is satisfied for each order
-    }
-
     /// @notice Helper function to calculate the max beacon reward for a group of order's
     /// @param reserve0SnapShot uint256 snapShotSpot of the lowest execution spot price of the whole batch
     /// @param reserve1SnapShot uint256 snapShotSpot of the lowest execution spot price of the whole batch
@@ -273,6 +262,34 @@ contract OrderRouter {
         }
 
         return amountRecieved;
+    }
+
+    ///@notice agnostic swap function that determines whether or not to swap on univ2 or univ3
+    function _swap(
+        address tokenIn,
+        address tokenOut,
+        address lpAddress,
+        uint256 amountIn,
+        uint256 amountOutMin
+    ) internal returns (uint256 amountOut) {
+        if (_lpIsUniV2(lpAddress)) {
+            amountOut = _swapV2(
+                tokenIn,
+                tokenOut,
+                lpAddress,
+                amountIn,
+                amountOutMin
+            );
+        } else {
+            amountOut = _swapV3(
+                tokenIn,
+                tokenOut,
+                _getUniV3Fee(lpAddress),
+                lpAddress,
+                amountIn,
+                amountOutMin
+            );
+        }
     }
 
     /// @notice Helper function to perform a swapExactInputSingle on Uniswap V3
@@ -441,6 +458,24 @@ contract OrderRouter {
         _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token0, token1) << 9;
 
         return (_spRes, pool);
+    }
+
+    function _lpIsUniV2(address lp) internal view returns (bool) {
+        uint24 _fee = IUniswapV3Pool(lp).fee();
+
+        if (_fee == 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    function _getUniV3Fee(address lpAddress)
+        internal
+        view
+        returns (uint24 fee)
+    {
+        return IUniswapV3Pool(lpAddress).fee();
     }
 
     function getTick(address pool, uint32 tickSecond)
