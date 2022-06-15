@@ -29,6 +29,48 @@ contract OrderRouter {
         bool isUniV2;
     }
 
+    struct TokenToTokenExecutionPrice {
+        uint128 aToWethReserve0;
+        uint128 aToWethReserve1;
+        uint128 wethToBReserve0;
+        uint128 wethToBReserve1;
+        uint256 price;
+        //TODO: change this to dex index
+        address lpAddressAToWeth;
+        //TODO: change this to dex index
+        address lpAddressWethToB;
+    }
+
+    struct TokenToWethExecutionPrice {
+        uint128 aToWethReserve0;
+        uint128 aToWethReserve1;
+        uint256 price;
+        address lpAddressAToWeth;
+    }
+
+    struct TokenToWethBatchOrder {
+        uint256 amountIn;
+        uint256 amountOutMin;
+        address tokenIn;
+        address lpAddress;
+        address[] batchOwners;
+        uint256[] ownerShares;
+        bytes32[] orderIds;
+    }
+
+    struct TokenToTokenBatchOrder {
+        uint256 amountIn;
+        //TODO: need to set amount out min somewhere
+        uint256 amountOutMin;
+        address tokenIn;
+        address tokenOut;
+        address lpAddressAToWeth;
+        address lpAddressWethToB;
+        address[] batchOwners;
+        uint256[] ownerShares;
+        bytes32[] orderIds;
+    }
+
     //----------------------State Structures------------------------------------//
 
     /// @notice Array of dex structures to be used throughout the contract for pair spot price calculations

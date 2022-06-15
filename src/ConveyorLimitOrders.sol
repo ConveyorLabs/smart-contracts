@@ -46,63 +46,66 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 amount
     );
 
-    //----------------------Structs------------------------------------//
-
-    /// @notice Struct containing the token, orderId, OrderType enum type, price, and quantity for each order
-    //
-    // struct Order {
-    //     address tokenIn;
-    //     address tokenOut;
-    //     bytes32 orderId;
-    //     OrderType orderType;
-    //     uint256 price;
-    //     uint256 quantity;
-    // }
-
-    struct TokenToTokenExecutionPrice {
-        uint128 aToWethReserve0;
-        uint128 aToWethReserve1;
-        uint128 wethToBReserve0;
-        uint128 wethToBReserve1;
-        uint256 price;
-        //TODO: change this to dex index
-        address lpAddressAToWeth;
-        //TODO: change this to dex index
-        address lpAddressWethToB;
-    }
-
-    struct TokenToWethExecutionPrice {
-        uint128 aToWethReserve0;
-        uint128 aToWethReserve1;
-        uint256 price;
-        address lpAddressAToWeth;
-    }
-
-    struct TokenToWethBatchOrder {
-        uint256 amountIn;
-        uint256 amountOutMin;
-        address tokenIn;
-        address lpAddress;
-        address[] batchOwners;
-        uint256[] ownerShares;
-        bytes32[] orderIds;
-    }
-
-    struct TokenToTokenBatchOrder {
-        uint256 amountIn;
-        //TODO: need to set amount out min somewhere
-        uint256 amountOutMin;
-        address tokenIn;
-        address tokenOut;
-        address lpAddressAToWeth;
-        address lpAddressWethToB;
-        address[] batchOwners;
-        uint256[] ownerShares;
-        bytes32[] orderIds;
-    }
-
     //----------------------Functions------------------------------------//
 
+    //------------Gas Credit Functions------------------------
+
+    /// @notice deposit gas credits publicly callable function
+    /// @return bool boolean indicator whether deposit was successfully transferred into user's gas credit balance
+    function depositCredits() public payable returns (bool) {
+        //Require that deposit amount is strictly == ethAmount maybe keep this
+        // require(msg.value == ethAmount, "Deposit amount misnatch");
+
+        //Check if sender balance can cover eth deposit
+        // Todo write this in assembly
+        if (address(msg.sender).balance < msg.value) {
+            return false;
+        }
+
+        //Add amount deposited to creditBalance of the user
+        creditBalance[msg.sender] += msg.value;
+
+        //Emit credit deposit event for beacon
+        emit GasCreditEvent(true, msg.sender, msg.value);
+
+        //return bool success
+        return true;
+    }
+
+    /// @notice Public helper to withdraw user gas credit balance
+    /// @param _value uint256 value which the user would like to withdraw
+    /// @return bool boolean indicator whether withdrawal was successful
+    function withdrawGasCredits(uint256 _value) public returns (bool) {
+        //Require user's credit balance is larger than value
+        if (creditBalance[msg.sender] < _value) {
+            return false;
+        }
+
+        //Get current gas price from v3 Aggregator
+        uint256 gasPrice = getGasPrice();
+
+        //Require gas credit withdrawal doesn't exceeed minimum gas credit requirements
+        if (
+            !(
+                hasMinGasCredits(
+                    gasPrice,
+                    300000,
+                    msg.sender,
+                    creditBalance[msg.sender] - _value
+                )
+            )
+        ) {
+            return false;
+        }
+
+        //Decrease user creditBalance
+        creditBalance[msg.sender] = creditBalance[msg.sender] - _value;
+
+        payable(msg.sender).transfer(_value);
+        return true;
+    }
+
+    //------------Order Execution Functions------------------------
     ///@notice This function takes in an array of orders,
     /// @param orders array of orders to be executed within the mapping
     function executeOrders(Order[] calldata orders) external onlyEOA {
@@ -183,6 +186,148 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         ///@notice calculate the beacon runner profit and pay the beacon
         safeTransferETH(msg.sender, totalBeaconReward);
+    }
+
+    function _executeTokenToWethBatch(TokenToWethBatchOrder memory batch)
+        internal
+        returns (uint256, uint256)
+    {
+        ///@notice swap from A to weth
+        uint128 amountOutWeth = uint128(
+            _swap(
+                batch.tokenIn,
+                WETH,
+                batch.lpAddress,
+                batch.amountIn,
+                batch.amountOutMin
+            )
+        );
+
+        ///@notice take out fees
+        uint128 protocolFee = _calculateFee(amountOutWeth);
+
+        (, uint128 beaconReward) = _calculateReward(protocolFee, amountOutWeth);
+
+        return (uint256(amountOutWeth - protocolFee), uint256(beaconReward));
+    }
+
+    //------------Token to Weth Helper Functions------------------------
+
+    ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
+    function _initializeTokenToWethExecutionPrices(Order[] calldata orders)
+        internal
+        view
+        returns (TokenToWethExecutionPrice[] memory executionPrices)
+    {
+        (
+            SpotReserve[] memory spotReserveAToWeth,
+            address[] memory lpAddressesAToWeth
+        ) = _getAllPrices(orders[0].tokenIn, WETH, 300, 1);
+
+        {
+            for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
+                executionPrices[i] = TokenToWethExecutionPrice(
+                    spotReserveAToWeth[i].res0,
+                    spotReserveAToWeth[i].res1,
+                    spotReserveAToWeth[i].spotPrice,
+                    lpAddressesAToWeth[i]
+                );
+            }
+        }
+    }
+
+    function _batchTokenToWethOrders(
+        Order[] memory orders,
+        TokenToWethExecutionPrice[] memory executionPrices
+    ) internal returns (TokenToWethBatchOrder[] memory) {}
+
+    /// @notice helper function to determine the most spot price advantagous trade route for lp ordering of the batch
+    /// @notice Should be called prior to batch execution time to generate the final lp ordering on execution
+    /// @param orders all of the verifiably executable orders in the batch filtered prior to passing as parameter
+    /// @param reserveSizes nested array of uint256 reserve0,reserv1 for each lp
+    /// @param pairAddress address[] ordered by [uniswapV2, Sushiswap, UniswapV3]
+    // /// @return optimalOrder array of pair addresses of size orders.length corresponding to the indexed pair address to use for each order
+    function _optimizeBatchLPOrder(
+        Order[] memory orders,
+        uint128[][] memory reserveSizes,
+        address[] memory pairAddress,
+        bool high
+    ) public pure returns (address[] memory, uint256[] memory) {
+        //continually mock the execution of each order and find the most advantagios spot price after each simulated execution
+        // aggregate address[] optimallyOrderedPair to be an order's array of the optimal pair address to perform execution on for the respective indexed order in orders
+        // Note order.length == optimallyOrderedPair.length
+
+        uint256[] memory tempSpots = new uint256[](reserveSizes.length);
+        address[] memory orderedPairs = new address[](orders.length);
+
+        uint128[][] memory tempReserves = new uint128[][](reserveSizes.length);
+        uint256[] memory simulatedSpotPrices = new uint256[](orders.length);
+
+        uint256 targetSpot = (!high)
+            ? 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+            : 0;
+
+        // Fill tempSpots array
+        for (uint256 j = 0; j < tempSpots.length; j++) {
+            tempSpots[j] = (pairAddress[j] == address(0))
+                ? 0
+                : uint256(
+                    ConveyorMath.divUI(reserveSizes[j][0], reserveSizes[j][1])
+                );
+            tempReserves[j] = reserveSizes[j];
+        }
+
+        for (uint256 i = 0; i < orders.length; i++) {
+            uint256 index;
+
+            for (uint256 k = 0; k < tempSpots.length; k++) {
+                if (!(tempSpots[k] == 0)) {
+                    if (!high) {
+                        if (tempSpots[k] < targetSpot) {
+                            index = k;
+                            targetSpot = tempSpots[k];
+                        }
+                    } else {
+                        if (tempSpots[k] > targetSpot) {
+                            index = k;
+                            targetSpot = tempSpots[k];
+                        }
+                    }
+                }
+            }
+
+            Order memory order = orders[i];
+            //console.logAddress(orderedPairs[i]);
+            if (i != orders.length - 1) {
+                (tempSpots[index], tempReserves[index]) = simulatePriceChange(
+                    uint128(order.quantity),
+                    tempReserves[index]
+                );
+            }
+            simulatedSpotPrices[i] = targetSpot;
+            orderedPairs[i] = pairAddress[index];
+        }
+
+        return (orderedPairs, simulatedSpotPrices);
+    }
+
+    ///@notice returns the index of the best price in the executionPrices array
+    function _findBestTokenToWethExecutionPrice(
+        TokenToWethExecutionPrice[] memory executionPrices,
+        bool buyOrder
+    ) internal pure returns (uint256 bestPriceIndex) {
+        ///@notice if the order is a buy order, set the initial best price at 0, else set the initial best price at max uint256
+        uint256 bestPrice = buyOrder
+            ? 0
+            : 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+
+        for (uint256 i = 0; i < executionPrices.length; i++) {
+            uint256 executionPrice = executionPrices[i].price;
+            if (executionPrice > bestPrice) {
+                bestPrice = executionPrice;
+                bestPriceIndex = i;
+            }
+        }
     }
 
     //----------------------Token To Token Order Execution Logic------------------------------------//
@@ -286,30 +431,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return (amountOutInB, uint256(beaconReward));
     }
 
-    //------------Token to Weth Order Execution Helper Functions------------------------
-
-    ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
-    function _initializeTokenToWethExecutionPrices(Order[] calldata orders)
-        internal
-        view
-        returns (TokenToWethExecutionPrice[] memory executionPrices)
-    {
-        (
-            SpotReserve[] memory spotReserveAToWeth,
-            address[] memory lpAddressesAToWeth
-        ) = _getAllPrices(orders[0].tokenIn, WETH, 300, 1);
-
-        {
-            for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
-                executionPrices[i] = TokenToWethExecutionPrice(
-                    spotReserveAToWeth[i].res0,
-                    spotReserveAToWeth[i].res1,
-                    spotReserveAToWeth[i].spotPrice,
-                    lpAddressesAToWeth[i]
-                );
-            }
-        }
-    }
+    //------------Token to Token Helper Functions------------------------
 
     ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
     function _initializeTokenToTokenExecutionPrices(Order[] calldata orders)
@@ -360,157 +482,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128(spotPriceAToWeth >> 64),
             uint128(spotPriceWethToB >> 64)
         );
-    }
-
-    function _validateOrderSequencing(Order[] calldata orders) internal pure {
-        for (uint256 i = 0; i < orders.length - 1; i++) {
-            Order memory currentOrder = orders[i];
-            Order memory nextOrder = orders[i + 1];
-
-            //TODO: change this to custom errors
-            require(
-                currentOrder.quantity <= nextOrder.quantity,
-                "Invalid Batch Ordering"
-            );
-
-            require(
-                currentOrder.tokenIn == nextOrder.tokenIn,
-                "incongruent token group"
-            );
-
-            require(
-                currentOrder.tokenOut == nextOrder.tokenOut,
-                "incongruent token group"
-            );
-        }
-    }
-
-    //TODO:
-    function _sequenceOrdersByPriorityFee(Order[] calldata orders)
-        internal
-        returns (Order[] memory)
-    {
-        return orders;
-    }
-
-    function _buyOrSell(Order memory order) internal pure returns (bool) {
-        //Determine high bool from batched OrderType
-        if (
-            order.orderType == OrderType.BUY ||
-            order.orderType == OrderType.TAKE_PROFIT
-        ) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    function safeTransferETH(address to, uint256 amount) internal {
-        bool success;
-
-        assembly {
-            // Transfer the ETH and store if it succeeded or not.
-            success := call(gas(), to, amount, 0, 0, 0, 0)
-        }
-        require(success, "ETH_TRANSFER_FAILED");
-    }
-
-    function _executeTokenToWethBatch(TokenToWethBatchOrder memory batch)
-        internal
-        returns (uint256, uint256)
-    {
-        ///@notice swap from A to weth
-        uint128 amountOutWeth = uint128(
-            _swap(
-                batch.tokenIn,
-                WETH,
-                batch.lpAddress,
-                batch.amountIn,
-                batch.amountOutMin
-            )
-        );
-
-        ///@notice take out fees
-        uint128 protocolFee = _calculateFee(amountOutWeth);
-
-        (, uint128 beaconReward) = _calculateReward(protocolFee, amountOutWeth);
-
-        return (uint256(amountOutWeth - protocolFee), uint256(beaconReward));
-    }
-
-    function _batchTokenToWethOrders(
-        Order[] memory orders,
-        TokenToWethExecutionPrice[] memory executionPrices
-    ) internal returns (TokenToWethBatchOrder[] memory) {}
-
-    /// @notice helper function to determine the most spot price advantagous trade route for lp ordering of the batch
-    /// @notice Should be called prior to batch execution time to generate the final lp ordering on execution
-    /// @param orders all of the verifiably executable orders in the batch filtered prior to passing as parameter
-    /// @param reserveSizes nested array of uint256 reserve0,reserv1 for each lp
-    /// @param pairAddress address[] ordered by [uniswapV2, Sushiswap, UniswapV3]
-    // /// @return optimalOrder array of pair addresses of size orders.length corresponding to the indexed pair address to use for each order
-    function _optimizeBatchLPOrder(
-        Order[] memory orders,
-        uint128[][] memory reserveSizes,
-        address[] memory pairAddress,
-        bool high
-    ) public pure returns (address[] memory, uint256[] memory) {
-        //continually mock the execution of each order and find the most advantagios spot price after each simulated execution
-        // aggregate address[] optimallyOrderedPair to be an order's array of the optimal pair address to perform execution on for the respective indexed order in orders
-        // Note order.length == optimallyOrderedPair.length
-
-        uint256[] memory tempSpots = new uint256[](reserveSizes.length);
-        address[] memory orderedPairs = new address[](orders.length);
-
-        uint128[][] memory tempReserves = new uint128[][](reserveSizes.length);
-        uint256[] memory simulatedSpotPrices = new uint256[](orders.length);
-
-        uint256 targetSpot = (!high)
-            ? 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-            : 0;
-
-        // Fill tempSpots array
-        for (uint256 j = 0; j < tempSpots.length; j++) {
-            tempSpots[j] = (pairAddress[j] == address(0))
-                ? 0
-                : uint256(
-                    ConveyorMath.divUI(reserveSizes[j][0], reserveSizes[j][1])
-                );
-            tempReserves[j] = reserveSizes[j];
-        }
-
-        for (uint256 i = 0; i < orders.length; i++) {
-            uint256 index;
-
-            for (uint256 k = 0; k < tempSpots.length; k++) {
-                if (!(tempSpots[k] == 0)) {
-                    if (!high) {
-                        if (tempSpots[k] < targetSpot) {
-                            index = k;
-                            targetSpot = tempSpots[k];
-                        }
-                    } else {
-                        if (tempSpots[k] > targetSpot) {
-                            index = k;
-                            targetSpot = tempSpots[k];
-                        }
-                    }
-                }
-            }
-
-            Order memory order = orders[i];
-            //console.logAddress(orderedPairs[i]);
-            if (i != orders.length - 1) {
-                (tempSpots[index], tempReserves[index]) = simulatePriceChange(
-                    uint128(order.quantity),
-                    tempReserves[index]
-                );
-            }
-            simulatedSpotPrices[i] = targetSpot;
-            orderedPairs[i] = pairAddress[index];
-        }
-
-        return (orderedPairs, simulatedSpotPrices);
     }
 
     function _batchTokenToTokenOrders(
@@ -671,24 +642,59 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    ///@notice returns the index of the best price in the executionPrices array
+    //------------Misc Helper Functions------------------------
 
-    function _findBestTokenToWethExecutionPrice(
-        TokenToWethExecutionPrice[] memory executionPrices,
-        bool buyOrder
-    ) internal pure returns (uint256 bestPriceIndex) {
-        ///@notice if the order is a buy order, set the initial best price at 0, else set the initial best price at max uint256
-        uint256 bestPrice = buyOrder
-            ? 0
-            : 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+    function _validateOrderSequencing(Order[] calldata orders) internal pure {
+        for (uint256 i = 0; i < orders.length - 1; i++) {
+            Order memory currentOrder = orders[i];
+            Order memory nextOrder = orders[i + 1];
 
-        for (uint256 i = 0; i < executionPrices.length; i++) {
-            uint256 executionPrice = executionPrices[i].price;
-            if (executionPrice > bestPrice) {
-                bestPrice = executionPrice;
-                bestPriceIndex = i;
-            }
+            //TODO: change this to custom errors
+            require(
+                currentOrder.quantity <= nextOrder.quantity,
+                "Invalid Batch Ordering"
+            );
+
+            require(
+                currentOrder.tokenIn == nextOrder.tokenIn,
+                "incongruent token group"
+            );
+
+            require(
+                currentOrder.tokenOut == nextOrder.tokenOut,
+                "incongruent token group"
+            );
         }
+    }
+
+    //TODO:
+    function _sequenceOrdersByPriorityFee(Order[] calldata orders)
+        internal
+        returns (Order[] memory)
+    {
+        return orders;
+    }
+
+    function _buyOrSell(Order memory order) internal pure returns (bool) {
+        //Determine high bool from batched OrderType
+        if (
+            order.orderType == OrderType.BUY ||
+            order.orderType == OrderType.TAKE_PROFIT
+        ) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    function safeTransferETH(address to, uint256 amount) internal {
+        bool success;
+
+        assembly {
+            // Transfer the ETH and store if it succeeded or not.
+            success := call(gas(), to, amount, 0, 0, 0, 0)
+        }
+        require(success, "ETH_TRANSFER_FAILED");
     }
 
     /// @notice Helper function to determine the spot price change to the lp after introduction alphaX amount into the reserve pool
@@ -746,60 +752,4 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice checks if order can complete without hitting slippage
     //TODO:
     function _orderCanExecute() internal pure returns (bool) {}
-
-    /// @notice deposit gas credits publicly callable function
-    /// @return bool boolean indicator whether deposit was successfully transferred into user's gas credit balance
-
-    function depositCredits() public payable returns (bool) {
-        //Require that deposit amount is strictly == ethAmount maybe keep this
-        // require(msg.value == ethAmount, "Deposit amount misnatch");
-
-        //Check if sender balance can cover eth deposit
-        // Todo write this in assembly
-        if (address(msg.sender).balance < msg.value) {
-            return false;
-        }
-
-        //Add amount deposited to creditBalance of the user
-        creditBalance[msg.sender] += msg.value;
-
-        //Emit credit deposit event for beacon
-        emit GasCreditEvent(true, msg.sender, msg.value);
-
-        //return bool success
-        return true;
-    }
-
-    /// @notice Public helper to withdraw user gas credit balance
-    /// @param _value uint256 value which the user would like to withdraw
-    /// @return bool boolean indicator whether withdrawal was successful
-    function withdrawGasCredits(uint256 _value) public returns (bool) {
-        //Require user's credit balance is larger than value
-        if (creditBalance[msg.sender] < _value) {
-            return false;
-        }
-
-        //Get current gas price from v3 Aggregator
-        uint256 gasPrice = getGasPrice();
-
-        //Require gas credit withdrawal doesn't exceeed minimum gas credit requirements
-        if (
-            !(
-                hasMinGasCredits(
-                    gasPrice,
-                    300000,
-                    msg.sender,
-                    creditBalance[msg.sender] - _value
-                )
-            )
-        ) {
-            return false;
-        }
-
-        //Decrease user creditBalance
-        creditBalance[msg.sender] = creditBalance[msg.sender] - _value;
-
-        payable(msg.sender).transfer(_value);
-        return true;
-    }
 }
