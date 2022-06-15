@@ -355,8 +355,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         executionPrices[bestPriceIndex].aToWethReserve1
                     );
                 } else {
-                    //TODO:
                     ///@notice cancel the order due to insufficient slippage
+                    cancelOrder(currentOrder.orderId);
+                    //TODO: emit order cancellation
                 }
             }
         }
@@ -537,7 +538,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         TokenToTokenExecutionPrice[] memory executionPrices
     )
         internal
-        pure
         returns (TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders)
     {
         Order memory firstOrder = orders[0];
@@ -643,8 +643,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         executionPrices[bestPriceIndex].wethToBReserve1
                     );
                 } else {
-                    //TODO:
                     ///@notice cancel the order due to insufficient slippage
+                    cancelOrder(currentOrder.orderId);
+                    //TODO: emit order cancellation                }
                 }
             }
         }
