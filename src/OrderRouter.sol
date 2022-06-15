@@ -35,9 +35,7 @@ contract OrderRouter {
         uint128 wethToBReserve0;
         uint128 wethToBReserve1;
         uint256 price;
-        //TODO: change this to dex index
         address lpAddressAToWeth;
-        //TODO: change this to dex index
         address lpAddressWethToB;
     }
 

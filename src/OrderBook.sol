@@ -37,7 +37,7 @@ contract OrderBook is GasOracle {
         TAKE_PROFIT
     }
 
-    //----------------------Errors------------------------------------//
+    //----------------------Error Definitions------------------------------------//
 
     error OrderDoesNotExist(bytes32 orderId);
     error InsufficientWalletBalance();
