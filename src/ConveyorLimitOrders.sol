@@ -455,6 +455,82 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         TokenToWethExecutionPrice[] memory executionPrices
     ) internal returns (TokenToWethBatchOrder[] memory) {}
 
+
+    /// @notice helper function to determine the most spot price advantagous trade route for lp ordering of the batch
+    /// @notice Should be called prior to batch execution time to generate the final lp ordering on execution
+    /// @param orders all of the verifiably executable orders in the batch filtered prior to passing as parameter
+    /// @param reserveSizes nested array of uint256 reserve0,reserv1 for each lp
+    /// @param pairAddress address[] ordered by [uniswapV2, Sushiswap, UniswapV3]
+    // /// @return optimalOrder array of pair addresses of size orders.length corresponding to the indexed pair address to use for each order
+    function _optimizeBatchLPOrder(
+        Order[] memory orders,
+        uint128[][] memory reserveSizes,
+        address[] memory pairAddress,
+        bool high
+    ) public pure returns (address[] memory, uint256[] memory) {
+        //continually mock the execution of each order and find the most advantagios spot price after each simulated execution
+        // aggregate address[] optimallyOrderedPair to be an order's array of the optimal pair address to perform execution on for the respective indexed order in orders
+        // Note order.length == optimallyOrderedPair.length
+
+        uint256[] memory tempSpots = new uint256[](reserveSizes.length);
+        address[] memory orderedPairs = new address[](orders.length);
+
+        uint128[][] memory tempReserves = new uint128[][](reserveSizes.length);
+        uint256[] memory simulatedSpotPrices = new uint256[](orders.length);
+
+        uint256 targetSpot = (!high)
+            ? 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+            : 0;
+
+        // Fill tempSpots array
+        for (uint256 j = 0; j < tempSpots.length; j++) {
+                    
+                    tempSpots[j] = (pairAddress[j]==address(0)) ? 0 : uint256(
+                        ConveyorMath.divUI(
+                            reserveSizes[j][0],
+                            reserveSizes[j][1]
+                        )
+                    );
+                    tempReserves[j] = reserveSizes[j];
+        }
+
+        for (uint256 i = 0; i < orders.length; i++) {
+            uint256 index;
+
+            for (uint256 k = 0; k < tempSpots.length; k++) {
+                if(!(tempSpots[k]==0)){
+                    if (!high) {
+                        
+                        if (tempSpots[k] < targetSpot) {
+                            index = k;
+                            targetSpot = tempSpots[k];
+                        }
+
+                    } else {
+                        if (tempSpots[k] > targetSpot) {
+                            index = k;
+                            targetSpot = tempSpots[k];
+                        }
+                    }
+                }
+            }
+
+            Order memory order = orders[i];
+            //console.logAddress(orderedPairs[i]);
+            if (i != orders.length - 1) {
+                (tempSpots[index], tempReserves[index]) = simulatePriceChange(
+                    uint128(order.quantity),
+                    tempReserves[index]
+                );
+            }
+            simulatedSpotPrices[i]= targetSpot;
+            orderedPairs[i] = pairAddress[index];
+        }
+
+        return (orderedPairs, simulatedSpotPrices);
+    }
+
+    
     function _batchTokenToTokenOrders(
         Order[] memory orders,
         TokenToTokenExecutionPrice[] memory executionPrices
