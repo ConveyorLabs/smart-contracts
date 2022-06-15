@@ -17,48 +17,43 @@ import "./OrderRouter.sol";
 ///@notice for all order fulfuillment logic, see OrderRouter
 
 contract ConveyorLimitOrders is OrderBook, OrderRouter {
-    //----------------------Modifiers------------------------------------//
-
+    // ========================================= Modifiers =============================================
     modifier onlyEOA() {
         require(msg.sender == tx.origin);
         _;
     }
 
-    //----------------------Mappings------------------------------------//
+    // ========================================= State Variables =============================================
 
     //mapping to hold users gas credit balances
     mapping(address => uint256) creditBalance;
 
-    //----------------------State Variables------------------------------------//
-
     address immutable WETH;
 
-    //----------------------Constructor------------------------------------//
+    // ========================================= Constructor =============================================
 
     constructor(address _gasOracle, address _weth) OrderBook(_gasOracle) {
         WETH = _weth;
     }
 
-    //----------------------Events------------------------------------//
+    // ========================================= Events  =============================================
     event GasCreditEvent(
         bool indexed deposit,
         address indexed sender,
         uint256 amount
     );
 
-    //----------------------Functions------------------------------------//
+    // ========================================= FUNCTIONS =============================================
 
     //------------Gas Credit Functions------------------------
 
     /// @notice deposit gas credits publicly callable function
     /// @return bool boolean indicator whether deposit was successfully transferred into user's gas credit balance
     function depositCredits() public payable returns (bool) {
-        //Require that deposit amount is strictly == ethAmount maybe keep this
-        // require(msg.value == ethAmount, "Deposit amount misnatch");
-
         //Check if sender balance can cover eth deposit
         // Todo write this in assembly
         if (address(msg.sender).balance < msg.value) {
+            //TODO: revert insufficient balance
             return false;
         }
 
@@ -105,7 +100,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return true;
     }
 
-    //------------Order Execution Functions------------------------
+    // ==================== Order Execution Functions =========================
+
     ///@notice This function takes in an array of orders,
     /// @param orders array of orders to be executed within the mapping
     function executeOrders(Order[] calldata orders) external onlyEOA {
@@ -125,7 +121,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    //----------------------Token To Weth Order Execution Logic------------------------------------//
+    // ==================== Token To Weth Order Execution Logic =========================
 
     ///@notice execute an array of orders from token to weth
     function _executeTokenToWethOrders(Order[] calldata orders) internal {
@@ -211,7 +207,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return (uint256(amountOutWeth - protocolFee), uint256(beaconReward));
     }
 
-    //------------Token to Weth Helper Functions------------------------
+    // ==================== Token to Weth Helper Functions =========================
 
     ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
     function _initializeTokenToWethExecutionPrices(Order[] calldata orders)
@@ -330,7 +326,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    //----------------------Token To Token Order Execution Logic------------------------------------//
+    // ==================== Token To Token Order Execution Logic =========================
 
     ///@notice execute an array of orders from token to token
     function _executeTokenToTokenOrders(Order[] calldata orders) internal {
@@ -431,7 +427,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return (amountOutInB, uint256(beaconReward));
     }
 
-    //------------Token to Token Helper Functions------------------------
+    // ==================== Token to Token Helper Functions =========================
 
     ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
     function _initializeTokenToTokenExecutionPrices(Order[] calldata orders)
@@ -642,7 +638,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    //------------Misc Helper Functions------------------------
+    // ==================== Misc Helper Functions =========================
 
     function _validateOrderSequencing(Order[] calldata orders) internal pure {
         for (uint256 i = 0; i < orders.length - 1; i++) {
@@ -736,7 +732,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     /// @notice Helper function to determine if order can execute based on the spot price of the lp, the determinig factor is the order.orderType
-
     function _orderMeetsExecutionPrice(
         uint256 orderPrice,
         uint256 executionPrice,
