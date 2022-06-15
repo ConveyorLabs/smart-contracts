@@ -357,8 +357,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 } else {
                     ///@notice cancel the order due to insufficient slippage
                     cancelOrder(currentOrder.orderId);
-                    //TODO: emit order cancellation
-                    emit OrderCancelled(orderIds);
+                    bytes32[] memory canceledOrderIds = new bytes32[](1);
+                    canceledOrderIds[0] = currentOrder.orderId;
+                    emit OrderCancelled(canceledOrderIds);
                 }
             }
         }
@@ -738,10 +739,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     function _buyOrSell(Order memory order) internal pure returns (bool) {
         //Determine high bool from batched OrderType
-        if (
-            order.orderType == OrderType.BUY ||
-            order.orderType == OrderType.TAKE_PROFIT
-        ) {
+        if (order.buy) {
             return true;
         } else {
             return false;
