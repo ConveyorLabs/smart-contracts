@@ -530,7 +530,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return (orderedPairs, simulatedSpotPrices);
     }
 
-    
+
     function _batchTokenToTokenOrders(
         Order[] memory orders,
         TokenToTokenExecutionPrice[] memory executionPrices
@@ -783,6 +783,31 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         emit GasCreditEvent(true, msg.sender, msg.value);
 
         //return bool success
+        return true;
+    }
+
+
+    /// @notice Public helper to withdraw user gas credit balance
+    /// @param _value uint256 value which the user would like to withdraw
+    /// @return bool boolean indicator whether withdrawal was successful
+    function withdrawGasCredits(uint256 _value) public returns (bool) {
+        //Require user's credit balance is larger than value
+        if(creditBalance[msg.sender]< _value){
+            return false;
+        }
+
+        //Get current gas price from v3 Aggregator
+        uint256 gasPrice = getGasPrice();
+
+        //Require gas credit withdrawal doesn't exceeed minimum gas credit requirements
+        if(!(hasMinGasCredits(gasPrice, 300000, msg.sender, creditBalance[msg.sender]-_value))){
+            return false;
+        }
+        
+        //Decrease user creditBalance
+        creditBalance[msg.sender]= creditBalance[msg.sender]-_value;
+
+        payable(msg.sender).transfer(_value);
         return true;
     }
 }
