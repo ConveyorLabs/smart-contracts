@@ -11,31 +11,9 @@ contract OrderBook is GasOracle {
 
     //----------------------Events------------------------------------//
 
-    event OrderEvent(
-        EventType indexed eventType,
-        address indexed sender,
-        bytes32[] indexed orderIds
-    );
-
-    //----------------------Enums------------------------------------//
-
-    /// @notice enumeration of event type to be emmited from eoa function calls for, for queryable beacon event listening
-    enum EventType {
-        PLACE,
-        UPDATE,
-        CANCEL,
-        CANCEL_ALL,
-        FILLED,
-        FAILED
-    }
-
-    /// @notice enumeration of type of Order to be executed within the 'Order' Struct
-    enum OrderType {
-        BUY,
-        SELL,
-        STOP,
-        TAKE_PROFIT
-    }
+    event OrderPlaced(bytes32[] indexed orderIds);
+    event OrderCancelled(bytes32[] indexed orderIds);
+    event OrderUpdated(bytes32[] indexed orderIds);
 
     //----------------------Error Definitions------------------------------------//
 
@@ -52,7 +30,7 @@ contract OrderBook is GasOracle {
         address tokenIn;
         address tokenOut;
         bytes32 orderId;
-        OrderType orderType;
+        bool buy;
         uint256 price;
         uint256 amountOutMin;
         uint256 quantity;
@@ -138,7 +116,7 @@ contract OrderBook is GasOracle {
         }
 
         //emit orders placed
-        emit OrderEvent(EventType.PLACE, msg.sender, orderIds);
+        emit OrderPlaced(orderIds);
 
         return orderIds;
     }
@@ -175,7 +153,7 @@ contract OrderBook is GasOracle {
         //TODO: do this in assembly
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = newOrder.orderId;
-        emit OrderEvent(EventType.UPDATE, msg.sender, orderIds);
+        emit OrderUpdated(orderIds);
     }
 
     /// @notice Remove Order order from OrderGroup mapping by identifier orderId conditionally if order exists already in ActiveOrders
@@ -200,7 +178,7 @@ contract OrderBook is GasOracle {
         //TODO: do this in assembly
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = order.orderId;
-        emit OrderEvent(EventType.CANCEL, msg.sender, orderIds);
+        emit OrderCancelled(orderIds);
     }
 
     /// @notice cancel all orders relevant in ActiveOders mapping to the msg.sender i.e the function caller
@@ -222,7 +200,7 @@ contract OrderBook is GasOracle {
         }
         //emit an updated order event
         //TODO: do this in assembly
-        emit OrderEvent(EventType.PLACE, msg.sender, canceledOrderIds);
+        emit OrderCancelled(canceledOrderIds);
     }
 
     function getTotalOrdersValue(address token) internal returns (uint256) {}

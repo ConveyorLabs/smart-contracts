@@ -358,6 +358,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     ///@notice cancel the order due to insufficient slippage
                     cancelOrder(currentOrder.orderId);
                     //TODO: emit order cancellation
+                    emit OrderCancelled(orderIds);
                 }
             }
         }
@@ -645,7 +646,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 } else {
                     ///@notice cancel the order due to insufficient slippage
                     cancelOrder(currentOrder.orderId);
-                    //TODO: emit order cancellation                }
+                    //TODO: emit order cancellation
                 }
             }
         }
