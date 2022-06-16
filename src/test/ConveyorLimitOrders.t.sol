@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.13;
+pragma solidity >=0.8.15;
 
 import "./utils/test.sol";
 import "./utils/Console.sol";
@@ -30,9 +30,9 @@ contract ConveyorLimitOrdersTest is DSTest {
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         conveyorLimitOrders = new ConveyorLimitOrders(
-            0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C
+            0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
-        
     }
 
     function testExecuteOrder() public {}
@@ -82,10 +82,11 @@ contract ConveyorLimitOrdersTest is DSTest {
             tokenIn: tokenIn,
             tokenOut: tokenOut,
             orderId: bytes32(0),
-            orderType: OrderBook.OrderType.SELL,
+            buy: false,
             price: price,
-            amountOutMin:amountOutMin,
-            quantity: quantity
+            amountOutMin: amountOutMin,
+            quantity: quantity,
+            owner: msg.sender
         });
     }
 
@@ -135,7 +136,15 @@ contract ConveyorLimitOrdersTest is DSTest {
         orders[1] = order2;
         orders[2] = order3;
 
-        (address[] memory pairAddressOrder, uint256[] memory simulatedSpotPrices) = conveyorLimitOrders._optimizeBatchLPOrder(orders, reserveSizes, pairAddress, false);
+        (
+            address[] memory pairAddressOrder,
+            uint256[] memory simulatedSpotPrices
+        ) = conveyorLimitOrders._optimizeBatchLPOrder(
+                orders,
+                reserveSizes,
+                pairAddress,
+                false
+            );
 
         console.logString("PAIR ADDRESS ORDER");
         console.logAddress(pairAddressOrder[0]);
@@ -149,14 +158,4 @@ contract ConveyorLimitOrdersTest is DSTest {
     function testOptimizeBatchLPOrderWithCancellation() public {}
 }
 
-abstract contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
-    function optimizeBatchLPOrder(
-        Order[] memory orders,
-        uint128[][] memory reserveSizes,
-        address[] memory pairAddress,
-        bool high
-    ) public pure returns (address[] memory, uint256[] memory) {
-        return _optimizeBatchLPOrder(orders, reserveSizes, pairAddress, high);
-    }
-    
-}
+abstract contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {}
