@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.13;
+pragma solidity >=0.8.15;
 
 import "./utils/test.sol";
 import "./utils/Console.sol";
@@ -51,6 +51,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         //place a mock order
@@ -74,6 +75,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         //place a mock order
@@ -101,6 +103,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
 
@@ -123,6 +126,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
 
@@ -146,6 +150,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
 
@@ -155,6 +160,7 @@ contract OrderBookTest is DSTest {
             swapToken1,
             wnato,
             24500000000000000,
+            5,
             5
         );
 
@@ -178,6 +184,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         //place a mock order
@@ -190,6 +197,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         updatedOrder.orderId = orderId;
@@ -207,6 +215,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
 
@@ -218,6 +227,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         updatedOrder
@@ -237,6 +247,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             2450000000000000,
+            5,
             5
         );
 
@@ -262,6 +273,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         placeMockOrder(order);
@@ -286,6 +298,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         //place a mock order
@@ -304,6 +317,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
         //place a mock order
@@ -326,6 +340,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
 
@@ -335,6 +350,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             24500000000000000,
+            5,
             5
         );
 
@@ -361,6 +377,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             245000000000000000000,
+            5,
             5
         );
 
@@ -370,6 +387,7 @@ contract OrderBookTest is DSTest {
             swapToken,
             wnato,
             24500000000000000,
+            5,
             5
         );
 
@@ -400,16 +418,19 @@ contract OrderBookTest is DSTest {
         address tokenIn,
         address tokenOut,
         uint256 price,
-        uint256 quantity
-    ) internal pure returns (ConveyorLimitOrders.Order memory order) {
+        uint256 quantity,
+        uint256 amountOutMin
+    ) internal view returns (ConveyorLimitOrders.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
             tokenIn: tokenIn,
             tokenOut: tokenOut,
             orderId: bytes32(0),
-            orderType: OrderBook.OrderType.SELL,
+            buy: false,
             price: price,
-            quantity: quantity
+            quantity: quantity,
+            amountOutMin: amountOutMin,
+            owner: msg.sender
         });
     }
 
@@ -433,4 +454,19 @@ contract OrderBookTest is DSTest {
 ///@notice wrapper around the OrderBook contract to expose internal functions for testing
 contract OrderBookWrapper is DSTest, OrderBook {
     constructor(address _gasOracle) OrderBook(_gasOracle) {}
+
+    function hasMinGasCredits(
+        uint256 gasPrice,
+        uint256 executionCost,
+        address userAddress,
+        uint256 gasCreditBalance
+    ) public view returns (bool) {
+        return
+            _hasMinGasCredits(
+                gasPrice,
+                executionCost,
+                userAddress,
+                gasCreditBalance
+            );
+    }
 }

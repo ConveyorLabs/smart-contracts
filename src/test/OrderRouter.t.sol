@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.13;
+pragma solidity >=0.8.15;
 
 import "./utils/test.sol";
 import "./utils/Console.sol";
@@ -238,12 +238,14 @@ contract OrderRouterTest is DSTest {
     //     console.logUint(price4);
     // }
 
-
     function testGetPoolFee() public {
         address pairAddress = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
-        assertEq(500,orderRouter.getV3PoolFee(pairAddress));
+        assertEq(500, orderRouter.getV3PoolFee(pairAddress));
     }
-    
+
+    function testUniV2Swap() public {}
+
+    function testUniV3Swap() public {}
 
     function testGetAllPrices() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -364,21 +366,21 @@ contract OrderRouterWrapper is OrderRouter {
     function calculateFee(uint128 amountIn) public returns (uint128 Out64x64) {
         return _calculateFee(amountIn);
     }
-    function getV3PoolFee(address pairAddress) public view returns (uint24 poolFee){
+
+    function getV3PoolFee(address pairAddress)
+        public
+        view
+        returns (uint24 poolFee)
+    {
         return _getV3PoolFee(pairAddress);
     }
+
     function calculateReward(uint128 percentFee, uint128 wethValue)
         public
+        pure
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
         return _calculateReward(percentFee, wethValue);
-    }
-
-    function hasMinGasCredits(
-        OrderBook.Order[] calldata orderGroup,
-        uint256 gasPrice
-    ) public returns (bool) {
-        return _hasMinGasCredits(orderGroup, gasPrice);
     }
 
     function calculateMaxBeaconReward(
@@ -387,7 +389,7 @@ contract OrderRouterWrapper is OrderRouter {
         uint128 reserve0,
         uint128 reserve1,
         uint128 fee
-    ) public returns (uint128) {
+    ) public pure returns (uint128) {
         return
             _calculateMaxBeaconReward(
                 reserve0SnapShot,
@@ -403,13 +405,14 @@ contract OrderRouterWrapper is OrderRouter {
         uint128 reserve1SnapShot,
         uint128 reserve0Execution,
         uint128 reserve1Execution
-    ) public returns (uint256 alphaX) {
-        _calculateAlphaX(
-            reserve0SnapShot,
-            reserve1SnapShot,
-            reserve0Execution,
-            reserve1Execution
-        );
+    ) public pure returns (uint256) {
+        return
+            _calculateAlphaX(
+                reserve0SnapShot,
+                reserve1SnapShot,
+                reserve0Execution,
+                reserve1Execution
+            );
     }
 
     function swapV2(
@@ -422,8 +425,23 @@ contract OrderRouterWrapper is OrderRouter {
         return _swapV2(_tokenIn, _tokenOut, _lp, _amountIn, _amountOutMin);
     }
 
-    function swapV3() public returns (uint256) {
-        return swapV3();
+    function swapV3(
+        address _tokenIn,
+        address _tokenOut,
+        uint24 _fee,
+        address _lp,
+        uint256 _amountOut,
+        uint256 _amountInMaximum
+    ) public returns (uint256) {
+        return
+            _swapV3(
+                _tokenIn,
+                _tokenOut,
+                _fee,
+                _lp,
+                _amountOut,
+                _amountInMaximum
+            );
     }
 
     function calculateV2SpotPrice(
@@ -431,7 +449,7 @@ contract OrderRouterWrapper is OrderRouter {
         address token1,
         address _factory,
         bytes32 _initBytecode
-    ) public returns (SpotReserve memory spRes, address poolAddress) {
+    ) public view returns (SpotReserve memory spRes, address poolAddress) {
         return _calculateV2SpotPrice(token0, token1, _factory, _initBytecode);
     }
 
@@ -442,7 +460,7 @@ contract OrderRouterWrapper is OrderRouter {
         uint24 FEE,
         uint32 tickSecond,
         address _factory
-    ) public returns (SpotReserve memory, address) {
+    ) public view returns (SpotReserve memory, address) {
         return
             _calculateV3SpotPrice(
                 token0,
@@ -464,13 +482,14 @@ contract OrderRouterWrapper is OrderRouter {
         address token1,
         uint32 tickSecond,
         uint24 FEE
-    ) public returns (SpotReserve[] memory prices, address[] memory lps) {
+    ) public view returns (SpotReserve[] memory prices, address[] memory lps) {
         return _getAllPrices(token0, token1, tickSecond, FEE);
     }
 
     /// @notice Helper to get amountIn amount for token pair
     function getTargetAmountIn(address token0, address token1)
         public
+        view
         returns (uint112 amountIn)
     {
         return _getTargetAmountIn(token0, token1);
@@ -481,7 +500,7 @@ contract OrderRouterWrapper is OrderRouter {
         uint8 token0Decimals,
         uint256 reserve1,
         uint8 token1Decimals
-    ) public returns (uint256, uint256) {
+    ) public pure returns (uint256, uint256) {
         return
             _convertToCommonBase(
                 reserve0,

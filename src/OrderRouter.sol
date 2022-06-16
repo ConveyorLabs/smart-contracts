@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.13;
+pragma solidity >=0.8.15;
 
 import "../lib/interfaces/token/IERC20.sol";
 // import "../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
@@ -12,6 +12,7 @@ import "./OrderBook.sol";
 import "./test/utils/Console.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/libraries/Uniswap/TickMath.sol";
+import "../lib/interfaces/uniswap-v3/ISwapRouter.sol";
 
 contract OrderRouter {
     //----------------------Constructor------------------------------------//
@@ -28,15 +29,56 @@ contract OrderRouter {
         bool isUniV2;
     }
 
+    struct TokenToTokenExecutionPrice {
+        uint128 aToWethReserve0;
+        uint128 aToWethReserve1;
+        uint128 wethToBReserve0;
+        uint128 wethToBReserve1;
+        uint256 price;
+        address lpAddressAToWeth;
+        address lpAddressWethToB;
+    }
+
+    struct TokenToWethExecutionPrice {
+        uint128 aToWethReserve0;
+        uint128 aToWethReserve1;
+        uint256 price;
+        address lpAddressAToWeth;
+    }
+
+    struct TokenToWethBatchOrder {
+        uint256 amountIn;
+        uint256 amountOutMin;
+        address tokenIn;
+        address lpAddress;
+        address[] batchOwners;
+        uint256[] ownerShares;
+        bytes32[] orderIds;
+    }
+
+    struct TokenToTokenBatchOrder {
+        uint256 amountIn;
+        //TODO: need to set amount out min somewhere
+        uint256 amountOutMin;
+        address tokenIn;
+        address tokenOut;
+        address lpAddressAToWeth;
+        address lpAddressWethToB;
+        address[] batchOwners;
+        uint256[] ownerShares;
+        bytes32[] orderIds;
+    }
+
     //----------------------State Structures------------------------------------//
 
     /// @notice Array of dex structures to be used throughout the contract for pair spot price calculations
     Dex[] public dexes;
+    mapping(address => uint256) dexToIndex;
 
     struct SpotReserve {
         uint256 spotPrice;
-        uint256 res0;
-        uint256 res1;
+        uint128 res0;
+        uint128 res1;
     }
 
     //----------------------Functions------------------------------------//
@@ -50,7 +92,6 @@ contract OrderRouter {
         pure
         returns (uint128 Out64x64)
     {
-
         require(
             !(amountIn << 64 > 0xfffffffffffffffffffffffffff),
             "Overflow Error"
@@ -98,17 +139,6 @@ contract OrderRouter {
         );
 
         return (conveyorReward, beaconReward);
-    }
-
-    /// @notice Helper function to check if min credits needed for order placement are satisfied
-    /// @param orderGroup := array of order's to be placed
-    /// @param gasPrice uint256 in gwei
-    /// @return bool := boolean value indicating whether gas credit's provide coverage over all orders in the orderGroup
-    function _hasMinGasCredits(
-        OrderBook.Order[] calldata orderGroup,
-        uint256 gasPrice
-    ) internal pure returns (bool) {
-        /// Todo iterate through each order in orderGroup, check if gas credits is satisfied for each order
     }
 
     /// @notice Helper function to calculate the max beacon reward for a group of order's
@@ -274,14 +304,87 @@ contract OrderRouter {
         return amountRecieved;
     }
 
-    function _swapV3() internal returns (uint256) {}
+    ///@notice agnostic swap function that determines whether or not to swap on univ2 or univ3
+    function _swap(
+        address tokenIn,
+        address tokenOut,
+        address lpAddress,
+        uint256 amountIn,
+        uint256 amountOutMin
+    ) internal returns (uint256 amountOut) {
+        if (_lpIsUniV2(lpAddress)) {
+            amountOut = _swapV2(
+                tokenIn,
+                tokenOut,
+                lpAddress,
+                amountIn,
+                amountOutMin
+            );
+        } else {
+            amountOut = _swapV3(
+                tokenIn,
+                tokenOut,
+                _getUniV3Fee(lpAddress),
+                lpAddress,
+                amountIn,
+                amountOutMin
+            );
+        }
+    }
+
+    /// @notice Helper function to perform a swapExactInputSingle on Uniswap V3
+    function _swapV3(
+        address _tokenIn,
+        address _tokenOut,
+        uint24 _fee,
+        address _lp,
+        uint256 _amountInMaximum,
+        uint256 _amountOut
+    ) internal returns (uint256) {
+        /// transfer the tokens to the lp
+        IERC20(_tokenIn).transferFrom(msg.sender, _lp, _amountInMaximum);
+
+        //Sort the tokens
+        // (address token0, address token1) = _sortTokens(_tokenIn, _tokenOut);
+
+        // //Initialize the amount out depending on the token order
+        // (uint256 amount0Out, uint256 amount1Out) = _tokenIn == token0
+        //     ? (uint256(0), _amountOut)
+        //     : (_amountOut, uint256(0));
+
+        // ///@notice get the balance before
+        // uint256 balanceBefore = IERC20(_tokenOut).balanceOf(address(this));
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
+            .ExactInputSingleParams(
+                _tokenIn,
+                _tokenOut,
+                _fee,
+                address(this),
+                block.timestamp + 5,
+                _amountInMaximum,
+                _amountOut,
+                0
+            );
+
+        /// @notice Swap tokens for wrapped native tokens (nato).
+        ISwapRouter(_lp).exactInputSingle(params);
+
+        ///@notice calculate the amount recieved
+        uint256 amountRecieved = IERC20(_tokenOut).balanceOf(address(this));
+
+        ///@notice if the amount recieved is less than the amount out min, revert
+        if (amountRecieved >= _amountOut) {
+            revert InsufficientOutputAmount();
+        }
+
+        return amountRecieved;
+    }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
     /// @param _factory bytes32 contract factory address
     /// @param _initBytecode bytes32 initialization bytecode for dex pair
-
     function _calculateV2SpotPrice(
         address token0,
         address token1,
@@ -338,6 +441,7 @@ contract OrderRouter {
         (spRes, poolAddress) = (_spRes, pairAddress);
     }
 
+    // function _getV3PairAddress(address token0, address token1)
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
@@ -345,7 +449,6 @@ contract OrderRouter {
     /// @param FEE lp fee
     /// @param tickSecond the tick second range to get the lp spot price from
     /// @param _factory Uniswap v3 factory address
-
     function _calculateV3SpotPrice(
         address token0,
         address token1,
@@ -369,8 +472,15 @@ contract OrderRouter {
             if (pool == address(0)) {
                 return (_spRes, address(0));
             }
-            _spRes.res0 = IERC20(token0).balanceOf(pool);
-            _spRes.res1 = IERC20(token1).balanceOf(pool);
+
+            unchecked {
+                _spRes.res0 = uint128(IERC20(token0).balanceOf(pool));
+                _spRes.res1 = uint128(IERC20(token1).balanceOf(pool));
+
+                require(_spRes.res0 <= type(uint128).max);
+                require(_spRes.res1 <= type(uint128).max);
+            }
+
             {
                 // int56 / uint32 = int24
                 tick = getTick(pool, tickSecond);
@@ -388,6 +498,24 @@ contract OrderRouter {
         _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token0, token1) << 9;
 
         return (_spRes, pool);
+    }
+
+    function _lpIsUniV2(address lp) internal view returns (bool) {
+        uint24 _fee = IUniswapV3Pool(lp).fee();
+
+        if (_fee == 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    function _getUniV3Fee(address lpAddress)
+        internal
+        view
+        returns (uint24 fee)
+    {
+        return IUniswapV3Pool(lpAddress).fee();
     }
 
     function getTick(address pool, uint32 tickSecond)
@@ -477,13 +605,17 @@ contract OrderRouter {
                 }
             }
         }
-        (prices, lps)= (_spotPrices, _lps);
+        (prices, lps) = (_spotPrices, _lps);
     }
 
     /// @notice Helper to get the lp fee from a v3 pair address
     /// @param pairAddress address of v3 lp pair
     /// @return poolFee uint24 fee of the pool
-    function _getV3PoolFee(address pairAddress) internal view returns (uint24 poolFee){
+    function _getV3PoolFee(address pairAddress)
+        internal
+        view
+        returns (uint24 poolFee)
+    {
         poolFee = IUniswapV3Pool(pairAddress).fee();
     }
 
