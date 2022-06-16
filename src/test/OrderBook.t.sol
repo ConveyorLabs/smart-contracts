@@ -420,16 +420,17 @@ contract OrderBookTest is DSTest {
         uint256 price,
         uint256 quantity,
         uint256 amountOutMin
-    ) internal pure returns (ConveyorLimitOrders.Order memory order) {
+    ) internal view returns (ConveyorLimitOrders.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
             tokenIn: tokenIn,
             tokenOut: tokenOut,
             orderId: bytes32(0),
-            orderType: OrderBook.OrderType.SELL,
+            buy: false,
             price: price,
             quantity: quantity,
-            amountOutMin: amountOutMin
+            amountOutMin: amountOutMin,
+            owner: msg.sender
         });
     }
 
@@ -453,4 +454,19 @@ contract OrderBookTest is DSTest {
 ///@notice wrapper around the OrderBook contract to expose internal functions for testing
 contract OrderBookWrapper is DSTest, OrderBook {
     constructor(address _gasOracle) OrderBook(_gasOracle) {}
+
+    function hasMinGasCredits(
+        uint256 gasPrice,
+        uint256 executionCost,
+        address userAddress,
+        uint256 gasCreditBalance
+    ) public view returns (bool) {
+        return
+            _hasMinGasCredits(
+                gasPrice,
+                executionCost,
+                userAddress,
+                gasCreditBalance
+            );
+    }
 }

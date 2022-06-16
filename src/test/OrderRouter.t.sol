@@ -243,13 +243,9 @@ contract OrderRouterTest is DSTest {
         assertEq(500, orderRouter.getV3PoolFee(pairAddress));
     }
 
-    function testUniV2Swap() public {
+    function testUniV2Swap() public {}
 
-    }
-
-    function testUniV3Swap() public {
-
-    }
+    function testUniV3Swap() public {}
 
     function testGetAllPrices() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -387,13 +383,6 @@ contract OrderRouterWrapper is OrderRouter {
         return _calculateReward(percentFee, wethValue);
     }
 
-    function hasMinGasCredits(
-        OrderBook.Order[] calldata orderGroup,
-        uint256 gasPrice
-    ) public pure returns (bool) {
-        return _hasMinGasCredits(orderGroup, gasPrice);
-    }
-
     function calculateMaxBeaconReward(
         uint128 reserve0SnapShot,
         uint128 reserve1SnapShot,
@@ -444,7 +433,15 @@ contract OrderRouterWrapper is OrderRouter {
         uint256 _amountOut,
         uint256 _amountInMaximum
     ) public returns (uint256) {
-        return _swapV3(_tokenIn, _tokenOut, _fee, _lp, _amountOut, _amountInMaximum);
+        return
+            _swapV3(
+                _tokenIn,
+                _tokenOut,
+                _fee,
+                _lp,
+                _amountOut,
+                _amountInMaximum
+            );
     }
 
     function calculateV2SpotPrice(

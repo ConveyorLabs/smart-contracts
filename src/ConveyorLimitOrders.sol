@@ -82,7 +82,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //Require gas credit withdrawal doesn't exceeed minimum gas credit requirements
         if (
             !(
-                hasMinGasCredits(
+                _hasMinGasCredits(
                     gasPrice,
                     300000,
                     msg.sender,
