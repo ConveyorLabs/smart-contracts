@@ -320,7 +320,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 )
             ) {
                 ///@notice if the order can execute without hitting slippage
-                if (_orderCanExecute()) {
+                if (
+                    _orderCanExecute(
+                        executionPrice,
+                        currentOrder.quantity,
+                        currentOrder.amountOutMin
+                    )
+                ) {
                     uint256 batchOrderLength = currentTokenToWethBatchOrder
                         .batchOwners
                         .length;
@@ -606,7 +612,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 )
             ) {
                 ///@notice if the order can execute without hitting slippage
-                if (_orderCanExecute()) {
+                if (
+                    _orderCanExecute(
+                        executionPrice,
+                        currentOrder.quantity,
+                        currentOrder.amountOutMin
+                    )
+                ) {
                     uint256 batchOrderLength = currentTokenToTokenBatchOrder
                         .batchOwners
                         .length;
@@ -880,5 +892,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     ///@notice checks if order can complete without hitting slippage
     //TODO:
-    function _orderCanExecute() internal pure returns (bool) {}
+    function _orderCanExecute(
+        uint256 spot_price,
+        uint256 order_quantity,
+        uint256 amountOutMin
+    ) internal pure returns (bool) {
+        return spot_price * order_quantity >= amountOutMin;
+    }
 }
