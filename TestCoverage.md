@@ -154,3 +154,53 @@
 
 # OrderRouter
 
+## _calculateFee
+- success
+- fail: overflow error
+
+## _calculateReward
+
+
+## _calculateMaxBeaconReward
+
+## _calculateAlphaX
+
+## addDex
+- success
+- fail invalid input
+
+## _swap
+- success univ2
+- success univ3
+
+## _swapV2
+- success
+- fail: insufficient output amount
+
+## _swapV3
+- success
+- fail: insufficient output amount
+
+## _calculateV2SpotPrice
+
+## _calculateV3SpotPrice
+
+## _lpIsUniV2
+
+## _getUniV3Fee
+
+## getTick
+
+## _getAllPrices
+
+## _getV3PoolFee
+
+## _getTargetAmountIn
+
+## _convertToCommonBase
+
+## _getTargetDecimals
+
+## _sortTokens
+
+## _getQuoteAtTick

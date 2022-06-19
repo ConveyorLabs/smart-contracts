@@ -167,6 +167,8 @@ contract OrderRouter {
                     ) >> 64
                 )
             );
+
+            //TODO: do we need this?
             require(maxReward <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
             return maxReward;
         }
@@ -608,6 +610,7 @@ contract OrderRouter {
         (prices, lps) = (_spotPrices, _lps);
     }
 
+    //TODO: duplicate, remove this
     /// @notice Helper to get the lp fee from a v3 pair address
     /// @param pairAddress address of v3 lp pair
     /// @return poolFee uint24 fee of the pool
