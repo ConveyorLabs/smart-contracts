@@ -40,6 +40,7 @@ contract OrderBook is GasOracle {
     //----------------------State Structures------------------------------------//
 
     //order id  to order
+    //TODO: deleting doesnt actually get rid of the order, just removes the pointer
     mapping(bytes32 => Order) orderIdToOrder;
 
     //keccak256(msg.sender, tokenAddress) -> total orders quantity
@@ -185,6 +186,7 @@ contract OrderBook is GasOracle {
     function cancelOrders(bytes32[] memory orderIds) public {
         bytes32[] memory canceledOrderIds = new bytes32[](orderIds.length);
 
+        //TODO: just call cancel order on loop?
         //check that there is one or more orders
         for (uint256 i = 0; i < orderIds.length; ++i) {
             bytes32 orderId = orderIds[i];
