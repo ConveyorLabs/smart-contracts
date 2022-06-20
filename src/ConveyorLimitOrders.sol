@@ -67,6 +67,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return true;
     }
 
+    ///TODO: make nonReentrant
     /// @notice Public helper to withdraw user gas credit balance
     /// @param _value uint256 value which the user would like to withdraw
     /// @return bool boolean indicator whether withdrawal was successful
@@ -96,7 +97,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //Decrease user creditBalance
         creditBalance[msg.sender] = creditBalance[msg.sender] - _value;
 
+        //TODO: update to safe transfer eth
         payable(msg.sender).transfer(_value);
+
         return true;
     }
 
@@ -198,6 +201,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 batch.amountOutMin
             )
         );
+
+        //TODO: require amountOutWeth> batchAmountOutMin ?
 
         ///@notice take out fees
         uint128 protocolFee = _calculateFee(amountOutWeth);
@@ -496,6 +501,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         view
         returns (TokenToTokenExecutionPrice[] memory executionPrices)
     {
+        //TODO: need to make fee dynamic
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
@@ -539,6 +545,37 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128(spotPriceAToWeth >> 64),
             uint128(spotPriceWethToB >> 64)
         );
+    }
+
+    function _initializeNewTokenToTokenBatchOrder(
+        uint256 initArrayLength,
+        address tokenIn,
+        address tokenOut,
+        address lpAddressAToWeth,
+        address lpAddressWethToB
+    ) internal pure returns (TokenToTokenBatchOrder memory) {
+        ///@notice initialize a new batch order
+        return
+            TokenToTokenBatchOrder(
+                ///@notice initialize amountIn
+                0,
+                ///@notice initialize amountOutMin
+                0,
+                ///@notice add the token in
+                tokenIn,
+                ///@notice add the token out
+                tokenOut,
+                ///@notice initialize A to weth lp
+                lpAddressAToWeth,
+                ///@notice initialize weth to B lp
+                lpAddressWethToB,
+                ///@notice initialize batchOwners
+                new address[](initArrayLength),
+                ///@notice initialize ownerShares
+                new uint256[](initArrayLength),
+                ///@notice initialize orderIds
+                new bytes32[](initArrayLength)
+            );
     }
 
     function _batchTokenToTokenOrders(
@@ -665,37 +702,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    function _initializeNewTokenToTokenBatchOrder(
-        uint256 initArrayLength,
-        address tokenIn,
-        address tokenOut,
-        address lpAddressAToWeth,
-        address lpAddressWethToB
-    ) internal pure returns (TokenToTokenBatchOrder memory) {
-        ///@notice initialize a new batch order
-        return
-            TokenToTokenBatchOrder(
-                ///@notice initialize amountIn
-                0,
-                ///@notice initialize amountOutMin
-                0,
-                ///@notice add the token in
-                tokenIn,
-                ///@notice add the token out
-                tokenOut,
-                ///@notice initialize A to weth lp
-                lpAddressAToWeth,
-                ///@notice initialize weth to B lp
-                lpAddressWethToB,
-                ///@notice initialize batchOwners
-                new address[](initArrayLength),
-                ///@notice initialize ownerShares
-                new uint256[](initArrayLength),
-                ///@notice initialize orderIds
-                new bytes32[](initArrayLength)
-            );
-    }
-
     ///@notice returns the index of the best price in the executionPrices array
     ///@param buyOrder indicates if the batch is a buy or a sell
     function _findBestTokenToTokenExecutionPrice(
@@ -758,6 +764,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
+    //TODO: just import solmate safeTransferETh
     function safeTransferETH(address to, uint256 amount) internal {
         bool success;
 
