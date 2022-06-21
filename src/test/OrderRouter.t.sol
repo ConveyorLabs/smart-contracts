@@ -9,7 +9,8 @@ import "../ConveyorLimitOrders.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
-
+import "./utils/python_deployer/PythonDeployer.sol";
+import "./utils/python_deployer/IAlphaX.sol";
 interface CheatCodes {
     function prank(address) external;
 
@@ -17,6 +18,8 @@ interface CheatCodes {
 }
 
 contract OrderRouterTest is DSTest {
+    PythonDeployer pythonDeployer = new PythonDeployer();
+    IAlphaX alphaX;
     CheatCodes cheatCodes;
 
     IUniswapV2Router02 uniV2Router;
@@ -196,47 +199,47 @@ contract OrderRouterTest is DSTest {
     //     console.logUint(price4);
     // }
 
-    // function testCalculateV2SpotUni() public view {
-    //     //Test tokens
-    //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    //     address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-    //     address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
-    //     //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-    //     uint256 price1 = PriceLibrary.calculateV2SpotPrice(
-    //         weth,
-    //         usdc,
-    //         0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
-    //         _uniswapV2HexDem
-    //     );
-    //     uint256 price2 = PriceLibrary.calculateV2SpotPrice(
-    //         dai,
-    //         usdc,
-    //         0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
-    //         _uniswapV2HexDem
-    //     );
-    //     uint256 price3 = PriceLibrary.calculateV2SpotPrice(
-    //         weth,
-    //         dai,
-    //         0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
-    //         _uniswapV2HexDem
-    //     );
-    //     uint256 price4 = PriceLibrary.calculateV2SpotPrice(
-    //         weth,
-    //         wax,
-    //         0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
-    //         _uniswapV2HexDem
-    //     );
-    //     console.logString("---------V2 Spot Price Uni----------");
-    //     console.logString("---------USDC-WETH-------------");
-    //     console.logUint(price1);
-    //     console.logString("---------USDC-DAI--------------");
-    //     console.logUint(price2);
-    //     console.logString("----------Dai-USDC-------------");
-    //     console.logUint(price3);
-    //     console.logString("----------WAX-WETH-------------");
-    //     console.logUint(price4);
-    // }
+    function testCalculateV2SpotUni() public view {
+        //Test tokens
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+        address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
+        //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
+        (ConveyorLimitOrders.SpotReserve memory price1, address poolAddress0) = orderRouter.calculateV2SpotPrice(
+            weth,
+            usdc,
+            0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
+            _uniswapV2HexDem
+        );
+        (ConveyorLimitOrders.SpotReserve memory price2, address poolAddress1)= orderRouter.calculateV2SpotPrice(
+            dai,
+            usdc,
+            0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
+            _uniswapV2HexDem
+        );
+        (ConveyorLimitOrders.SpotReserve memory price3, address poolAddress2) = orderRouter.calculateV2SpotPrice(
+            weth,
+            dai,
+            0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
+            _uniswapV2HexDem
+        );
+        (ConveyorLimitOrders.SpotReserve memory price4, address poolAddress3) = orderRouter.calculateV2SpotPrice(
+            weth,
+            wax,
+            0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
+            _uniswapV2HexDem
+        );
+        console.logString("---------V2 Spot Price Uni----------");
+        console.logString("---------USDC-WETH-------------");
+        console.logUint(price1.spotPrice);
+        console.logString("---------USDC-DAI--------------");
+        console.logUint(price2.spotPrice);
+        console.logString("----------Dai-USDC-------------");
+        console.logUint(price3.spotPrice);
+        console.logString("----------WAX-WETH-------------");
+        console.logUint(price4.spotPrice);
+    }
 
     function testGetPoolFee() public {
         address pairAddress = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
@@ -321,6 +324,10 @@ contract OrderRouterTest is DSTest {
         );
 
         assertEq(340282366886892426828258718426375055715247042, alphaX);
+    }
+
+    function testPythonDeployer() public {
+
     }
 
     function testChangeBase() public {

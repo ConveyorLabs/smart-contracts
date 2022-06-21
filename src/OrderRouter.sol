@@ -436,9 +436,12 @@ contract OrderRouter {
             reserve1,
             token1Decimals
         );
-
-        _spRes.spotPrice = (commonReserve0 << 9) / commonReserve1;
-
+        unchecked {
+            _spRes.spotPrice=ConveyorMath.div128x128(commonReserve0<<128, commonReserve1<<128);
+            require(_spRes.spotPrice <= 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
+        }
+        
+        
         // Left shift commonReserve0 9 digits i.e. commonReserve0 = commonReserve0 * 2 ** 9
         (spRes, poolAddress) = (_spRes, pairAddress);
     }
