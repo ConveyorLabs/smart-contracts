@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.15;
+pragma solidity >=0.8.14;
 
 import "./utils/test.sol";
 import "./utils/Console.sol";
@@ -23,9 +23,17 @@ contract ConveyorLimitOrdersTest is DSTest {
     //Initialize cheatcodes
     CheatCodes cheatCodes;
 
+    //Test Token Address's
+    address WETH=0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619;
+    address LINK=0x218532a12a389a4a92fC0C5Fb22901D1c19198aA;
+    address UNI=0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
+    address USDC=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address DAI=0x6B175474E89094C44Da98b954EedeAC495271d0F;
+
     //MAX_UINT for testing
     uint256 constant MAX_UINT =
         115792089237316195423570985008687907853269984665640564039457584007913129639935;
+
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
@@ -35,7 +43,12 @@ contract ConveyorLimitOrdersTest is DSTest {
         );
     }
 
-    function testExecuteOrder() public {}
+    function testExecuteTokenToTokenOrderBatch() public {
+        OrderBook.Order[] memory tokenToTokenOrderBatch = newMockTokenToTokenBatchPass();
+        conveyorLimitOrders.executeOrders(tokenToTokenOrderBatch);
+    }
+
+
 
     function testDepositGasCredits() public {
         cheatCodes.deal(address(1337), MAX_UINT);
@@ -70,10 +83,52 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     // }
 
+    function newMockTokenToTokenBatchPass() internal view returns (OrderBook.Order[] memory) {
+        OrderBook.Order memory order1 = newMockOrder(LINK, DAI, 7<<64, false, 6900000000000000000,1);
+        OrderBook.Order memory order2 = newMockOrder(LINK, DAI, 7<<64, false, 6900000000000000000,1);
+        OrderBook.Order memory order3 = newMockOrder(LINK, DAI, 7<<64, false, 6900000000000000000,1);
+        OrderBook.Order memory order4 = newMockOrder(LINK, DAI, 7<<64, false, 6900000000000000000,1);
+        OrderBook.Order memory order5 = newMockOrder(LINK, DAI, 7<<64, false, 6900000000000000000,1);
+        OrderBook.Order memory order6 = newMockOrder(LINK, DAI, 7<<64, false, 6900000000000000000,1);
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](6);
+        orderBatch[0]= order1;
+        orderBatch[1]= order2;
+        orderBatch[2]= order3;
+        orderBatch[3]= order4;
+        orderBatch[4]= order5;
+        orderBatch[5]= order6;
+
+        return orderBatch;
+
+    }
+
+    function newMockTokenToWethBatchPass() internal view returns (OrderBook.Order[] memory) {
+        OrderBook.Order memory order1 = newMockOrder(DAI, WETH, 18446744073709550, false, 6900000000000000000,1);
+        OrderBook.Order memory order2 = newMockOrder(DAI, WETH, 18446744073709550, false, 6900000000000000000,1);
+        OrderBook.Order memory order3 = newMockOrder(DAI, WETH, 18446744073709550, false, 6900000000000000000,1);
+        OrderBook.Order memory order4 = newMockOrder(DAI, WETH, 18446744073709550, false, 6900000000000000000,1);
+        OrderBook.Order memory order5 = newMockOrder(DAI, WETH, 18446744073709550, false, 6900000000000000000,1);
+        OrderBook.Order memory order6 = newMockOrder(DAI, WETH, 18446744073709550, false, 6900000000000000000,1);
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](6);
+        orderBatch[0]= order1;
+        orderBatch[1]= order2;
+        orderBatch[2]= order3;
+        orderBatch[3]= order4;
+        orderBatch[4]= order5;
+        orderBatch[5]= order6;
+
+        return orderBatch;
+
+    }
+
+
     function newMockOrder(
         address tokenIn,
         address tokenOut,
         uint256 price,
+        bool buy,
         uint256 amountOutMin,
         uint256 quantity
     ) internal view returns (ConveyorLimitOrders.Order memory order) {
@@ -82,7 +137,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             tokenIn: tokenIn,
             tokenOut: tokenOut,
             orderId: bytes32(0),
-            buy: false,
+            buy: buy,
             price: price,
             amountOutMin: amountOutMin,
             quantity: quantity,

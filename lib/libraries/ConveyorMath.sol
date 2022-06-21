@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.15;
+pragma solidity >=0.8.14;
 
 library ConveyorMath {
     /// @notice maximum uint128 64.64 fixed point number

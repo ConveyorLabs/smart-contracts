@@ -182,18 +182,19 @@
 - fail: insufficient output amount
 
 ## _calculateV2SpotPrice
-
+ - Success: fork specific block
+ - Fail: fork specific block
 ## _calculateV3SpotPrice
-
+- success: Fork specific block
+- fail: Fork specific block
 ## _lpIsUniV2
 
 ## _getUniV3Fee
-
+- success case
+- fail case
 ## getTick
 
 ## _getAllPrices
-
-## _getV3PoolFee
 
 ## _getTargetAmountIn
 
