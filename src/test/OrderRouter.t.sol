@@ -18,8 +18,10 @@ interface CheatCodes {
 }
 
 contract OrderRouterTest is DSTest {
+    //Python fuzz test deployer
     PythonDeployer pythonDeployer = new PythonDeployer();
     IAlphaX alphaX;
+
     CheatCodes cheatCodes;
 
     IUniswapV2Router02 uniV2Router;
@@ -327,8 +329,11 @@ contract OrderRouterTest is DSTest {
     }
 
     function testPythonDeployer() public {
-
+        alphaX = IAlphaX(
+            pythonDeployer.deployScript("alphaX", abi.encode(47299249002010446421409070433015781392384000000,16441701632611160000000000000000000000000000,47639531368931384884872445040447549603840000000,16324260906687270000000000000000000000000000))
+        );
     }
+    
 
     function testChangeBase() public {
         //----------Test 1 setup----------------------//
