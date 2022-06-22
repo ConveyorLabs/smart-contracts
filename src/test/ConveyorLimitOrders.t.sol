@@ -42,12 +42,95 @@ contract ConveyorLimitOrdersTest is DSTest {
         );
     }
 
-    function testExecuteTokenToTokenOrderBatch() public {
+    //----------------------------TokenToToken Execution Tests-----------------------------------------
+
+    //Single order TokenToToken success
+    function testExecuteTokenToTokenSingleSuccess() public {
+        //Roughly 5.2
+        OrderBook.Order memory order1 = newMockOrder(
+            UNI,
+            DAI,
+            110680464442257309696,
+            false,
+            6900000000000000000,
+            1
+        );
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](1);
+
+        orderBatch[0]= order1;
+
+        conveyorLimitOrders.executeOrders(orderBatch);
+    }
+
+    //Token to Token batch success
+    function testExecuteTokenToTokenOrderBatchSuccess() public {
         OrderBook.Order[]
             memory tokenToTokenOrderBatch = newMockTokenToTokenBatchPass();
         conveyorLimitOrders.executeOrders(tokenToTokenOrderBatch);
     }
 
+
+
+    //----------------------------TokenToWeth Execution Tests-----------------------------------------
+    //Single order TokenToWeth success
+    function testExecuteTokenToWethSingleSuccess() public {
+        
+        OrderBook.Order memory order1 = newMockOrder(
+            DAI,
+            WETH,
+            18446744073709550,
+            false,
+            6900000000000000000,
+            1
+        );
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](1);
+
+        orderBatch[0]= order1;
+
+        conveyorLimitOrders.executeOrders(orderBatch);
+    }
+
+    //Token to Weth Batch success
+    function testExecuteTokenToWethOrderBatchSuccess() public {
+        OrderBook.Order[]
+            memory tokenToWethOrderBatch = newMockTokenToWethBatchPass();
+        conveyorLimitOrders.executeOrders(tokenToWethOrderBatch);
+    }
+
+
+    
+    //----------------------------_executeTokenToWethOrders Tests-----------------------------------------
+    //Single success
+    function executeTokenToWethOrdersSingleSuccess() public {
+        OrderBook.Order memory order1 = newMockOrder(
+            DAI,
+            WETH,
+            16602069666338596454400,
+            true,
+            6900000000000000000,
+            1
+        );
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](1);
+
+        orderBatch[0]= order1;
+
+        limitOrderWrapper.executeTokenToWethOrders(orderBatch);
+    }
+
+    //Batch success
+    function executeTokenToWethOrdersBatchSuccess() public {
+        OrderBook.Order[]
+            memory tokenToWethOrderBatch = newMockTokenToWethBatchPass1();
+        limitOrderWrapper.executeTokenToWethOrders(tokenToWethOrderBatch);
+    }
+    
+
+    //----------------------------_executeTokenToWethBatchOrders Tests-----------------------------------------
+
+    //----------------------------Gas Credit Tests-----------------------------------------
     function testDepositGasCredits(uint256 _amount) public {
         //deal this address max eth
         cheatCodes.deal(address(this), MAX_UINT);
@@ -69,11 +152,80 @@ contract ConveyorLimitOrdersTest is DSTest {
         require(gasCreditBalance == _amount);
     }
 
-    function testFailDepositGasCredits() public {}
+    function testFailDepositGasCredits() public {
+        cheatCodes.deal(address(1337), 5);
 
-    function testRemoveGasCredits() public {}
+        //deposit gas credits
+        (bool success, ) = address(conveyorLimitOrders).call{value: 6}(
+            abi.encodeWithSignature("depositCredits()")
+        );
 
-    function testFailRemoveGasCredits() public {}
+        //require that the deposit was a success
+        require(success, "testDepositGasCredits: deposit failed");
+
+        //get the updated gasCreditBalance for the address
+        uint256 gasCreditBalance = conveyorLimitOrders.creditBalance(
+            address(this)
+        );
+
+        //check that the creditBalance map has been updated
+        require(gasCreditBalance == 5);
+    }
+
+    
+
+    function testRemoveGasCredits() public {
+        cheatCodes.deal(address(1227), 5);
+
+        //deposit gas credits
+        (bool success, ) = address(conveyorLimitOrders).call{value: 5}(
+            abi.encodeWithSignature("depositCredits()")
+        );
+
+        //require that the deposit was a success
+        require(success, "testDepositGasCredits: deposit failed");
+
+        //get the updated gasCreditBalance for the address
+        uint256 gasCreditBalance = conveyorLimitOrders.creditBalance(
+            address(this)
+        );
+
+        //check that the creditBalance map has been updated
+        require(gasCreditBalance == 5);
+        cheatCodes.prank(address(1227));
+
+        bool succ = conveyorLimitOrders.withdrawGasCredits(5);
+
+        require(succ, "Unable to withdraw credits");
+    }
+
+    function testFailRemoveGasCredits() public {
+        cheatCodes.deal(address(1228), 5);
+
+        //deposit gas credits
+        (bool success, ) = address(conveyorLimitOrders).call{value: 5}(
+            abi.encodeWithSignature("depositCredits()")
+        );
+
+        //require that the deposit was a success
+        require(success, "testDepositGasCredits: deposit failed");
+
+        //get the updated gasCreditBalance for the address
+        uint256 gasCreditBalance = conveyorLimitOrders.creditBalance(
+            address(this)
+        );
+
+        //check that the creditBalance map has been updated
+        require(gasCreditBalance == 5);
+
+        cheatCodes.prank(address(1228));
+        //Withdraw more than user creditBalance==5
+
+        bool succ = conveyorLimitOrders.withdrawGasCredits(6);
+
+        require(succ, "Unable to withdraw credits");
+
+    }
 
     function testSimulatePriceChange() public {}
 
@@ -88,6 +240,8 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     // }
 
+
+    //----------------------------Order Batch Generators-----------------------------------------
     function newMockTokenToTokenBatchPass()
         internal
         view
@@ -218,6 +372,136 @@ contract ConveyorLimitOrdersTest is DSTest {
         return orderBatch;
     }
 
+    function newMockTokenToTokenBatchPass1()
+        internal
+        view
+        returns (OrderBook.Order[] memory)
+    {
+        OrderBook.Order memory order1 = newMockOrder(
+            UNI,
+            DAI,
+            83010348331692980000,
+            true,
+            6900000000000000000,
+            1
+        );
+        OrderBook.Order memory order2 = newMockOrder(
+            UNI,
+            DAI,
+            83010348331692980000,
+            true,
+            6900000000000000000,
+            1
+        );
+        OrderBook.Order memory order3 = newMockOrder(
+            UNI,
+            DAI,
+            83010348331692980000,
+            false,
+            6900000000000000000,
+            1
+        );
+        OrderBook.Order memory order4 = newMockOrder(
+            LINK,
+            DAI,
+            83010348331692980000,
+            true,
+            6900000000000000000,
+            1
+        );
+        OrderBook.Order memory order5 = newMockOrder(
+            UNI,
+            DAI,
+            83010348331692980000,
+            true,
+            6900000000000000000,
+            1
+        );
+        OrderBook.Order memory order6 = newMockOrder(
+            UNI,
+            DAI,
+            83010348331692980000,
+            true,
+            6900000000000000000,
+            1
+        );
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](6);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
+        orderBatch[2] = order3;
+        orderBatch[3] = order4;
+        orderBatch[4] = order5;
+        orderBatch[5] = order6;
+
+        return orderBatch;
+    }
+
+    function newMockTokenToWethBatchPass1()
+        internal
+        view
+        returns (OrderBook.Order[] memory)
+    {
+        OrderBook.Order memory order1 = newMockOrder(
+            DAI,
+            WETH,
+            18446744073709550,
+            false,
+            6900000000000000000,
+            1
+        );
+        OrderBook.Order memory order2 = newMockOrder(
+            DAI,
+            WETH,
+            18446744073709550,
+            false,
+            6900000000000000000,
+            1
+        );
+        OrderBook.Order memory order3 = newMockOrder(
+            DAI,
+            WETH,
+            18446744073709550,
+            false,
+            6900000000000000000,
+            1
+        );
+        OrderBook.Order memory order4 = newMockOrder(
+            DAI,
+            WETH,
+            18446744073709550,
+            false,
+            6900000000000000000,
+            1
+        );
+        OrderBook.Order memory order5 = newMockOrder(
+            DAI,
+            WETH,
+            18446744073709550,
+            false,
+            6900000000000000000,
+            1
+        );
+        OrderBook.Order memory order6 = newMockOrder(
+            DAI,
+            WETH,
+            18446744073709550,
+            false,
+            6900000000000000000,
+            1
+        );
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](6);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
+        orderBatch[2] = order3;
+        orderBatch[3] = order4;
+        orderBatch[4] = order5;
+        orderBatch[5] = order6;
+
+        return orderBatch;
+    }
+
     function newMockOrder(
         address tokenIn,
         address tokenOut,
@@ -242,4 +526,8 @@ contract ConveyorLimitOrdersTest is DSTest {
     function testOptimizeBatchLPOrderWithCancellation() public {}
 }
 
-abstract contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {}
+abstract contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
+    function executeTokenToWethOrders(Order[] calldata orders) external {
+        _executeTokenToWethOrders(orders);
+    }
+}

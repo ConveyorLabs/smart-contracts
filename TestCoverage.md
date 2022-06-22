@@ -17,24 +17,24 @@
 
 
 ## depositCredits
-- success
-- fail: balance < msg.value branch
+- success ✅
+- fail: balance < msg.value branch 🟨 
 
 ## withdrawGasCredits
-- success
-- fail: credit balance < _value
+- success 🟨 
+- fail: credit balance < _value 🟨 
 - fail: gas min gas credits
 
 ## executeOrders
-- success: one token to weth order
-- success: multiple token to weth orders
-- success: one token to token order
-- success: multiple token to tokens orders
-- fail: nonEOA
+- success: one token to weth order 🟨 
+- success: multiple token to weth orders 🟨 
+- success: one token to token order 🟨 
+- success: multiple token to tokens orders 🟨 
+- fail: nonEOA 
 
 ## _executeTokenToWethOrders
-- success: one token to weth order
-- success: multiple token to weth orders
+- success: one token to weth order   🟨 
+- success: multiple token to weth orders  🟨 
 
 ## _executeTokenToWethBatchOrders
 - success: one token to weth order
