@@ -12,11 +12,12 @@ import "../lib/libraries/ConveyorMath.sol";
 import "./test/utils/Console.sol";
 import "./OrderBook.sol";
 import "./OrderRouter.sol";
+import "./ConveyorErrors.sol";
 
 ///@notice for all order placement, order updates and order cancelation logic, see OrderBook
 ///@notice for all order fulfuillment logic, see OrderRouter
 
-contract ConveyorLimitOrders is OrderBook, OrderRouter {
+contract ConveyorLimitOrders is OrderBook, OrderRouter, ConveyorErrors {
     // ========================================= Modifiers =============================================
     modifier onlyEOA() {
         require(msg.sender == tx.origin);
@@ -42,9 +43,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address indexed sender,
         uint256 amount
     );
-
-    // ========================================= Errors =============================================
-    error InsufficientGasCreditBalance();
 
     // ========================================= FUNCTIONS =============================================
 
@@ -76,7 +74,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function withdrawGasCredits(uint256 _value) public returns (bool) {
         //Require user's credit balance is larger than value
         if (creditBalance[msg.sender] < _value) {
-            return false;
+            revert InsufficientGasCreditBalance();
         }
 
         //Get current gas price from v3 Aggregator
@@ -93,14 +91,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 )
             )
         ) {
-            return false;
+            revert InsufficientGasCreditBalanceForOrderExecution();
         }
 
         //Decrease user creditBalance
         creditBalance[msg.sender] = creditBalance[msg.sender] - _value;
 
-        //TODO: update to safe transfer eth
-        payable(msg.sender).transfer(_value);
+        safeTransferETH(msg.sender, _value);
 
         return true;
     }
