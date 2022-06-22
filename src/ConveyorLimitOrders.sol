@@ -26,7 +26,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ========================================= State Variables =============================================
 
     //mapping to hold users gas credit balances
-    mapping(address => uint256) creditBalance;
+    mapping(address => uint256) public creditBalance;
 
     address immutable WETH;
 

@@ -9,8 +9,7 @@ import "../ConveyorLimitOrders.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
-import "./utils/python_deployer/PythonDeployer.sol";
-import "./utils/python_deployer/IAlphaX.sol";
+
 interface CheatCodes {
     function prank(address) external;
 
@@ -19,8 +18,6 @@ interface CheatCodes {
 
 contract OrderRouterTest is DSTest {
     //Python fuzz test deployer
-    PythonDeployer pythonDeployer = new PythonDeployer();
-    IAlphaX alphaX;
 
     CheatCodes cheatCodes;
 
@@ -208,30 +205,42 @@ contract OrderRouterTest is DSTest {
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
         //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-        (ConveyorLimitOrders.SpotReserve memory price1, address poolAddress0) = orderRouter.calculateV2SpotPrice(
-            weth,
-            usdc,
-            0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
-            _uniswapV2HexDem
-        );
-        (ConveyorLimitOrders.SpotReserve memory price2, address poolAddress1)= orderRouter.calculateV2SpotPrice(
-            dai,
-            usdc,
-            0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
-            _uniswapV2HexDem
-        );
-        (ConveyorLimitOrders.SpotReserve memory price3, address poolAddress2) = orderRouter.calculateV2SpotPrice(
-            weth,
-            dai,
-            0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
-            _uniswapV2HexDem
-        );
-        (ConveyorLimitOrders.SpotReserve memory price4, address poolAddress3) = orderRouter.calculateV2SpotPrice(
-            weth,
-            wax,
-            0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
-            _uniswapV2HexDem
-        );
+        (
+            ConveyorLimitOrders.SpotReserve memory price1,
+            address poolAddress0
+        ) = orderRouter.calculateV2SpotPrice(
+                weth,
+                usdc,
+                0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
+                _uniswapV2HexDem
+            );
+        (
+            ConveyorLimitOrders.SpotReserve memory price2,
+            address poolAddress1
+        ) = orderRouter.calculateV2SpotPrice(
+                dai,
+                usdc,
+                0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
+                _uniswapV2HexDem
+            );
+        (
+            ConveyorLimitOrders.SpotReserve memory price3,
+            address poolAddress2
+        ) = orderRouter.calculateV2SpotPrice(
+                weth,
+                dai,
+                0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
+                _uniswapV2HexDem
+            );
+        (
+            ConveyorLimitOrders.SpotReserve memory price4,
+            address poolAddress3
+        ) = orderRouter.calculateV2SpotPrice(
+                weth,
+                wax,
+                0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
+                _uniswapV2HexDem
+            );
         console.logString("---------V2 Spot Price Uni----------");
         console.logString("---------USDC-WETH-------------");
         console.logUint(price1.spotPrice);
@@ -327,13 +336,6 @@ contract OrderRouterTest is DSTest {
 
         assertEq(340282366886892426828258718426375055715247042, alphaX);
     }
-
-    function testPythonDeployer() public {
-        alphaX = IAlphaX(
-            pythonDeployer.deployScript("alphaX", abi.encode(47299249002010446421409070433015781392384000000,16441701632611160000000000000000000000000000,47639531368931384884872445040447549603840000000,16324260906687270000000000000000000000000000))
-        );
-    }
-    
 
     function testChangeBase() public {
         //----------Test 1 setup----------------------//
