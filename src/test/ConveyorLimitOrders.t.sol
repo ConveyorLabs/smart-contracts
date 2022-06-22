@@ -46,6 +46,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     //Single order TokenToToken success
     function testExecuteTokenToTokenSingleSuccess() public {
+        cheatCodes.prank(tx.origin);
         //Roughly 5.2
         OrderBook.Order memory order1 = newMockOrder(
             UNI,
@@ -55,16 +56,17 @@ contract ConveyorLimitOrdersTest is DSTest {
             6900000000000000000,
             1
         );
-
+        
         OrderBook.Order[] memory orderBatch = new OrderBook.Order[](1);
-
+        
         orderBatch[0]= order1;
-
+        
         conveyorLimitOrders.executeOrders(orderBatch);
     }
 
     //Token to Token batch success
     function testExecuteTokenToTokenOrderBatchSuccess() public {
+        cheatCodes.prank(tx.origin);
         OrderBook.Order[]
             memory tokenToTokenOrderBatch = newMockTokenToTokenBatchPass();
         conveyorLimitOrders.executeOrders(tokenToTokenOrderBatch);
@@ -75,7 +77,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     //----------------------------TokenToWeth Execution Tests-----------------------------------------
     //Single order TokenToWeth success
     function testExecuteTokenToWethSingleSuccess() public {
-        
+        cheatCodes.prank(tx.origin);
         OrderBook.Order memory order1 = newMockOrder(
             DAI,
             WETH,
@@ -94,6 +96,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     //Token to Weth Batch success
     function testExecuteTokenToWethOrderBatchSuccess() public {
+        cheatCodes.prank(tx.origin);
         OrderBook.Order[]
             memory tokenToWethOrderBatch = newMockTokenToWethBatchPass();
         conveyorLimitOrders.executeOrders(tokenToWethOrderBatch);
