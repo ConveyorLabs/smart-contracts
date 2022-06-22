@@ -12,12 +12,11 @@ import "../lib/libraries/ConveyorMath.sol";
 import "./test/utils/Console.sol";
 import "./OrderBook.sol";
 import "./OrderRouter.sol";
-import "./ConveyorErrors.sol";
 
 ///@notice for all order placement, order updates and order cancelation logic, see OrderBook
 ///@notice for all order fulfuillment logic, see OrderRouter
 
-contract ConveyorLimitOrders is OrderBook, OrderRouter, ConveyorErrors {
+contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ========================================= Modifiers =============================================
     modifier onlyEOA() {
         require(msg.sender == tx.origin);
@@ -44,6 +43,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter, ConveyorErrors {
         uint256 amount
     );
 
+    // ========================================= Errors =============================================
+    error InsufficientGasCreditBalance();
+    error InsufficientGasCreditBalanceForOrderExecution();
+
     // ========================================= FUNCTIONS =============================================
 
     //------------Gas Credit Functions------------------------
@@ -54,7 +57,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter, ConveyorErrors {
         //Check if sender balance can cover eth deposit
         // Todo write this in assembly
         if (address(msg.sender).balance < msg.value) {
-            revert InsufficientGasCreditBalance();
+            revert InsufficientWalletBalance();
         }
 
         //Add amount deposited to creditBalance of the user

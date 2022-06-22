@@ -17,6 +17,9 @@ import "../lib/interfaces/uniswap-v3/ISwapRouter.sol";
 contract OrderRouter {
     //----------------------Constructor------------------------------------//
 
+    //----------------------Errors------------------------------------//
+    error InsufficientOutputAmount();
+
     //----------------------Structs------------------------------------//
 
     /// @notice Struct to store important Dex specifications

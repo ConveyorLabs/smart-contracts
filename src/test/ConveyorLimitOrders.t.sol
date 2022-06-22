@@ -207,31 +207,37 @@ contract ConveyorLimitOrdersTest is DSTest {
             overflow := lt(_amount, add(_amount, 1))
         }
 
+        //make sure that amount+1 does not overflow
         if (!overflow) {
-            //deposit gas credits
-            (bool depositSuccess, ) = address(conveyorLimitOrders).call{
-                value: _amount
-            }(abi.encodeWithSignature("depositCredits()"));
+            if (_amount > 0) {
+                //deposit gas credits
+                (bool depositSuccess, ) = address(conveyorLimitOrders).call{
+                    value: _amount
+                }(abi.encodeWithSignature("depositCredits()"));
 
-            //require that the deposit was a success
-            require(depositSuccess, "testDepositGasCredits: deposit failed");
+                //require that the deposit was a success
+                require(
+                    depositSuccess,
+                    "testDepositGasCredits: deposit failed"
+                );
 
-            //get the updated gasCreditBalance for the address
-            uint256 gasCreditBalance = conveyorLimitOrders.creditBalance(
-                address(this)
-            );
+                //withdraw one more than the
+                bool withdrawSuccess = conveyorLimitOrders.withdrawGasCredits(
+                    _amount + 1
+                );
 
-            //check that the creditBalance map has been updated
-            require(gasCreditBalance == _amount);
-
-            //withdraw one more than the
-            bool withdrawSuccess = conveyorLimitOrders.withdrawGasCredits(
-                _amount + 1
-            );
-
-            require(withdrawSuccess, "Unable to withdraw credits");
+                require(withdrawSuccess, "Unable to withdraw credits");
+            } else {
+                require(false, "input is 0");
+            }
+        } else {
+            require(false, "overflow");
         }
     }
+
+    // function testFailRemoveGasCredits_InsufficientGasCreditBalanceForOrderExecution(
+    //     uint256 _amount
+    // ) public {}
 
     // function testSimulatePriceChange() public {}
 
