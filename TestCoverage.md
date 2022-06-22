@@ -18,12 +18,12 @@
 
 ## depositCredits
 - success ✅
-- fail: balance < msg.value branch 🟨 
+- fail: InsufficientWalletBalance ✅ 
 
 ## withdrawGasCredits
-- success 🟨 
-- fail: credit balance < _value 🟨 
-- fail: gas min gas credits
+- success ✅ 
+- fail: InsufficientGasCreditBalance ✅  
+- fail: InsufficientGasCreditBalanceForOrderExecution
 
 ## executeOrders
 - success: one token to weth order 🟨 
