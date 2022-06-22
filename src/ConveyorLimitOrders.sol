@@ -108,19 +108,25 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice This function takes in an array of orders,
     /// @param orders array of orders to be executed within the mapping
     function executeOrders(Order[] calldata orders) external onlyEOA {
+        
         ///@notice validate that the order array is in ascending order by quantity
         _validateOrderSequencing(orders);
-
+        
         ///@notice Sequence the orders by priority fee
         // Order[] memory sequencedOrders = _sequenceOrdersByPriorityFee(orders);
 
         //TODO: figure out weth to token
-
+        
         ///@notice check if the token out is weth to determine what type of order execution to use
         if (orders[0].tokenOut == WETH) {
+            
             _executeTokenToWethOrders(orders);
+            
+            
         } else {
+            
             _executeTokenToTokenOrders(orders);
+            
         }
     }
 
@@ -128,19 +134,20 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     ///@notice execute an array of orders from token to weth
     function _executeTokenToWethOrders(Order[] calldata orders) internal {
+        
         ///@notice get all execution price possibilities
         TokenToWethExecutionPrice[]
             memory executionPrices = _initializeTokenToWethExecutionPrices(
                 orders
             );
-
+         
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
         TokenToWethBatchOrder[]
             memory tokenToWethBatchOrders = _batchTokenToWethOrders(
                 orders,
                 executionPrices
             );
-
+        
         ///@notice execute the batch orders
         _executeTokenToWethBatchOrders(tokenToWethBatchOrders);
     }
@@ -218,13 +225,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _initializeTokenToWethExecutionPrices(Order[] calldata orders)
         internal
         view
-        returns (TokenToWethExecutionPrice[] memory executionPrices)
+        returns (TokenToWethExecutionPrice[] memory)
     {
+        
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
         ) = _getAllPrices(orders[0].tokenIn, WETH, 300, 1);
 
+        TokenToWethExecutionPrice[] memory executionPrices = new TokenToWethExecutionPrice[](spotReserveAToWeth.length);
         {
             for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
                 executionPrices[i] = TokenToWethExecutionPrice(
@@ -235,6 +244,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
             }
         }
+        return executionPrices;
+        
+        
     }
 
     function _initializeNewTokenToWethBatchOrder(
@@ -407,14 +419,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             memory executionPrices = _initializeTokenToTokenExecutionPrices(
                 orders
             );
-
+        
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
         TokenToTokenBatchOrder[]
             memory tokenToTokenBatchOrders = _batchTokenToTokenOrders(
                 orders,
                 executionPrices
             );
-
+        
         ///@notice execute the batch orders
         _executeTokenToTokenBatchOrders(tokenToTokenBatchOrders);
     }
@@ -502,7 +514,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _initializeTokenToTokenExecutionPrices(Order[] calldata orders)
         internal
         view
-        returns (TokenToTokenExecutionPrice[] memory executionPrices)
+        returns (TokenToTokenExecutionPrice[] memory)
     {
         //TODO: need to make fee dynamic
         (
@@ -514,6 +526,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
         ) = _getAllPrices(WETH, orders[0].tokenOut, 300, 1);
+
+        TokenToTokenExecutionPrice[] memory executionPrices = new TokenToTokenExecutionPrice[](spotReserveAToWeth.length);
 
         {
             for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
@@ -534,6 +548,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 }
             }
         }
+        return executionPrices;
     }
 
     ///@notice Helper to calculate the multiplicative spot price over both router hops
@@ -557,8 +572,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address lpAddressAToWeth,
         address lpAddressWethToB
     ) internal pure returns (TokenToTokenBatchOrder memory) {
+        
+        
         ///@notice initialize a new batch order
-        return
+        return(
             TokenToTokenBatchOrder(
                 ///@notice initialize amountIn
                 0,
@@ -578,7 +595,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 new uint256[](initArrayLength),
                 ///@notice initialize orderIds
                 new bytes32[](initArrayLength)
-            );
+            )
+        );
     }
 
     function _batchTokenToTokenOrders(
@@ -590,7 +608,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     {
         Order memory firstOrder = orders[0];
         bool buyOrder = _buyOrSell(firstOrder);
-
+        
         address batchOrderTokenIn = firstOrder.tokenIn;
         address batchOrderTokenOut = firstOrder.tokenOut;
 
@@ -598,7 +616,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             executionPrices,
             buyOrder
         );
-
+        
         TokenToTokenBatchOrder
             memory currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
                 orders.length,
@@ -607,7 +625,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices[currentBestPriceIndex].lpAddressAToWeth,
                 executionPrices[currentBestPriceIndex].lpAddressWethToB
             );
-
+        
         //loop each order
         for (uint256 i = 0; i < orders.length; i++) {
             ///@notice get the index of the best exectuion price

@@ -24,7 +24,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     CheatCodes cheatCodes;
 
     //Test Token Address's
-    address WETH = 0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619;
+    address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address LINK = 0x218532a12a389a4a92fC0C5Fb22901D1c19198aA;
     address UNI = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
     address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -34,12 +34,42 @@ contract ConveyorLimitOrdersTest is DSTest {
     uint256 constant MAX_UINT =
         115792089237316195423570985008687907853269984665640564039457584007913129639935;
 
+
+    //Factory and router address's
+    address _uniV2Address = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    address _uniV2FactoryAddress = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+    address _sushiFactoryAddress = 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac;
+    address _pancakeFactoryAddress = 0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73;
+    address _uniV3FactoryAddress = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
+
+    //Chainlink ERC20 address
+    address swapToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
+
+    //pancake, sushi, uni create2 factory initialization bytecode
+    bytes32 _pancakeHexDem =
+        0x00fb7f630766e6a796048ea87d01acd3068e8ff67d078148a3fa3f4a84f69bd5;
+    bytes32 _sushiHexDem =
+        0xe18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303;
+    bytes32 _uniswapV2HexDem =
+        0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
+
+    //Initialize array of Dex specifications
+    bytes32[] _hexDems = [_uniswapV2HexDem, _sushiHexDem, _uniswapV2HexDem];
+    address[] _dexFactories = [
+        _uniV2FactoryAddress,
+        _sushiFactoryAddress,
+        _uniV3FactoryAddress
+    ];
+    bool[] _isUniV2 = [true, true, false];
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
+        
         conveyorLimitOrders = new ConveyorLimitOrders(
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
+        conveyorLimitOrders.addDex(_dexFactories, _hexDems, _isUniV2);
+        
     }
 
     //----------------------------TokenToToken Execution Tests-----------------------------------------
@@ -78,6 +108,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     //Single order TokenToWeth success
     function testExecuteTokenToWethSingleSuccess() public {
         cheatCodes.prank(tx.origin);
+        
         OrderBook.Order memory order1 = newMockOrder(
             DAI,
             WETH,
@@ -90,7 +121,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         OrderBook.Order[] memory orderBatch = new OrderBook.Order[](1);
 
         orderBatch[0]= order1;
-
+        
         conveyorLimitOrders.executeOrders(orderBatch);
     }
 
