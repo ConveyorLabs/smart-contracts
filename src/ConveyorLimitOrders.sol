@@ -311,23 +311,20 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
             }
 
-            ///@notice get the best execution price
-            uint256 executionPrice = executionPrices[bestPriceIndex].price;
-
             Order memory currentOrder = orders[i];
 
             ///@notice if the order meets the execution price
             if (
                 _orderMeetsExecutionPrice(
                     currentOrder.price,
-                    executionPrice,
+                    executionPrices[bestPriceIndex].price,
                     buyOrder
                 )
             ) {
                 ///@notice if the order can execute without hitting slippage
                 if (
                     _orderCanExecute(
-                        executionPrice,
+                        executionPrices[bestPriceIndex].price,
                         currentOrder.quantity,
                         currentOrder.amountOutMin
                     )
@@ -357,13 +354,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                     ///@notice update the best execution price
                     (
-                        executionPrices[bestPriceIndex].price,
-                        executionPrices[bestPriceIndex].aToWethReserve0,
-                        executionPrices[bestPriceIndex].aToWethReserve1
+                        executionPrices[bestPriceIndex]
                     ) = simulateTokenToWethPriceChange(
                         uint128(currentTokenToWethBatchOrder.amountIn),
-                        executionPrices[bestPriceIndex].aToWethReserve0,
-                        executionPrices[bestPriceIndex].aToWethReserve1
+                        executionPrices[bestPriceIndex]
                     );
                 } else {
                     ///@notice cancel the order due to insufficient slippage
@@ -382,15 +376,24 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         bool buyOrder
     ) internal pure returns (uint256 bestPriceIndex) {
         ///@notice if the order is a buy order, set the initial best price at 0, else set the initial best price at max uint256
-        uint256 bestPrice = buyOrder
-            ? 0
-            : 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
-        for (uint256 i = 0; i < executionPrices.length; i++) {
-            uint256 executionPrice = executionPrices[i].price;
-            if (executionPrice > bestPrice) {
-                bestPrice = executionPrice;
-                bestPriceIndex = i;
+        if (buyOrder) {
+            uint256 bestPrice = 0;
+            for (uint256 i = 0; i < executionPrices.length; i++) {
+                uint256 executionPrice = executionPrices[i].price;
+                if (executionPrice > bestPrice) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
+            }
+        } else {
+            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+            for (uint256 i = 0; i < executionPrices.length; i++) {
+                uint256 executionPrice = executionPrices[i].price;
+                if (executionPrice < bestPrice) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
             }
         }
     }
@@ -635,23 +638,20 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
             }
 
-            ///@notice get the best execution price
-            uint256 executionPrice = executionPrices[bestPriceIndex].price;
-
             Order memory currentOrder = orders[i];
 
             ///@notice if the order meets the execution price
             if (
                 _orderMeetsExecutionPrice(
                     currentOrder.price,
-                    executionPrice,
+                    executionPrices[bestPriceIndex].price,
                     buyOrder
                 )
             ) {
                 ///@notice if the order can execute without hitting slippage
                 if (
                     _orderCanExecute(
-                        executionPrice,
+                        executionPrices[bestPriceIndex].price,
                         currentOrder.quantity,
                         currentOrder.amountOutMin
                     )
@@ -681,17 +681,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                     ///@notice update the best execution price
                     (
-                        executionPrices[bestPriceIndex].price,
-                        executionPrices[bestPriceIndex].aToWethReserve0,
-                        executionPrices[bestPriceIndex].aToWethReserve1,
-                        executionPrices[bestPriceIndex].wethToBReserve0,
-                        executionPrices[bestPriceIndex].wethToBReserve1
+                        executionPrices[bestPriceIndex]
                     ) = simulateTokenToTokenPriceChange(
                         uint128(currentTokenToTokenBatchOrder.amountIn),
-                        executionPrices[bestPriceIndex].aToWethReserve0,
-                        executionPrices[bestPriceIndex].aToWethReserve1,
-                        executionPrices[bestPriceIndex].wethToBReserve0,
-                        executionPrices[bestPriceIndex].wethToBReserve1
+                        executionPrices[bestPriceIndex]
                     );
                 } else {
                     ///@notice cancel the order due to insufficient slippage
@@ -709,15 +702,24 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         bool buyOrder
     ) internal pure returns (uint256 bestPriceIndex) {
         ///@notice if the order is a buy order, set the initial best price at 0, else set the initial best price at max uint256
-        uint256 bestPrice = buyOrder
-            ? 0
-            : 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
-        for (uint256 i = 0; i < executionPrices.length; i++) {
-            uint256 executionPrice = executionPrices[i].price;
-            if (executionPrice > bestPrice) {
-                bestPrice = executionPrice;
-                bestPriceIndex = i;
+        if (buyOrder) {
+            uint256 bestPrice = 0;
+            for (uint256 i = 0; i < executionPrices.length; i++) {
+                uint256 executionPrice = executionPrices[i].price;
+                if (executionPrice > bestPrice) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
+            }
+        } else {
+            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+            for (uint256 i = 0; i < executionPrices.length; i++) {
+                uint256 executionPrice = executionPrices[i].price;
+                if (executionPrice < bestPrice) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
             }
         }
     }
@@ -777,37 +779,38 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     function simulateTokenToWethPriceChange(
         uint128 alphaX,
-        uint128 reserveAToken,
-        uint128 reserveAWeth
-    )
-        internal
-        pure
-        returns (
-            uint256,
-            uint128,
-            uint128
-        )
-    {
-        return simulateAToBPriceChange(alphaX, reserveAToken, reserveAWeth);
+        TokenToWethExecutionPrice memory executionPrice
+    ) internal pure returns (TokenToWethExecutionPrice memory) {
+        //TODO: update this to make sure weth is the right reserve position
+
+        (
+            executionPrice.price,
+            executionPrice.aToWethReserve0,
+            executionPrice.aToWethReserve1
+        ) = simulateAToBPriceChange(
+            alphaX,
+            executionPrice.aToWethReserve0,
+            executionPrice.aToWethReserve1
+        );
+        //TODO:^^
+        //---------------------------------------------------
+
+        return executionPrice;
     }
 
     function simulateTokenToTokenPriceChange(
         uint128 alphaX,
-        uint128 reserveAToken,
-        uint128 reserveAWeth,
-        uint128 reserveBWeth,
-        uint128 reserveBToken
-    )
-        internal
-        pure
-        returns (
-            uint256,
-            uint128,
-            uint128,
-            uint128,
-            uint128
-        )
-    {
+        TokenToTokenExecutionPrice memory executionPrice
+    ) internal pure returns (TokenToTokenExecutionPrice memory) {
+        //TODO: check if weth to token or token to weth and then change these vals
+        uint128 reserveAToken = executionPrice.aToWethReserve0;
+        uint128 reserveAWeth = executionPrice.aToWethReserve1;
+        uint128 reserveBWeth = executionPrice.wethToBReserve0;
+        uint128 reserveBToken = executionPrice.wethToBReserve1;
+
+        //TODO:^^
+        //---------------------------------------------------
+
         (
             uint256 newSpotPriceA,
             uint128 newReserveAToken,
@@ -829,13 +832,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             )
         ) << 64;
 
-        return (
-            newTokenToTokenSpotPrice,
-            newReserveAToken,
-            newReserveAWeth,
-            newReserveBWeth,
-            newReserveBToken
-        );
+        //TODO: update this to make sure weth is the right reserve position
+        executionPrice.price = newTokenToTokenSpotPrice;
+        executionPrice.aToWethReserve0 = newReserveAToken;
+        executionPrice.aToWethReserve1 = newReserveAWeth;
+        executionPrice.wethToBReserve0 = newReserveBWeth;
+        executionPrice.wethToBReserve1 = newReserveBToken;
+        //TODO:^^
+        //---------------------------------------------------
+
+        return executionPrice;
     }
 
     /// @notice Helper function to determine the spot price change to the lp after introduction alphaX amount into the reserve pool
