@@ -43,6 +43,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 amount
     );
 
+    // ========================================= Errors =============================================
+    error InsufficientGasCreditBalance();
+
     // ========================================= FUNCTIONS =============================================
 
     //------------Gas Credit Functions------------------------
@@ -53,8 +56,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //Check if sender balance can cover eth deposit
         // Todo write this in assembly
         if (address(msg.sender).balance < msg.value) {
-            //TODO: revert insufficient balance
-            return false;
+            revert InsufficientGasCreditBalance();
         }
 
         //Add amount deposited to creditBalance of the user

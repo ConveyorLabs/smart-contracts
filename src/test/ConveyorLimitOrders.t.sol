@@ -31,8 +31,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
     //MAX_UINT for testing
-    uint256 constant MAX_UINT =
-        115792089237316195423570985008687907853269984665640564039457584007913129639935;
+    uint256 constant MAX_UINT = 2**256 - 1;
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
@@ -56,11 +55,11 @@ contract ConveyorLimitOrdersTest is DSTest {
             6900000000000000000,
             1
         );
-        
+
         OrderBook.Order[] memory orderBatch = new OrderBook.Order[](1);
-        
-        orderBatch[0]= order1;
-        
+
+        orderBatch[0] = order1;
+
         conveyorLimitOrders.executeOrders(orderBatch);
     }
 
@@ -71,8 +70,6 @@ contract ConveyorLimitOrdersTest is DSTest {
             memory tokenToTokenOrderBatch = newMockTokenToTokenBatchPass();
         conveyorLimitOrders.executeOrders(tokenToTokenOrderBatch);
     }
-
-
 
     //----------------------------TokenToWeth Execution Tests-----------------------------------------
     //Single order TokenToWeth success
@@ -89,7 +86,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         OrderBook.Order[] memory orderBatch = new OrderBook.Order[](1);
 
-        orderBatch[0]= order1;
+        orderBatch[0] = order1;
 
         conveyorLimitOrders.executeOrders(orderBatch);
     }
@@ -102,8 +99,6 @@ contract ConveyorLimitOrdersTest is DSTest {
         conveyorLimitOrders.executeOrders(tokenToWethOrderBatch);
     }
 
-
-    
     //----------------------------_executeTokenToWethOrders Tests-----------------------------------------
     //Single success
     function executeTokenToWethOrdersSingleSuccess() public {
@@ -118,7 +113,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         OrderBook.Order[] memory orderBatch = new OrderBook.Order[](1);
 
-        orderBatch[0]= order1;
+        orderBatch[0] = order1;
 
         limitOrderWrapper.executeTokenToWethOrders(orderBatch);
     }
@@ -129,7 +124,6 @@ contract ConveyorLimitOrdersTest is DSTest {
             memory tokenToWethOrderBatch = newMockTokenToWethBatchPass1();
         limitOrderWrapper.executeTokenToWethOrders(tokenToWethOrderBatch);
     }
-    
 
     //----------------------------_executeTokenToWethBatchOrders Tests-----------------------------------------
 
@@ -138,44 +132,43 @@ contract ConveyorLimitOrdersTest is DSTest {
         //deal this address max eth
         cheatCodes.deal(address(this), MAX_UINT);
 
-        //deposit gas credits
-        (bool success, ) = address(conveyorLimitOrders).call{value: _amount}(
-            abi.encodeWithSignature("depositCredits()")
-        );
+        //for fuzzing make sure that the input amount is < the balance of the test contract
+        if (address(this).balance - _amount > _amount) {
+            //deposit gas credits
+            (bool success, ) = address(conveyorLimitOrders).call{
+                value: _amount
+            }(abi.encodeWithSignature("depositCredits()"));
 
-        //require that the deposit was a success
-        require(success, "testDepositGasCredits: deposit failed");
+            //require that the deposit was a success
+            require(success, "testDepositGasCredits: deposit failed");
 
-        //get the updated gasCreditBalance for the address
-        uint256 gasCreditBalance = conveyorLimitOrders.creditBalance(
-            address(this)
-        );
+            //get the updated gasCreditBalance for the address
+            uint256 gasCreditBalance = conveyorLimitOrders.creditBalance(
+                address(this)
+            );
 
-        //check that the creditBalance map has been updated
-        require(gasCreditBalance == _amount);
+            //check that the creditBalance map has been updated
+            require(gasCreditBalance == _amount);
+        }
     }
 
-    function testFailDepositGasCredits() public {
-        cheatCodes.deal(address(1337), 5);
+    function testFailDepositGasCredits(uint256 _amount) public {
+        //for fuzzing make sure that the input amount is < the balance of the test contract
+        console.log(address(this).balance);
+        console.log(_amount);
 
-        //deposit gas credits
-        (bool success, ) = address(conveyorLimitOrders).call{value: 6}(
-            abi.encodeWithSignature("depositCredits()")
-        );
+        if (_amount > 0 && _amount > address(this).balance) {
+            //deposit gas credits
+            (bool success, ) = address(conveyorLimitOrders).call{
+                value: _amount
+            }(abi.encodeWithSignature("depositCredits()"));
 
-        //require that the deposit was a success
-        require(success, "testDepositGasCredits: deposit failed");
-
-        //get the updated gasCreditBalance for the address
-        uint256 gasCreditBalance = conveyorLimitOrders.creditBalance(
-            address(this)
-        );
-
-        //check that the creditBalance map has been updated
-        require(gasCreditBalance == 5);
+            //require that the deposit was a success
+            require(success, "testDepositGasCredits: deposit failed");
+        } else {
+            require(false, "amount is 0");
+        }
     }
-
-    
 
     function testRemoveGasCredits() public {
         cheatCodes.deal(address(1227), 5);
@@ -227,7 +220,6 @@ contract ConveyorLimitOrdersTest is DSTest {
         bool succ = conveyorLimitOrders.withdrawGasCredits(6);
 
         require(succ, "Unable to withdraw credits");
-
     }
 
     function testSimulatePriceChange() public {}
@@ -242,7 +234,6 @@ contract ConveyorLimitOrdersTest is DSTest {
     //     assertEq(0x000000000000000000000000000007bc019f93509a129114c8df914ab5340000, spot);
 
     // }
-
 
     //----------------------------Order Batch Generators-----------------------------------------
     function newMockTokenToTokenBatchPass()
