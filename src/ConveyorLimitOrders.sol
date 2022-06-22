@@ -379,15 +379,24 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         bool buyOrder
     ) internal pure returns (uint256 bestPriceIndex) {
         ///@notice if the order is a buy order, set the initial best price at 0, else set the initial best price at max uint256
-        uint256 bestPrice = buyOrder
-            ? 0
-            : 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
-        for (uint256 i = 0; i < executionPrices.length; i++) {
-            uint256 executionPrice = executionPrices[i].price;
-            if (executionPrice > bestPrice) {
-                bestPrice = executionPrice;
-                bestPriceIndex = i;
+        if (buyOrder) {
+            uint256 bestPrice = 0;
+            for (uint256 i = 0; i < executionPrices.length; i++) {
+                uint256 executionPrice = executionPrices[i].price;
+                if (executionPrice > bestPrice) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
+            }
+        } else {
+            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+            for (uint256 i = 0; i < executionPrices.length; i++) {
+                uint256 executionPrice = executionPrices[i].price;
+                if (executionPrice < bestPrice) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
             }
         }
     }
