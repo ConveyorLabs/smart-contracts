@@ -54,11 +54,13 @@ contract OrderRouterTest is DSTest {
     bool[] _isUniV2 = [true, true, false];
 
     //Dex[] dexes array of dex structs
-    ConveyorLimitOrders.Dex[] public dexesArr;
+    ConveyorLimitOrders.Dex public uniswapV2;
+    
 
+    
     function setUp() public {
         orderRouter = new OrderRouterWrapper();
-
+        uniswapV2.factoryAddress=_dexFactories[0];
         orderRouter.addDex(_dexFactories, _hexDems, _isUniV2);
 
         cheatCodes = CheatCodes(HEVM_ADDRESS);
