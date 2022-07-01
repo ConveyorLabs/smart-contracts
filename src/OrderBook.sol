@@ -33,6 +33,8 @@ contract OrderBook is GasOracle {
         bytes32 orderId;
         bool buy;
         bool taxed;
+        uint256 lastRefreshTimestamp;
+        uint256 expirationTimestamp;
         uint256 price;
         uint256 amountOutMin;
         uint256 quantity;
@@ -56,6 +58,10 @@ contract OrderBook is GasOracle {
 
     //----------------------Functions------------------------------------//
 
+    function refreshOrder(Order memory order) external view 
+    {
+
+    }
     function getOrderById(bytes32 orderId)
         public
         view

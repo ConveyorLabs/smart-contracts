@@ -16,9 +16,11 @@ interface CheatCodes {
 }
 
 contract ConveyorLimitOrdersTest is DSTest {
+
     //Initialize limit-v0 contract for testing
     ConveyorLimitOrders conveyorLimitOrders;
     ConveyorLimitOrdersWrapper limitOrderWrapper;
+    
     //Initialize cheatcodes
     CheatCodes cheatCodes;
 
