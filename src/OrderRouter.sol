@@ -569,6 +569,7 @@ contract OrderRouter {
         view
         returns (SpotReserve[] memory prices, address[] memory lps)
     {
+        
         //Target base amount in value
         uint112 amountIn = _getTargetAmountIn(token0, token1);
         uint256 dexLength= dexes.length;
@@ -641,10 +642,12 @@ contract OrderRouter {
         view
         returns (uint112 amountIn)
     {
+        
         //Get target decimals for token0, token1
         uint8 token0Target = _getTargetDecimals(token0);
+        // require(false, "Got here");
         uint8 token1Target = _getTargetDecimals(token1);
-
+        
         //target decimal := the difference in decimal targets between tokens
         uint8 targetDec = (token0Target < token1Target)
             ? (token1Target - token0Target)

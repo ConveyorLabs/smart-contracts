@@ -17,6 +17,7 @@ import "./OrderRouter.sol";
 ///@notice for all order fulfuillment logic, see OrderRouter
 
 contract ConveyorLimitOrders is OrderBook, OrderRouter {
+
     // ========================================= Modifiers =============================================
     modifier onlyEOA() {
         require(msg.sender == tx.origin);
@@ -123,7 +124,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         if (orders[0].tokenOut == WETH) {
             
             _executeTokenToWethOrders(orders);
-            
             
         } else {
             
@@ -416,6 +416,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     ///@notice execute an array of orders from token to token
     function _executeTokenToTokenOrders(Order[] calldata orders) internal {
+        
         ///@notice get all execution price possibilities
         TokenToTokenExecutionPrice[]
             memory executionPrices = _initializeTokenToTokenExecutionPrices(
@@ -431,6 +432,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         
         ///@notice execute the batch orders
         _executeTokenToTokenBatchOrders(tokenToTokenBatchOrders);
+        
     }
 
     function _executeTokenToTokenBatchOrders(
@@ -518,12 +520,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         view
         returns (TokenToTokenExecutionPrice[] memory)
     {
+        
         //TODO: need to make fee dynamic
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
         ) = _getAllPrices(orders[0].tokenIn, WETH, 300, 1);
-
+        
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
@@ -635,7 +638,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices,
                 buyOrder
             );
-
+            
             ///@notice if the best price has changed since the last order
             if (i > 0 && currentBestPriceIndex != bestPriceIndex) {
                 ///@notice add the current batch order to the batch orders array
@@ -656,6 +659,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     executionPrices[bestPriceIndex].lpAddressAToWeth,
                     executionPrices[bestPriceIndex].lpAddressWethToB
                 );
+                
             }
 
             Order memory currentOrder = orders[i];
@@ -932,4 +936,5 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ) internal pure returns (bool) {
         return spot_price * order_quantity >= amountOutMin;
     }
+
 }

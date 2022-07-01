@@ -427,6 +427,7 @@ contract OrderBookTest is DSTest {
             tokenOut: tokenOut,
             orderId: bytes32(0),
             buy: false,
+            taxed: false,
             price: price,
             quantity: quantity,
             amountOutMin: amountOutMin,

@@ -26,11 +26,13 @@ contract OrderBook is GasOracle {
     //----------------------Structs------------------------------------//
 
     /// @notice Struct containing the token, orderId, OrderType enum type, price, and quantity for each order
+    /// @notice assuming slippage set to 128.128 fixed point representation
     struct Order {
         address tokenIn;
         address tokenOut;
         bytes32 orderId;
         bool buy;
+        bool taxed;
         uint256 price;
         uint256 amountOutMin;
         uint256 quantity;
