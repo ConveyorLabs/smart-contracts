@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.15;
+pragma solidity >=0.8.14;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
@@ -17,6 +17,7 @@ import "./OrderRouter.sol";
 ///@notice for all order fulfuillment logic, see OrderRouter
 
 contract ConveyorLimitOrders is OrderBook, OrderRouter {
+
     // ========================================= Modifiers =============================================
     modifier onlyEOA() {
         require(msg.sender == tx.origin);
@@ -26,13 +27,20 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ========================================= State Variables =============================================
 
     //mapping to hold users gas credit balances
-    mapping(address => uint256) creditBalance;
+    mapping(address => uint256) public creditBalance;
 
     address immutable WETH;
 
+    uint256 immutable refreshFee;
+
     // ========================================= Constructor =============================================
 
-    constructor(address _gasOracle, address _weth) OrderBook(_gasOracle) {
+    constructor(
+        address _gasOracle,
+        address _weth,
+        uint256 _refreshFee
+    ) OrderBook(_gasOracle) {
+        refreshFee = _refreshFee;
         WETH = _weth;
     }
 
@@ -42,6 +50,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address indexed sender,
         uint256 amount
     );
+
+    // ========================================= Errors =============================================
+    error InsufficientGasCreditBalance();
+    error InsufficientGasCreditBalanceForOrderExecution();
+    error OrderNotRefreshable();
+    error OrderHasReachedExpiration();
 
     // ========================================= FUNCTIONS =============================================
 
@@ -53,8 +67,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //Check if sender balance can cover eth deposit
         // Todo write this in assembly
         if (address(msg.sender).balance < msg.value) {
-            //TODO: revert insufficient balance
-            return false;
+            revert InsufficientWalletBalance();
         }
 
         //Add amount deposited to creditBalance of the user
@@ -74,7 +87,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function withdrawGasCredits(uint256 _value) public returns (bool) {
         //Require user's credit balance is larger than value
         if (creditBalance[msg.sender] < _value) {
-            return false;
+            revert InsufficientGasCreditBalance();
         }
 
         //Get current gas price from v3 Aggregator
@@ -91,14 +104,67 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 )
             )
         ) {
-            return false;
+            revert InsufficientGasCreditBalanceForOrderExecution();
         }
 
         //Decrease user creditBalance
         creditBalance[msg.sender] = creditBalance[msg.sender] - _value;
 
-        //TODO: update to safe transfer eth
-        payable(msg.sender).transfer(_value);
+
+        safeTransferETH(msg.sender, _value);
+
+        return true;
+    }
+
+    //Todo add reentrancy guard
+    /// @notice External helper function to allow beacon to refresh an oder after 30 days in unix time
+    /// @param orderId order to refresh timestamp
+    function refreshOrder(bytes32 orderId) external returns (bool) {
+        Order memory order = getOrderById(orderId);
+
+        //Require 30 days has elapsed since last refresh
+        if (block.timestamp - order.lastRefreshTimestamp < 2419200) {
+            revert OrderNotRefreshable();
+        }
+
+        //Require current timestamp is not past order expiration
+        if (block.timestamp < order.expirationTimestamp) {
+            revert OrderHasReachedExpiration();
+        }
+
+        //Require credit balance is sufficient to cover refresh feee
+        if (creditBalance[order.owner] < refreshFee) {
+            revert InsufficientGasCreditBalance();
+        }
+        // assembly {
+        //     mstore(0x00, refreshFee)
+        //     revert(0x00, 0x20)
+        // }
+        //Get current gas price from v3 Aggregator
+        uint256 gasPrice = getGasPrice();
+        //Require gas credit withdrawal doesn't exceeed minimum gas credit requirements
+        if (
+            !(
+                _hasMinGasCredits(
+                    gasPrice,
+                    300000,
+                    order.owner,
+                    creditBalance[order.owner] - refreshFee
+                )
+            )
+        ) {
+            revert InsufficientGasCreditBalanceForOrderExecution();
+        }
+
+        //Transfer refresh fee to beacon
+        safeTransferETH(msg.sender, refreshFee);
+
+        //Decrement order.owner credit balance
+        creditBalance[order.owner] = creditBalance[order.owner] - refreshFee;
+
+        //Change order.lastRefreshTimestamp to current block.timestamp
+        order.lastRefreshTimestamp = block.timestamp;
+
 
         return true;
     }
@@ -218,13 +284,17 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _initializeTokenToWethExecutionPrices(Order[] calldata orders)
         internal
         view
-        returns (TokenToWethExecutionPrice[] memory executionPrices)
+        returns (TokenToWethExecutionPrice[] memory)
     {
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
         ) = _getAllPrices(orders[0].tokenIn, WETH, 300, 1);
 
+        TokenToWethExecutionPrice[]
+            memory executionPrices = new TokenToWethExecutionPrice[](
+                spotReserveAToWeth.length
+            );
         {
             for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
                 executionPrices[i] = TokenToWethExecutionPrice(
@@ -235,6 +305,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
             }
         }
+        return executionPrices;
     }
 
     function _initializeNewTokenToWethBatchOrder(
@@ -311,23 +382,20 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
             }
 
-            ///@notice get the best execution price
-            uint256 executionPrice = executionPrices[bestPriceIndex].price;
-
             Order memory currentOrder = orders[i];
 
             ///@notice if the order meets the execution price
             if (
                 _orderMeetsExecutionPrice(
                     currentOrder.price,
-                    executionPrice,
+                    executionPrices[bestPriceIndex].price,
                     buyOrder
                 )
             ) {
                 ///@notice if the order can execute without hitting slippage
                 if (
                     _orderCanExecute(
-                        executionPrice,
+                        executionPrices[bestPriceIndex].price,
                         currentOrder.quantity,
                         currentOrder.amountOutMin
                     )
@@ -357,13 +425,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                     ///@notice update the best execution price
                     (
-                        executionPrices[bestPriceIndex].price,
-                        executionPrices[bestPriceIndex].aToWethReserve0,
-                        executionPrices[bestPriceIndex].aToWethReserve1
+                        executionPrices[bestPriceIndex]
                     ) = simulateTokenToWethPriceChange(
                         uint128(currentTokenToWethBatchOrder.amountIn),
-                        executionPrices[bestPriceIndex].aToWethReserve0,
-                        executionPrices[bestPriceIndex].aToWethReserve1
+                        executionPrices[bestPriceIndex]
                     );
                 } else {
                     ///@notice cancel the order due to insufficient slippage
@@ -382,15 +447,24 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         bool buyOrder
     ) internal pure returns (uint256 bestPriceIndex) {
         ///@notice if the order is a buy order, set the initial best price at 0, else set the initial best price at max uint256
-        uint256 bestPrice = buyOrder
-            ? 0
-            : 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
-        for (uint256 i = 0; i < executionPrices.length; i++) {
-            uint256 executionPrice = executionPrices[i].price;
-            if (executionPrice > bestPrice) {
-                bestPrice = executionPrice;
-                bestPriceIndex = i;
+        if (buyOrder) {
+            uint256 bestPrice = 0;
+            for (uint256 i = 0; i < executionPrices.length; i++) {
+                uint256 executionPrice = executionPrices[i].price;
+                if (executionPrice > bestPrice) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
+            }
+        } else {
+            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+            for (uint256 i = 0; i < executionPrices.length; i++) {
+                uint256 executionPrice = executionPrices[i].price;
+                if (executionPrice < bestPrice) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
             }
         }
     }
@@ -499,7 +573,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _initializeTokenToTokenExecutionPrices(Order[] calldata orders)
         internal
         view
-        returns (TokenToTokenExecutionPrice[] memory executionPrices)
+        returns (TokenToTokenExecutionPrice[] memory)
     {
         //TODO: need to make fee dynamic
         (
@@ -511,6 +585,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
         ) = _getAllPrices(WETH, orders[0].tokenOut, 300, 1);
+
+        TokenToTokenExecutionPrice[]
+            memory executionPrices = new TokenToTokenExecutionPrice[](
+                spotReserveAToWeth.length
+            );
 
         {
             for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
@@ -531,6 +610,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 }
             }
         }
+        return executionPrices;
     }
 
     ///@notice Helper to calculate the multiplicative spot price over both router hops
@@ -555,7 +635,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address lpAddressWethToB
     ) internal pure returns (TokenToTokenBatchOrder memory) {
         ///@notice initialize a new batch order
-        return
+
+        return (
+
             TokenToTokenBatchOrder(
                 ///@notice initialize amountIn
                 0,
@@ -575,7 +657,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 new uint256[](initArrayLength),
                 ///@notice initialize orderIds
                 new bytes32[](initArrayLength)
-            );
+
+            )
+        );
+
     }
 
     function _batchTokenToTokenOrders(
@@ -635,23 +720,20 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
             }
 
-            ///@notice get the best execution price
-            uint256 executionPrice = executionPrices[bestPriceIndex].price;
-
             Order memory currentOrder = orders[i];
 
             ///@notice if the order meets the execution price
             if (
                 _orderMeetsExecutionPrice(
                     currentOrder.price,
-                    executionPrice,
+                    executionPrices[bestPriceIndex].price,
                     buyOrder
                 )
             ) {
                 ///@notice if the order can execute without hitting slippage
                 if (
                     _orderCanExecute(
-                        executionPrice,
+                        executionPrices[bestPriceIndex].price,
                         currentOrder.quantity,
                         currentOrder.amountOutMin
                     )
@@ -681,17 +763,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                     ///@notice update the best execution price
                     (
-                        executionPrices[bestPriceIndex].price,
-                        executionPrices[bestPriceIndex].aToWethReserve0,
-                        executionPrices[bestPriceIndex].aToWethReserve1,
-                        executionPrices[bestPriceIndex].wethToBReserve0,
-                        executionPrices[bestPriceIndex].wethToBReserve1
+                        executionPrices[bestPriceIndex]
                     ) = simulateTokenToTokenPriceChange(
                         uint128(currentTokenToTokenBatchOrder.amountIn),
-                        executionPrices[bestPriceIndex].aToWethReserve0,
-                        executionPrices[bestPriceIndex].aToWethReserve1,
-                        executionPrices[bestPriceIndex].wethToBReserve0,
-                        executionPrices[bestPriceIndex].wethToBReserve1
+                        executionPrices[bestPriceIndex]
                     );
                 } else {
                     ///@notice cancel the order due to insufficient slippage
@@ -709,15 +784,24 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         bool buyOrder
     ) internal pure returns (uint256 bestPriceIndex) {
         ///@notice if the order is a buy order, set the initial best price at 0, else set the initial best price at max uint256
-        uint256 bestPrice = buyOrder
-            ? 0
-            : 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
-        for (uint256 i = 0; i < executionPrices.length; i++) {
-            uint256 executionPrice = executionPrices[i].price;
-            if (executionPrice > bestPrice) {
-                bestPrice = executionPrice;
-                bestPriceIndex = i;
+        if (buyOrder) {
+            uint256 bestPrice = 0;
+            for (uint256 i = 0; i < executionPrices.length; i++) {
+                uint256 executionPrice = executionPrices[i].price;
+                if (executionPrice > bestPrice) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
+            }
+        } else {
+            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+            for (uint256 i = 0; i < executionPrices.length; i++) {
+                uint256 executionPrice = executionPrices[i].price;
+                if (executionPrice < bestPrice) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
             }
         }
     }
@@ -763,9 +847,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             return false;
         }
     }
+    receive() external payable{}
+    // fallback() external payable{}
 
     //TODO: just import solmate safeTransferETh
-    function safeTransferETH(address to, uint256 amount) internal {
+
+    function safeTransferETH(address to, uint256 amount) public {
+
         bool success;
 
         assembly {
@@ -777,37 +865,37 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     function simulateTokenToWethPriceChange(
         uint128 alphaX,
-        uint128 reserveAToken,
-        uint128 reserveAWeth
-    )
-        internal
-        pure
-        returns (
-            uint256,
-            uint128,
-            uint128
-        )
-    {
-        return simulateAToBPriceChange(alphaX, reserveAToken, reserveAWeth);
+        TokenToWethExecutionPrice memory executionPrice
+    ) internal pure returns (TokenToWethExecutionPrice memory) {
+        //TODO: update this to make sure weth is the right reserve position
+        (
+            executionPrice.price,
+            executionPrice.aToWethReserve0,
+            executionPrice.aToWethReserve1
+        ) = simulateAToBPriceChange(
+            alphaX,
+            executionPrice.aToWethReserve0,
+            executionPrice.aToWethReserve1
+        );
+        //TODO:^^
+        //---------------------------------------------------
+
+        return executionPrice;
     }
 
     function simulateTokenToTokenPriceChange(
         uint128 alphaX,
-        uint128 reserveAToken,
-        uint128 reserveAWeth,
-        uint128 reserveBWeth,
-        uint128 reserveBToken
-    )
-        internal
-        pure
-        returns (
-            uint256,
-            uint128,
-            uint128,
-            uint128,
-            uint128
-        )
-    {
+        TokenToTokenExecutionPrice memory executionPrice
+    ) internal pure returns (TokenToTokenExecutionPrice memory) {
+        //TODO: check if weth to token or token to weth and then change these vals
+        uint128 reserveAToken = executionPrice.aToWethReserve0;
+        uint128 reserveAWeth = executionPrice.aToWethReserve1;
+        uint128 reserveBWeth = executionPrice.wethToBReserve0;
+        uint128 reserveBToken = executionPrice.wethToBReserve1;
+
+        //TODO:^^
+        //---------------------------------------------------
+
         (
             uint256 newSpotPriceA,
             uint128 newReserveAToken,
@@ -829,13 +917,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             )
         ) << 64;
 
-        return (
-            newTokenToTokenSpotPrice,
-            newReserveAToken,
-            newReserveAWeth,
-            newReserveBWeth,
-            newReserveBToken
-        );
+        //TODO: update this to make sure weth is the right reserve position
+        executionPrice.price = newTokenToTokenSpotPrice;
+        executionPrice.aToWethReserve0 = newReserveAToken;
+        executionPrice.aToWethReserve1 = newReserveAWeth;
+        executionPrice.wethToBReserve0 = newReserveBWeth;
+        executionPrice.wethToBReserve1 = newReserveBToken;
+        //TODO:^^
+        //---------------------------------------------------
+
+        return executionPrice;
     }
 
     /// @notice Helper function to determine the spot price change to the lp after introduction alphaX amount into the reserve pool

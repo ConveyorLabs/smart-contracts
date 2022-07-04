@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.15;
+pragma solidity >=0.8.14;
 
 import "../../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
@@ -22,10 +22,12 @@ contract Swap {
     function swapEthForTokenWithUniV2(uint256 amount, address _swapToken)
         public
     {
+        
         //set the path
         address[] memory path = new address[](2);
         path[0] = wnato;
         path[1] = _swapToken;
+        
 
         // swap eth for tokens
         uniV2Router.swapExactETHForTokens{value: amount}(
@@ -34,5 +36,6 @@ contract Swap {
             msg.sender,
             (2**256 - 1)
         );
+        
     }
 }

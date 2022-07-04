@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.15;
+pragma solidity >=0.8.14;
 
 import "../lib/interfaces/token/IERC20.sol";
 // import "../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
@@ -167,6 +167,8 @@ contract OrderRouter {
                     ) >> 64
                 )
             );
+
+            //TODO: do we need this?
             require(maxReward <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
             return maxReward;
         }
@@ -434,8 +436,16 @@ contract OrderRouter {
             reserve1,
             token1Decimals
         );
-
-        _spRes.spotPrice = (commonReserve0 << 9) / commonReserve1;
+        unchecked {
+            _spRes.spotPrice = ConveyorMath.div128x128(
+                commonReserve0 << 128,
+                commonReserve1 << 128
+            );
+            require(
+                _spRes.spotPrice <=
+                    0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+            );
+        }
 
         // Left shift commonReserve0 9 digits i.e. commonReserve0 = commonReserve0 * 2 ** 9
         (spRes, poolAddress) = (_spRes, pairAddress);
@@ -560,12 +570,14 @@ contract OrderRouter {
     {
         //Target base amount in value
         uint112 amountIn = _getTargetAmountIn(token0, token1);
+        uint256 dexLength = dexes.length;
 
         SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
         address[] memory _lps = new address[](dexes.length);
 
         //Iterate through Dex's in dexes check if isUniV2 and accumulate spot price to meanSpotPrice
         for (uint256 i = 0; i < dexes.length; ++i) {
+            // require(false, "Got here");
             if (dexes[i].isUniV2) {
                 {
                     //Right shift spot price 9 decimals and add to meanSpotPrice
@@ -608,6 +620,7 @@ contract OrderRouter {
         (prices, lps) = (_spotPrices, _lps);
     }
 
+    //TODO: duplicate, remove this
     /// @notice Helper to get the lp fee from a v3 pair address
     /// @param pairAddress address of v3 lp pair
     /// @return poolFee uint24 fee of the pool
@@ -627,6 +640,7 @@ contract OrderRouter {
     {
         //Get target decimals for token0, token1
         uint8 token0Target = _getTargetDecimals(token0);
+        // require(false, "Got here");
         uint8 token1Target = _getTargetDecimals(token1);
 
         //target decimal := the difference in decimal targets between tokens

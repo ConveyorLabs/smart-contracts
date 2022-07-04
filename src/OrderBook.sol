@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.15;
+pragma solidity >=0.8.14;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./GasOracle.sol";
 
 contract OrderBook is GasOracle {
+
     //----------------------Constructor------------------------------------//
 
     constructor(address _gasOracle) GasOracle(_gasOracle) {}
@@ -26,11 +27,15 @@ contract OrderBook is GasOracle {
     //----------------------Structs------------------------------------//
 
     /// @notice Struct containing the token, orderId, OrderType enum type, price, and quantity for each order
+    /// @notice assuming slippage set to 128.128 fixed point representation
     struct Order {
         address tokenIn;
         address tokenOut;
         bytes32 orderId;
         bool buy;
+        bool taxed;
+        uint256 lastRefreshTimestamp;
+        uint256 expirationTimestamp;
         uint256 price;
         uint256 amountOutMin;
         uint256 quantity;
@@ -40,6 +45,7 @@ contract OrderBook is GasOracle {
     //----------------------State Structures------------------------------------//
 
     //order id  to order
+    //TODO: deleting doesnt actually get rid of the order, just removes the pointer
     mapping(bytes32 => Order) orderIdToOrder;
 
     //keccak256(msg.sender, tokenAddress) -> total orders quantity
@@ -156,6 +162,8 @@ contract OrderBook is GasOracle {
         emit OrderUpdated(orderIds);
     }
 
+     
+
     /// @notice Remove Order order from OrderGroup mapping by identifier orderId conditionally if order exists already in ActiveOrders
     /// @param orderId the order to which the caller is removing from the OrderGroup struct
     function cancelOrder(bytes32 orderId) public {
@@ -185,6 +193,7 @@ contract OrderBook is GasOracle {
     function cancelOrders(bytes32[] memory orderIds) public {
         bytes32[] memory canceledOrderIds = new bytes32[](orderIds.length);
 
+        //TODO: just call cancel order on loop?
         //check that there is one or more orders
         for (uint256 i = 0; i < orderIds.length; ++i) {
             bytes32 orderId = orderIds[i];

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.15;
+pragma solidity >=0.8.14;
 
 import "./utils/test.sol";
 import "./utils/Console.sol";
@@ -427,6 +427,9 @@ contract OrderBookTest is DSTest {
             tokenOut: tokenOut,
             orderId: bytes32(0),
             buy: false,
+            taxed: false,
+            lastRefreshTimestamp:0,
+            expirationTimestamp:2419200,
             price: price,
             quantity: quantity,
             amountOutMin: amountOutMin,

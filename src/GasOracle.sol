@@ -1,4 +1,5 @@
-pragma solidity >=0.8.15;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.14;
 
 import "../lib/AggregatorV3Interface.sol";
 
