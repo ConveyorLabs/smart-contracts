@@ -288,10 +288,6 @@ contract ConveyorLimitOrdersTest is DSTest {
                 value: 90000000000000000000000000090000000
             }(abi.encodeWithSignature("depositCredits()"));
         
-
-        uint256 gasCreditBalance = conveyorLimitOrders.creditBalance(
-                address(this)
-            );
       
         //require that the deposit was a success
         require(depositSuccess, "testDepositGasCredits: deposit failed");
