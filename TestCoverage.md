@@ -111,7 +111,7 @@
 
 <br>
 
-# GasOracle
+# GasOracle ✅ ✅  
 
 ## getGasPrice ✅  
 
@@ -173,6 +173,7 @@
 ## addDex
 - success
 - fail invalid input
+- fail !owner
 
 ## _swap
 - success univ2
@@ -197,6 +198,7 @@
 ## _getUniV3Fee
 - success case
 - fail case
+
 ## getTick
 
 ## _getAllPrices

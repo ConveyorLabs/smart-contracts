@@ -13,12 +13,10 @@ import "./test/utils/Console.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/libraries/Uniswap/TickMath.sol";
 import "../lib/interfaces/uniswap-v3/ISwapRouter.sol";
+import "./ConveyorErrors.sol";
 
-contract OrderRouter {
+contract OrderRouter is ConveyorErrors {
     //----------------------Constructor------------------------------------//
-
-    //----------------------Errors------------------------------------//
-    error InsufficientOutputAmount();
 
     //----------------------Structs------------------------------------//
 
@@ -68,7 +66,8 @@ contract OrderRouter {
         uint256[] ownerShares;
         bytes32[] orderIds;
     }
-
+    //----------------------State Variables------------------------------------//
+    address owner;
     //----------------------State Structures------------------------------------//
 
     /// @notice Array of dex structures to be used throughout the contract for pair spot price calculations
@@ -79,6 +78,16 @@ contract OrderRouter {
         uint256 spotPrice;
         uint128 res0;
         uint128 res1;
+    }
+
+    //----------------------Modifiers------------------------------------//
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) {
+            revert MsgSenderIsNotOwner();
+        }
+
+        _;
     }
 
     //----------------------Functions------------------------------------//
@@ -243,25 +252,23 @@ contract OrderRouter {
 
     //------------------------Admin Functions----------------------------
 
-    //TODO: add onlyOwner
     /// @notice Add Dex struct to dexes array from arr _factory, and arr _hexDem
     /// @param _factory address[] dex factory address's to add
     /// @param _hexDem Factory address create2 deployment bytecode array
     /// @param isUniV2 Array of bool's indicating uniV2 status
-    //TODO: this should be plural, but dexes or dexs?
-    function addDex(
+    function addDexs(
         address[] memory _factory,
         bytes32[] memory _hexDem,
         bool[] memory isUniV2
-    ) public {
+    ) public onlyOwner {
         require(
             (_factory.length == _hexDem.length &&
                 _hexDem.length == isUniV2.length),
             "Invalid input, Arr length mismatch"
         );
         for (uint256 i = 0; i < _factory.length; i++) {
-            Dex memory d = Dex(_factory[i], _hexDem[i], isUniV2[i]);
-            dexes.push(d);
+            Dex memory _dex = Dex(_factory[i], _hexDem[i], isUniV2[i]);
+            dexes.push(_dex);
         }
     }
 

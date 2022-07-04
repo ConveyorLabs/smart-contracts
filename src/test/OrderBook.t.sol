@@ -93,30 +93,27 @@ contract OrderBookTest is DSTest {
         try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
             uint256 amountOut
         ) {
-            if (amountOut > 0) {
-                require(false, "here");
-                console.log(amountOut);
-                OrderBook.Order memory order = newOrder(
-                    swapToken,
-                    wnato,
-                    executionPrice,
-                    amountOut,
-                    amountOut
-                );
+            console.log(amountOut);
+            OrderBook.Order memory order = newOrder(
+                swapToken,
+                wnato,
+                executionPrice,
+                amountOut,
+                amountOut
+            );
 
-                //create a new array of orders
-                ConveyorLimitOrders.Order[]
-                    memory orderGroup = new ConveyorLimitOrders.Order[](1);
-                //add the order to the arrOrder and add the arrOrder to the orderGroup
-                orderGroup[0] = order;
+            //create a new array of orders
+            ConveyorLimitOrders.Order[]
+                memory orderGroup = new ConveyorLimitOrders.Order[](1);
+            //add the order to the arrOrder and add the arrOrder to the orderGroup
+            orderGroup[0] = order;
 
-                //place order
-                bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
-                bytes32 orderId = orderIds[0];
+            //place order
+            bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
+            bytes32 orderId = orderIds[0];
 
-                //check that the orderId is not zero value
-                assert((orderId != bytes32(0)));
-            }
+            //check that the orderId is not zero value
+            assert((orderId != bytes32(0)));
         } catch {}
     }
 
@@ -155,9 +152,9 @@ contract OrderBookTest is DSTest {
             OrderBook.Order memory order1 = newOrder(
                 swapToken,
                 wnato,
-                amountOut,
                 executionPrice,
-                executionPrice
+                amountOut,
+                amountOut
             );
 
             try
@@ -166,9 +163,9 @@ contract OrderBookTest is DSTest {
                 OrderBook.Order memory order2 = newOrder(
                     swapToken1,
                     wnato,
-                    amountOut1,
                     executionPrice1,
-                    executionPrice1
+                    amountOut1,
+                    amountOut1
                 );
 
                 //create a new array of orders
@@ -201,25 +198,28 @@ contract OrderBookTest is DSTest {
             ConveyorLimitOrders.Order memory order = newOrder(
                 swapToken,
                 wnato,
-                amountOut,
                 executionPrice,
-                executionPrice
+                amountOut,
+                amountOut
             );
             //place a mock order
             bytes32 orderId = placeMockOrder(order);
+            try
+                swapHelper.swapEthForTokenWithUniV2(swapAmount1, swapToken)
+            returns (uint256 amountOut1) {
+                //create a new order to replace the old order
+                ConveyorLimitOrders.Order memory updatedOrder = newOrder(
+                    swapToken,
+                    wnato,
+                    executionPrice1,
+                    amountOut1,
+                    amountOut1
+                );
+                updatedOrder.orderId = orderId;
 
-            //create a new order to replace the old order
-            ConveyorLimitOrders.Order memory updatedOrder = newOrder(
-                swapToken,
-                wnato,
-                swapAmount1,
-                executionPrice1,
-                executionPrice1
-            );
-            updatedOrder.orderId = orderId;
-
-            //submit the updated order
-            orderBook.updateOrder(updatedOrder);
+                //submit the updated order
+                orderBook.updateOrder(updatedOrder);
+            } catch {}
         } catch {}
     }
 
@@ -395,10 +395,13 @@ contract OrderBookTest is DSTest {
         orderBook.cancelOrders(orderIds);
     }
 
-    //TODO: fuzz this
     function testCalculateMinGasCredits() public {}
 
-    function testExecuteOrder() public {}
+    function testGetTotalOrdersValue() public {}
+
+    function testHasMinGasCredits() public {
+        // orderBook.hasMinGasCredits(gasPrice, executionCost, userAddress, gasCreditBalance);
+    }
 
     //------------------Helper functions-----------------------
 

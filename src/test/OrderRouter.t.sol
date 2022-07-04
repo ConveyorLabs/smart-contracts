@@ -55,13 +55,11 @@ contract OrderRouterTest is DSTest {
 
     //Dex[] dexes array of dex structs
     ConveyorLimitOrders.Dex public uniswapV2;
-    
 
-    
     function setUp() public {
         orderRouter = new OrderRouterWrapper();
-        uniswapV2.factoryAddress=_dexFactories[0];
-        orderRouter.addDex(_dexFactories, _hexDems, _isUniV2);
+        uniswapV2.factoryAddress = _dexFactories[0];
+        orderRouter.addDexs(_dexFactories, _hexDems, _isUniV2);
 
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         uniV2Router = IUniswapV2Router02(_uniV2Address);
@@ -372,8 +370,13 @@ contract OrderRouterTest is DSTest {
         assertEq(r1_out1, 47925919677616776812811); //No change
     }
 
-    function testAddDex() public {
+    function testAddDexs() public {
         // addDex(_factory, _hexDem, isUniV2);
+    }
+
+    function testFailAddDexs_MsgSenderIsNotOwner() public {
+        // addDex(_factory, _hexDem, isUniV2);
+        cheatCodes.prank(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     }
 }
 
