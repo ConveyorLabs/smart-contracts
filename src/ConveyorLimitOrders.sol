@@ -110,6 +110,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //Decrease user creditBalance
         creditBalance[msg.sender] = creditBalance[msg.sender] - _value;
 
+
         safeTransferETH(msg.sender, _value);
 
         return true;
@@ -163,6 +164,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         //Change order.lastRefreshTimestamp to current block.timestamp
         order.lastRefreshTimestamp = block.timestamp;
+
 
         return true;
     }
@@ -633,7 +635,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address lpAddressWethToB
     ) internal pure returns (TokenToTokenBatchOrder memory) {
         ///@notice initialize a new batch order
+
         return (
+
             TokenToTokenBatchOrder(
                 ///@notice initialize amountIn
                 0,
@@ -653,8 +657,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 new uint256[](initArrayLength),
                 ///@notice initialize orderIds
                 new bytes32[](initArrayLength)
+
             )
         );
+
     }
 
     function _batchTokenToTokenOrders(
@@ -845,7 +851,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // fallback() external payable{}
 
     //TODO: just import solmate safeTransferETh
+
     function safeTransferETH(address to, uint256 amount) public {
+
         bool success;
 
         assembly {
