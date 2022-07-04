@@ -280,18 +280,26 @@ contract ConveyorLimitOrdersTest is DSTest {
     function testRefreshOrderPass() public {
         //deal this address max eth
         cheatCodes.deal(address(this), MAX_UINT);
-        // swapHelper.swapEthForTokenWithUniV2(20 ether, LINK);
-        console.logUint(address(this).balance);
-        // cheatCodes.prank(address(1227));
+        
+        // cheatCodes.deal(address(swapHelper), MAX_UINT);
+        
+        cheatCodes.prank(address(this));
         (bool depositSuccess, ) = address(conveyorLimitOrders).call{
-                value: 10000000000
+                value: 90000000000000000000000000090000000
             }(abi.encodeWithSignature("depositCredits()"));
+        
 
+        uint256 gasCreditBalance = conveyorLimitOrders.creditBalance(
+                address(this)
+            );
+      
         //require that the deposit was a success
         require(depositSuccess, "testDepositGasCredits: deposit failed");
-        
-        OrderBook.Order memory order = OrderBook.Order({
-            tokenIn:LINK,
+
+        swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
+
+        ConveyorLimitOrders.Order memory order = OrderBook.Order({
+            tokenIn:swapToken,
             tokenOut:WETH,
             price:16602069666338596454400,
             orderId: bytes32(0),
@@ -304,16 +312,154 @@ contract ConveyorLimitOrdersTest is DSTest {
             owner:address(this)
         });
 
+        bytes32 orderId=placeMockOrder(order);
         
-        console.logUint(address(this).balance);
-        // placeMockOrder(order);
+        bool refreshSuccess = conveyorLimitOrders.refreshOrder(orderId);
+
+        require(refreshSuccess==true, "Order Refresh failed");
+        
+    }
+
+
+    function testRefreshOrderFailOrderNotRefreshable() public {
+        //deal this address max eth
+        cheatCodes.deal(address(this), MAX_UINT);
+        
         cheatCodes.prank(address(this));
 
-        bool refreshSuccess = conveyorLimitOrders.refreshOrder(bytes32(0));
+        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
+                value: 90000000000000000000000000090000000
+            }(abi.encodeWithSignature("depositCredits()"));
+
+        
+        //require that the deposit was a success
+        require(depositSuccess, "testDepositGasCredits: deposit failed");
+
+        swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
+
+        ConveyorLimitOrders.Order memory order = OrderBook.Order({
+            tokenIn:swapToken,
+            tokenOut:WETH,
+            price:16602069666338596454400,
+            orderId: bytes32(0),
+            buy:true,
+            taxed:false,
+            lastRefreshTimestamp:0x0000000000000000000000000000000000000000000000000000000062c30102,
+            expirationTimestamp:2419200,
+            quantity:0,
+            amountOutMin:6900000000000000000,
+            owner:address(this)
+        });
+        bytes32 orderId=placeMockOrder(order);
+        
+        bool refreshSuccess = conveyorLimitOrders.refreshOrder(orderId);
 
         require(refreshSuccess==true, "Order Refresh failed");
        
         
+    }
+
+    function testRefreshOrderFailOrderHasReachedExpiration() public {
+        //deal this address max eth
+        cheatCodes.deal(address(this), MAX_UINT);
+        
+        // cheatCodes.deal(address(swapHelper), MAX_UINT);
+       
+        cheatCodes.prank(address(this));
+        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
+                value: 90000000000000000000000000090000000
+            }(abi.encodeWithSignature("depositCredits()"));
+        
+        //require that the deposit was a success
+        require(depositSuccess, "testDepositGasCredits: deposit failed");
+
+        swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
+
+        ConveyorLimitOrders.Order memory order = OrderBook.Order({
+            tokenIn:swapToken,
+            tokenOut:WETH,
+            price:16602069666338596454400,
+            orderId: bytes32(0),
+            buy:true,
+            taxed:false,
+            lastRefreshTimestamp:0,
+            expirationTimestamp:0x0000000000000000000000000000000000000000000000000000008062c30102,
+            quantity:0,
+            amountOutMin:6900000000000000000,
+            owner:address(this)
+        });
+
+        bytes32 orderId=placeMockOrder(order);
+        
+        bool refreshSuccess = conveyorLimitOrders.refreshOrder(orderId);
+
+        require(refreshSuccess==true, "Order Refresh failed");
+    }
+
+    function testRefreshOrderFailInsufficientGasCreditBalance() public {
+        //deal this address max eth
+        cheatCodes.deal(address(this), MAX_UINT);
+        
+        swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
+
+        ConveyorLimitOrders.Order memory order = OrderBook.Order({
+            tokenIn:swapToken,
+            tokenOut:WETH,
+            price:16602069666338596454400,
+            orderId: bytes32(0),
+            buy:true,
+            taxed:false,
+            lastRefreshTimestamp:0,
+            expirationTimestamp:2419200,
+            quantity:0,
+            amountOutMin:6900000000000000000,
+            owner:address(this)
+        });
+
+        bytes32 orderId=placeMockOrder(order);
+        
+        bool refreshSuccess = conveyorLimitOrders.refreshOrder(orderId);
+
+        require(refreshSuccess==true, "Order Refresh failed");
+    }
+
+    function testRefreshOrderFailInsufficientGasCreditBalanceForOrderExecution() public {
+         //deal this address max eth
+        cheatCodes.deal(address(this), MAX_UINT);
+        
+        // cheatCodes.deal(address(swapHelper), MAX_UINT);
+        
+        cheatCodes.prank(address(this));
+        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
+                value: 100
+            }(abi.encodeWithSignature("depositCredits()"));
+    
+        
+        //require that the deposit was a success
+        require(depositSuccess, "testDepositGasCredits: deposit failed");
+
+        swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
+
+        ConveyorLimitOrders.Order memory order = OrderBook.Order({
+            tokenIn:swapToken,
+            tokenOut:WETH,
+            price:16602069666338596454400,
+            orderId: bytes32(0),
+            buy:true,
+            taxed:false,
+            lastRefreshTimestamp:0,
+            expirationTimestamp:2419200,
+            quantity:0,
+            amountOutMin:6900000000000000000,
+            owner:address(this)
+        });
+
+    
+        bytes32 orderId=placeMockOrder(order);
+        
+        bool refreshSuccess = conveyorLimitOrders.refreshOrder(orderId);
+
+        require(refreshSuccess==true, "Order Refresh failed");
     }
 
     function placeMockOrder(ConveyorLimitOrders.Order memory order)

@@ -17,7 +17,7 @@ import "./OrderRouter.sol";
 ///@notice for all order fulfuillment logic, see OrderRouter
 
 contract ConveyorLimitOrders is OrderBook, OrderRouter {
-    
+
     // ========================================= Modifiers =============================================
     modifier onlyEOA() {
         require(msg.sender == tx.origin);
@@ -135,7 +135,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         if (creditBalance[order.owner] < refreshFee) {
             revert InsufficientGasCreditBalance();
         }
-
+        // assembly {
+        //     mstore(0x00, refreshFee)
+        //     revert(0x00, 0x20)
+        // }
         //Get current gas price from v3 Aggregator
         uint256 gasPrice = getGasPrice();
         //Require gas credit withdrawal doesn't exceeed minimum gas credit requirements
