@@ -1064,6 +1064,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 currentOrder.tokenOut == nextOrder.tokenOut,
                 "incongruent token group"
             );
+
+            require(
+                currentOrder.taxed == nextOrder.taxed,
+                "incongruent taxed group"
+            );
         }
     }
 
