@@ -188,35 +188,39 @@ contract OrderBookTest is DSTest {
         }
     }
 
-    function testUpdateOrder() public {
-        //swap 20 ether for the swap token
-        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+    function testUpdateOrder(
+        uint256 swapAmount,
+        uint256 executionPrice,
+        uint256 swapAmount1,
+        uint256 executionPrice1
+    ) public {
+        try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
+            uint256 amountOut
+        ) {
+            //create a new order
+            ConveyorLimitOrders.Order memory order = newOrder(
+                swapToken,
+                wnato,
+                amountOut,
+                executionPrice,
+                executionPrice
+            );
+            //place a mock order
+            bytes32 orderId = placeMockOrder(order);
 
-        //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
-            swapToken,
-            wnato,
-            245000000000000000000,
-            5,
-            5
-        );
-        //place a mock order
-        bytes32 orderId = placeMockOrder(order);
+            //create a new order to replace the old order
+            ConveyorLimitOrders.Order memory updatedOrder = newOrder(
+                swapToken,
+                wnato,
+                swapAmount1,
+                executionPrice1,
+                executionPrice1
+            );
+            updatedOrder.orderId = orderId;
 
-        console.logBytes32(orderId);
-
-        //create a new order to replace the old order
-        ConveyorLimitOrders.Order memory updatedOrder = newOrder(
-            swapToken,
-            wnato,
-            245000000000000000000,
-            5,
-            5
-        );
-        updatedOrder.orderId = orderId;
-
-        //submit the updated order
-        orderBook.updateOrder(updatedOrder);
+            //submit the updated order
+            orderBook.updateOrder(updatedOrder);
+        } catch {}
     }
 
     function testFailUpdateOrder_OrderDoesNotExist() public {
