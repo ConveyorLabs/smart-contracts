@@ -8,10 +8,10 @@ import "../ConveyorLimitOrders.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
+import "./utils/Swap.sol";
 
 interface CheatCodes {
     function prank(address) external;
-
     function deal(address who, uint256 amount) external;
 }
 
@@ -20,7 +20,13 @@ contract ConveyorLimitOrdersTest is DSTest {
     //Initialize limit-v0 contract for testing
     ConveyorLimitOrders conveyorLimitOrders;
     ConveyorLimitOrdersWrapper limitOrderWrapper;
-    
+
+    Swap swapHelper;
+
+    address uniV2Addr = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    //TODO: add univ3 address
+    address uniV3Addr = address(0);
+
     //Initialize cheatcodes
     CheatCodes cheatCodes;
 
@@ -43,7 +49,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     //Chainlink ERC20 address
     address swapToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
-
+    
     //pancake, sushi, uni create2 factory initialization bytecode
     bytes32 _pancakeHexDem =
         0x00fb7f630766e6a796048ea87d01acd3068e8ff67d078148a3fa3f4a84f69bd5;
@@ -63,10 +69,11 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
-
+        swapHelper = new Swap(uniV2Addr, uniV3Addr, WETH);
         conveyorLimitOrders = new ConveyorLimitOrders(
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+            5
         );
         conveyorLimitOrders.addDex(_dexFactories, _hexDems, _isUniV2);
     }
@@ -269,6 +276,78 @@ contract ConveyorLimitOrdersTest is DSTest {
             require(false, "overflow");
         }
     }
+
+    function testRefreshOrderPass() public {
+        //deal this address max eth
+        cheatCodes.deal(address(this), MAX_UINT);
+        // swapHelper.swapEthForTokenWithUniV2(20 ether, LINK);
+        console.logUint(address(this).balance);
+        // cheatCodes.prank(address(1227));
+        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
+                value: 10000000000
+            }(abi.encodeWithSignature("depositCredits()"));
+
+        //require that the deposit was a success
+        require(depositSuccess, "testDepositGasCredits: deposit failed");
+        
+        OrderBook.Order memory order = OrderBook.Order({
+            tokenIn:LINK,
+            tokenOut:WETH,
+            price:16602069666338596454400,
+            orderId: bytes32(0),
+            buy:true,
+            taxed:false,
+            lastRefreshTimestamp:0,
+            expirationTimestamp:2419200,
+            quantity:0,
+            amountOutMin:6900000000000000000,
+            owner:address(this)
+        });
+
+        
+        console.logUint(address(this).balance);
+        // placeMockOrder(order);
+        cheatCodes.prank(address(this));
+
+        bool refreshSuccess = conveyorLimitOrders.refreshOrder(bytes32(0));
+
+        require(refreshSuccess==true, "Order Refresh failed");
+       
+        
+    }
+
+    function placeMockOrder(ConveyorLimitOrders.Order memory order)
+        internal
+        returns (bytes32 orderId)
+    {
+        //create a new array of orders
+        ConveyorLimitOrders.Order[]
+            memory orderGroup = new ConveyorLimitOrders.Order[](1);
+        //add the order to the arrOrder and add the arrOrder to the orderGroup
+        orderGroup[0] = order;
+
+        //place order
+        bytes32[] memory orderIds = conveyorLimitOrders.placeOrder(orderGroup);
+
+        orderId = orderIds[0];
+    }
+    receive() external payable{}
+
+    // function testRefreshOrderFailOrderNotRefreshable(){
+    //     OrderBook.Order memory order = OrderBook.Order({
+    //         tokenIn: tokenIn,
+    //         tokenOut: tokenOut,
+    //         orderId: bytes32(0),
+    //         buy: buy,
+    //         taxed: taxed,
+    //         lastRefreshTimestamp: 0,
+    //         expirationTimestamp: 2419200,
+    //         price: price,
+    //         amountOutMin: amountOutMin,
+    //         quantity: quantity,
+    //         owner: msg.sender
+    //     });
+    // }
 
     // function testFailRemoveGasCredits_InsufficientGasCreditBalanceForOrderExecution(
     //     uint256 _amount
@@ -588,6 +667,8 @@ contract ConveyorLimitOrdersTest is DSTest {
             orderId: bytes32(0),
             buy: buy,
             taxed: taxed,
+            lastRefreshTimestamp: 0,
+            expirationTimestamp: 2419200,
             price: price,
             amountOutMin: amountOutMin,
             quantity: quantity,

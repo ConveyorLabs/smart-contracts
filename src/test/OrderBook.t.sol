@@ -428,6 +428,8 @@ contract OrderBookTest is DSTest {
             orderId: bytes32(0),
             buy: false,
             taxed: false,
+            lastRefreshTimestamp:0,
+            expirationTimestamp:2419200,
             price: price,
             quantity: quantity,
             amountOutMin: amountOutMin,

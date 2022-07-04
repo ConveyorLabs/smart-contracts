@@ -17,7 +17,7 @@ import "./OrderRouter.sol";
 ///@notice for all order fulfuillment logic, see OrderRouter
 
 contract ConveyorLimitOrders is OrderBook, OrderRouter {
-
+    
     // ========================================= Modifiers =============================================
     modifier onlyEOA() {
         require(msg.sender == tx.origin);
@@ -31,9 +31,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     address immutable WETH;
 
+    uint256 immutable refreshFee;
+
     // ========================================= Constructor =============================================
 
-    constructor(address _gasOracle, address _weth) OrderBook(_gasOracle) {
+    constructor(
+        address _gasOracle,
+        address _weth,
+        uint256 _refreshFee
+    ) OrderBook(_gasOracle) {
+        refreshFee = _refreshFee;
         WETH = _weth;
     }
 
@@ -47,6 +54,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ========================================= Errors =============================================
     error InsufficientGasCreditBalance();
     error InsufficientGasCreditBalanceForOrderExecution();
+    error OrderNotRefreshable();
+    error OrderHasReachedExpiration();
 
     // ========================================= FUNCTIONS =============================================
 
@@ -106,29 +115,73 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return true;
     }
 
+    //Todo add reentrancy guard
+    /// @notice External helper function to allow beacon to refresh an oder after 30 days in unix time
+    /// @param orderId order to refresh timestamp
+    function refreshOrder(bytes32 orderId) external returns (bool) {
+        Order memory order = getOrderById(orderId);
+
+        //Require 30 days has elapsed since last refresh
+        if (block.timestamp - order.lastRefreshTimestamp < 2419200) {
+            revert OrderNotRefreshable();
+        }
+
+        //Require current timestamp is not past order expiration
+        if (block.timestamp < order.expirationTimestamp) {
+            revert OrderHasReachedExpiration();
+        }
+
+        //Require credit balance is sufficient to cover refresh feee
+        if (creditBalance[order.owner] < refreshFee) {
+            revert InsufficientGasCreditBalance();
+        }
+
+        //Get current gas price from v3 Aggregator
+        uint256 gasPrice = getGasPrice();
+        //Require gas credit withdrawal doesn't exceeed minimum gas credit requirements
+        if (
+            !(
+                _hasMinGasCredits(
+                    gasPrice,
+                    300000,
+                    order.owner,
+                    creditBalance[order.owner] - refreshFee
+                )
+            )
+        ) {
+            revert InsufficientGasCreditBalanceForOrderExecution();
+        }
+
+        //Transfer refresh fee to beacon
+        safeTransferETH(msg.sender, refreshFee);
+
+        //Decrement order.owner credit balance
+        creditBalance[order.owner] = creditBalance[order.owner] - refreshFee;
+
+        //Change order.lastRefreshTimestamp to current block.timestamp
+        order.lastRefreshTimestamp = block.timestamp;
+
+        return true;
+    }
+
     // ==================== Order Execution Functions =========================
 
     ///@notice This function takes in an array of orders,
     /// @param orders array of orders to be executed within the mapping
     function executeOrders(Order[] calldata orders) external onlyEOA {
-        
         ///@notice validate that the order array is in ascending order by quantity
         _validateOrderSequencing(orders);
-        
+
         ///@notice Sequence the orders by priority fee
         // Order[] memory sequencedOrders = _sequenceOrdersByPriorityFee(orders);
 
         //TODO: figure out weth to token
-        
+
         ///@notice check if the token out is weth to determine what type of order execution to use
         if (orders[0].tokenOut == WETH) {
-            
             _executeTokenToWethOrders(orders);
-            
         } else {
-            
             _executeTokenToTokenOrders(orders);
-            
         }
     }
 
@@ -136,20 +189,19 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     ///@notice execute an array of orders from token to weth
     function _executeTokenToWethOrders(Order[] calldata orders) internal {
-        
         ///@notice get all execution price possibilities
         TokenToWethExecutionPrice[]
             memory executionPrices = _initializeTokenToWethExecutionPrices(
                 orders
             );
-         
+
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
         TokenToWethBatchOrder[]
             memory tokenToWethBatchOrders = _batchTokenToWethOrders(
                 orders,
                 executionPrices
             );
-        
+
         ///@notice execute the batch orders
         _executeTokenToWethBatchOrders(tokenToWethBatchOrders);
     }
@@ -229,13 +281,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         view
         returns (TokenToWethExecutionPrice[] memory)
     {
-        
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
         ) = _getAllPrices(orders[0].tokenIn, WETH, 300, 1);
 
-        TokenToWethExecutionPrice[] memory executionPrices = new TokenToWethExecutionPrice[](spotReserveAToWeth.length);
+        TokenToWethExecutionPrice[]
+            memory executionPrices = new TokenToWethExecutionPrice[](
+                spotReserveAToWeth.length
+            );
         {
             for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
                 executionPrices[i] = TokenToWethExecutionPrice(
@@ -247,8 +301,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
         }
         return executionPrices;
-        
-        
     }
 
     function _initializeNewTokenToWethBatchOrder(
@@ -416,23 +468,21 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     ///@notice execute an array of orders from token to token
     function _executeTokenToTokenOrders(Order[] calldata orders) internal {
-        
         ///@notice get all execution price possibilities
         TokenToTokenExecutionPrice[]
             memory executionPrices = _initializeTokenToTokenExecutionPrices(
                 orders
             );
-        
+
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
         TokenToTokenBatchOrder[]
             memory tokenToTokenBatchOrders = _batchTokenToTokenOrders(
                 orders,
                 executionPrices
             );
-        
+
         ///@notice execute the batch orders
         _executeTokenToTokenBatchOrders(tokenToTokenBatchOrders);
-        
     }
 
     function _executeTokenToTokenBatchOrders(
@@ -520,19 +570,21 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         view
         returns (TokenToTokenExecutionPrice[] memory)
     {
-        
         //TODO: need to make fee dynamic
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
         ) = _getAllPrices(orders[0].tokenIn, WETH, 300, 1);
-        
+
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
         ) = _getAllPrices(WETH, orders[0].tokenOut, 300, 1);
 
-        TokenToTokenExecutionPrice[] memory executionPrices = new TokenToTokenExecutionPrice[](spotReserveAToWeth.length);
+        TokenToTokenExecutionPrice[]
+            memory executionPrices = new TokenToTokenExecutionPrice[](
+                spotReserveAToWeth.length
+            );
 
         {
             for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
@@ -577,10 +629,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address lpAddressAToWeth,
         address lpAddressWethToB
     ) internal pure returns (TokenToTokenBatchOrder memory) {
-        
-        
         ///@notice initialize a new batch order
-        return(
+        return (
             TokenToTokenBatchOrder(
                 ///@notice initialize amountIn
                 0,
@@ -613,7 +663,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     {
         Order memory firstOrder = orders[0];
         bool buyOrder = _buyOrSell(firstOrder);
-        
+
         address batchOrderTokenIn = firstOrder.tokenIn;
         address batchOrderTokenOut = firstOrder.tokenOut;
 
@@ -621,7 +671,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             executionPrices,
             buyOrder
         );
-        
+
         TokenToTokenBatchOrder
             memory currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
                 orders.length,
@@ -630,7 +680,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices[currentBestPriceIndex].lpAddressAToWeth,
                 executionPrices[currentBestPriceIndex].lpAddressWethToB
             );
-        
+
         //loop each order
         for (uint256 i = 0; i < orders.length; i++) {
             ///@notice get the index of the best exectuion price
@@ -638,7 +688,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices,
                 buyOrder
             );
-            
+
             ///@notice if the best price has changed since the last order
             if (i > 0 && currentBestPriceIndex != bestPriceIndex) {
                 ///@notice add the current batch order to the batch orders array
@@ -659,7 +709,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     executionPrices[bestPriceIndex].lpAddressAToWeth,
                     executionPrices[bestPriceIndex].lpAddressWethToB
                 );
-                
             }
 
             Order memory currentOrder = orders[i];
@@ -789,9 +838,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             return false;
         }
     }
+    receive() external payable{}
+    // fallback() external payable{}
 
     //TODO: just import solmate safeTransferETh
-    function safeTransferETH(address to, uint256 amount) internal {
+    function safeTransferETH(address to, uint256 amount) public {
         bool success;
 
         assembly {
@@ -806,7 +857,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         TokenToWethExecutionPrice memory executionPrice
     ) internal pure returns (TokenToWethExecutionPrice memory) {
         //TODO: update this to make sure weth is the right reserve position
-
         (
             executionPrice.price,
             executionPrice.aToWethReserve0,
@@ -936,5 +986,4 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ) internal pure returns (bool) {
         return spot_price * order_quantity >= amountOutMin;
     }
-
 }

@@ -81,7 +81,6 @@ contract OrderRouter {
         uint128 res1;
     }
 
-   
     //----------------------Functions------------------------------------//
 
     /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation
@@ -569,15 +568,13 @@ contract OrderRouter {
         view
         returns (SpotReserve[] memory prices, address[] memory lps)
     {
-        
         //Target base amount in value
         uint112 amountIn = _getTargetAmountIn(token0, token1);
-        uint256 dexLength= dexes.length;
-        
+        uint256 dexLength = dexes.length;
+
         SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
         address[] memory _lps = new address[](dexes.length);
-        
-        
+
         //Iterate through Dex's in dexes check if isUniV2 and accumulate spot price to meanSpotPrice
         for (uint256 i = 0; i < dexes.length; ++i) {
             // require(false, "Got here");
@@ -599,7 +596,6 @@ contract OrderRouter {
                     }
                 }
             } else {
-                
                 {
                     {
                         (
@@ -642,12 +638,11 @@ contract OrderRouter {
         view
         returns (uint112 amountIn)
     {
-        
         //Get target decimals for token0, token1
         uint8 token0Target = _getTargetDecimals(token0);
         // require(false, "Got here");
         uint8 token1Target = _getTargetDecimals(token1);
-        
+
         //target decimal := the difference in decimal targets between tokens
         uint8 targetDec = (token0Target < token1Target)
             ? (token1Target - token0Target)

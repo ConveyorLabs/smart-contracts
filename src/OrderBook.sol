@@ -5,6 +5,7 @@ import "../lib/interfaces/token/IERC20.sol";
 import "./GasOracle.sol";
 
 contract OrderBook is GasOracle {
+
     //----------------------Constructor------------------------------------//
 
     constructor(address _gasOracle) GasOracle(_gasOracle) {}
@@ -58,10 +59,6 @@ contract OrderBook is GasOracle {
 
     //----------------------Functions------------------------------------//
 
-    function refreshOrder(Order memory order) external view 
-    {
-
-    }
     function getOrderById(bytes32 orderId)
         public
         view
@@ -164,6 +161,8 @@ contract OrderBook is GasOracle {
         orderIds[0] = newOrder.orderId;
         emit OrderUpdated(orderIds);
     }
+
+     
 
     /// @notice Remove Order order from OrderGroup mapping by identifier orderId conditionally if order exists already in ActiveOrders
     /// @param orderId the order to which the caller is removing from the OrderGroup struct
