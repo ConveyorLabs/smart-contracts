@@ -284,9 +284,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ///@notice check if the token out is weth to determine what type of order execution to use
         if (orders[0].taxed==true){
             if(orders[0].tokenOut==WETH){
-                _executeTokenToWethTaxedOrders(orders, sender);
+                _executeTokenToWethTaxedOrders(orders);
             }else{
-                _executeTokenToTokenTaxedOrders(orders, sender);
+                _executeTokenToTokenTaxedOrders(orders);
             }
         }else{
             if (orders[0].tokenOut == WETH) {
@@ -300,7 +300,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     // ==================== Token To Weth Order Execution Logic =========================
     ///@notice execute an array of orders from token to weth
-    function _executeTokenToWethTaxedOrders(Order[] memory orders, address sender) internal {
+    function _executeTokenToWethTaxedOrders(Order[] memory orders) internal {
         ///@notice get all execution price possibilities
         TokenToWethExecutionPrice[]
             memory executionPrices = _initializeTokenToWethExecutionPrices(
@@ -315,24 +315,24 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
 
         ///@notice execute the batch orders
-        _executeTokenToWethBatchTaxedOrders(tokenToWethBatchOrders, sender);
+        _executeTokenToWethBatchTaxedOrders(tokenToWethBatchOrders);
     }
 
     function _executeTokenToWethBatchTaxedOrders(
-        TokenToWethBatchOrder[] memory tokenToWethBatchOrders, address sender
+        TokenToWethBatchOrder[] memory tokenToWethBatchOrders
     ) internal {
        
         for (uint256 i = 0; i < tokenToWethBatchOrders.length; i++) {
             TokenToWethBatchOrder memory batch = tokenToWethBatchOrders[i];
             for(uint256 j=0; j< batch.orderIds.length;j++){
                 Order memory order = getOrderById(batch.orderIds[i]);
-                bool batchExecuted= _executeTokenToWethTaxedOrder(batch, order, sender);
+                 _executeTokenToWethTaxedOrder(batch, order);
             }    
         }
 
     }
 
-    function _executeTokenToWethTaxedOrder(TokenToWethBatchOrder memory batch, Order memory order, address sender)
+    function _executeTokenToWethTaxedOrder(TokenToWethBatchOrder memory batch, Order memory order)
         internal
         returns (bool)
     {
@@ -351,12 +351,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         (, uint128 beaconReward) = _calculateReward(protocolFee, amountOutWeth);
 
-        safeTransferETH(sender, beaconReward);
-        
-        //TODO: require amountOutWeth> batchAmountOutMin ?
-
-        ///@notice take out fees
-       
+        safeTransferETH(msg.sender, beaconReward);
+    
         return true;
     }
 
@@ -659,7 +655,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
      ///@notice execute an array of orders from token to token
-    function _executeTokenToTokenTaxedOrders(Order[] memory orders, address sender) internal {
+    function _executeTokenToTokenTaxedOrders(Order[] memory orders) internal {
         ///@notice get all execution price possibilities
         TokenToTokenExecutionPrice[]
             memory executionPrices = _initializeTokenToTokenExecutionPrices(
@@ -674,18 +670,18 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
 
         ///@notice execute the batch orders
-        _executeTokenToTokenBatchTaxedOrders(tokenToTokenBatchOrders, sender);
+        _executeTokenToTokenBatchTaxedOrders(tokenToTokenBatchOrders);
     }
 
     function _executeTokenToTokenBatchTaxedOrders(
-        TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders, address sender
+        TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders
     ) internal {
 
         for (uint256 i = 0; i < tokenToTokenBatchOrders.length; i++) {
             TokenToTokenBatchOrder memory batch = tokenToTokenBatchOrders[i];
             for(uint256 j=0; j<batch.orderIds.length; j++){
                 Order memory order = getOrderById(batch.orderIds[j]);
-                bool didExecute= _executeTokenToTokenTaxedOrder(tokenToTokenBatchOrders[i], order, sender);
+                _executeTokenToTokenTaxedOrder(tokenToTokenBatchOrders[i], order);
             }
 
         }
@@ -694,7 +690,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     ///@return (amountOut, beaconReward)
     ///@dev the amountOut is the amount out - protocol fees
-    function _executeTokenToTokenTaxedOrder(TokenToTokenBatchOrder memory batch, Order memory order, address sender)
+    function _executeTokenToTokenTaxedOrder(TokenToTokenBatchOrder memory batch, Order memory order)
         internal
         returns (bool)
     {
@@ -712,7 +708,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ///@notice take out fees
         uint128 protocolFee = _calculateFee(amountOutWeth);
         (, uint128 beaconReward) = _calculateReward(protocolFee, amountOutWeth);
-        safeTransferETH(sender, beaconReward);
+        safeTransferETH(msg.sender, beaconReward);
 
         ///@notice get amount in for weth to B
         uint256 amountInWethToB = amountOutWeth - protocolFee;
