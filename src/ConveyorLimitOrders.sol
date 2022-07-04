@@ -255,7 +255,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         orderIds[0] = order.orderId;
 
         safeTransferETH(sender, minimumGasCreditsForSingleOrder);
-        
+
         emit OrderCancelled(orderIds);
 
         return false;
@@ -280,16 +280,85 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         // Order[] memory sequencedOrders = _sequenceOrdersByPriorityFee(orders);
 
         //TODO: figure out weth to token
-
+        address sender = msg.sender;
         ///@notice check if the token out is weth to determine what type of order execution to use
-        if (orders[0].tokenOut == WETH) {
-            _executeTokenToWethOrders(orders);
-        } else {
-            _executeTokenToTokenOrders(orders);
+        if (orders[0].taxed==true){
+            if(orders[0].tokenOut==WETH){
+                _executeTokenToWethTaxedOrders(orders, sender);
+            }else{
+                _executeTokenToTokenTaxedOrders(orders, sender);
+            }
+        }else{
+            if (orders[0].tokenOut == WETH) {
+                _executeTokenToWethOrders(orders);
+            } else {
+                 _executeTokenToTokenOrders(orders);
+            }
         }
+        
     }
 
     // ==================== Token To Weth Order Execution Logic =========================
+    ///@notice execute an array of orders from token to weth
+    function _executeTokenToWethTaxedOrders(Order[] memory orders, address sender) internal {
+        ///@notice get all execution price possibilities
+        TokenToWethExecutionPrice[]
+            memory executionPrices = _initializeTokenToWethExecutionPrices(
+                orders
+            );
+
+        ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
+        TokenToWethBatchOrder[]
+            memory tokenToWethBatchOrders = _batchTokenToWethOrders(
+                orders,
+                executionPrices
+            );
+
+        ///@notice execute the batch orders
+        _executeTokenToWethBatchTaxedOrders(tokenToWethBatchOrders, sender);
+    }
+
+    function _executeTokenToWethBatchTaxedOrders(
+        TokenToWethBatchOrder[] memory tokenToWethBatchOrders, address sender
+    ) internal {
+       
+        for (uint256 i = 0; i < tokenToWethBatchOrders.length; i++) {
+            TokenToWethBatchOrder memory batch = tokenToWethBatchOrders[i];
+            for(uint256 j=0; j< batch.orderIds.length;j++){
+                Order memory order = getOrderById(batch.orderIds[i]);
+                bool batchExecuted= _executeTokenToWethTaxedOrder(batch, order, sender);
+            }    
+        }
+
+    }
+
+    function _executeTokenToWethTaxedOrder(TokenToWethBatchOrder memory batch, Order memory order, address sender)
+        internal
+        returns (bool)
+    {
+        ///@notice swap from A to weth
+        uint128 amountOutWeth = uint128(
+            _swap(
+                order.tokenIn,
+                WETH,
+                batch.lpAddress,
+                order.quantity,
+                order.amountOutMin
+            )
+        );
+
+            uint128 protocolFee = _calculateFee(amountOutWeth);
+
+        (, uint128 beaconReward) = _calculateReward(protocolFee, amountOutWeth);
+
+        safeTransferETH(sender, beaconReward);
+        
+        //TODO: require amountOutWeth> batchAmountOutMin ?
+
+        ///@notice take out fees
+       
+        return true;
+    }
 
     ///@notice execute an array of orders from token to weth
     function _executeTokenToWethOrders(Order[] memory orders) internal {
@@ -587,6 +656,77 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         ///@notice execute the batch orders
         _executeTokenToTokenBatchOrders(tokenToTokenBatchOrders);
+    }
+
+     ///@notice execute an array of orders from token to token
+    function _executeTokenToTokenTaxedOrders(Order[] memory orders, address sender) internal {
+        ///@notice get all execution price possibilities
+        TokenToTokenExecutionPrice[]
+            memory executionPrices = _initializeTokenToTokenExecutionPrices(
+                orders
+            );
+
+        ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
+        TokenToTokenBatchOrder[]
+            memory tokenToTokenBatchOrders = _batchTokenToTokenOrders(
+                orders,
+                executionPrices
+            );
+
+        ///@notice execute the batch orders
+        _executeTokenToTokenBatchTaxedOrders(tokenToTokenBatchOrders, sender);
+    }
+
+    function _executeTokenToTokenBatchTaxedOrders(
+        TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders, address sender
+    ) internal {
+
+        for (uint256 i = 0; i < tokenToTokenBatchOrders.length; i++) {
+            TokenToTokenBatchOrder memory batch = tokenToTokenBatchOrders[i];
+            for(uint256 j=0; j<batch.orderIds.length; j++){
+                Order memory order = getOrderById(batch.orderIds[j]);
+                bool didExecute= _executeTokenToTokenTaxedOrder(tokenToTokenBatchOrders[i], order, sender);
+            }
+
+        }
+        
+    }
+
+    ///@return (amountOut, beaconReward)
+    ///@dev the amountOut is the amount out - protocol fees
+    function _executeTokenToTokenTaxedOrder(TokenToTokenBatchOrder memory batch, Order memory order, address sender)
+        internal
+        returns (bool)
+    {
+        ///@notice swap from A to weth
+        uint128 amountOutWeth = uint128(
+            _swap(
+                order.tokenIn,
+                WETH,
+                batch.lpAddressAToWeth,
+                order.quantity,
+                order.amountOutMin
+            )
+        );
+
+        ///@notice take out fees
+        uint128 protocolFee = _calculateFee(amountOutWeth);
+        (, uint128 beaconReward) = _calculateReward(protocolFee, amountOutWeth);
+        safeTransferETH(sender, beaconReward);
+
+        ///@notice get amount in for weth to B
+        uint256 amountInWethToB = amountOutWeth - protocolFee;
+
+        ///@notice swap weth for B
+        _swap(
+            WETH,
+            order.tokenOut,
+            batch.lpAddressWethToB,
+            amountInWethToB,
+            order.amountOutMin
+        );
+
+        return true;
     }
 
     function _executeTokenToTokenBatchOrders(
