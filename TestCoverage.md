@@ -136,16 +136,16 @@
 - fail: insufficient wallet balance ✅ 
 
 ## updateOrder
-- success
-- fail: order does not exist
+- success ✅ 
+- fail: order does not exist ✅
 
 ## cancelOrder
-- success
-- fail: order does not exist
+- success ✅ 
+- fail: order does not exist  ✅
 
 ## cancelOrders
-- success
-- fail: order does not exist
+- success  ✅
+- fail: order does not exist ✅
 
 ## getTotalOrdersValue
 
