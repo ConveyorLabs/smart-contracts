@@ -69,7 +69,7 @@ contract OrderBookTest is DSTest {
         assertEq(returnedOrder.quantity, newOrder.quantity);
     }
 
-    function testFailGetOrderById() public {
+    function testFailGetOrderById_OrderDoesNotExist() public {
         //create a new order
         ConveyorLimitOrders.Order memory newOrder = newOrder(
             swapToken,
@@ -84,20 +84,16 @@ contract OrderBookTest is DSTest {
         ConveyorLimitOrders.Order memory returnedOrder = orderBook.getOrderById(
             bytes32(0)
         );
-
-        // assert that the two orders are the same
-        assertEq(returnedOrder.tokenIn, newOrder.tokenIn);
-        assertEq(returnedOrder.tokenOut, newOrder.tokenOut);
-        assertEq(returnedOrder.orderId, newOrder.orderId);
-        assertEq(returnedOrder.price, newOrder.price);
-        assertEq(returnedOrder.quantity, newOrder.quantity);
     }
 
-    function testPlaceOrder() public {
+    function testPlaceOrder(uint256 swapAmount) public {
         cheatCodes.deal(address(this), MAX_UINT);
 
         //swap 20 ether for the swap token
-        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+        uint256 amountOut = swapHelper.swapEthForTokenWithUniV2(
+            swapAmount,
+            swapToken
+        );
 
         OrderBook.Order memory order = newOrder(
             swapToken,
@@ -121,7 +117,7 @@ contract OrderBookTest is DSTest {
         assert((orderId != bytes32(0)));
     }
 
-    function testFailPlaceOrderInsufficientWalletBalance() public {
+    function testFailPlaceOrder_InsufficientWalletBalance() public {
         OrderBook.Order memory order = newOrder(
             swapToken,
             wnato,
@@ -140,7 +136,7 @@ contract OrderBookTest is DSTest {
         bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
     }
 
-    function testFailPlaceOrderIncongruentTokenInOrderGroup() public {
+    function testFailPlaceOrder_IncongruentTokenInOrderGroup() public {
         cheatCodes.deal(address(this), MAX_UINT);
 
         //swap 20 ether for the swap token
@@ -206,7 +202,7 @@ contract OrderBookTest is DSTest {
         orderBook.updateOrder(updatedOrder);
     }
 
-    function testFailUpdateOrderOrderDoesNotExist() public {
+    function testFailUpdateOrder_OrderDoesNotExist() public {
         //swap 20 ether for the swap token
         swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
 
@@ -428,8 +424,8 @@ contract OrderBookTest is DSTest {
             orderId: bytes32(0),
             buy: false,
             taxed: false,
-            lastRefreshTimestamp:0,
-            expirationTimestamp:2419200,
+            lastRefreshTimestamp: 0,
+            expirationTimestamp: 2419200,
             price: price,
             quantity: quantity,
             amountOutMin: amountOutMin,

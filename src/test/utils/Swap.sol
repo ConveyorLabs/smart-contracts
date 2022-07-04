@@ -21,21 +21,19 @@ contract Swap {
     ///@dev the msg.sender needs to have eth before calling this function
     function swapEthForTokenWithUniV2(uint256 amount, address _swapToken)
         public
+        returns (uint256)
     {
-        
         //set the path
         address[] memory path = new address[](2);
         path[0] = wnato;
         path[1] = _swapToken;
-        
 
         // swap eth for tokens
-        uniV2Router.swapExactETHForTokens{value: amount}(
+        uint256 amountOut = uniV2Router.swapExactETHForTokens{value: amount}(
             1,
             path,
             msg.sender,
             (2**256 - 1)
-        );
-        
+        )[1];
     }
 }
