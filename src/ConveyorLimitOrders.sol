@@ -17,7 +17,6 @@ import "./OrderRouter.sol";
 ///@notice for all order fulfuillment logic, see OrderRouter
 
 contract ConveyorLimitOrders is OrderBook, OrderRouter {
-
     // ========================================= Modifiers =============================================
     modifier onlyEOA() {
         require(msg.sender == tx.origin);
@@ -110,7 +109,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //Decrease user creditBalance
         creditBalance[msg.sender] = creditBalance[msg.sender] - _value;
 
-
         safeTransferETH(msg.sender, _value);
 
         return true;
@@ -165,16 +163,21 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //Change order.lastRefreshTimestamp to current block.timestamp
         order.lastRefreshTimestamp = block.timestamp;
 
-
         return true;
     }
 
     // ==================== Order Execution Functions =========================
 
     ///@notice This function takes in an array of orders,
-    /// @param orders array of orders to be executed within the mapping
-    function executeOrders(Order[] calldata orders) external onlyEOA {
+    /// @param orderIds array of orders to be executed within the mapping
+    function executeOrders(bytes32[] calldata orderIds) external onlyEOA {
         ///@notice validate that the order array is in ascending order by quantity
+
+        Order[] memory orders = new Order[](orderIds.length);
+        for (uint256 i = 0; i < orderIds.length; i++) {
+            orders[i] = getOrderById(orderIds[i]);
+        }
+
         _validateOrderSequencing(orders);
 
         ///@notice Sequence the orders by priority fee
@@ -193,7 +196,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ==================== Token To Weth Order Execution Logic =========================
 
     ///@notice execute an array of orders from token to weth
-    function _executeTokenToWethOrders(Order[] calldata orders) internal {
+    function _executeTokenToWethOrders(Order[] memory orders) internal {
         ///@notice get all execution price possibilities
         TokenToWethExecutionPrice[]
             memory executionPrices = _initializeTokenToWethExecutionPrices(
@@ -281,7 +284,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ==================== Token to Weth Helper Functions =========================
 
     ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
-    function _initializeTokenToWethExecutionPrices(Order[] calldata orders)
+    function _initializeTokenToWethExecutionPrices(Order[] memory orders)
         internal
         view
         returns (TokenToWethExecutionPrice[] memory)
@@ -472,7 +475,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ==================== Token To Token Order Execution Logic =========================
 
     ///@notice execute an array of orders from token to token
-    function _executeTokenToTokenOrders(Order[] calldata orders) internal {
+    function _executeTokenToTokenOrders(Order[] memory orders) internal {
         ///@notice get all execution price possibilities
         TokenToTokenExecutionPrice[]
             memory executionPrices = _initializeTokenToTokenExecutionPrices(
@@ -570,7 +573,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ==================== Token to Token Helper Functions =========================
 
     ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
-    function _initializeTokenToTokenExecutionPrices(Order[] calldata orders)
+    function _initializeTokenToTokenExecutionPrices(Order[] memory orders)
         internal
         view
         returns (TokenToTokenExecutionPrice[] memory)
@@ -637,7 +640,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ///@notice initialize a new batch order
 
         return (
-
             TokenToTokenBatchOrder(
                 ///@notice initialize amountIn
                 0,
@@ -657,10 +659,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 new uint256[](initArrayLength),
                 ///@notice initialize orderIds
                 new bytes32[](initArrayLength)
-
             )
         );
-
     }
 
     function _batchTokenToTokenOrders(
@@ -808,7 +808,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     // ==================== Misc Helper Functions =========================
 
-    function _validateOrderSequencing(Order[] calldata orders) internal pure {
+    function _validateOrderSequencing(Order[] memory orders) internal pure {
         for (uint256 i = 0; i < orders.length - 1; i++) {
             Order memory currentOrder = orders[i];
             Order memory nextOrder = orders[i + 1];
@@ -847,13 +847,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             return false;
         }
     }
-    receive() external payable{}
+
+    receive() external payable {}
+
     // fallback() external payable{}
 
     //TODO: just import solmate safeTransferETh
 
     function safeTransferETH(address to, uint256 amount) public {
-
         bool success;
 
         assembly {
