@@ -32,15 +32,19 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     uint256 immutable refreshFee;
 
+    uint256 immutable executionCost;
+
     // ========================================= Constructor =============================================
 
     constructor(
         address _gasOracle,
         address _weth,
-        uint256 _refreshFee
+        uint256 _refreshFee,
+        uint256 _executionCost
     ) OrderBook(_gasOracle) {
         refreshFee = _refreshFee;
         WETH = _weth;
+        executionCost=_executionCost;
     }
 
     // ========================================= Events  =============================================
@@ -97,7 +101,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             !(
                 _hasMinGasCredits(
                     gasPrice,
-                    300000,
+                    executionCost,
                     msg.sender,
                     creditBalance[msg.sender] - _value
                 )
@@ -145,7 +149,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             !(
                 _hasMinGasCredits(
                     gasPrice,
-                    300000,
+                    executionCost,
                     order.owner,
                     creditBalance[order.owner] - refreshFee
                 )
@@ -165,7 +169,99 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         return true;
     }
+    //------------Order Cancellation Functions---------------------------------
+    /// Todo Add reentrancy guard
+    /// @notice Helper function for beacon to externally cancel an Order with below minimum gas credit balance for execution
+    /// @param orderId Id of the order to cancel
+    /// @return bool indicator whether order was successfully cancelled with compensation
+    function validateAndCancelOrder(bytes32 orderId) external returns (bool){
+        //Order to be validated for cancellation
+        Order memory order = orderIdToOrder[orderId];
+        /// Check if order exists in active orders. Revert if order does not exist
+        bool orderExists = addressToOrderIds[order.owner][orderId];
+        if (!orderExists) {
+            revert OrderDoesNotExist(orderId);
+        }
 
+    
+        //Amount of order's owned by order owner
+        uint256 totalOrders = totalOrdersPerAddress[order.owner];
+
+        //Get current gas price from v3 Aggregator
+        uint256 gasPrice = getGasPrice();
+
+        uint256 minimumGasCreditsForAllOrders = calculateMinGasCredits(gasPrice, 300000, order.owner, 1);
+
+        uint256 minimumGasCreditsForSingleOrder = minimumGasCreditsForAllOrders / totalOrders;
+
+        if (
+            !(
+                _hasMinGasCredits(
+                    gasPrice,
+                    executionCost,
+                    order.owner,
+                    creditBalance[order.owner]
+                )
+            )
+        ) {
+            safeTransferETH(msg.sender, minimumGasCreditsForSingleOrder);
+
+            delete orderIdToOrder[orderId];
+            delete addressToOrderIds[order.owner][orderId];
+
+            //decrement from total orders per address
+            --totalOrdersPerAddress[order.owner];
+
+            bytes32[] memory orderIds = new bytes32[](1);
+            orderIds[0] = order.orderId;
+
+            emit OrderCancelled(orderIds);
+
+            return true;
+        }
+        return false;
+
+    }
+
+    /// @notice Internal helper function to cancel order with implicit validation within refreshOrder
+    /// @param orderId Id of the order to cancel
+    /// @param sender address of beacon caller to refreshOrder to be compensated for cancellation
+    /// @return bool indicator whether order was successfully cancelled with compensation
+    function _cancelOrder(bytes32 orderId, address sender) internal returns (bool) {
+        Order memory order = orderIdToOrder[orderId];
+
+        /// Check if order exists in active orders. Revert if order does not exist
+        bool orderExists = addressToOrderIds[order.owner][orderId];
+        if (!orderExists) {
+            revert OrderDoesNotExist(orderId);
+        }
+        //Amount of order's owned by order owner
+        uint256 totalOrders = totalOrdersPerAddress[order.owner];
+
+        //Get current gas price from v3 Aggregator
+        uint256 gasPrice = getGasPrice();
+
+        uint256 minimumGasCreditsForAllOrders = calculateMinGasCredits(gasPrice, 300000, order.owner, 1);
+
+        uint256 minimumGasCreditsForSingleOrder = minimumGasCreditsForAllOrders / totalOrders;
+
+        delete orderIdToOrder[orderId];
+        delete addressToOrderIds[order.owner][orderId];
+
+        //decrement from total orders per address
+        --totalOrdersPerAddress[order.owner];
+
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = order.orderId;
+
+        safeTransferETH(sender, minimumGasCreditsForSingleOrder);
+        
+        emit OrderCancelled(orderIds);
+
+        return false;
+
+
+    }
     // ==================== Order Execution Functions =========================
 
     ///@notice This function takes in an array of orders,

@@ -73,7 +73,8 @@ contract ConveyorLimitOrdersTest is DSTest {
         conveyorLimitOrders = new ConveyorLimitOrders(
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            5
+            5,
+            300000
         );
         conveyorLimitOrders.addDex(_dexFactories, _hexDems, _isUniV2);
     }
