@@ -84,7 +84,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     function testExecuteTokenToTokenSingleSuccess() public {
         cheatCodes.prank(tx.origin);
         //Roughly 5.2
-        OrderBook.Order memory order1 = newMockOrder(
+        OrderBook.Order memory order = newMockOrder(
             UNI,
             DAI,
             110680464442257309696,
@@ -93,10 +93,9 @@ contract ConveyorLimitOrdersTest is DSTest {
             6900000000000000000,
             1
         );
+        bytes32[] memory orderBatch = new bytes32[](1);
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](1);
-
-        orderBatch[0] = order1;
+        orderBatch[0] = order.orderId;
 
         conveyorLimitOrders.executeOrders(orderBatch);
     }
@@ -104,8 +103,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     //Token to Token batch success
     function testExecuteTokenToTokenOrderBatchSuccess() public {
         cheatCodes.prank(tx.origin);
-        OrderBook.Order[]
-            memory tokenToTokenOrderBatch = newMockTokenToTokenBatchPass1();
+        bytes32[] memory tokenToTokenOrderBatch = newMockTokenToTokenBatch();
 
         conveyorLimitOrders.executeOrders(tokenToTokenOrderBatch);
     }
@@ -114,7 +112,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     //Single order TokenToWeth success
     function testExecuteTokenToWethSingleSuccess() public {
         cheatCodes.prank(tx.origin);
-        OrderBook.Order memory order1 = newMockOrder(
+        OrderBook.Order memory order = newMockOrder(
             DAI,
             WETH,
             18446744073709550,
@@ -124,9 +122,9 @@ contract ConveyorLimitOrdersTest is DSTest {
             1
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](1);
+        bytes32[] memory orderBatch = new bytes32[](1);
 
-        orderBatch[0] = order1;
+        orderBatch[0] = order.orderId;
 
         conveyorLimitOrders.executeOrders(orderBatch);
     }
@@ -134,8 +132,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     //Token to Weth Batch success
     function testExecuteTokenToWethOrderBatchSuccess() public {
         cheatCodes.prank(tx.origin);
-        OrderBook.Order[]
-            memory tokenToWethOrderBatch = newMockTokenToWethBatchPass();
+        bytes32[] memory tokenToWethOrderBatch = newMockTokenToWethBatch();
         conveyorLimitOrders.executeOrders(tokenToWethOrderBatch);
     }
 
@@ -578,10 +575,10 @@ contract ConveyorLimitOrdersTest is DSTest {
         return orderBatch;
     }
 
-    function newMockTokenToWethBatchPass()
+    function newMockTokenToWethBatch()
         internal
         view
-        returns (OrderBook.Order[] memory)
+        returns (bytes32[] memory)
     {
         OrderBook.Order memory order1 = newMockOrder(
             DAI,
@@ -638,21 +635,21 @@ contract ConveyorLimitOrdersTest is DSTest {
             1
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](6);
-        orderBatch[0] = order1;
-        orderBatch[1] = order2;
-        orderBatch[2] = order3;
-        orderBatch[3] = order4;
-        orderBatch[4] = order5;
-        orderBatch[5] = order6;
+        bytes32[] memory orderBatch = new bytes32[](6);
+        orderBatch[0] = order1.orderId;
+        orderBatch[1] = order2.orderId;
+        orderBatch[2] = order3.orderId;
+        orderBatch[3] = order4.orderId;
+        orderBatch[4] = order5.orderId;
+        orderBatch[5] = order6.orderId;
 
         return orderBatch;
     }
 
-    function newMockTokenToTokenBatchPass1()
+    function newMockTokenToTokenBatch()
         internal
         view
-        returns (OrderBook.Order[] memory)
+        returns (bytes32[] memory)
     {
         OrderBook.Order memory order1 = newMockOrder(
             UNI,
@@ -709,13 +706,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](6);
-        orderBatch[0] = order1;
-        orderBatch[1] = order2;
-        orderBatch[2] = order3;
-        orderBatch[3] = order4;
-        orderBatch[4] = order5;
-        orderBatch[5] = order6;
+        bytes32[] memory orderBatch = new bytes32[](6);
+        orderBatch[0] = order1.orderId;
+        orderBatch[1] = order2.orderId;
+        orderBatch[2] = order3.orderId;
+        orderBatch[3] = order4.orderId;
+        orderBatch[4] = order5.orderId;
+        orderBatch[5] = order6.orderId;
 
         return orderBatch;
     }
