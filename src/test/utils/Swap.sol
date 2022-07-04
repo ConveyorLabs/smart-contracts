@@ -35,5 +35,7 @@ contract Swap {
             msg.sender,
             (2**256 - 1)
         )[1];
+
+        return amountOut;
     }
 }

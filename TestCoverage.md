@@ -27,7 +27,6 @@
 - success: cancel order because of insufficient gas credit balance
 - success: cancel order because of order expired
 - fail: Order not refreshable 
-- fail: Order expired
 
 ## executeOrders
 - success: one token to weth order 🟨 
@@ -133,8 +132,8 @@
 
 ## placeOrder
 - success ✅ 
-- fail: incongruent tokenIn Order Group
-- fail: insufficient wallet balance
+- fail: incongruent tokenIn Order Group ✅
+- fail: insufficient wallet balance ✅ 
 
 ## updateOrder
 - success
