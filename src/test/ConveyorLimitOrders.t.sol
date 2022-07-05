@@ -174,12 +174,20 @@ contract ConveyorLimitOrdersTest is DSTest {
         //deal this address max eth
         cheatCodes.deal(address(this), MAX_UINT);
 
-        //for fuzzing make sure that the input amount is < the balance of the test contract
-        if (address(this).balance - _amount > _amount) {
+        console.log(address(this).balance);
+
+        bool underflow;
+        assembly {
+            let bal := selfbalance()
+            underflow := gt(sub(bal, _amount), bal)
+        }
+
+        if (!underflow) {
+            if (address(this).balance > _amount) {}
             //deposit gas credits
             (bool depositSuccess, ) = address(conveyorLimitOrders).call{
                 value: _amount
-            }(abi.encodeWithSignature("depositCredits()"));
+            }(abi.encodeWithSignature("depositGasCredits()"));
 
             //require that the deposit was a success
             require(depositSuccess, "testDepositGasCredits: deposit failed");
@@ -190,7 +198,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             );
 
             //check that the creditBalance map has been updated
-            require(gasCreditBalance == _amount);
+            require(gasCreditBalance == _amount, "gasCreditBalance!=_amount");
         }
     }
 
@@ -198,17 +206,19 @@ contract ConveyorLimitOrdersTest is DSTest {
         uint256 _amount
     ) public {
         //for fuzzing make sure that the input amount is < the balance of the test contract
-        console.log(address(this).balance);
-        console.log(_amount);
+        cheatCodes.prank(address(0x1920201785C3E370668Edac2eE36A011A4E95785));
 
-        if (_amount > 0 && _amount > address(this).balance) {
+        if (_amount > 0) {
             //deposit gas credits
             (bool depositSuccess, ) = address(conveyorLimitOrders).call{
                 value: _amount
-            }(abi.encodeWithSignature("depositCredits()"));
+            }(abi.encodeWithSignature("depositGasCredits()"));
 
             //require that the deposit was a success
-            require(depositSuccess, "testDepositGasCredits: deposit failed");
+            require(
+                depositSuccess,
+                "testFailDepositGasCredits_InsufficientWalletBalance: deposit failed"
+            );
         } else {
             require(false, "amount is 0");
         }
@@ -217,25 +227,41 @@ contract ConveyorLimitOrdersTest is DSTest {
     function testRemoveGasCredits(uint256 _amount) public {
         cheatCodes.deal(address(this), MAX_UINT);
 
-        //deposit gas credits
-        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
-            value: _amount
-        }(abi.encodeWithSignature("depositCredits()"));
+        bool underflow;
+        assembly {
+            let bal := selfbalance()
+            underflow := gt(sub(bal, _amount), bal)
+        }
 
-        //require that the deposit was a success
-        require(depositSuccess, "testDepositGasCredits: deposit failed");
+        if (!underflow) {
+            //for fuzzing make sure that the input amount is < the balance of the test contract
+            if (_amount > 0) {
+                //deposit gas credits
+                (bool depositSuccess, ) = address(conveyorLimitOrders).call{
+                    value: _amount
+                }(abi.encodeWithSignature("depositGasCredits()"));
 
-        //get the updated gasCreditBalance for the address
-        uint256 gasCreditBalance = conveyorLimitOrders.creditBalance(
-            address(this)
-        );
+                //require that the deposit was a success
+                require(depositSuccess, "testRemoveGasCredits: deposit failed");
 
-        //check that the creditBalance map has been updated
-        require(gasCreditBalance == _amount);
+                //get the updated gasCreditBalance for the address
+                uint256 gasCreditBalance = conveyorLimitOrders.creditBalance(
+                    address(this)
+                );
 
-        bool withdrawSuccess = conveyorLimitOrders.withdrawGasCredits(_amount);
+                //check that the creditBalance map has been updated
+                require(
+                    gasCreditBalance == _amount,
+                    "gasCreditBalance!=_amount"
+                );
 
-        require(withdrawSuccess, "Unable to withdraw credits");
+                bool withdrawSuccess = conveyorLimitOrders.withdrawGasCredits(
+                    _amount
+                );
+
+                require(withdrawSuccess, "Unable to withdraw credits");
+            }
+        }
     }
 
     function testFailRemoveGasCredits_InsufficientGasCreditBalance(
@@ -255,12 +281,12 @@ contract ConveyorLimitOrdersTest is DSTest {
                 //deposit gas credits
                 (bool depositSuccess, ) = address(conveyorLimitOrders).call{
                     value: _amount
-                }(abi.encodeWithSignature("depositCredits()"));
+                }(abi.encodeWithSignature("depositGasCredits()"));
 
                 //require that the deposit was a success
                 require(
                     depositSuccess,
-                    "testDepositGasCredits: deposit failed"
+                    "testFailRemoveGasCredits_InsufficientGasCreditBalance: deposit failed"
                 );
 
                 //withdraw one more than the
@@ -277,7 +303,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    function testRefreshOrderPass() public {
+    function testRefreshOrder() public {
         //deal this address max eth
         cheatCodes.deal(address(this), MAX_UINT);
 
@@ -286,14 +312,14 @@ contract ConveyorLimitOrdersTest is DSTest {
         cheatCodes.prank(address(this));
         (bool depositSuccess, ) = address(conveyorLimitOrders).call{
             value: 90000000000000000000000000090000000
-        }(abi.encodeWithSignature("depositCredits()"));
+        }(abi.encodeWithSignature("depositGasCredits()"));
 
         uint256 gasCreditBalance = conveyorLimitOrders.creditBalance(
             address(this)
         );
 
         //require that the deposit was a success
-        require(depositSuccess, "testDepositGasCredits: deposit failed");
+        require(depositSuccess, "testRefreshOrder: deposit failed");
 
         swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
 
@@ -315,7 +341,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         bool refreshSuccess = conveyorLimitOrders.refreshOrder(orderId);
 
-        require(refreshSuccess == true, "Order Refresh failed");
+        require(refreshSuccess, "Order Refresh failed");
     }
 
     function testRefreshOrderFailOrderNotRefreshable() public {

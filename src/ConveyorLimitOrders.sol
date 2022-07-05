@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.14;
+pragma solidity >=0.8.15;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
@@ -44,7 +44,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ) OrderBook(_gasOracle) {
         refreshFee = _refreshFee;
         WETH = _weth;
-        executionCost=_executionCost;
+        executionCost = _executionCost;
     }
 
     // ========================================= Events  =============================================
@@ -66,13 +66,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     /// @notice deposit gas credits publicly callable function
     /// @return bool boolean indicator whether deposit was successfully transferred into user's gas credit balance
-    function depositCredits() public payable returns (bool) {
-        //Check if sender balance can cover eth deposit
-        // Todo write this in assembly
-        if (address(msg.sender).balance < msg.value) {
-            revert InsufficientWalletBalance();
-        }
-
+    function depositGasCredits() public payable returns (bool) {
         //Add amount deposited to creditBalance of the user
         creditBalance[msg.sender] += msg.value;
 
@@ -169,12 +163,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         return true;
     }
+
     //------------Order Cancellation Functions---------------------------------
     /// Todo Add reentrancy guard
     /// @notice Helper function for beacon to externally cancel an Order with below minimum gas credit balance for execution
     /// @param orderId Id of the order to cancel
     /// @return bool indicator whether order was successfully cancelled with compensation
-    function validateAndCancelOrder(bytes32 orderId) external returns (bool){
+    function validateAndCancelOrder(bytes32 orderId) external returns (bool) {
         //Order to be validated for cancellation
         Order memory order = orderIdToOrder[orderId];
         /// Check if order exists in active orders. Revert if order does not exist
@@ -183,16 +178,21 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             revert OrderDoesNotExist(orderId);
         }
 
-    
         //Amount of order's owned by order owner
         uint256 totalOrders = totalOrdersPerAddress[order.owner];
 
         //Get current gas price from v3 Aggregator
         uint256 gasPrice = getGasPrice();
 
-        uint256 minimumGasCreditsForAllOrders = calculateMinGasCredits(gasPrice, 300000, order.owner, 1);
+        uint256 minimumGasCreditsForAllOrders = calculateMinGasCredits(
+            gasPrice,
+            300000,
+            order.owner,
+            1
+        );
 
-        uint256 minimumGasCreditsForSingleOrder = minimumGasCreditsForAllOrders / totalOrders;
+        uint256 minimumGasCreditsForSingleOrder = minimumGasCreditsForAllOrders /
+                totalOrders;
 
         if (
             !(
@@ -220,14 +220,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             return true;
         }
         return false;
-
     }
 
     /// @notice Internal helper function to cancel order with implicit validation within refreshOrder
     /// @param orderId Id of the order to cancel
     /// @param sender address of beacon caller to refreshOrder to be compensated for cancellation
     /// @return bool indicator whether order was successfully cancelled with compensation
-    function _cancelOrder(bytes32 orderId, address sender) internal returns (bool) {
+    function _cancelOrder(bytes32 orderId, address sender)
+        internal
+        returns (bool)
+    {
         Order memory order = orderIdToOrder[orderId];
 
         /// Check if order exists in active orders. Revert if order does not exist
@@ -241,9 +243,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //Get current gas price from v3 Aggregator
         uint256 gasPrice = getGasPrice();
 
-        uint256 minimumGasCreditsForAllOrders = calculateMinGasCredits(gasPrice, 300000, order.owner, 1);
+        uint256 minimumGasCreditsForAllOrders = calculateMinGasCredits(
+            gasPrice,
+            300000,
+            order.owner,
+            1
+        );
 
-        uint256 minimumGasCreditsForSingleOrder = minimumGasCreditsForAllOrders / totalOrders;
+        uint256 minimumGasCreditsForSingleOrder = minimumGasCreditsForAllOrders /
+                totalOrders;
 
         delete orderIdToOrder[orderId];
         delete addressToOrderIds[order.owner][orderId];
@@ -259,9 +267,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         emit OrderCancelled(orderIds);
 
         return false;
-
-
     }
+
     // ==================== Order Execution Functions =========================
 
     ///@notice This function takes in an array of orders,
@@ -282,20 +289,19 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //TODO: figure out weth to token
         address sender = msg.sender;
         ///@notice check if the token out is weth to determine what type of order execution to use
-        if (orders[0].taxed==true){
-            if(orders[0].tokenOut==WETH){
+        if (orders[0].taxed == true) {
+            if (orders[0].tokenOut == WETH) {
                 _executeTokenToWethTaxedOrders(orders);
-            }else{
+            } else {
                 _executeTokenToTokenTaxedOrders(orders);
             }
-        }else{
+        } else {
             if (orders[0].tokenOut == WETH) {
                 _executeTokenToWethOrders(orders);
             } else {
-                 _executeTokenToTokenOrders(orders);
+                _executeTokenToTokenOrders(orders);
             }
         }
-        
     }
 
     // ==================== Token To Weth Order Execution Logic =========================
@@ -321,21 +327,19 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _executeTokenToWethBatchTaxedOrders(
         TokenToWethBatchOrder[] memory tokenToWethBatchOrders
     ) internal {
-       
         for (uint256 i = 0; i < tokenToWethBatchOrders.length; i++) {
             TokenToWethBatchOrder memory batch = tokenToWethBatchOrders[i];
-            for(uint256 j=0; j< batch.orderIds.length;j++){
+            for (uint256 j = 0; j < batch.orderIds.length; j++) {
                 Order memory order = getOrderById(batch.orderIds[i]);
-                 _executeTokenToWethTaxedOrder(batch, order);
-            }    
+                _executeTokenToWethTaxedOrder(batch, order);
+            }
         }
-
     }
 
-    function _executeTokenToWethTaxedOrder(TokenToWethBatchOrder memory batch, Order memory order)
-        internal
-        returns (bool)
-    {
+    function _executeTokenToWethTaxedOrder(
+        TokenToWethBatchOrder memory batch,
+        Order memory order
+    ) internal returns (bool) {
         ///@notice swap from A to weth
         uint128 amountOutWeth = uint128(
             _swap(
@@ -347,12 +351,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             )
         );
 
-            uint128 protocolFee = _calculateFee(amountOutWeth);
+        uint128 protocolFee = _calculateFee(amountOutWeth);
 
         (, uint128 beaconReward) = _calculateReward(protocolFee, amountOutWeth);
 
         safeTransferETH(msg.sender, beaconReward);
-    
+
         return true;
     }
 
@@ -654,7 +658,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         _executeTokenToTokenBatchOrders(tokenToTokenBatchOrders);
     }
 
-     ///@notice execute an array of orders from token to token
+    ///@notice execute an array of orders from token to token
     function _executeTokenToTokenTaxedOrders(Order[] memory orders) internal {
         ///@notice get all execution price possibilities
         TokenToTokenExecutionPrice[]
@@ -676,24 +680,24 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _executeTokenToTokenBatchTaxedOrders(
         TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders
     ) internal {
-
         for (uint256 i = 0; i < tokenToTokenBatchOrders.length; i++) {
             TokenToTokenBatchOrder memory batch = tokenToTokenBatchOrders[i];
-            for(uint256 j=0; j<batch.orderIds.length; j++){
+            for (uint256 j = 0; j < batch.orderIds.length; j++) {
                 Order memory order = getOrderById(batch.orderIds[j]);
-                _executeTokenToTokenTaxedOrder(tokenToTokenBatchOrders[i], order);
+                _executeTokenToTokenTaxedOrder(
+                    tokenToTokenBatchOrders[i],
+                    order
+                );
             }
-
         }
-        
     }
 
     ///@return (amountOut, beaconReward)
     ///@dev the amountOut is the amount out - protocol fees
-    function _executeTokenToTokenTaxedOrder(TokenToTokenBatchOrder memory batch, Order memory order)
-        internal
-        returns (bool)
-    {
+    function _executeTokenToTokenTaxedOrder(
+        TokenToTokenBatchOrder memory batch,
+        Order memory order
+    ) internal returns (bool) {
         ///@notice swap from A to weth
         uint128 amountOutWeth = uint128(
             _swap(
