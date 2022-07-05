@@ -72,7 +72,7 @@ contract OrderBook is GasOracle {
         //token that the orders are being placed on
         address orderToken = orderGroup[0].tokenIn;
 
-        uint256 totalOrdersValue = getTotalOrdersValue(orderToken);
+        uint256 totalOrdersValue = _getTotalOrdersValue(orderToken);
         uint256 tokenBalance = IERC20(orderToken).balanceOf(msg.sender);
 
         //TODO: check for tokenIn/weth and tokenOut/weth else revert
@@ -84,12 +84,17 @@ contract OrderBook is GasOracle {
                 revert IncongruentTokenInOrderGroup();
             }
 
-            totalOrdersValue += newOrder.quantity;
-
             //check if the wallet has a sufficient balance
             if (tokenBalance < totalOrdersValue) {
                 revert InsufficientWalletBalance();
             }
+
+            //increment total orders Quantity
+            incrementTotalOrdersQuantity(
+                orderToken,
+                msg.sender,
+                newOrder.quantity
+            );
 
             //TODO: create new order id construction that is simpler, also use assembly to hash this
             bytes32 orderId = keccak256(
@@ -191,6 +196,11 @@ contract OrderBook is GasOracle {
 
         Order memory order = orderIdToOrder[orderId];
 
+        bytes32 totalOrdersValueKey = keccak256(
+            abi.encodePacked(msg.sender, orderIdToOrder[orderId].tokenIn)
+        );
+        //Decrement totalOrdersQuantity on order.tokenIn for order owner
+        //decrementTotalOrdersQuantity(order.tokenIn, order.owner, order.quantity);
         // Delete Order Orders[order.orderId] from ActiveOrders mapping
         delete orderIdToOrder[orderId];
         delete addressToOrderIds[msg.sender][orderId];
@@ -250,7 +260,7 @@ contract OrderBook is GasOracle {
     /// @notice Helper function to get the total order's value on a specific token for the sender
     /// @param token token address to get total order's value on
     /// @return unsigned total order's value on token
-    function getTotalOrdersValue(address token)
+    function _getTotalOrdersValue(address token)
         internal
         view
         returns (uint256)
@@ -287,14 +297,31 @@ contract OrderBook is GasOracle {
     /// @param userAddress bytes32 address of the user to which calculation will be made
     /// @param multiplier uint256 margin multiplier to account for gas volatility
     /// @return unsigned uint256 total ETH required to cover execution
-    function calculateMinGasCredits(
+    function _calculateMinGasCredits(
         uint256 gasPrice,
         uint256 executionCost,
         address userAddress,
         uint256 multiplier
     ) internal view returns (uint256) {
         uint256 totalOrderCount = totalOrdersPerAddress[userAddress];
-        return totalOrderCount * gasPrice * executionCost * multiplier;
+        // require(false, "Got here");
+        // assembly {
+        //     mstore(0x00, gasPrice)
+        //     revert(0x00, 0x20)
+        // }
+        unchecked {
+            uint256 minimumGasCredits = totalOrderCount *
+                gasPrice *
+                executionCost *
+                multiplier;
+            if (
+                minimumGasCredits <
+                0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+            ) {
+                return minimumGasCredits;
+            }
+        }
+        return 0;
     }
 
     /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders
@@ -311,6 +338,6 @@ contract OrderBook is GasOracle {
     ) internal view returns (bool) {
         return
             gasCreditBalance >=
-            calculateMinGasCredits(gasPrice, executionCost, userAddress, 5);
+            _calculateMinGasCredits(gasPrice, executionCost, userAddress, 5);
     }
 }
