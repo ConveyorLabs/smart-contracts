@@ -84,6 +84,13 @@ contract OrderBook is GasOracle {
 
         //TODO: check for tokenIn/weth and tokenOut/weth else revert
 
+        //Hash token and sender for key and accumulate totalOrdersQuantity
+        bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(
+                msg.sender,
+                orderToken
+            )
+        );
+
         for (uint256 i = 0; i < orderGroup.length; ++i) {
             Order memory newOrder = orderGroup[i];
 
@@ -109,6 +116,7 @@ contract OrderBook is GasOracle {
                 )
             );
 
+            totalOrdersQuantity[totalOrdersValueKey]+= newOrder.quantity;
             //add new order to state
             orderIdToOrder[orderId] = newOrder;
             addressToOrderIds[msg.sender][orderId] = true;
@@ -137,7 +145,15 @@ contract OrderBook is GasOracle {
         }
 
         Order memory oldOrder = orderIdToOrder[newOrder.orderId];
+        //Hash token and sender for key and accumulate totalOrdersQuantity
+        bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(
+                msg.sender,
+                oldOrder.tokenIn
+            )
+        );
 
+        //Decrement oldOrder Quantity from totalOrdersQuantity
+        totalOrdersQuantity[totalOrdersValueKey]-=oldOrder.quantity;
         //TODO: get total order sum and make sure that the user has the balance for the new order
 
         // if (newOrder.quantity > oldOrder.quantity) {
@@ -154,6 +170,8 @@ contract OrderBook is GasOracle {
         //update the order
         orderIdToOrder[oldOrder.orderId] = newOrder;
 
+        //Update totalOrdersQuantity to new order quantity
+        totalOrdersQuantity[totalOrdersValueKey]+=newOrder.quantity;
         //emit an updated order event
         //TODO: do this in assembly
         bytes32[] memory orderIds = new bytes32[](1);
@@ -173,11 +191,21 @@ contract OrderBook is GasOracle {
 
         Order memory order = orderIdToOrder[orderId];
 
+        //Hash token and sender for key and accumulate totalOrdersQuantity
+        bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(
+                msg.sender,
+                orderIdToOrder[orderId].tokenIn
+            )
+        );
+
         // Delete Order Orders[order.orderId] from ActiveOrders mapping
         delete orderIdToOrder[orderId];
         delete addressToOrderIds[msg.sender][orderId];
         //decrement from total orders per address
         --totalOrdersPerAddress[msg.sender];
+
+        //Decrement total orders quantity
+        totalOrdersQuantity[totalOrdersValueKey]-=order.quantity;
 
         //emit a canceled order event
         //TODO: do this in assembly
@@ -193,12 +221,22 @@ contract OrderBook is GasOracle {
         //TODO: just call cancel order on loop?
         //check that there is one or more orders
         for (uint256 i = 0; i < orderIds.length; ++i) {
+            //Hash token and sender for key and accumulate totalOrdersQuantity
+            bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(
+                    msg.sender,
+                    orderIdToOrder[orderIds[i]].tokenIn
+                )
+            );
+
+
             bytes32 orderId = orderIds[i];
             bool orderExists = addressToOrderIds[msg.sender][orderId];
 
             if (!orderExists) {
                 revert OrderDoesNotExist(orderId);
             }
+            //Decrement total Orders quantity on token
+            totalOrdersQuantity[totalOrdersValueKey]-=orderIdToOrder[orderIds[i]].quantity;
 
             delete addressToOrderIds[msg.sender][orderId];
             delete orderIdToOrder[orderId];
@@ -208,8 +246,20 @@ contract OrderBook is GasOracle {
         //TODO: do this in assembly
         emit OrderCancelled(canceledOrderIds);
     }
+    /// @notice Helper function to get the total order's value on a specific token for the sender
+    /// @param token token address to get total order's value on
+    /// @return unsigned total order's value on token
+    function getTotalOrdersValue(address token) internal view returns (uint256) {
+        //Hash token and sender for key and accumulate totalOrdersQuantity
+        bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(
+                msg.sender,
+                token
+            )
+        );
 
-    function getTotalOrdersValue(address token) internal returns (uint256) {}
+        return totalOrdersQuantity[totalOrdersValueKey];
+
+    }
 
     /// @notice Internal helper function to approximate the minimum gas credits for a user assuming all Order's are standard erc20 compliant
     /// @param gasPrice uint256 current gas price in gwei

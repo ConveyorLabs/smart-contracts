@@ -220,7 +220,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         //deposit gas credits
         (bool depositSuccess, ) = address(conveyorLimitOrders).call{
             value: _amount
-        }(abi.encodeWithSignature("depositCredits()"));
+        }(abi.encodeWithSignature("depositGasCredits()"));
 
         //require that the deposit was a success
         require(depositSuccess, "testDepositGasCredits: deposit failed");
