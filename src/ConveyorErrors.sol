@@ -10,4 +10,5 @@ contract ConveyorErrors {
     error OrderNotRefreshable();
     error OrderHasReachedExpiration();
     error InsufficientOutputAmount();
+    error MsgSenderIsNotOwner();
 }

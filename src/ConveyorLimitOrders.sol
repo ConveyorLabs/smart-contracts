@@ -26,12 +26,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ========================================= State Variables =============================================
 
     //mapping to hold users gas credit balances
-    mapping(address => uint256) public creditBalance;
+    mapping(address => uint256) public gasCreditBalance;
 
     address immutable WETH;
 
     uint256 immutable refreshFee;
 
+    uint256 immutable refreshInterval;
     uint256 immutable executionCost;
 
     // ========================================= Constructor =============================================
@@ -40,10 +41,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address _gasOracle,
         address _weth,
         uint256 _refreshFee,
+        uint256 _refreshInterval,
         uint256 _executionCost
     ) OrderBook(_gasOracle) {
         refreshFee = _refreshFee;
         WETH = _weth;
+        refreshInterval = _refreshInterval;
         executionCost = _executionCost;
     }
 
@@ -54,12 +57,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 amount
     );
 
-    // ========================================= Errors =============================================
-    error InsufficientGasCreditBalance();
-    error InsufficientGasCreditBalanceForOrderExecution();
-    error OrderNotRefreshable();
-    error OrderHasReachedExpiration();
-
     // ========================================= FUNCTIONS =============================================
 
     //------------Gas Credit Functions------------------------
@@ -68,7 +65,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @return bool boolean indicator whether deposit was successfully transferred into user's gas credit balance
     function depositGasCredits() public payable returns (bool) {
         //Add amount deposited to creditBalance of the user
-        creditBalance[msg.sender] += msg.value;
+        gasCreditBalance[msg.sender] += msg.value;
 
         //Emit credit deposit event for beacon
         emit GasCreditEvent(true, msg.sender, msg.value);
@@ -83,7 +80,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @return bool boolean indicator whether withdrawal was successful
     function withdrawGasCredits(uint256 _value) public returns (bool) {
         //Require user's credit balance is larger than value
-        if (creditBalance[msg.sender] < _value) {
+        if (gasCreditBalance[msg.sender] < _value) {
             revert InsufficientGasCreditBalance();
         }
 
@@ -97,7 +94,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     gasPrice,
                     executionCost,
                     msg.sender,
-                    creditBalance[msg.sender] - _value
+                    gasCreditBalance[msg.sender] - _value
                 )
             )
         ) {
@@ -105,7 +102,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
 
         //Decrease user creditBalance
-        creditBalance[msg.sender] = creditBalance[msg.sender] - _value;
+        gasCreditBalance[msg.sender] = gasCreditBalance[msg.sender] - _value;
 
         safeTransferETH(msg.sender, _value);
 
@@ -119,7 +116,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         Order memory order = getOrderById(orderId);
 
         //Require 30 days has elapsed since last refresh
-        if (block.timestamp - order.lastRefreshTimestamp < 2419200) {
+
+        if (block.timestamp - order.lastRefreshTimestamp < refreshInterval) {
             revert OrderNotRefreshable();
         }
 
@@ -129,7 +127,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
 
         //Require credit balance is sufficient to cover refresh feee
-        if (creditBalance[order.owner] < refreshFee) {
+        if (gasCreditBalance[order.owner] < refreshFee) {
             revert InsufficientGasCreditBalance();
         }
         // assembly {
@@ -145,7 +143,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     gasPrice,
                     executionCost,
                     order.owner,
-                    creditBalance[order.owner] - refreshFee
+                    gasCreditBalance[order.owner] - refreshFee
                 )
             )
         ) {
@@ -156,7 +154,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         safeTransferETH(msg.sender, refreshFee);
 
         //Decrement order.owner credit balance
-        creditBalance[order.owner] = creditBalance[order.owner] - refreshFee;
+        gasCreditBalance[order.owner] =
+            gasCreditBalance[order.owner] -
+            refreshFee;
 
         //Change order.lastRefreshTimestamp to current block.timestamp
         order.lastRefreshTimestamp = block.timestamp;
@@ -200,7 +200,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     gasPrice,
                     executionCost,
                     order.owner,
-                    creditBalance[order.owner]
+                    gasCreditBalance[order.owner]
                 )
             )
         ) {
