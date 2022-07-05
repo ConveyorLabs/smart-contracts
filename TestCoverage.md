@@ -6,10 +6,6 @@
 
 ## onlyEOA
 
-## creditBalance
-- read
-- write
-- delete
 
 ## Events
 - emit deposit gas credit event 
@@ -24,6 +20,13 @@
 - success ✅ 
 - fail: InsufficientGasCreditBalance ✅  
 - fail: InsufficientGasCreditBalanceForOrderExecution
+
+
+## refreshOrder
+- success
+- success: cancel order because of insufficient gas credit balance
+- success: cancel order because of order expired
+- fail: Order not refreshable 
 
 ## executeOrders
 - success: one token to weth order 🟨 
@@ -108,9 +111,9 @@
 
 <br>
 
-# GasOracle
+# GasOracle ✅ ✅  
 
-## getGasPrice
+## getGasPrice ✅  
 
 
 <br>
@@ -124,25 +127,25 @@
 - emit order updated event
 
 ## getOrderById
-- order exists
-- order does not exist
+- success ✅  
+- fail: order does not exist ✅ 
 
 ## placeOrder
-- success
-- fail: incongruent tokenIn Order Group
-- fail: insufficient wallet balance
+- success ✅ 
+- fail: incongruent tokenIn Order Group ✅
+- fail: insufficient wallet balance ✅ 
 
 ## updateOrder
-- success
-- fail: order does not exist
+- success ✅ 
+- fail: order does not exist ✅
 
 ## cancelOrder
-- success
-- fail: order does not exist
+- success ✅ 
+- fail: order does not exist  ✅
 
 ## cancelOrders
-- success
-- fail: order does not exist
+- success  ✅
+- fail: order does not exist ✅
 
 ## getTotalOrdersValue
 
@@ -170,6 +173,7 @@
 ## addDex
 - success
 - fail invalid input
+- fail !owner
 
 ## _swap
 - success univ2
@@ -194,6 +198,7 @@
 ## _getUniV3Fee
 - success case
 - fail case
+
 ## getTick
 
 ## _getAllPrices
