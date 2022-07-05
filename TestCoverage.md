@@ -170,10 +170,9 @@
 
 ## _calculateAlphaX
 
-## addDex
-- success
-- fail invalid input
-- fail !owner
+## addDex ✅ 
+- success ✅ 
+- fail !owner ✅ 
 
 ## _swap
 - success univ2

@@ -13,11 +13,8 @@ import "./test/utils/Console.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/libraries/Uniswap/TickMath.sol";
 import "../lib/interfaces/uniswap-v3/ISwapRouter.sol";
-import "./ConveyorErrors.sol";
 
-contract OrderRouter is ConveyorErrors {
-    //----------------------Constructor------------------------------------//
-
+contract OrderRouter {
     //----------------------Structs------------------------------------//
 
     /// @notice Struct to store important Dex specifications
@@ -88,6 +85,12 @@ contract OrderRouter is ConveyorErrors {
         }
 
         _;
+    }
+
+    //----------------------Constructor------------------------------------//
+
+    constructor() {
+        owner = msg.sender;
     }
 
     //----------------------Functions------------------------------------//
@@ -256,20 +259,13 @@ contract OrderRouter is ConveyorErrors {
     /// @param _factory address[] dex factory address's to add
     /// @param _hexDem Factory address create2 deployment bytecode array
     /// @param isUniV2 Array of bool's indicating uniV2 status
-    function addDexs(
-        address[] memory _factory,
-        bytes32[] memory _hexDem,
-        bool[] memory isUniV2
+    function addDex(
+        address _factory,
+        bytes32 _hexDem,
+        bool isUniV2
     ) public onlyOwner {
-        require(
-            (_factory.length == _hexDem.length &&
-                _hexDem.length == isUniV2.length),
-            "Invalid input, Arr length mismatch"
-        );
-        for (uint256 i = 0; i < _factory.length; i++) {
-            Dex memory _dex = Dex(_factory[i], _hexDem[i], isUniV2[i]);
-            dexes.push(_dex);
-        }
+        Dex memory _dex = Dex(_factory, _hexDem, isUniV2);
+        dexes.push(_dex);
     }
 
     function _swapV2(

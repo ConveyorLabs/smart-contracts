@@ -37,166 +37,28 @@ contract OrderRouterTest is DSTest {
     address swapToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
 
     //pancake, sushi, uni create2 factory initialization bytecode
-    bytes32 _pancakeHexDem =
-        0x00fb7f630766e6a796048ea87d01acd3068e8ff67d078148a3fa3f4a84f69bd5;
     bytes32 _sushiHexDem =
         0xe18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303;
     bytes32 _uniswapV2HexDem =
         0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
 
-    //Initialize array of Dex specifications
-    bytes32[] _hexDems = [_uniswapV2HexDem, _sushiHexDem, _uniswapV2HexDem];
-    address[] _dexFactories = [
-        _uniV2FactoryAddress,
-        _sushiFactoryAddress,
-        _uniV3FactoryAddress
-    ];
-    bool[] _isUniV2 = [true, true, false];
-
     //Dex[] dexes array of dex structs
     ConveyorLimitOrders.Dex public uniswapV2;
 
     function setUp() public {
-        orderRouter = new OrderRouterWrapper();
-        uniswapV2.factoryAddress = _dexFactories[0];
-        orderRouter.addDexs(_dexFactories, _hexDems, _isUniV2);
-
         cheatCodes = CheatCodes(HEVM_ADDRESS);
+
+        orderRouter = new OrderRouterWrapper();
+        uniswapV2.factoryAddress = _uniV2FactoryAddress;
+
+        orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
+        orderRouter.addDex(_sushiFactoryAddress, _sushiHexDem, true);
+        ///@notice
+        orderRouter.addDex(_uniV3FactoryAddress, 0x00, false);
+
         uniV2Router = IUniswapV2Router02(_uniV2Address);
         uniV2Factory = IUniswapV2Factory(_uniV2FactoryAddress);
     }
-
-    // function testCalculateMinSpot() public view {
-    //     //Test Tokens
-    //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    //     address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-    //     address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
-    //     address wbtc = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
-
-    //     uint256 price1 = calculateMinSpotPrice(weth, usdc,1, 3000);
-    //     uint256 price2 = calculateMinSpotPrice(dai, usdc, 1, 3000);
-    //     uint256 price3 = calculateMinSpotPrice(weth, dai, 1, 3000);
-    //     uint256 price4 = calculateMinSpotPrice(weth, wax, 1, 3000);
-    //     uint256 price5 = calculateMinSpotPrice(wbtc, weth, 1, 3000);
-    //     console.logString(
-    //         "--------------Calculate Minimum Spot Price UniV2, Sushi, UniV3-------------------"
-    //     );
-    //     console.logString(
-    //         "--------------Min Spot Price Output-------------------"
-    //     );
-    //     console.logString("--------------WETH-USDC-------------------");
-    //     console.logUint(price1);
-    //     console.logUint(price1);
-    //     console.logString("Right shifted");
-    //     console.logUint(price1 >> 9);
-    //     console.logString("---------USDC-DAI--------------");
-    //     console.logUint(price2);
-    //     console.logString("Right shifted");
-    //     console.logUint(price2 >> 9);
-    //     console.logString("----------Dai-WETH-------------");
-    //     console.logUint(price3);
-    //     console.logString("Right shifted");
-    //     console.logUint(price3 >> 9);
-    //     console.logString("----------WAX-WETH-------------");
-    //     console.logUint(price4);
-    //     console.logString("Right shifted");
-    //     console.logUint(price4 >> 9);
-    //     console.logString("----------WBTC-WETH-------------");
-    //     console.logUint(price5);
-    //     console.logString("Right shifted");
-    //     console.logUint(price5 >> 9);
-    // }
-
-    // function testCalculateV3Spot() public view {
-    //     //Test Tokens
-    //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    //     address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-    //     // address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
-
-    //     //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-    //     uint256 price1 = calculateV3SpotPrice(
-    //         weth,
-    //         usdc,
-    //         1000000000000,
-    //         3000,
-    //         1,
-    //         _uniV3FactoryAddress
-    //     );
-
-    //     uint256 price2 = calculateV3SpotPrice(
-    //         dai,
-    //         usdc,
-    //         1000000000000,
-    //         3000,
-    //         1,
-    //         _uniV3FactoryAddress
-    //     );
-
-    //     uint256 price3 = calculateV3SpotPrice(
-    //         weth,
-    //         dai,
-    //         1,
-    //         3000,
-    //         1,
-    //         _uniV3FactoryAddress
-    //     );
-
-    //     //uint256 price4= PriceLibrary.calculateUniV3SpotPrice(wax,weth, 1, 3000,1, _uniV3FactoryAddress);
-
-    //     console.logString("---------V3 Tick Range Price Uni----------");
-    //     console.logString("---------USDC-WETH-------------");
-    //     console.logUint(price1);
-    //     console.logString("---------USDC-DAI--------------");
-    //     console.logUint(price2);
-    //     console.logString("----------Dai-WETH-------------");
-    //     console.logUint(price3);
-    //     console.logString("----------WAX-WETH-------------");
-    //     //console.logUint(price4);
-    // }
-
-    // function testCalculateV2SpotSushi() public view {
-    //     //Test tokens
-    //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    //     address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-    //     address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
-    //     //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
-    //     uint256 price1 = calculateV2SpotPrice(
-    //         weth,
-    //         usdc,
-    //         _sushiFactoryAddress,
-    //         _sushiHexDem
-    //     );
-    //     uint256 price2 = calculateV2SpotPrice(
-    //         dai,
-    //         usdc,
-    //         _sushiFactoryAddress,
-    //         _sushiHexDem
-    //     );
-    //     uint256 price3 = calculateV2SpotPrice(
-    //         weth,
-    //         dai,
-    //         _sushiFactoryAddress,
-    //         _sushiHexDem
-    //     );
-    //     uint256 price4 = calculateV2SpotPrice(
-    //         weth,
-    //         wax,
-    //         _sushiFactoryAddress,
-    //         _sushiHexDem
-    //     );
-    //     console.logString("---------V2 Spot Price Sushi----------");
-    //     console.logString("---------USDC-WETH-------------");
-    //     console.logUint(price1);
-    //     console.logString("---------USDC-DAI--------------");
-    //     console.logUint(price2);
-    //     console.logString("----------Dai-USDC-------------");
-    //     console.logUint(price3);
-    //     console.logString("----------WAX-WETH-------------");
-    //     console.logUint(price4);
-    // }
 
     function testCalculateV2SpotUni() public view {
         //Test tokens
@@ -270,23 +132,6 @@ contract OrderRouterTest is DSTest {
             OrderRouter.SpotReserve[] memory prices,
             address[] memory lps
         ) = orderRouter.getAllPrices(weth, usdc, 1, 300);
-
-        console.logString(
-            "-----------------------All Dex Prices--------------------"
-        );
-        console.logUint(prices[0].res0);
-        console.logUint(prices[0].res1);
-        console.logUint(prices[0].spotPrice);
-
-        console.logString(
-            "-----------------------All lp Addresses--------------------"
-        );
-        console.log(lps[0]);
-        console.log(lps[1]);
-        console.log(lps[2]);
-        console.logString(
-            "-----------------------All lp reserves--------------------"
-        );
     }
 
     //TODO: fuzz this
@@ -370,13 +215,13 @@ contract OrderRouterTest is DSTest {
         assertEq(r1_out1, 47925919677616776812811); //No change
     }
 
-    function testAddDexs() public {
-        // addDex(_factory, _hexDem, isUniV2);
+    function testAddDex() public {
+        orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
     }
 
-    function testFailAddDexs_MsgSenderIsNotOwner() public {
-        // addDex(_factory, _hexDem, isUniV2);
+    function testFailAddDex_MsgSenderIsNotOwner() public {
         cheatCodes.prank(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+        orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
     }
 }
 

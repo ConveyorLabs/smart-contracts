@@ -14,6 +14,13 @@ interface CheatCodes {
     function prank(address) external;
 
     function deal(address who, uint256 amount) external;
+
+    function expectEmit(
+        bool,
+        bool,
+        bool,
+        bool
+    ) external;
 }
 
 contract ConveyorLimitOrdersTest is DSTest {
@@ -77,7 +84,9 @@ contract ConveyorLimitOrdersTest is DSTest {
             2592000,
             3000000
         );
-        conveyorLimitOrders.addDexs(_dexFactories, _hexDems, _isUniV2);
+        conveyorLimitOrders.addDex(_dexFactories[0], _hexDems[0], _isUniV2[0]);
+        conveyorLimitOrders.addDex(_dexFactories[1], _hexDems[1], _isUniV2[1]);
+        conveyorLimitOrders.addDex(_dexFactories[2], _hexDems[2], _isUniV2[2]);
     }
 
     //----------------------------TokenToToken Execution Tests-----------------------------------------

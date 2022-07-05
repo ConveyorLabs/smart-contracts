@@ -15,12 +15,23 @@ interface CheatCodes {
     function prank(address) external;
 
     function deal(address who, uint256 amount) external;
+
+    function expectEmit(
+        bool,
+        bool,
+        bool,
+        bool
+    ) external;
 }
 
 contract OrderBookTest is DSTest {
     CheatCodes cheatCodes;
     OrderBookWrapper orderBook;
     Swap swapHelper;
+
+    event OrderPlaced(bytes32[] indexed orderIds);
+    event OrderCancelled(bytes32[] indexed orderIds);
+    event OrderUpdated(bytes32[] indexed orderIds);
 
     //----------------State variables for testing--------------------
     ///@notice initialize swap helper
