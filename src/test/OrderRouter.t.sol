@@ -122,6 +122,12 @@ contract OrderRouterTest is DSTest {
         assert(!orderRouter.lpIsNotUniV3(uniV3LPAddress));
     }
 
+    function testGetUniV3Fee() public {
+        address uniV3LPAddress = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+        uint24 fee = orderRouter.getUniV3Fee(uniV3LPAddress);
+        assertEq(fee, uint24(500));
+    }
+
     function testGetAllPrices() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -375,6 +381,10 @@ contract OrderRouterWrapper is OrderRouter {
                 reserve1,
                 token1Decimals
             );
+    }
+
+    function getUniV3Fee(address lp) public returns (uint24) {
+        return _getUniV3Fee(lp);
     }
 
     function getTargetDecimals(address token)

@@ -189,14 +189,14 @@
 ## _calculateV2SpotPrice
  - Success: fork specific block
  - Fail: fork specific block
+
 ## _calculateV3SpotPrice
 - success: Fork specific block
 - fail: Fork specific block
-## _lpIsUniV2
 
-## _getUniV3Fee
-- success case
-- fail case
+## _lpIsUniV2 ✅ 
+
+## _getUniV3Fee ✅ 
 
 ## getTick
 
