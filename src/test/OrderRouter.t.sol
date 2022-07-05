@@ -54,7 +54,7 @@ contract OrderRouterTest is DSTest {
         orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
         orderRouter.addDex(_sushiFactoryAddress, _sushiHexDem, true);
         ///@notice
-        orderRouter.addDex(_uniV3FactoryAddress, _uniswapV2HexDem, false);
+        orderRouter.addDex(_uniV3FactoryAddress, 0x00, false);
 
         uniV2Router = IUniswapV2Router02(_uniV2Address);
         uniV2Factory = IUniswapV2Factory(_uniV2FactoryAddress);
