@@ -194,7 +194,7 @@
 - success: Fork specific block
 - fail: Fork specific block
 
-## _lpIsUniV2 ✅ 
+## _lpIsNotUniV3 ✅ 
 
 ## _getUniV3Fee ✅ 
 
