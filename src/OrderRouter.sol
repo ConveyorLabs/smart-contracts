@@ -321,7 +321,7 @@ contract OrderRouter {
         uint256 amountIn,
         uint256 amountOutMin
     ) internal returns (uint256 amountOut) {
-        if (_lpIsUniV2(lpAddress)) {
+        if (_lpIsNotUniV3(lpAddress)) {
             amountOut = _swapV2(
                 tokenIn,
                 tokenOut,
@@ -519,14 +519,28 @@ contract OrderRouter {
         return (_spRes, pool);
     }
 
-    function _lpIsUniV2(address lp) internal view returns (bool) {
-        uint24 _fee = IUniswapV3Pool(lp).fee();
+    function _lpIsNotUniV3(address lp) internal returns (bool) {
+        bool success;
+        assembly {
+            //store the function sig for  "fee()"
+            mstore(
+                0x00,
+                0xddca3f4300000000000000000000000000000000000000000000000000000000
+            )
 
-        if (_fee == 0) {
-            return true;
-        } else {
-            return false;
+            success := call(
+                gas(), // gas remaining
+                lp, // destination address
+                0, // no ether
+                0x00, // input buffer (starts after the first 32 bytes in the `data` array)
+                0x04, // input length (loaded from the first 32 bytes in the `data` array)
+                0x00, // output buffer
+                0x00 // output length
+            )
         }
+        ///@notice return the opposite of success, meaning if the call succeeded, the address is univ3, and we should
+        ///@notice indicate that _lpIsNotUniV3 is false
+        return !success;
     }
 
     function _getUniV3Fee(address lpAddress)

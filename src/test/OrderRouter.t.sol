@@ -114,6 +114,14 @@ contract OrderRouterTest is DSTest {
 
     function testUniV3Swap() public {}
 
+    function testLPIsNotUniv3() public {
+        address uniV2LPAddress = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+        address uniV3LPAddress = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+
+        assert(orderRouter.lpIsNotUniV3(uniV2LPAddress));
+        assert(!orderRouter.lpIsNotUniV3(uniV3LPAddress));
+    }
+
     function testGetAllPrices() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -268,6 +276,10 @@ contract OrderRouterWrapper is OrderRouter {
                 reserve0Execution,
                 reserve1Execution
             );
+    }
+
+    function lpIsNotUniV3(address lp) public returns (bool) {
+        return _lpIsNotUniV3(lp);
     }
 
     function swapV2(
