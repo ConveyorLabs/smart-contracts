@@ -103,15 +103,6 @@ contract OrderRouterTest is DSTest {
                 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
                 _uniswapV2HexDem
             );
-        console.logString("---------V2 Spot Price Uni----------");
-        console.logString("---------USDC-WETH-------------");
-        console.logUint(price1.spotPrice);
-        console.logString("---------USDC-DAI--------------");
-        console.logUint(price2.spotPrice);
-        console.logString("----------Dai-USDC-------------");
-        console.logUint(price3.spotPrice);
-        console.logString("----------WAX-WETH-------------");
-        console.logUint(price4.spotPrice);
     }
 
     function testGetPoolFee() public {

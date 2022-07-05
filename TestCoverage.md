@@ -111,7 +111,7 @@
 
 <br>
 
-# GasOracle ✅ ✅  
+# GasOracle ✅ 
 
 ## getGasPrice ✅  
 
@@ -147,13 +147,13 @@
 - success  ✅
 - fail: order does not exist ✅
 
-## getTotalOrdersValue
+## getTotalOrdersValue ✅
 
-## calculateMinGasCredits
+## calculateMinGasCredits ✅
 
-## _hasMinGasCredits
-- true
-- false
+## _hasMinGasCredits ✅
+- true ✅
+- false ✅
 
 <br>
 
