@@ -3,6 +3,7 @@ pragma solidity >=0.8.14;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./GasOracle.sol";
+import "./ConveyorErrors.sol";
 
 contract OrderBook is GasOracle {
     //----------------------Constructor------------------------------------//
@@ -14,14 +15,7 @@ contract OrderBook is GasOracle {
     event OrderPlaced(bytes32[] indexed orderIds);
     event OrderCancelled(bytes32[] indexed orderIds);
     event OrderUpdated(bytes32[] indexed orderIds);
-
-    //----------------------Error Definitions------------------------------------//
-
-    error OrderDoesNotExist(bytes32 orderId);
-    error InsufficientWalletBalance();
-
-    //TODO: rename this, bad name oof
-    error IncongruentTokenInOrderGroup();
+    
 
     //----------------------Structs------------------------------------//
 

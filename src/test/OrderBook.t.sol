@@ -40,6 +40,7 @@ contract OrderBookTest is DSTest {
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             5,
+            2592000, 
             300000
         );
         swapHelper = new Swap(uniV2Addr, uniV3Addr, wnato);
@@ -74,7 +75,7 @@ contract OrderBookTest is DSTest {
         assertEq(returnedOrder.quantity, newOrder.quantity);
     }
 
-    function testFailGetOrderById() public {
+    function testFailGetOrderById_OrderDoesNotExist() public {
         //create a new order
         ConveyorLimitOrders.Order memory newOrder = newOrder(
             swapToken,
@@ -89,21 +90,40 @@ contract OrderBookTest is DSTest {
         ConveyorLimitOrders.Order memory returnedOrder = orderBook.getOrderById(
             bytes32(0)
         );
-
-        // assert that the two orders are the same
-        assertEq(returnedOrder.tokenIn, newOrder.tokenIn);
-        assertEq(returnedOrder.tokenOut, newOrder.tokenOut);
-        assertEq(returnedOrder.orderId, newOrder.orderId);
-        assertEq(returnedOrder.price, newOrder.price);
-        assertEq(returnedOrder.quantity, newOrder.quantity);
     }
 
-    function testPlaceOrder() public {
+    function testPlaceOrder(uint256 swapAmount, uint256 executionPrice) public {
         cheatCodes.deal(address(this), MAX_UINT);
 
-        //swap 20 ether for the swap token
-        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+        //if the fuzzed amount is enough to complete the swap
+        try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
+            uint256 amountOut
+        ) {
+            console.log(amountOut);
+            OrderBook.Order memory order = newOrder(
+                swapToken,
+                wnato,
+                executionPrice,
+                amountOut,
+                amountOut
+            );
 
+            //create a new array of orders
+            ConveyorLimitOrders.Order[]
+                memory orderGroup = new ConveyorLimitOrders.Order[](1);
+            //add the order to the arrOrder and add the arrOrder to the orderGroup
+            orderGroup[0] = order;
+
+            //place order
+            bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
+            bytes32 orderId = orderIds[0];
+
+            //check that the orderId is not zero value
+            assert((orderId != bytes32(0)));
+        } catch {}
+    }
+
+    function testFailPlaceOrder_InsufficientWalletBalance() public {
         OrderBook.Order memory order = newOrder(
             swapToken,
             wnato,
@@ -119,127 +139,131 @@ contract OrderBookTest is DSTest {
         orderGroup[0] = order;
 
         //place order
-        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
-        bytes32 orderId = orderIds[0];
-
-        //check that the orderId is not zero value
-        assert((orderId != bytes32(0)));
+        orderBook.placeOrder(orderGroup);
     }
 
-    function testFailPlaceOrderInsufficientWalletBalance() public {
-        OrderBook.Order memory order = newOrder(
-            swapToken,
-            wnato,
-            245000000000000000000,
-            5,
-            5
-        );
-
-        //create a new array of orders
-        ConveyorLimitOrders.Order[]
-            memory orderGroup = new ConveyorLimitOrders.Order[](1);
-        //add the order to the arrOrder and add the arrOrder to the orderGroup
-        orderGroup[0] = order;
-
-        //place order
-        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
-    }
-
-    function testFailPlaceOrderIncongruentTokenInOrderGroup() public {
+    function testFailPlaceOrder_IncongruentTokenInOrderGroup(
+        uint256 swapAmount,
+        uint256 executionPrice,
+        uint256 swapAmount1,
+        uint256 executionPrice1
+    ) public {
         cheatCodes.deal(address(this), MAX_UINT);
 
         //swap 20 ether for the swap token
-        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+        //if the fuzzed amount is enough to complete the swap
+        try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
+            uint256 amountOut
+        ) {
+            OrderBook.Order memory order1 = newOrder(
+                swapToken,
+                wnato,
+                executionPrice,
+                amountOut,
+                amountOut
+            );
 
-        OrderBook.Order memory order1 = newOrder(
-            swapToken,
-            wnato,
-            245000000000000000000,
-            5,
-            5
-        );
+            try
+                swapHelper.swapEthForTokenWithUniV2(swapAmount1, swapToken1)
+            returns (uint256 amountOut1) {
+                OrderBook.Order memory order2 = newOrder(
+                    swapToken1,
+                    wnato,
+                    executionPrice1,
+                    amountOut1,
+                    amountOut1
+                );
 
-        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken1);
+                //create a new array of orders
+                ConveyorLimitOrders.Order[]
+                    memory orderGroup = new ConveyorLimitOrders.Order[](2);
+                //add the order to the arrOrder and add the arrOrder to the orderGroup
+                orderGroup[0] = order1;
+                orderGroup[1] = order2;
 
-        OrderBook.Order memory order2 = newOrder(
-            swapToken1,
-            wnato,
-            24500000000000000,
-            5,
-            5
-        );
-
-        //create a new array of orders
-        ConveyorLimitOrders.Order[]
-            memory orderGroup = new ConveyorLimitOrders.Order[](2);
-        //add the order to the arrOrder and add the arrOrder to the orderGroup
-        orderGroup[0] = order1;
-        orderGroup[1] = order2;
-
-        //place order
-        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
+                //place order
+                orderBook.placeOrder(orderGroup);
+            } catch {
+                require(false, "swap 1 failed");
+            }
+        } catch {
+            require(false, "swap 0 failed");
+        }
     }
 
-    function testUpdateOrder() public {
-        //swap 20 ether for the swap token
-        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+    function testUpdateOrder(
+        uint256 swapAmount,
+        uint256 executionPrice,
+        uint256 swapAmount1,
+        uint256 executionPrice1
+    ) public {
+        try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
+            uint256 amountOut
+        ) {
+            //create a new order
+            ConveyorLimitOrders.Order memory order = newOrder(
+                swapToken,
+                wnato,
+                executionPrice,
+                amountOut,
+                amountOut
+            );
+            //place a mock order
+            bytes32 orderId = placeMockOrder(order);
+            try
+                swapHelper.swapEthForTokenWithUniV2(swapAmount1, swapToken)
+            returns (uint256 amountOut1) {
+                //create a new order to replace the old order
+                ConveyorLimitOrders.Order memory updatedOrder = newOrder(
+                    swapToken,
+                    wnato,
+                    executionPrice1,
+                    amountOut1,
+                    amountOut1
+                );
+                updatedOrder.orderId = orderId;
 
-        //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
-            swapToken,
-            wnato,
-            245000000000000000000,
-            5,
-            5
-        );
-        //place a mock order
-        bytes32 orderId = placeMockOrder(order);
-
-        console.logBytes32(orderId);
-
-        //create a new order to replace the old order
-        ConveyorLimitOrders.Order memory updatedOrder = newOrder(
-            swapToken,
-            wnato,
-            245000000000000000000,
-            5,
-            5
-        );
-        updatedOrder.orderId = orderId;
-
-        //submit the updated order
-        orderBook.updateOrder(updatedOrder);
+                //submit the updated order
+                orderBook.updateOrder(updatedOrder);
+            } catch {}
+        } catch {}
     }
 
-    function testFailUpdateOrderOrderDoesNotExist() public {
-        //swap 20 ether for the swap token
-        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+    function testFailUpdateOrder_OrderDoesNotExist(
+        uint256 swapAmount,
+        uint256 executionPrice,
+        bytes32 orderId
+    ) public {
+        try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
+            uint256 amountOut
+        ) {
+            //create a new order
+            ConveyorLimitOrders.Order memory order = newOrder(
+                swapToken,
+                wnato,
+                amountOut,
+                executionPrice,
+                executionPrice
+            );
 
-        //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
-            swapToken,
-            wnato,
-            245000000000000000000,
-            5,
-            5
-        );
+            //place a mock order
+            placeMockOrder(order);
 
-        //place a mock order
-        placeMockOrder(order);
+            //create a new order to replace the old order
+            ConveyorLimitOrders.Order memory updatedOrder = newOrder(
+                swapToken,
+                wnato,
+                10,
+                executionPrice,
+                executionPrice
+            );
+            updatedOrder.orderId = orderId;
 
-        //create a new order to replace the old order
-        ConveyorLimitOrders.Order memory updatedOrder = newOrder(
-            swapToken,
-            wnato,
-            245000000000000000000,
-            5,
-            5
-        );
-        updatedOrder
-            .orderId = 0x50a061ebe7621a295b10610bc1fce3fcb3076a535e908aad2e3b45d14f9b8ffd;
-
-        //submit the updated order
-        orderBook.updateOrder(updatedOrder);
+            //submit the updated order
+            orderBook.updateOrder(updatedOrder);
+        } catch {
+            require(false, "swap failed");
+        }
     }
 
     function testMinGasCredits() public {
@@ -294,121 +318,86 @@ contract OrderBookTest is DSTest {
         assert(hasMinGasCredits);
     }
 
-    function testCancelOrder() public {
-        //swap 20 ether for the swap token
-        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+    function testCancelOrder(uint256 swapAmount, uint256 executionPrice)
+        public
+    {
+        try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
+            uint256 amountOut
+        ) {
+            //create a new order
+            ConveyorLimitOrders.Order memory order = newOrder(
+                swapToken,
+                wnato,
+                amountOut,
+                executionPrice,
+                executionPrice
+            );
+            //place a mock order
+            bytes32 orderId = placeMockOrder(order);
 
-        //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
-            swapToken,
-            wnato,
-            245000000000000000000,
-            5,
-            5
-        );
-        //place a mock order
-        bytes32 orderId = placeMockOrder(order);
+            //submit the updated order
+            orderBook.cancelOrder(orderId);
+        } catch {}
+    }
 
+    function testFailCancelOrder_OrderDoesNotExist(bytes32 orderId) public {
         //submit the updated order
         orderBook.cancelOrder(orderId);
     }
 
-    function testFailCancelOrderOrderDoesNotExist() public {
-        //swap 20 ether for the swap token
-        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
-
-        //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
-            swapToken,
-            wnato,
-            245000000000000000000,
-            5,
-            5
-        );
-        //place a mock order
-        placeMockOrder(order);
-
-        //submit the updated order
-        orderBook.cancelOrder(
-            0x50a061ebe7621a295b10610bc1fce3fcb3076a535e908aad2e3b45d14f9b8ffd
-        );
-    }
-
     ///@notice cancel multiple orders
-    function testCancelOrders() public {
+    function testCancelOrders(
+        uint256 swapAmount,
+        uint256 executionPrice,
+        uint256 swapAmount1,
+        uint256 executionPrice1
+    ) public {
         cheatCodes.deal(address(this), MAX_UINT);
+        try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
+            uint256 amountOut
+        ) {
+            OrderBook.Order memory order1 = newOrder(
+                swapToken,
+                wnato,
+                amountOut,
+                executionPrice,
+                executionPrice
+            );
 
-        //swap 20 ether for the swap token
-        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+            try
+                swapHelper.swapEthForTokenWithUniV2(swapAmount1, swapToken1)
+            returns (uint256 amountOut1) {
+                OrderBook.Order memory order2 = newOrder(
+                    swapToken,
+                    wnato,
+                    amountOut1,
+                    executionPrice1,
+                    executionPrice1
+                );
 
-        OrderBook.Order memory order1 = newOrder(
-            swapToken,
-            wnato,
-            245000000000000000000,
-            5,
-            5
-        );
+                //create a new array of orders
+                ConveyorLimitOrders.Order[]
+                    memory orderGroup = new ConveyorLimitOrders.Order[](2);
+                //add the order to the arrOrder and add the arrOrder to the orderGroup
+                orderGroup[0] = order1;
+                orderGroup[1] = order2;
 
-        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken1);
+                //place order
+                bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
 
-        OrderBook.Order memory order2 = newOrder(
-            swapToken,
-            wnato,
-            24500000000000000,
-            5,
-            5
-        );
-
-        //create a new array of orders
-        ConveyorLimitOrders.Order[]
-            memory orderGroup = new ConveyorLimitOrders.Order[](2);
-        //add the order to the arrOrder and add the arrOrder to the orderGroup
-        orderGroup[0] = order1;
-        orderGroup[1] = order2;
-
-        //place order
-        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
-
-        orderBook.cancelOrders(orderIds);
+                orderBook.cancelOrders(orderIds);
+            } catch {}
+        } catch {}
     }
 
-    function testFailCancelOrdersOrderDoesNotExist() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-
-        //swap 20 ether for the swap token
-        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
-
-        OrderBook.Order memory order1 = newOrder(
-            swapToken,
-            wnato,
-            245000000000000000000,
-            5,
-            5
-        );
-
-        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken1);
-
-        OrderBook.Order memory order2 = newOrder(
-            swapToken,
-            wnato,
-            24500000000000000,
-            5,
-            5
-        );
-
-        //create a new array of orders
-        ConveyorLimitOrders.Order[]
-            memory orderGroup = new ConveyorLimitOrders.Order[](2);
-        //add the order to the arrOrder and add the arrOrder to the orderGroup
-        orderGroup[0] = order1;
-        orderGroup[1] = order2;
-
+    function testFailCancelOrders_OrderDoesNotExist(
+        bytes32 orderId,
+        bytes32 orderId1
+    ) public {
         //place order
-        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
-        orderIds[
-            0
-        ] = 0x50a061ebe7621a295b10610bc1fce3fcb3076a535e908aad2e3b45d14f9b8ffd;
-
+        bytes32[] memory orderIds = new bytes32[](2);
+        orderIds[0] = orderId;
+        orderIds[1] = orderId1;
         orderBook.cancelOrders(orderIds);
     }
 
