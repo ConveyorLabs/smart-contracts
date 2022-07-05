@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.14;
+pragma solidity >=0.8.15;
 
-contract ConveyorErrors {
-    error InsufficientGasCreditBalance();
-    error InsufficientGasCreditBalanceForOrderExecution();
-    error InsufficientWalletBalance();
-    error OrderDoesNotExist(bytes32 orderId);
-    error IncongruentTokenInOrderGroup();
-    error OrderNotRefreshable();
-    error OrderHasReachedExpiration();
-    error InsufficientOutputAmount();
-    error MsgSenderIsNotOwner();
-}
+error InsufficientGasCreditBalance();
+error InsufficientGasCreditBalanceForOrderExecution();
+error InsufficientWalletBalance();
+error OrderDoesNotExist(bytes32 orderId);
+error IncongruentTokenInOrderGroup();
+error OrderNotRefreshable();
+error OrderHasReachedExpiration();
+error InsufficientOutputAmount();
+error MsgSenderIsNotOwner();
