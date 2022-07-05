@@ -15,8 +15,6 @@ import "../lib/libraries/Uniswap/TickMath.sol";
 import "../lib/interfaces/uniswap-v3/ISwapRouter.sol";
 
 contract OrderRouter {
-    //----------------------Constructor------------------------------------//
-
     //----------------------Structs------------------------------------//
 
     /// @notice Struct to store important Dex specifications
@@ -87,6 +85,12 @@ contract OrderRouter {
         }
 
         _;
+    }
+
+    //----------------------Constructor------------------------------------//
+
+    constructor() {
+        owner = msg.sender;
     }
 
     //----------------------Functions------------------------------------//

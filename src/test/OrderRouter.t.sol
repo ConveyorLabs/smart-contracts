@@ -37,21 +37,10 @@ contract OrderRouterTest is DSTest {
     address swapToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
 
     //pancake, sushi, uni create2 factory initialization bytecode
-    bytes32 _pancakeHexDem =
-        0x00fb7f630766e6a796048ea87d01acd3068e8ff67d078148a3fa3f4a84f69bd5;
     bytes32 _sushiHexDem =
         0xe18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303;
     bytes32 _uniswapV2HexDem =
         0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
-
-    //Initialize array of Dex specifications
-    bytes32[] _hexDems = [_uniswapV2HexDem, _sushiHexDem, _uniswapV2HexDem];
-    address[] _dexFactories = [
-        _uniV2FactoryAddress,
-        _sushiFactoryAddress,
-        _uniV3FactoryAddress
-    ];
-    bool[] _isUniV2 = [true, true, false];
 
     //Dex[] dexes array of dex structs
     ConveyorLimitOrders.Dex public uniswapV2;
@@ -60,16 +49,16 @@ contract OrderRouterTest is DSTest {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
 
         orderRouter = new OrderRouterWrapper();
-        uniswapV2.factoryAddress = _dexFactories[0];
-        orderRouter.addDex(_dexFactories[0], _hexDems[0], _isUniV2[0]);
-        orderRouter.addDex(_dexFactories[1], _hexDems[1], _isUniV2[1]);
-        orderRouter.addDex(_dexFactories[2], _hexDems[2], _isUniV2[2]);
+        uniswapV2.factoryAddress = _uniV2FactoryAddress;
+
+        orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
+        orderRouter.addDex(_sushiFactoryAddress, _sushiHexDem, true);
+        ///@notice
+        orderRouter.addDex(_uniV3FactoryAddress, _uniswapV2HexDem, false);
 
         uniV2Router = IUniswapV2Router02(_uniV2Address);
         uniV2Factory = IUniswapV2Factory(_uniV2FactoryAddress);
     }
-
-    function testTest() public {}
 
     function testCalculateV2SpotUni() public view {
         //Test tokens
@@ -227,12 +216,12 @@ contract OrderRouterTest is DSTest {
     }
 
     function testAddDex() public {
-        orderRouter.addDex(_dexFactories[0], _hexDems[0], _isUniV2[0]);
+        orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
     }
 
     function testFailAddDex_MsgSenderIsNotOwner() public {
-        // addDex(_factory, _hexDem, isUniV2);
         cheatCodes.prank(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+        orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
     }
 }
 
