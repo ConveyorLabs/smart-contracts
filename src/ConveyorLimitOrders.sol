@@ -57,6 +57,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 amount
     );
 
+
     // ========================================= FUNCTIONS =============================================
 
     //------------Gas Credit Functions------------------------
@@ -204,6 +205,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 )
             )
         ) {
+            
+            
             safeTransferETH(msg.sender, minimumGasCreditsForSingleOrder);
 
             delete orderIdToOrder[orderId];
@@ -211,6 +214,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
             //decrement from total orders per address
             --totalOrdersPerAddress[order.owner];
+
+            //Decrement totalOrdersQuantity on order.tokenIn for order owner
+            decrementTotalOrdersQuantity(order.tokenIn, order.owner, order.quantity);
 
             bytes32[] memory orderIds = new bytes32[](1);
             orderIds[0] = order.orderId;
@@ -256,6 +262,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         delete orderIdToOrder[orderId];
         delete addressToOrderIds[order.owner][orderId];
 
+        //Decrement totalOrdersQuantity for order
+        decrementTotalOrdersQuantity(order.tokenIn, msg.sender, order.quantity);
+
         //decrement from total orders per address
         --totalOrdersPerAddress[order.owner];
 
@@ -287,7 +296,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         // Order[] memory sequencedOrders = _sequenceOrdersByPriorityFee(orders);
 
         //TODO: figure out weth to token
-        address sender = msg.sender;
+        
         ///@notice check if the token out is weth to determine what type of order execution to use
         if (orders[0].taxed == true) {
             if (orders[0].tokenOut == WETH) {
@@ -357,7 +366,22 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         safeTransferETH(msg.sender, beaconReward);
 
-        return true;
+        //Cache orderId
+        bytes32 orderId = order.orderId;
+
+        //Scope all this
+        {
+            
+            //Delete order from queue after swap execution
+            delete orderIdToOrder[orderId];
+            delete addressToOrderIds[order.owner][orderId];
+            //decrement from total orders per address
+            --totalOrdersPerAddress[order.owner];
+            
+            //Decrement totalOrdersQuantity for order owner
+            decrementTotalOrdersQuantity(order.tokenIn, order.owner, order.quantity);
+        }
+
     }
 
     ///@notice execute an array of orders from token to weth
@@ -442,7 +466,23 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 protocolFee = _calculateFee(amountOutWeth);
 
         (, uint128 beaconReward) = _calculateReward(protocolFee, amountOutWeth);
+        
+        //Scope all this
+        {
+            //Iterate through all orderIds in the batch and delete the orders from queue post execution
+            for(uint256 i=0; i< batch.orderIds.length;++i){
+                bytes32 orderId = batch.orderIds[i];
+                
+                // Delete Order Orders[order.orderId] from ActiveOrders mapping
+                delete orderIdToOrder[orderId];
+                delete addressToOrderIds[orderIdToOrder[orderId].owner][orderId];
+                //decrement from total orders per address
+                --totalOrdersPerAddress[orderIdToOrder[orderId].owner];
+                //Decrement total orders quantity for each order
+                decrementTotalOrdersQuantity(orderIdToOrder[orderId].tokenIn, orderIdToOrder[orderId].owner, orderIdToOrder[orderId].quantity);
 
+            }
+        }
         return (uint256(amountOutWeth - protocolFee), uint256(beaconReward));
     }
 
@@ -726,6 +766,19 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             order.amountOutMin
         );
 
+        //Cache orderId
+        bytes32 orderId = order.orderId;
+        {
+            
+            //Delete order from queue after swap execution
+            delete orderIdToOrder[orderId];
+            delete addressToOrderIds[order.owner][orderId];
+            //decrement from total orders per address
+            --totalOrdersPerAddress[order.owner];
+            
+            //Decrement totalOrdersQuantity for order owner
+            decrementTotalOrdersQuantity(order.tokenIn, order.owner, order.quantity);
+        }
         return true;
     }
 
@@ -802,6 +855,22 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             amountInWethToB,
             batch.amountOutMin
         );
+        //Scope all this
+        {
+            //Iterate through all orderIds in the batch and delete the orders from queue post execution
+            for(uint256 i=0; i< batch.orderIds.length;++i){
+                bytes32 orderId = batch.orderIds[i];
+                
+                // Delete Order Orders[order.orderId] from ActiveOrders mapping
+                delete orderIdToOrder[orderId];
+                delete addressToOrderIds[orderIdToOrder[orderId].owner][orderId];
+                //decrement from total orders per address
+                --totalOrdersPerAddress[orderIdToOrder[orderId].owner];
+                //Decrement total orders quantity for each order
+                decrementTotalOrdersQuantity(orderIdToOrder[orderId].tokenIn, orderIdToOrder[orderId].owner, orderIdToOrder[orderId].quantity);
+
+            }
+        }
 
         return (amountOutInB, uint256(beaconReward));
     }

@@ -252,18 +252,12 @@ contract ConveyorLimitOrdersTest is DSTest {
     function testWithdrawGasCredits(uint256 _amount) public {
         cheatCodes.deal(address(this), MAX_UINT);
 
-<<<<<<< HEAD
-        //deposit gas credits
-        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
-            value: _amount
-        }(abi.encodeWithSignature("depositGasCredits()"));
-=======
         bool underflow;
         assembly {
             let bal := selfbalance()
             underflow := gt(sub(bal, _amount), bal)
         }
->>>>>>> staging
+
 
         if (!underflow) {
             //for fuzzing make sure that the input amount is < the balance of the test contract
@@ -273,15 +267,9 @@ contract ConveyorLimitOrdersTest is DSTest {
                     value: _amount
                 }(abi.encodeWithSignature("depositGasCredits()"));
 
-<<<<<<< HEAD
-        //get the updated gasCreditBalance for the address
-        uint256 gasCreditBalance = conveyorLimitOrders.gasCreditBalance(
-            address(this)
-        );
-=======
+
                 //require that the deposit was a success
                 require(depositSuccess, "testRemoveGasCredits: deposit failed");
->>>>>>> staging
 
                 //get the updated gasCreditBalance for the address
                 uint256 gasCreditBalance = conveyorLimitOrders.creditBalance(
