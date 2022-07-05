@@ -294,12 +294,16 @@ contract OrderRouter is ConveyorErrors {
         uint256 balanceBefore = IERC20(_tokenOut).balanceOf(address(this));
 
         /// @notice Swap tokens for wrapped native tokens (nato).
-        IUniswapV2Pair(_lp).swap(
-            amount0Out,
-            amount1Out,
-            address(this),
-            new bytes(0)
-        );
+        try
+            IUniswapV2Pair(_lp).swap(
+                amount0Out,
+                amount1Out,
+                address(this),
+                new bytes(0)
+            )
+        {} catch {
+            return 0;
+        }
 
         ///@notice calculate the amount recieved
         uint256 amountRecieved = IERC20(_tokenOut).balanceOf(address(this)) -
@@ -376,7 +380,9 @@ contract OrderRouter is ConveyorErrors {
             );
 
         /// @notice Swap tokens for wrapped native tokens (nato).
-        ISwapRouter(_lp).exactInputSingle(params);
+        try ISwapRouter(_lp).exactInputSingle(params) {} catch {
+            return 0;
+        }
 
         ///@notice calculate the amount recieved
         uint256 amountRecieved = IERC20(_tokenOut).balanceOf(address(this));

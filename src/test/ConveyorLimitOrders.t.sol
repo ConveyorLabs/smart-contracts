@@ -75,6 +75,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             5,
             2592000
+
         );
         conveyorLimitOrders.addDex(_dexFactories, _hexDems, _isUniV2);
     }
@@ -106,8 +107,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         cheatCodes.prank(tx.origin);
         bytes32[] memory tokenToTokenOrderBatch = newMockTokenToTokenBatch();
 
-        conveyorLimitOrders.executeOrders(tokenToTokenOrderBatch);
-    }
+
+    //     conveyorLimitOrders.executeOrders(tokenToTokenOrderBatch);
+    // }
 
     //----------------------------TokenToWeth Execution Tests-----------------------------------------
     //Single order TokenToWeth success
@@ -139,30 +141,30 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     //----------------------------_executeTokenToWethOrders Tests-----------------------------------------
     //Single success
-    function executeTokenToWethOrdersSingleSuccess() public {
-        OrderBook.Order memory order1 = newMockOrder(
-            DAI,
-            WETH,
-            16602069666338596454400,
-            true,
-            false,
-            6900000000000000000,
-            1
-        );
+    // function executeTokenToWethOrdersSingleSuccess() public {
+    //     OrderBook.Order memory order1 = newMockOrder(
+    //         DAI,
+    //         WETH,
+    //         16602069666338596454400,
+    //         true,
+    //         false,
+    //         6900000000000000000,
+    //         1
+    //     );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](1);
+    //     OrderBook.Order[] memory orderBatch = new OrderBook.Order[](1);
 
-        orderBatch[0] = order1;
+    //     orderBatch[0] = order1;
 
-        limitOrderWrapper.executeTokenToWethOrders(orderBatch);
-    }
+    //     limitOrderWrapper.executeTokenToWethOrders(orderBatch);
+    // }
 
-    //Batch success
-    function executeTokenToWethOrdersBatchSuccess() public {
-        OrderBook.Order[]
-            memory tokenToWethOrderBatch = newMockTokenToWethBatchPass1();
-        limitOrderWrapper.executeTokenToWethOrders(tokenToWethOrderBatch);
-    }
+    // //Batch success
+    // function executeTokenToWethOrdersBatchSuccess() public {
+    //     OrderBook.Order[]
+    //         memory tokenToWethOrderBatch = newMockTokenToWethBatchPass1();
+    //     limitOrderWrapper.executeTokenToWethOrders(tokenToWethOrderBatch);
+    // }
 
     //----------------------------_executeTokenToWethBatchOrders Tests-----------------------------------------
 
