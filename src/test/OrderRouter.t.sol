@@ -4,6 +4,7 @@ pragma solidity >=0.8.14;
 import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Utils.sol";
+import "./utils/Swap.sol";
 
 import "../ConveyorLimitOrders.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
@@ -18,6 +19,7 @@ interface CheatCodes {
 
 contract OrderRouterTest is DSTest {
     //Python fuzz test deployer
+    Swap swapHelper;
 
     CheatCodes cheatCodes;
 
@@ -36,11 +38,17 @@ contract OrderRouterTest is DSTest {
     //Chainlink ERC20 address
     address swapToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
 
+    //weth
+    address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
     //pancake, sushi, uni create2 factory initialization bytecode
     bytes32 _sushiHexDem =
         0xe18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303;
     bytes32 _uniswapV2HexDem =
         0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
+
+    //MAX_UINT for testing
+    uint256 constant MAX_UINT = 2**256 - 1;
 
     //Dex[] dexes array of dex structs
     ConveyorLimitOrders.Dex public uniswapV2;
@@ -58,6 +66,8 @@ contract OrderRouterTest is DSTest {
 
         uniV2Router = IUniswapV2Router02(_uniV2Address);
         uniV2Factory = IUniswapV2Factory(_uniV2FactoryAddress);
+
+        swapHelper = new Swap(_uniV2Address, address(0), WETH);
     }
 
     function testCalculateV2SpotUni() public view {
@@ -228,6 +238,82 @@ contract OrderRouterTest is DSTest {
         cheatCodes.prank(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
         orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
     }
+
+    function testSwapV2() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        //get the token in
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+            1000000000000000,
+            tokenIn
+        );
+
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address lp = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
+        uint256 amountOutMin = 1;
+        uint256 amountInMaximum = amountReceived - 1;
+
+        orderRouter.swapV2(tokenIn, tokenOut, lp, amountReceived, amountOutMin);
+    }
+
+    function testSwapV3() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        //get the token in
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+            1000000000000000,
+            tokenIn
+        );
+
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        uint24 fee = 500;
+        address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+        uint256 amountOut = 1;
+        uint256 amountInMaximum = amountReceived - 1;
+
+        orderRouter.swapV3(
+            tokenIn,
+            tokenOut,
+            fee,
+            lp,
+            amountOut,
+            amountInMaximum
+        );
+    }
+
+    function testSwap() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+
+        //testV2 condition
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        //get the token in
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+            1000000000000000,
+            tokenIn
+        );
+
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address v2LP = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
+        uint256 amountOutMin = 1;
+
+        orderRouter.swap(tokenIn, tokenOut, v2LP, amountReceived, amountOutMin);
+
+        //testV3 condition
+        uint256 amountReceived1 = swapHelper.swapEthForTokenWithUniV2(
+            1000000000000000,
+            tokenIn
+        );
+
+        address v3LP = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+
+        orderRouter.swap(
+            tokenIn,
+            tokenOut,
+            v3LP,
+            amountReceived1,
+            amountOutMin
+        );
+    }
 }
 
 //wrapper around OrderRouter to expose internal functions for testing
@@ -286,6 +372,21 @@ contract OrderRouterWrapper is OrderRouter {
 
     function lpIsNotUniV3(address lp) public returns (bool) {
         return _lpIsNotUniV3(lp);
+    }
+
+    function swap(
+        address tokenIn,
+        address tokenOut,
+        address lpAddress,
+        uint256 amountIn,
+        uint256 amountOutMin
+    ) public returns (uint256 amountOut) {
+        // return _swap(
+        // address tokenIn,
+        // address tokenOut,
+        // address lpAddress,
+        // uint256 amountIn,
+        // uint256 amountOutMin);
     }
 
     function swapV2(
