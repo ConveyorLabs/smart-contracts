@@ -55,6 +55,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     );
 
     // ========================================= Errors =============================================
+    
     error InsufficientGasCreditBalance();
     error InsufficientGasCreditBalanceForOrderExecution();
     error OrderNotRefreshable();
@@ -204,12 +205,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 )
             )
         ) {
-            //Hashed key of token and sender for totalOrdersQuantity
-            bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(
-                    msg.sender,
-                    orderIdToOrder[orderId].tokenIn
-                )
-            );
+            
+            
             safeTransferETH(msg.sender, minimumGasCreditsForSingleOrder);
 
             delete orderIdToOrder[orderId];
@@ -219,7 +216,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             --totalOrdersPerAddress[order.owner];
 
             //Decrement totalOrdersQuantity on order.tokenIn for order owner
-            totalOrdersQuantity[totalOrdersValueKey]-= order.quantity;
+            decrementTotalOrdersQuantity(order.tokenIn, order.owner, order.quantity);
 
             bytes32[] memory orderIds = new bytes32[](1);
             orderIds[0] = order.orderId;
@@ -238,12 +235,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @return bool indicator whether order was successfully cancelled with compensation
     function _cancelOrder(bytes32 orderId, address sender) internal returns (bool) {
         Order memory order = orderIdToOrder[orderId];
-
-        bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(
-                msg.sender,
-                orderIdToOrder[orderId].tokenIn
-            )
-        );
 
         /// Check if order exists in active orders. Revert if order does not exist
         bool orderExists = addressToOrderIds[order.owner][orderId];
@@ -264,7 +255,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         delete addressToOrderIds[order.owner][orderId];
 
         //Decrement totalOrdersQuantity for order
-        totalOrdersQuantity[totalOrdersValueKey]-= orderIdToOrder[orderId].quantity;
+        decrementTotalOrdersQuantity(order.tokenIn, msg.sender, order.quantity);
+
         //decrement from total orders per address
         --totalOrdersPerAddress[order.owner];
 
@@ -375,13 +367,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         //Scope all this
         {
-            //Hash token and sender for key and accumulate totalOrdersQuantity
-            bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(
-                    msg.sender,
-                    orderIdToOrder[orderId].tokenIn
-                )
-            );
-
+            
             //Delete order from queue after swap execution
             delete orderIdToOrder[orderId];
             delete addressToOrderIds[order.owner][orderId];
@@ -389,7 +375,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             --totalOrdersPerAddress[order.owner];
             
             //Decrement totalOrdersQuantity for order owner
-            totalOrdersQuantity[totalOrdersValueKey]-=order.quantity;
+            decrementTotalOrdersQuantity(order.tokenIn, order.owner, order.quantity);
         }
         return true;
     }
@@ -482,19 +468,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             //Iterate through all orderIds in the batch and delete the orders from queue post execution
             for(uint256 i=0; i< batch.orderIds.length;++i){
                 bytes32 orderId = batch.orderIds[i];
-                //Hash token and sender for key and accumulate totalOrdersQuantity
-                bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(
-                        orderIdToOrder[orderId].owner,
-                        batch.tokenIn
-                    )
-                );
+                
                 // Delete Order Orders[order.orderId] from ActiveOrders mapping
                 delete orderIdToOrder[orderId];
                 delete addressToOrderIds[orderIdToOrder[orderId].owner][orderId];
                 //decrement from total orders per address
                 --totalOrdersPerAddress[orderIdToOrder[orderId].owner];
                 //Decrement total orders quantity for each order
-                totalOrdersQuantity[totalOrdersValueKey]-= orderIdToOrder[orderId].quantity;
+                decrementTotalOrdersQuantity(orderIdToOrder[orderId].tokenIn, orderIdToOrder[orderId].owner, orderIdToOrder[orderId].quantity);
 
             }
         }
@@ -784,13 +765,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //Cache orderId
         bytes32 orderId = order.orderId;
         {
-            //Hash token and sender for key and accumulate totalOrdersQuantity
-            bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(
-                    msg.sender,
-                    orderIdToOrder[order.orderId].tokenIn
-                )
-            );
-
+            
             //Delete order from queue after swap execution
             delete orderIdToOrder[orderId];
             delete addressToOrderIds[order.owner][orderId];
@@ -798,7 +773,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             --totalOrdersPerAddress[order.owner];
             
             //Decrement totalOrdersQuantity for order owner
-            totalOrdersQuantity[totalOrdersValueKey]-=order.quantity;
+            decrementTotalOrdersQuantity(order.tokenIn, order.owner, order.quantity);
         }
         return true;
     }
@@ -881,19 +856,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             //Iterate through all orderIds in the batch and delete the orders from queue post execution
             for(uint256 i=0; i< batch.orderIds.length;++i){
                 bytes32 orderId = batch.orderIds[i];
-                //Hash token and sender for key and accumulate totalOrdersQuantity
-                bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(
-                        orderIdToOrder[orderId].owner,
-                        batch.tokenIn
-                    )
-                );
+                
                 // Delete Order Orders[order.orderId] from ActiveOrders mapping
                 delete orderIdToOrder[orderId];
                 delete addressToOrderIds[orderIdToOrder[orderId].owner][orderId];
                 //decrement from total orders per address
                 --totalOrdersPerAddress[orderIdToOrder[orderId].owner];
                 //Decrement total orders quantity for each order
-                totalOrdersQuantity[totalOrdersValueKey]-= orderIdToOrder[orderId].quantity;
+                decrementTotalOrdersQuantity(orderIdToOrder[orderId].tokenIn, orderIdToOrder[orderId].owner, orderIdToOrder[orderId].quantity);
 
             }
         }
