@@ -179,7 +179,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             //deposit gas credits
             (bool depositSuccess, ) = address(conveyorLimitOrders).call{
                 value: _amount
-            }(abi.encodeWithSignature("depositCredits()"));
+            }(abi.encodeWithSignature("depositGasCredits()"));
 
             //require that the deposit was a success
             require(depositSuccess, "testDepositGasCredits: deposit failed");
@@ -205,7 +205,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             //deposit gas credits
             (bool depositSuccess, ) = address(conveyorLimitOrders).call{
                 value: _amount
-            }(abi.encodeWithSignature("depositCredits()"));
+            }(abi.encodeWithSignature("depositGasCredits()"));
 
             //require that the deposit was a success
             require(depositSuccess, "testDepositGasCredits: deposit failed");
@@ -318,7 +318,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         require(refreshSuccess == true, "Order Refresh failed");
     }
 
-    function testRefreshOrderFailOrderNotRefreshable() public {
+    function testFailRefreshOrder_OrderNotRefreshable() public {
         //deal this address max eth
         cheatCodes.deal(address(this), MAX_UINT);
 
@@ -353,7 +353,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         require(refreshSuccess == true, "Order Refresh failed");
     }
 
-    function testRefreshOrderFailOrderHasReachedExpiration() public {
+    function testFailRefreshOrder_OrderHasReachedExpiration() public {
         //deal this address max eth
         cheatCodes.deal(address(this), MAX_UINT);
 
@@ -390,7 +390,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         require(refreshSuccess == true, "Order Refresh failed");
     }
 
-    function testRefreshOrderFailInsufficientGasCreditBalance() public {
+    function testFailRefreshOrder_InsufficientGasCreditBalance() public {
         //deal this address max eth
         cheatCodes.deal(address(this), MAX_UINT);
 
@@ -417,7 +417,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         require(refreshSuccess == true, "Order Refresh failed");
     }
 
-    function testRefreshOrderFailInsufficientGasCreditBalanceForOrderExecution()
+    function testFail_InsufficientGasCreditBalanceForOrderExecution()
         public
     {
         //deal this address max eth

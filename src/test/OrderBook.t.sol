@@ -21,7 +21,7 @@ contract OrderBookTest is DSTest {
     CheatCodes cheatCodes;
     OrderBookWrapper orderBook;
     Swap swapHelper;
-
+    ConveyorLimitOrders conveyorLimitOrders;
     //----------------State variables for testing--------------------
     ///@notice initialize swap helper
     address uniV2Addr = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
@@ -36,7 +36,12 @@ contract OrderBookTest is DSTest {
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
-
+        conveyorLimitOrders = new ConveyorLimitOrders(
+            0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+            5,
+            300000
+        );
         swapHelper = new Swap(uniV2Addr, uniV3Addr, wnato);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
@@ -408,9 +413,125 @@ contract OrderBookTest is DSTest {
     }
 
     //TODO: fuzz this
-    function testCalculateMinGasCredits() public {}
+    function testCalculateMinGasCredits(uint256 _amount) public {
+        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
 
-    function testExecuteOrder() public {}
+        //create a new order
+        ConveyorLimitOrders.Order memory newOrder = newOrder(
+            swapToken,
+            wnato,
+            245000000000000000000,
+            5,
+            5
+        );
+
+        //place a mock order
+        placeMockOrder(newOrder);
+
+        bool overflow;
+        assembly {
+            overflow := lt(_amount, add(_amount, 1))
+        }
+
+        uint256 totalOrdersCount = 1;
+        uint256 executionCost = 300000;
+        uint256 multiplier = 2;
+
+        if (!overflow) {
+            if (_amount > 0) {
+                unchecked {
+                    if (
+                        totalOrdersCount *
+                            multiplier *
+                            executionCost *
+                            _amount <
+                        MAX_UINT
+                    ) {
+                        // require(false, "Got here :[");
+                        uint256 minGasCredits = orderBook
+                            .calculateMinGasCredits(
+                                _amount,
+                                executionCost,
+                                address(this),
+                                multiplier
+                            );
+                        uint256 expected = totalOrdersCount *
+                            _amount *
+                            executionCost *
+                            multiplier;
+                        assertEq(expected, minGasCredits);
+                    }
+                }
+            }
+        }
+    }
+
+    function testGetTotalOrdersValue() public {
+        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+        
+        //create a new order
+        ConveyorLimitOrders.Order memory newOrder = newOrder(
+            swapToken,
+            wnato,
+            245000000000000000000,
+            5,
+            5
+        );
+
+        //place a mock order
+        placeMockOrder(newOrder);
+
+        uint256 totalOrdersValue = orderBook.getTotalOrdersValue(swapToken);
+        assertEq(5, totalOrdersValue);
+    }
+
+    function testHasMinGasCredits() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
+                value: 100000000000000
+            }(abi.encodeWithSignature("depositGasCredits()"));
+        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+
+        //create a new order
+        ConveyorLimitOrders.Order memory newOrder = newOrder(
+            swapToken,
+            wnato,
+            245000000000000000000,
+            5,
+            5
+        );
+
+        //place a mock order
+        placeMockOrder(newOrder);
+
+        bool hasMinGasCredits = orderBook.hasMinGasCredits(1000000, 300000, address(this), 100000000000000);
+        assertTrue(hasMinGasCredits);
+
+    }
+
+    function testFailHasMinGasCredits() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
+                value: 1000000000000
+            }(abi.encodeWithSignature("depositGasCredits()"));
+
+        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+
+        //create a new order
+        ConveyorLimitOrders.Order memory newOrder = newOrder(
+            swapToken,
+            wnato,
+            245000000000000000000,
+            5,
+            5
+        );
+
+        //place a mock order
+        placeMockOrder(newOrder);
+
+        bool hasMinGasCredits = orderBook.hasMinGasCredits(1000000, 300000, address(this), 1000000000000);
+        assertTrue(hasMinGasCredits);
+    }
 
     //------------------Helper functions-----------------------
 
@@ -428,8 +549,8 @@ contract OrderBookTest is DSTest {
             orderId: bytes32(0),
             buy: false,
             taxed: false,
-            lastRefreshTimestamp:0,
-            expirationTimestamp:2419200,
+            lastRefreshTimestamp: 0,
+            expirationTimestamp: 2419200,
             price: price,
             quantity: quantity,
             amountOutMin: amountOutMin,
@@ -458,18 +579,31 @@ contract OrderBookTest is DSTest {
 contract OrderBookWrapper is DSTest, OrderBook {
     constructor(address _gasOracle) OrderBook(_gasOracle) {}
 
+    function calculateMinGasCredits(
+        uint256 gasPrice,
+        uint256 executionCost,
+        address userAddress,
+        uint256 multiplier
+    ) public view returns (uint256) {
+        return
+            _calculateMinGasCredits(
+                gasPrice,
+                executionCost,
+                userAddress,
+                multiplier
+            );
+    }
+
+    function getTotalOrdersValue(address token) public view returns (uint256) {
+        return _getTotalOrdersValue(token);
+    }
+
     function hasMinGasCredits(
         uint256 gasPrice,
         uint256 executionCost,
         address userAddress,
         uint256 gasCreditBalance
     ) public view returns (bool) {
-        return
-            _hasMinGasCredits(
-                gasPrice,
-                executionCost,
-                userAddress,
-                gasCreditBalance
-            );
+        return _hasMinGasCredits(gasPrice, executionCost, userAddress, gasCreditBalance);
     }
 }

@@ -79,7 +79,7 @@ contract OrderBook is GasOracle {
         //token that the orders are being placed on
         address orderToken = orderGroup[0].tokenIn;
 
-        uint256 totalOrdersValue = getTotalOrdersValue(orderToken);
+        uint256 totalOrdersValue = _getTotalOrdersValue(orderToken);
         uint256 tokenBalance = IERC20(orderToken).balanceOf(msg.sender);
 
         //TODO: check for tokenIn/weth and tokenOut/weth else revert
@@ -189,8 +189,13 @@ contract OrderBook is GasOracle {
 
         Order memory order = orderIdToOrder[orderId];
 
-        
-
+        bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(
+                    msg.sender,
+                    orderIdToOrder[orderId].tokenIn
+                )
+            );
+        //Decrement totalOrdersQuantity on order.tokenIn for order owner
+        //decrementTotalOrdersQuantity(order.tokenIn, order.owner, order.quantity);
         // Delete Order Orders[order.orderId] from ActiveOrders mapping
         delete orderIdToOrder[orderId];
         delete addressToOrderIds[msg.sender][orderId];
@@ -198,8 +203,8 @@ contract OrderBook is GasOracle {
         --totalOrdersPerAddress[msg.sender];
 
         //Decrement total orders quantity
-        //Decrement totalOrdersQuantity on order.tokenIn for order owner
-        decrementTotalOrdersQuantity(order.tokenIn, order.owner, order.quantity);
+        //Decrement total Orders quantity on token
+            totalOrdersQuantity[totalOrdersValueKey]-=orderIdToOrder[orderId].quantity;
 
         //emit a canceled order event
         //TODO: do this in assembly
@@ -243,7 +248,7 @@ contract OrderBook is GasOracle {
     /// @notice Helper function to get the total order's value on a specific token for the sender
     /// @param token token address to get total order's value on
     /// @return unsigned total order's value on token
-    function getTotalOrdersValue(address token) internal view returns (uint256) {
+    function _getTotalOrdersValue(address token) internal view returns (uint256) {
         //Hash token and sender for key and accumulate totalOrdersQuantity
         bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(
                 msg.sender,
@@ -256,6 +261,7 @@ contract OrderBook is GasOracle {
     }
 
     function decrementTotalOrdersQuantity(address token, address owner, uint256 quantity) internal {
+        
         bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(owner, token));
         totalOrdersQuantity[totalOrdersValueKey]-=quantity;
     }
@@ -271,14 +277,26 @@ contract OrderBook is GasOracle {
     /// @param userAddress bytes32 address of the user to which calculation will be made
     /// @param multiplier uint256 margin multiplier to account for gas volatility
     /// @return unsigned uint256 total ETH required to cover execution
-    function calculateMinGasCredits(
+    function _calculateMinGasCredits(
         uint256 gasPrice,
         uint256 executionCost,
         address userAddress,
         uint256 multiplier
     ) internal view returns (uint256) {
         uint256 totalOrderCount = totalOrdersPerAddress[userAddress];
-        return totalOrderCount * gasPrice * executionCost * multiplier;
+        // require(false, "Got here");
+        // assembly {
+        //     mstore(0x00, gasPrice)
+        //     revert(0x00, 0x20)
+        // }
+        unchecked {
+            uint256 minimumGasCredits = totalOrderCount * gasPrice * executionCost * multiplier;
+            if(minimumGasCredits<0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff){
+                return minimumGasCredits;
+            }
+
+        }
+        return 0;
     }
 
     /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders
@@ -295,6 +313,8 @@ contract OrderBook is GasOracle {
     ) internal view returns (bool) {
         return
             gasCreditBalance >=
-            calculateMinGasCredits(gasPrice, executionCost, userAddress, 5);
+            _calculateMinGasCredits(gasPrice, executionCost, userAddress, 5);
     }
+
+   
 }
