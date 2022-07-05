@@ -74,10 +74,10 @@ contract ConveyorLimitOrdersTest is DSTest {
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             5,
-            2592000
-
+            2592000,
+            3000000
         );
-        conveyorLimitOrders.addDex(_dexFactories, _hexDems, _isUniV2);
+        conveyorLimitOrders.addDexs(_dexFactories, _hexDems, _isUniV2);
     }
 
     //----------------------------TokenToToken Execution Tests-----------------------------------------
@@ -107,9 +107,8 @@ contract ConveyorLimitOrdersTest is DSTest {
         cheatCodes.prank(tx.origin);
         bytes32[] memory tokenToTokenOrderBatch = newMockTokenToTokenBatch();
 
-
-    //     conveyorLimitOrders.executeOrders(tokenToTokenOrderBatch);
-    // }
+        conveyorLimitOrders.executeOrders(tokenToTokenOrderBatch);
+    }
 
     //----------------------------TokenToWeth Execution Tests-----------------------------------------
     //Single order TokenToWeth success
@@ -252,18 +251,11 @@ contract ConveyorLimitOrdersTest is DSTest {
     function testWithdrawGasCredits(uint256 _amount) public {
         cheatCodes.deal(address(this), MAX_UINT);
 
-<<<<<<< HEAD
-        //deposit gas credits
-        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
-            value: _amount
-        }(abi.encodeWithSignature("depositGasCredits()"));
-=======
         bool underflow;
         assembly {
             let bal := selfbalance()
             underflow := gt(sub(bal, _amount), bal)
         }
->>>>>>> staging
 
         if (!underflow) {
             //for fuzzing make sure that the input amount is < the balance of the test contract
@@ -273,18 +265,11 @@ contract ConveyorLimitOrdersTest is DSTest {
                     value: _amount
                 }(abi.encodeWithSignature("depositGasCredits()"));
 
-<<<<<<< HEAD
-        //get the updated gasCreditBalance for the address
-        uint256 gasCreditBalance = conveyorLimitOrders.gasCreditBalance(
-            address(this)
-        );
-=======
                 //require that the deposit was a success
                 require(depositSuccess, "testRemoveGasCredits: deposit failed");
->>>>>>> staging
 
                 //get the updated gasCreditBalance for the address
-                uint256 gasCreditBalance = conveyorLimitOrders.creditBalance(
+                uint256 gasCreditBalance = conveyorLimitOrders.gasCreditBalance(
                     address(this)
                 );
 
