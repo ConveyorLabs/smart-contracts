@@ -178,13 +178,13 @@
 - success univ2 
 - success univ3
 
-## _swapV2
-- success
-- fail: insufficient output amount
+## _swapV2  
+- success ✅ 
+- insufficient output amount
 
 ## _swapV3
 - success
-- fail: insufficient output amount
+-  insufficient output amount
 
 ## _calculateV2SpotPrice
  - Success: fork specific block

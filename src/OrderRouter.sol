@@ -306,7 +306,7 @@ contract OrderRouter {
             balanceBefore;
 
         ///@notice if the amount recieved is less than the amount out min, revert
-        if (amountRecieved >= _amountOutMin) {
+        if (amountRecieved < _amountOutMin) {
             revert InsufficientOutputAmount();
         }
 
@@ -341,28 +341,22 @@ contract OrderRouter {
         }
     }
 
+    //TODO: swap with v3 lp not the router
     /// @notice Helper function to perform a swapExactInputSingle on Uniswap V3
     function _swapV3(
         address _tokenIn,
         address _tokenOut,
         uint24 _fee,
         address _lp,
-        uint256 _amountInMaximum,
-        uint256 _amountOut
+        uint256 _amountIn,
+        uint256 _amountOutMin
     ) internal returns (uint256) {
         /// transfer the tokens to the lp
-        IERC20(_tokenIn).transferFrom(msg.sender, _lp, _amountInMaximum);
+        // IERC20(_tokenIn).transferFrom(msg.sender, _lp, _amountIn);
 
-        //Sort the tokens
-        // (address token0, address token1) = _sortTokens(_tokenIn, _tokenOut);
+        ///@notice get the balance before
+        uint256 balanceBefore = IERC20(_tokenOut).balanceOf(address(this));
 
-        // //Initialize the amount out depending on the token order
-        // (uint256 amount0Out, uint256 amount1Out) = _tokenIn == token0
-        //     ? (uint256(0), _amountOut)
-        //     : (_amountOut, uint256(0));
-
-        // ///@notice get the balance before
-        // uint256 balanceBefore = IERC20(_tokenOut).balanceOf(address(this));
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
             .ExactInputSingleParams(
                 _tokenIn,
@@ -370,25 +364,31 @@ contract OrderRouter {
                 _fee,
                 address(this),
                 block.timestamp + 5,
-                _amountInMaximum,
-                _amountOut,
+                _amountIn,
+                _amountOutMin,
                 0
             );
 
         /// @notice Swap tokens for wrapped native tokens (nato).
-        try ISwapRouter(_lp).exactInputSingle(params) {} catch {
+        try ISwapRouter(_lp).exactInputSingle(params) returns (
+            uint256 _amountOut
+        ) {
+            ///@notice calculate the amount recieved
+            ///TODO: revisit this, if we should wrap this in an unchecked,
+            // validate that there will never be a case where it underflows, dont think so but just check
+            uint256 amountRecieved = IERC20(_tokenOut).balanceOf(
+                address(this)
+            ) - balanceBefore;
+
+            ///@notice if the amount recieved is less than the amount out min, revert
+            if (amountRecieved < _amountOut) {
+                revert InsufficientOutputAmount();
+            }
+
+            return amountRecieved;
+        } catch {
             return 0;
         }
-
-        ///@notice calculate the amount recieved
-        uint256 amountRecieved = IERC20(_tokenOut).balanceOf(address(this));
-
-        ///@notice if the amount recieved is less than the amount out min, revert
-        if (amountRecieved >= _amountOut) {
-            revert InsufficientOutputAmount();
-        }
-
-        return amountRecieved;
     }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2

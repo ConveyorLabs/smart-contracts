@@ -1316,7 +1316,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     ///@notice checks if order can complete without hitting slippage
-    //TODO:
     function _orderCanExecute(
         uint256 spot_price,
         uint256 order_quantity,

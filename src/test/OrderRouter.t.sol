@@ -245,7 +245,7 @@ contract OrderRouterTest is DSTest {
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         //get the token in
         uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            100000000000,
+            10000000000000000,
             tokenIn
         );
 
@@ -259,13 +259,16 @@ contract OrderRouterTest is DSTest {
     }
 
     function testSwapV3() public {
-        cheatCodes.deal(address(this), MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         //get the token in
         uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
             1000000000000000,
             tokenIn
         );
+
+        IERC20(tokenIn).approve(address(orderRouter), amountReceived);
 
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         uint24 fee = 500;
@@ -406,18 +409,11 @@ contract OrderRouterWrapper is OrderRouter {
         address _tokenOut,
         uint24 _fee,
         address _lp,
-        uint256 _amountOut,
-        uint256 _amountInMaximum
+        uint256 _amountIn,
+        uint256 _amountOutMin
     ) public returns (uint256) {
         return
-            _swapV3(
-                _tokenIn,
-                _tokenOut,
-                _fee,
-                _lp,
-                _amountOut,
-                _amountInMaximum
-            );
+            _swapV3(_tokenIn, _tokenOut, _fee, _lp, _amountIn, _amountOutMin);
     }
 
     function calculateV2SpotPrice(
