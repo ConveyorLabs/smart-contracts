@@ -86,6 +86,8 @@ contract OrderRouterTest is DSTest {
                 _uniswapV2HexDem
             );
 
+        ///Note: Just commented out to prevent stack too deep
+        ///Todo: Seperate these into their own test functions
         // (uint112 reserve0Dai, uint112 reserve1Usdc, ) = IUniswapV2Pair(
         //     0xAE461cA67B15dc8dc81CE7615e0320dA1A9aB8D5
         // ).getReserves();
@@ -160,6 +162,8 @@ contract OrderRouterTest is DSTest {
                 _sushiFactoryAddress,
                 _sushiHexDem
             );
+        ///Note: Keep these just commented out to prevent stack too deep
+        ///Todo: Seperate these into their own tests
         //Token0 = Kope
         //Get Reserve0 & Reserve1 from sushi pool
         // (uint112 reserve0Kope, uint112 reserve1Weth1, ) = IUniswapV2Pair(
@@ -248,6 +252,8 @@ contract OrderRouterTest is DSTest {
                 _uniV3FactoryAddress
             );
 
+        ///Note: Just commented out to prevent stack too deep
+        ///Todo: Seperate these into their own functions to prevent stack too deep
         // address poolDaiUsdc = IUniswapV3Factory(_uniV3FactoryAddress).getPool(dai, usdc, 100);
         // int24 tickDaiUsdc = orderRouter.getTick(poolDaiUsdc, 1);
         // uint256 expectedDaiUsdc = orderRouter.getQuoteAtTick(tickDaiUsdc, 1*10**18, dai, weth);
@@ -377,6 +383,27 @@ contract OrderRouterTest is DSTest {
     function testFailAddDex_MsgSenderIsNotOwner() public {
         cheatCodes.prank(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
         orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
+    }
+
+    function testGetTargetDecimals() public {
+        //Test Tokens
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+        address kope = 0x8CC9b5406049D2b66106bb39C5047666E50F06FE;
+        address ohm = 0x64aa3364F17a4D01c6f1751Fd97C2BD3D7e7f1D5;
+
+        uint8 targetDecimalsWeth = orderRouter.getTargetDecimals(weth);
+        uint8 targetDecimalsUsdc = orderRouter.getTargetDecimals(usdc);
+        uint8 targetDecimalsDai = orderRouter.getTargetDecimals(dai);
+        uint8 targetDecimalsKope = orderRouter.getTargetDecimals(kope);
+        uint8 targetDecimalsOhm = orderRouter.getTargetDecimals(ohm);
+
+        assertEq(targetDecimalsWeth, uint8(18));
+        assertEq(targetDecimalsUsdc, uint8(6));
+        assertEq(targetDecimalsDai, uint8(18));
+        assertEq(targetDecimalsKope, uint8(18));
+        assertEq(targetDecimalsOhm, uint8(9));
     }
 }
 
@@ -531,6 +558,7 @@ contract OrderRouterWrapper is OrderRouter {
 
     function getTargetDecimals(address token)
         public
+        view
         returns (uint8 targetDecimals)
     {
         return _getTargetDecimals(token);

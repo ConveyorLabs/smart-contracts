@@ -611,7 +611,9 @@ contract OrderRouter {
     {
         //Target base amount in value
         uint112 amountIn = _getTargetAmountIn(token0, token1);
-        uint256 dexLength = dexes.length;
+        
+        //Don't think this needs to be cached anymore
+        // uint256 dexLength = dexes.length;
 
         SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
         address[] memory _lps = new address[](dexes.length);
