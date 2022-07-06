@@ -403,25 +403,16 @@ contract OrderRouter {
         bytes32 _initBytecode
     ) internal view returns (SpotReserve memory spRes, address poolAddress) {
         require(token0 != token1, "Invalid Token Pair, IDENTICAL Address's");
-        (address tok0, address tok1) = _sortTokens(token0, token1);
-
+        address tok0;
+        address tok1;
+        {
+            (tok0, tok1) = _sortTokens(token0, token1);
+        }
         SpotReserve memory _spRes;
 
         //Return Uniswap V2 Pair address
-        address pairAddress = address(
-            uint160(
-                uint256(
-                    keccak256(
-                        abi.encodePacked(
-                            hex"ff",
-                            _factory,
-                            keccak256(abi.encodePacked(tok0, tok1)),
-                            _initBytecode
-                        )
-                    )
-                )
-            )
-        );
+        address pairAddress = _getV2PairAddress(_factory, tok0, tok1, _initBytecode);
+
         require(pairAddress != address(0), "Invalid token pair");
 
         if (!(IUniswapV2Factory(_factory).getPair(tok0, tok1) == pairAddress)) {
@@ -434,22 +425,27 @@ contract OrderRouter {
 
         (_spRes.res0, _spRes.res1) = (reserve0, reserve1);
 
-        //Get target decimals for token0 & token1
-        uint8 token0Decimals = _getTargetDecimals(tok0);
-        uint8 token1Decimals = _getTargetDecimals(tok1);
-
         //Set common based reserve values
-        (uint256 commonReserve0, uint256 commonReserve1) = _convertToCommonBase(
+        (uint256 commonReserve0, uint256 commonReserve1) = _getReservesCommonDecimals(
+            tok0,
+            tok1,
             reserve0,
-            token0Decimals,
-            reserve1,
-            token1Decimals
+            reserve1
         );
+
         unchecked {
-            _spRes.spotPrice = ConveyorMath.div128x128(
-                commonReserve0 << 128,
-                commonReserve1 << 128
-            );
+            if (token0 == tok0) {
+                _spRes.spotPrice = ConveyorMath.div128x128(
+                    commonReserve0 << 128,
+                    commonReserve1 << 128
+                );
+            } else {
+                _spRes.spotPrice = ConveyorMath.div128x128(
+                    commonReserve1 << 128,
+                    commonReserve0 << 128
+                );
+            }
+
             require(
                 _spRes.spotPrice <=
                     0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
@@ -458,6 +454,42 @@ contract OrderRouter {
 
         // Left shift commonReserve0 9 digits i.e. commonReserve0 = commonReserve0 * 2 ** 9
         (spRes, poolAddress) = (_spRes, pairAddress);
+    }
+
+    function _getReservesCommonDecimals(address tok0, address tok1, uint112 reserve0, uint112 reserve1) internal view returns (uint256 commonReserve0, uint256 commonReserve1){
+        //Get target decimals for token0 & token1
+        uint8 token0Decimals = _getTargetDecimals(tok0);
+        uint8 token1Decimals = _getTargetDecimals(tok1);
+
+        //Set common based reserve values
+        (commonReserve0, commonReserve1) = _convertToCommonBase(
+            reserve0,
+            token0Decimals,
+            reserve1,
+            token1Decimals
+        );
+    }
+
+    function _getV2PairAddress(
+        address _factory,
+        address token0,
+        address token1,
+        bytes32 _initBytecode
+    ) internal pure returns (address pairAddress) {
+        pairAddress = address(
+            uint160(
+                uint256(
+                    keccak256(
+                        abi.encodePacked(
+                            hex"ff",
+                            _factory,
+                            keccak256(abi.encodePacked(token0, token1)),
+                            _initBytecode
+                        )
+                    )
+                )
+            )
+        );
     }
 
     // function _getV3PairAddress(address token0, address token1)
@@ -502,7 +534,7 @@ contract OrderRouter {
 
             {
                 // int56 / uint32 = int24
-                tick = getTick(pool, tickSecond);
+                tick = _getTick(pool, tickSecond);
             }
             //so if tickCumulativeDelta < 0 and division has remainder, then rounddown
             if (
@@ -514,7 +546,7 @@ contract OrderRouter {
         }
 
         //amountOut = tick range spot over specified tick interval
-        _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token0, token1) << 9;
+        _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token0, token1);
 
         return (_spRes, pool);
     }
@@ -537,7 +569,7 @@ contract OrderRouter {
         return IUniswapV3Pool(lpAddress).fee();
     }
 
-    function getTick(address pool, uint32 tickSecond)
+    function _getTick(address pool, uint32 tickSecond)
         internal
         view
         returns (int24 tick)
@@ -579,7 +611,9 @@ contract OrderRouter {
     {
         //Target base amount in value
         uint112 amountIn = _getTargetAmountIn(token0, token1);
-        uint256 dexLength = dexes.length;
+        
+        //Don't think this needs to be cached anymore
+        // uint256 dexLength = dexes.length;
 
         SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
         address[] memory _lps = new address[](dexes.length);

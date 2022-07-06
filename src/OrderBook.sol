@@ -209,11 +209,13 @@ contract OrderBook is GasOracle {
 
         //Decrement total orders quantity
         //Decrement totalOrdersQuantity on order.tokenIn for order owner
-        decrementTotalOrdersQuantity(
-            order.tokenIn,
-            order.owner,
-            order.quantity
-        );
+        // decrementTotalOrdersQuantity(
+        //     order.tokenIn,
+        //     order.owner,
+        //     order.quantity
+        // );
+
+        totalOrdersQuantity[totalOrdersValueKey]-= order.quantity;
 
         //emit a canceled order event
         //TODO: do this in assembly
