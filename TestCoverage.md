@@ -206,8 +206,8 @@
 
 ## _convertToCommonBase
 
-## _getTargetDecimals
+## _getTargetDecimals ✅ 
 
-## _sortTokens
+## _sortTokens ✅ 
 
 ## _getQuoteAtTick
