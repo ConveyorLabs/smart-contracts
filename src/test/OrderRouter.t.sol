@@ -60,13 +60,18 @@ contract OrderRouterTest is DSTest {
         uniV2Factory = IUniswapV2Factory(_uniV2FactoryAddress);
     }
 
-    function testCalculateV2SpotUni() public view {
+    function testCalculateV2SpotUni() public {
         //Test tokens
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
-        //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
+        
+        (uint112 reserve0Usdc, uint112 reserve1Weth, ) = IUniswapV2Pair(0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc)
+            .getReserves();
+        uint256 reserve0Common=reserve0Usdc*10**12;
+        uint256 expectedWethUsdc = ConveyorMath.div128x128(uint256(reserve1Weth)<<128, uint256(reserve0Common)<<128);
+
         (
             ConveyorLimitOrders.SpotReserve memory price1,
             address poolAddress0
@@ -76,6 +81,12 @@ contract OrderRouterTest is DSTest {
                 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
                 _uniswapV2HexDem
             );
+            
+        (uint112 reserve0Dai, uint112 reserve1Usdc, ) = IUniswapV2Pair(0xAE461cA67B15dc8dc81CE7615e0320dA1A9aB8D5)
+            .getReserves();
+
+        uint256 reserve1UsdcCommon= reserve1Usdc*10**12;
+        uint256 expectedDaiUsdc = ConveyorMath.div128x128(uint256(reserve0Dai)<<128, uint256(reserve1UsdcCommon)<<128);
         (
             ConveyorLimitOrders.SpotReserve memory price2,
             address poolAddress1
@@ -85,24 +96,29 @@ contract OrderRouterTest is DSTest {
                 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
                 _uniswapV2HexDem
             );
+        
+        (uint112 reserve0Wax, uint112 reserve1Weth3, ) = IUniswapV2Pair(0x0ee0cb563A52Ae1170Ac34fBb94C50e89aDDE4bD)
+            .getReserves();
+            
+        uint128 reserve0WaxCommon = reserve0Wax*10**10;
+        uint256 expectedWaxeWeth = ConveyorMath.div128x128(uint256(reserve1Weth3)<<128, uint256(reserve0WaxCommon)<<128);
         (
             ConveyorLimitOrders.SpotReserve memory price3,
             address poolAddress2
-        ) = orderRouter.calculateV2SpotPrice(
-                weth,
-                dai,
-                0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
-                _uniswapV2HexDem
-            );
-        (
-            ConveyorLimitOrders.SpotReserve memory price4,
-            address poolAddress3
         ) = orderRouter.calculateV2SpotPrice(
                 weth,
                 wax,
                 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
                 _uniswapV2HexDem
             );
+
+        uint256 spotPriceWethUsdc = price1.spotPrice;
+        uint256 spotPriceDaiUsdc = price2.spotPrice;
+        uint256 spotPriceWethWax = price3.spotPrice;
+
+        assertEq(spotPriceWethWax, expectedWaxeWeth);
+        assertEq(spotPriceWethUsdc,expectedWethUsdc);
+        assertEq(spotPriceDaiUsdc, expectedDaiUsdc);
     }
 
     function testGetPoolFee() public {

@@ -403,8 +403,11 @@ contract OrderRouter {
         bytes32 _initBytecode
     ) internal view returns (SpotReserve memory spRes, address poolAddress) {
         require(token0 != token1, "Invalid Token Pair, IDENTICAL Address's");
-        (address tok0, address tok1) = _sortTokens(token0, token1);
-
+        address tok0;
+        address tok1;
+        {
+        (tok0, tok1) = _sortTokens(token0, token1);
+        }
         SpotReserve memory _spRes;
 
         //Return Uniswap V2 Pair address
@@ -445,15 +448,25 @@ contract OrderRouter {
             reserve1,
             token1Decimals
         );
+        
         unchecked {
-            _spRes.spotPrice = ConveyorMath.div128x128(
+            if(token0==tok0){
+                _spRes.spotPrice = ConveyorMath.div128x128(
                 commonReserve0 << 128,
                 commonReserve1 << 128
-            );
+                );
+            }else{
+                _spRes.spotPrice = ConveyorMath.div128x128(
+                commonReserve1 << 128,
+                commonReserve0 << 128
+                );
+            }
+            
             require(
                 _spRes.spotPrice <=
                     0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
             );
+        
         }
 
         // Left shift commonReserve0 9 digits i.e. commonReserve0 = commonReserve0 * 2 ** 9
@@ -514,7 +527,7 @@ contract OrderRouter {
         }
 
         //amountOut = tick range spot over specified tick interval
-        _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token0, token1) << 9;
+        _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token0, token1);
 
         return (_spRes, pool);
     }
