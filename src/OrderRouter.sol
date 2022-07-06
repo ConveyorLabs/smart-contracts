@@ -77,6 +77,7 @@ contract OrderRouter {
         uint128 res0;
         uint128 res1;
     }
+
     //----------------------Constants------------------------------------//
 
     ISwapRouter public constant swapRouter = ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
@@ -360,11 +361,14 @@ contract OrderRouter {
         uint256 _amountIn,
         uint256 _amountOutMin
     ) internal returns (uint256) {
-        /// transfer the tokens to the lp
+
+        /// transfer the tokens to the contract
         IERC20(_tokenIn).transferFrom(msg.sender, address(this), _amountIn);
-        //Aprove the tokens on the swap router
+
+        //Aprove the tokens on the swap router 
         IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
 
+        //Initialize swap parameters for the swap router
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
             .ExactInputSingleParams(
                 _tokenIn,
@@ -386,10 +390,9 @@ contract OrderRouter {
         } catch {
             return 0;
         }
-            
+        
         ///@notice calculate the amount recieved
         ///TODO: revisit this, if we should wrap this in an unchecked,
-        
     }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
@@ -480,7 +483,7 @@ contract OrderRouter {
         SpotReserve memory _spRes;
 
         address pool;
-
+        
         int24 tick;
         int56 tickCumulativesDelta;
 
@@ -663,13 +666,14 @@ contract OrderRouter {
         returns (uint112 amountIn)
     {
         //Get target decimals for token0, token1
-        uint8 token0Target = _getTargetDecimals(token0);
+        uint8 token0Target = _getTargetDecimals(token0); //18
         // require(false, "Got here");
-        uint8 token1Target = _getTargetDecimals(token1);
+        uint8 token1Target = _getTargetDecimals(token1); //6
 
         //target decimal := the difference in decimal targets between tokens
         uint8 targetDec = (token0Target < token1Target)
             ? (token1Target - token0Target)
+            //18-9=9
             : (token0Target - token1Target);
 
         //Set amountIn to correct target decimals
