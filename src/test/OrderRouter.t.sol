@@ -240,7 +240,8 @@ contract OrderRouterTest is DSTest {
     }
 
     function testSwapV2() public {
-        cheatCodes.deal(address(this), MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         //get the token in
         uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
@@ -251,6 +252,8 @@ contract OrderRouterTest is DSTest {
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address lp = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
         uint256 amountOutMin = 1;
+
+        IERC20(tokenIn).approve(address(orderRouter), amountReceived);
 
         orderRouter.swapV2(tokenIn, tokenOut, lp, amountReceived, amountOutMin);
     }

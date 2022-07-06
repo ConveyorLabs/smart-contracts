@@ -178,14 +178,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         if (!orderExists) {
             revert OrderDoesNotExist(orderId);
         }
-
         //Amount of order's owned by order owner
         uint256 totalOrders = totalOrdersPerAddress[order.owner];
 
         //Get current gas price from v3 Aggregator
         uint256 gasPrice = getGasPrice();
 
-        uint256 minimumGasCreditsForAllOrders = calculateMinGasCredits(
+        uint256 minimumGasCreditsForAllOrders = _calculateMinGasCredits(
             gasPrice,
             300000,
             order.owner,
@@ -251,7 +250,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //Get current gas price from v3 Aggregator
         uint256 gasPrice = getGasPrice();
 
-        uint256 minimumGasCreditsForAllOrders = calculateMinGasCredits(
+        uint256 minimumGasCreditsForAllOrders = _calculateMinGasCredits(
             gasPrice,
             300000,
             order.owner,
