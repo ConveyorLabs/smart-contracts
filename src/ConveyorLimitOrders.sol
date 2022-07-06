@@ -16,7 +16,6 @@ import "./ConveyorErrors.sol";
 
 ///@notice for all order placement, order updates and order cancelation logic, see OrderBook
 ///@notice for all order fulfuillment logic, see OrderRouter
-
 contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ========================================= Modifiers =============================================
     modifier onlyEOA() {

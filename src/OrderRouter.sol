@@ -13,6 +13,7 @@ import "./test/utils/Console.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/libraries/Uniswap/TickMath.sol";
 import "../lib/interfaces/uniswap-v3/ISwapRouter.sol";
+import "./test/utils/Console.sol";
 
 contract OrderRouter {
     //----------------------Structs------------------------------------//
@@ -76,6 +77,9 @@ contract OrderRouter {
         uint128 res0;
         uint128 res1;
     }
+    //----------------------Constants------------------------------------//
+
+    ISwapRouter public constant swapRouter = ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
 
     //----------------------Modifiers------------------------------------//
 
@@ -268,6 +272,7 @@ contract OrderRouter {
         dexes.push(_dex);
     }
 
+
     function _swapV2(
         address _tokenIn,
         address _tokenOut,
@@ -314,6 +319,12 @@ contract OrderRouter {
     }
 
     ///@notice agnostic swap function that determines whether or not to swap on univ2 or univ3
+    /// @param tokenIn address of the token being swapped out
+    /// @param tokenOut address of the output token on the swap
+    /// @param lpAddress lpAddress to be swapped on for uni v3
+    /// @param amountIn amount of tokenIn to be swapped
+    /// @param amountOutMin minimum amount out on the swap
+    /// @return amountOut amount recieved post swap in tokenOut
     function _swap(
         address tokenIn,
         address tokenOut,
@@ -334,7 +345,6 @@ contract OrderRouter {
                 tokenIn,
                 tokenOut,
                 _getUniV3Fee(lpAddress),
-                lpAddress,
                 amountIn,
                 amountOutMin
             );
@@ -347,15 +357,13 @@ contract OrderRouter {
         address _tokenIn,
         address _tokenOut,
         uint24 _fee,
-        address _lp,
         uint256 _amountIn,
         uint256 _amountOutMin
     ) internal returns (uint256) {
         /// transfer the tokens to the lp
-        // IERC20(_tokenIn).transferFrom(msg.sender, _lp, _amountIn);
-
-        ///@notice get the balance before
-        uint256 balanceBefore = IERC20(_tokenOut).balanceOf(address(this));
+        IERC20(_tokenIn).transferFrom(msg.sender, address(this), _amountIn);
+        //Aprove the tokens on the swap router
+        IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
 
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
             .ExactInputSingleParams(
@@ -370,25 +378,18 @@ contract OrderRouter {
             );
 
         /// @notice Swap tokens for wrapped native tokens (nato).
-        try ISwapRouter(_lp).exactInputSingle(params) returns (
-            uint256 _amountOut
-        ) {
-            ///@notice calculate the amount recieved
-            ///TODO: revisit this, if we should wrap this in an unchecked,
-            // validate that there will never be a case where it underflows, dont think so but just check
-            uint256 amountRecieved = IERC20(_tokenOut).balanceOf(
-                address(this)
-            ) - balanceBefore;
-
-            ///@notice if the amount recieved is less than the amount out min, revert
-            if (amountRecieved < _amountOut) {
-                revert InsufficientOutputAmount();
+        try swapRouter.exactInputSingle(params) returns (uint256 _amountOut) {
+            if (_amountOut < _amountOutMin) {
+                return 0;
             }
-
-            return amountRecieved;
+            return _amountOut;
         } catch {
             return 0;
         }
+            
+        ///@notice calculate the amount recieved
+        ///TODO: revisit this, if we should wrap this in an unchecked,
+        
     }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2

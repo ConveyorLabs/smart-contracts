@@ -5,12 +5,12 @@ import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Utils.sol";
 import "./utils/Swap.sol";
-
+import "../../lib/interfaces/uniswap-v3/ISwapRouter.sol";
 import "../ConveyorLimitOrders.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
-
+import "../OrderRouter.sol";
 interface CheatCodes {
     function prank(address) external;
 
@@ -21,10 +21,13 @@ contract OrderRouterTest is DSTest {
     //Python fuzz test deployer
     Swap swapHelper;
 
+    
     CheatCodes cheatCodes;
 
     IUniswapV2Router02 uniV2Router;
     IUniswapV2Factory uniV2Factory;
+
+    OrderRouter orderRouterContract;
 
     OrderRouterWrapper orderRouter;
 
@@ -56,7 +59,9 @@ contract OrderRouterTest is DSTest {
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
 
+        //Initialize swap router in constructor
         orderRouter = new OrderRouterWrapper();
+        
         uniswapV2.factoryAddress = _uniV2FactoryAddress;
 
         orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
@@ -280,9 +285,9 @@ contract OrderRouterTest is DSTest {
             tokenIn,
             tokenOut,
             fee,
-            lp,
-            amountOut,
-            amountInMaximum
+            amountInMaximum,
+            amountOut
+            
         );
     }
 
@@ -408,12 +413,11 @@ contract OrderRouterWrapper is OrderRouter {
         address _tokenIn,
         address _tokenOut,
         uint24 _fee,
-        address _lp,
         uint256 _amountIn,
         uint256 _amountOutMin
     ) public returns (uint256) {
         return
-            _swapV3(_tokenIn, _tokenOut, _fee, _lp, _amountIn, _amountOutMin);
+            _swapV3(_tokenIn, _tokenOut, _fee, _amountIn, _amountOutMin);
     }
 
     function calculateV2SpotPrice(
