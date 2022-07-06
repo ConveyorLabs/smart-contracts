@@ -515,7 +515,7 @@ contract OrderRouter {
 
             {
                 // int56 / uint32 = int24
-                tick = getTick(pool, tickSecond);
+                tick = _getTick(pool, tickSecond);
             }
             //so if tickCumulativeDelta < 0 and division has remainder, then rounddown
             if (
@@ -550,7 +550,7 @@ contract OrderRouter {
         return IUniswapV3Pool(lpAddress).fee();
     }
 
-    function getTick(address pool, uint32 tickSecond)
+    function _getTick(address pool, uint32 tickSecond)
         internal
         view
         returns (int24 tick)
