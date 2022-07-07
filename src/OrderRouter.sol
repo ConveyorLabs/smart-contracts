@@ -65,7 +65,9 @@ contract OrderRouter {
         bytes32[] orderIds;
     }
     //----------------------State Variables------------------------------------//
+
     address owner;
+    
     //----------------------State Structures------------------------------------//
 
     /// @notice Array of dex structures to be used throughout the contract for pair spot price calculations
@@ -279,10 +281,11 @@ contract OrderRouter {
         address _tokenOut,
         address _lp,
         uint256 _amountIn,
-        uint256 _amountOutMin
+        uint256 _amountOutMin,
+        address reciever
     ) internal returns (uint256) {
         /// transfer the tokens to the lp
-        IERC20(_tokenIn).transferFrom(msg.sender, _lp, _amountIn);
+        IERC20(_tokenIn).transferFrom(reciever, _lp, _amountIn);
 
         //Sort the tokens
         (address token0, ) = _sortTokens(_tokenIn, _tokenOut);
@@ -293,14 +296,14 @@ contract OrderRouter {
             : (_amountOutMin, uint256(0));
 
         ///@notice get the balance before
-        uint256 balanceBefore = IERC20(_tokenOut).balanceOf(address(this));
+        uint256 balanceBefore = IERC20(_tokenOut).balanceOf(reciever);
 
         /// @notice Swap tokens for wrapped native tokens (nato).
         try
             IUniswapV2Pair(_lp).swap(
                 amount0Out,
                 amount1Out,
-                address(this),
+                reciever,
                 new bytes(0)
             )
         {} catch {
@@ -308,7 +311,7 @@ contract OrderRouter {
         }
 
         ///@notice calculate the amount recieved
-        uint256 amountRecieved = IERC20(_tokenOut).balanceOf(address(this)) -
+        uint256 amountRecieved = IERC20(_tokenOut).balanceOf(reciever) -
             balanceBefore;
 
         ///@notice if the amount recieved is less than the amount out min, revert
@@ -331,7 +334,8 @@ contract OrderRouter {
         address tokenOut,
         address lpAddress,
         uint256 amountIn,
-        uint256 amountOutMin
+        uint256 amountOutMin,
+        address reciever
     ) internal returns (uint256 amountOut) {
         if (_lpIsNotUniV3(lpAddress)) {
             amountOut = _swapV2(
@@ -339,7 +343,8 @@ contract OrderRouter {
                 tokenOut,
                 lpAddress,
                 amountIn,
-                amountOutMin
+                amountOutMin,
+                reciever
             );
         } else {
             amountOut = _swapV3(
@@ -347,7 +352,8 @@ contract OrderRouter {
                 tokenOut,
                 _getUniV3Fee(lpAddress),
                 amountIn,
-                amountOutMin
+                amountOutMin,
+                reciever
             );
         }
     }
@@ -359,10 +365,11 @@ contract OrderRouter {
         address _tokenOut,
         uint24 _fee,
         uint256 _amountIn,
-        uint256 _amountOutMin
+        uint256 _amountOutMin,
+        address reciever
     ) internal returns (uint256) {
         /// transfer the tokens to the contract
-        IERC20(_tokenIn).transferFrom(msg.sender, address(this), _amountIn);
+        IERC20(_tokenIn).transferFrom(reciever, address(this), _amountIn);
 
         //Aprove the tokens on the swap router
         IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
@@ -373,7 +380,7 @@ contract OrderRouter {
                 _tokenIn,
                 _tokenOut,
                 _fee,
-                address(this),
+                reciever,
                 block.timestamp + 5,
                 _amountIn,
                 _amountOutMin,
