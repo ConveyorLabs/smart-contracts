@@ -11,6 +11,7 @@ import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
 import "../OrderRouter.sol";
+
 interface CheatCodes {
     function prank(address) external;
 
@@ -21,7 +22,6 @@ contract OrderRouterTest is DSTest {
     //Python fuzz test deployer
     Swap swapHelper;
 
-    
     CheatCodes cheatCodes;
 
     IUniswapV2Router02 uniV2Router;
@@ -61,7 +61,7 @@ contract OrderRouterTest is DSTest {
 
         //Initialize swap router in constructor
         orderRouter = new OrderRouterWrapper();
-        
+
         uniswapV2.factoryAddress = _uniV2FactoryAddress;
 
         orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
@@ -160,15 +160,19 @@ contract OrderRouterTest is DSTest {
         assertEq(check1SecondToken, weth);
     }
 
+    //fork block 15085186
     function testGetAllPrices() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-        //uint256 priceUSDC= PriceLibrary.calculateUniV3SpotPrice(dai, usdc, 1000000000000, 3000,1, _uniV3FactoryAddress);
         (
             OrderRouter.SpotReserve[] memory prices,
             address[] memory lps
         ) = orderRouter.getAllPrices(weth, usdc, 1, 300);
+
+        console.log(prices[0].spotPrice);
+        console.log(prices[1].spotPrice);
+        console.log(prices[2].spotPrice);
     }
 
     //TODO: fuzz this
@@ -298,14 +302,7 @@ contract OrderRouterTest is DSTest {
         uint256 amountOut = 1;
         uint256 amountInMaximum = amountReceived - 1;
 
-        orderRouter.swapV3(
-            tokenIn,
-            tokenOut,
-            fee,
-            amountInMaximum,
-            amountOut
-            
-        );
+        orderRouter.swapV3(tokenIn, tokenOut, fee, amountInMaximum, amountOut);
     }
 
     function testSwap() public {
@@ -433,8 +430,7 @@ contract OrderRouterWrapper is OrderRouter {
         uint256 _amountIn,
         uint256 _amountOutMin
     ) public returns (uint256) {
-        return
-            _swapV3(_tokenIn, _tokenOut, _fee, _amountIn, _amountOutMin);
+        return _swapV3(_tokenIn, _tokenOut, _fee, _amountIn, _amountOutMin);
     }
 
     function calculateV2SpotPrice(

@@ -175,15 +175,15 @@
 - fail !owner ✅ 
 
 ## _swap
-- success univ2 
-- success univ3
+- success univ2 ✅ 
+- success univ3 ✅ 
 
 ## _swapV2  
 - success ✅ 
 - insufficient output amount
 
 ## _swapV3
-- success
+- success ✅ 
 -  insufficient output amount
 
 ## _calculateV2SpotPrice
@@ -200,7 +200,7 @@
 
 ## getTick
 
-## _getAllPrices
+## _getAllPrices ✅ 
 
 ## _getTargetAmountIn
 
