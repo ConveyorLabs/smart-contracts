@@ -68,6 +68,7 @@ contract OrderBook is GasOracle {
         returns (bytes32[] memory)
     {
         uint256 orderIdIndex;
+
         bytes32[] memory orderIds = new bytes32[](orderGroup.length);
         //token that the orders are being placed on
         address orderToken = orderGroup[0].tokenIn;
@@ -76,6 +77,7 @@ contract OrderBook is GasOracle {
         uint256 tokenBalance = IERC20(orderToken).balanceOf(msg.sender);
 
         //TODO: check for tokenIn/weth and tokenOut/weth else revert
+        uint256 totalApprovedQuantity = IERC20(orderToken).allowance(msg.sender,address(this));
 
         for (uint256 i = 0; i < orderGroup.length; ++i) {
             Order memory newOrder = orderGroup[i];
@@ -114,16 +116,23 @@ contract OrderBook is GasOracle {
             ++totalOrdersPerAddress[msg.sender];
 
             //Increment totalOrdersQuantity on current order
-            incrementTotalOrdersQuantity(
-                newOrder.tokenIn,
-                msg.sender,
-                newOrder.quantity
-            );
+            // incrementTotalOrdersQuantity(
+            //     newOrder.tokenIn,
+            //     msg.sender,
+            //     newOrder.quantity
+            // );
 
             //update order ids for event emission
             orderIds[orderIdIndex] = orderId;
             ++orderIdIndex;
+
+            //Increment totalApproved quantity on each iteration
+            totalApprovedQuantity+=newOrder.quantity;
+
         }
+
+        //Approve total quantity of order group for the contract to spend
+        IERC20(orderToken).approve(address(this), totalApprovedQuantity);
 
         //emit orders placed
         emit OrderPlaced(orderIds);

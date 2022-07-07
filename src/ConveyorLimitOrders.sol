@@ -28,11 +28,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     //mapping to hold users gas credit balances
     mapping(address => uint256) public gasCreditBalance;
 
+    //Immutable weth address 
     address immutable WETH;
 
+    //Immutable refresh fee paid monthly by an order to stay in the Conveyor queue
     uint256 immutable refreshFee;
 
+    //Immutable refreshInterval set to 1 month on contract deployment
     uint256 immutable refreshInterval;
+
+    //Immutable execution cost of an order 
     uint256 immutable executionCost;
 
     // ========================================= Constructor =============================================
@@ -51,6 +56,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     // ========================================= Events  =============================================
+
     event GasCreditEvent(
         bool indexed deposit,
         address indexed sender,
@@ -348,7 +354,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _executeTokenToWethTaxedOrder(
         TokenToWethBatchOrder memory batch,
         Order memory order
-    ) internal returns (bool) {
+    ) internal {
         ///@notice swap from A to weth
         uint128 amountOutWeth = uint128(
             _swap(
@@ -571,6 +577,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         //loop each order
         for (uint256 i = 0; i < orders.length; i++) {
+
             ///@notice get the index of the best exectuion price
             uint256 bestPriceIndex = _findBestTokenToWethExecutionPrice(
                 executionPrices,
@@ -614,7 +621,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         currentOrder.quantity,
                         currentOrder.amountOutMin
                     )
+
                 ) {
+                    //Transfer the tokenIn from the user's wallet to the contract
+                    ///Todo: Check if success, if not cancel the order
+                    transferTokensToContract(currentOrder.owner, currentOrder.tokenIn, currentOrder.quantity);
+
                     uint256 batchOrderLength = currentTokenToWethBatchOrder
                         .batchOwners
                         .length;
@@ -654,6 +666,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 }
             }
         }
+    }
+
+    function transferTokensToContract(address sender, address token, uint256 amount) internal returns (bool){
+        try IERC20(token).transferFrom(sender, address(this), amount){} catch {
+            return false;
+        }
+        return true;
     }
 
     ///@notice returns the index of the best price in the executionPrices array
