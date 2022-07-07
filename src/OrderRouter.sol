@@ -80,7 +80,8 @@ contract OrderRouter {
 
     //----------------------Constants------------------------------------//
 
-    ISwapRouter public constant swapRouter = ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
+    ISwapRouter public constant swapRouter =
+        ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
 
     //----------------------Modifiers------------------------------------//
 
@@ -273,7 +274,6 @@ contract OrderRouter {
         dexes.push(_dex);
     }
 
-
     function _swapV2(
         address _tokenIn,
         address _tokenOut,
@@ -361,11 +361,10 @@ contract OrderRouter {
         uint256 _amountIn,
         uint256 _amountOutMin
     ) internal returns (uint256) {
-
         /// transfer the tokens to the contract
         IERC20(_tokenIn).transferFrom(msg.sender, address(this), _amountIn);
 
-        //Aprove the tokens on the swap router 
+        //Aprove the tokens on the swap router
         IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
 
         //Initialize swap parameters for the swap router
@@ -390,7 +389,7 @@ contract OrderRouter {
         } catch {
             return 0;
         }
-        
+
         ///@notice calculate the amount recieved
         ///TODO: revisit this, if we should wrap this in an unchecked,
     }
@@ -483,7 +482,7 @@ contract OrderRouter {
         SpotReserve memory _spRes;
 
         address pool;
-        
+
         int24 tick;
         int56 tickCumulativesDelta;
 
@@ -518,7 +517,7 @@ contract OrderRouter {
         }
 
         //amountOut = tick range spot over specified tick interval
-        _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token0, token1) << 9;
+        _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token0, token1);
 
         return (_spRes, pool);
     }
@@ -597,6 +596,7 @@ contract OrderRouter {
     {
         //Target base amount in value
         uint112 amountIn = _getTargetAmountIn(token0, token1);
+
         uint256 dexLength = dexes.length;
 
         SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
@@ -672,8 +672,7 @@ contract OrderRouter {
 
         //target decimal := the difference in decimal targets between tokens
         uint8 targetDec = (token0Target < token1Target)
-            ? (token1Target - token0Target)
-            //18-9=9
+            ? (token1Target)
             : (token0Target - token1Target);
 
         //Set amountIn to correct target decimals
