@@ -9,11 +9,7 @@ contract Swap {
 
     IUniswapV2Router02 uniV2Router;
 
-    constructor(
-        address uniV2Addr,
-        address uniV3Addr,
-        address _wnato
-    ) {
+    constructor(address uniV2Addr, address _wnato) {
         wnato = _wnato;
         uniV2Router = IUniswapV2Router02(uniV2Addr);
     }

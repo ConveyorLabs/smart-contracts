@@ -55,7 +55,7 @@ contract OrderBookTest is DSTest {
             2592000,
             300000
         );
-        swapHelper = new Swap(uniV2Addr, uniV3Addr, wnato);
+        swapHelper = new Swap(uniV2Addr, wnato);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
         orderBook = new OrderBookWrapper(aggregatorV3Address);

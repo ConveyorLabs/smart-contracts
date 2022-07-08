@@ -13,7 +13,7 @@ interface IUniswapV3Pool is
    
     IUniswapV3PoolDerivedState,
     IUniswapV3PoolImmutables
-    
+
 {
 
 }

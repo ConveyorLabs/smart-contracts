@@ -175,39 +175,39 @@
 - fail !owner ✅ 
 
 ## _swap
-- success univ2
-- success univ3
+- success univ2 ✅ 
+- success univ3 ✅ 
 
-## _swapV2
-- success
-- fail: insufficient output amount
+## _swapV2  
+- success ✅ 
+- insufficient output amount
 
 ## _swapV3
-- success
-- fail: insufficient output amount
+- success ✅ 
+-  insufficient output amount
 
 ## _calculateV2SpotPrice
  - Success: fork specific block
  - Fail: fork specific block
+
 ## _calculateV3SpotPrice
 - success: Fork specific block
 - fail: Fork specific block
-## _lpIsUniV2
 
-## _getUniV3Fee
-- success case
-- fail case
+## _lpIsNotUniV3 ✅ 
+
+## _getUniV3Fee ✅ 
 
 ## getTick
 
-## _getAllPrices
+## _getAllPrices ✅ 
 
 ## _getTargetAmountIn
 
 ## _convertToCommonBase
 
-## _getTargetDecimals
+## _getTargetDecimals ✅ 
 
-## _sortTokens
+## _sortTokens ✅ 
 
 ## _getQuoteAtTick

@@ -13,6 +13,7 @@ import "./test/utils/Console.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/libraries/Uniswap/TickMath.sol";
 import "../lib/interfaces/uniswap-v3/ISwapRouter.sol";
+import "./test/utils/Console.sol";
 
 contract OrderRouter {
     //----------------------Structs------------------------------------//
@@ -64,9 +65,11 @@ contract OrderRouter {
         bytes32[] orderIds;
     }
     //----------------------State Variables------------------------------------//
-    address owner;
-    //----------------------State Structures------------------------------------//
 
+    address owner;
+    
+    //----------------------State Structures------------------------------------//
+    
     /// @notice Array of dex structures to be used throughout the contract for pair spot price calculations
     Dex[] public dexes;
     mapping(address => uint256) dexToIndex;
@@ -76,6 +79,11 @@ contract OrderRouter {
         uint128 res0;
         uint128 res1;
     }
+
+    //----------------------Constants------------------------------------//
+
+    ISwapRouter public constant swapRouter =
+        ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
 
     //----------------------Modifiers------------------------------------//
 
@@ -273,10 +281,11 @@ contract OrderRouter {
         address _tokenOut,
         address _lp,
         uint256 _amountIn,
-        uint256 _amountOutMin
+        uint256 _amountOutMin,
+        address reciever
     ) internal returns (uint256) {
         /// transfer the tokens to the lp
-        IERC20(_tokenIn).transferFrom(msg.sender, _lp, _amountIn);
+        IERC20(_tokenIn).transferFrom(reciever, _lp, _amountIn);
 
         //Sort the tokens
         (address token0, ) = _sortTokens(_tokenIn, _tokenOut);
@@ -287,14 +296,14 @@ contract OrderRouter {
             : (_amountOutMin, uint256(0));
 
         ///@notice get the balance before
-        uint256 balanceBefore = IERC20(_tokenOut).balanceOf(address(this));
+        uint256 balanceBefore = IERC20(_tokenOut).balanceOf(reciever);
 
         /// @notice Swap tokens for wrapped native tokens (nato).
         try
             IUniswapV2Pair(_lp).swap(
                 amount0Out,
                 amount1Out,
-                address(this),
+                reciever,
                 new bytes(0)
             )
         {} catch {
@@ -302,11 +311,11 @@ contract OrderRouter {
         }
 
         ///@notice calculate the amount recieved
-        uint256 amountRecieved = IERC20(_tokenOut).balanceOf(address(this)) -
+        uint256 amountRecieved = IERC20(_tokenOut).balanceOf(reciever) -
             balanceBefore;
 
         ///@notice if the amount recieved is less than the amount out min, revert
-        if (amountRecieved >= _amountOutMin) {
+        if (amountRecieved < _amountOutMin) {
             revert InsufficientOutputAmount();
         }
 
@@ -314,81 +323,82 @@ contract OrderRouter {
     }
 
     ///@notice agnostic swap function that determines whether or not to swap on univ2 or univ3
+    /// @param tokenIn address of the token being swapped out
+    /// @param tokenOut address of the output token on the swap
+    /// @param lpAddress lpAddress to be swapped on for uni v3
+    /// @param amountIn amount of tokenIn to be swapped
+    /// @param amountOutMin minimum amount out on the swap
+    /// @return amountOut amount recieved post swap in tokenOut
     function _swap(
         address tokenIn,
         address tokenOut,
         address lpAddress,
         uint256 amountIn,
-        uint256 amountOutMin
+        uint256 amountOutMin,
+        address reciever
     ) internal returns (uint256 amountOut) {
-        if (_lpIsUniV2(lpAddress)) {
+        if (_lpIsNotUniV3(lpAddress)) {
             amountOut = _swapV2(
                 tokenIn,
                 tokenOut,
                 lpAddress,
                 amountIn,
-                amountOutMin
+                amountOutMin,
+                reciever
             );
         } else {
             amountOut = _swapV3(
                 tokenIn,
                 tokenOut,
                 _getUniV3Fee(lpAddress),
-                lpAddress,
                 amountIn,
-                amountOutMin
+                amountOutMin,
+                reciever
             );
         }
     }
 
+    //TODO: swap with v3 lp not the router
     /// @notice Helper function to perform a swapExactInputSingle on Uniswap V3
     function _swapV3(
         address _tokenIn,
         address _tokenOut,
         uint24 _fee,
-        address _lp,
-        uint256 _amountInMaximum,
-        uint256 _amountOut
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        address reciever
     ) internal returns (uint256) {
-        /// transfer the tokens to the lp
-        IERC20(_tokenIn).transferFrom(msg.sender, _lp, _amountInMaximum);
+        /// transfer the tokens to the contract
+        IERC20(_tokenIn).transferFrom(reciever, address(this), _amountIn);
 
-        //Sort the tokens
-        // (address token0, address token1) = _sortTokens(_tokenIn, _tokenOut);
+        //Aprove the tokens on the swap router
+        IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
 
-        // //Initialize the amount out depending on the token order
-        // (uint256 amount0Out, uint256 amount1Out) = _tokenIn == token0
-        //     ? (uint256(0), _amountOut)
-        //     : (_amountOut, uint256(0));
-
-        // ///@notice get the balance before
-        // uint256 balanceBefore = IERC20(_tokenOut).balanceOf(address(this));
+        //Initialize swap parameters for the swap router
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
             .ExactInputSingleParams(
                 _tokenIn,
                 _tokenOut,
                 _fee,
-                address(this),
+                reciever,
                 block.timestamp + 5,
-                _amountInMaximum,
-                _amountOut,
+                _amountIn,
+                _amountOutMin,
                 0
             );
 
         /// @notice Swap tokens for wrapped native tokens (nato).
-        try ISwapRouter(_lp).exactInputSingle(params) {} catch {
+        try swapRouter.exactInputSingle(params) returns (uint256 _amountOut) {
+            if (_amountOut < _amountOutMin) {
+                return 0;
+            }
+            return _amountOut;
+        } catch {
             return 0;
         }
 
         ///@notice calculate the amount recieved
-        uint256 amountRecieved = IERC20(_tokenOut).balanceOf(address(this));
-
-        ///@notice if the amount recieved is less than the amount out min, revert
-        if (amountRecieved >= _amountOut) {
-            revert InsufficientOutputAmount();
-        }
-
-        return amountRecieved;
+        ///TODO: revisit this, if we should wrap this in an unchecked,
     }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
@@ -551,14 +561,28 @@ contract OrderRouter {
         return (_spRes, pool);
     }
 
-    function _lpIsUniV2(address lp) internal view returns (bool) {
-        uint24 _fee = IUniswapV3Pool(lp).fee();
+    function _lpIsNotUniV3(address lp) internal returns (bool) {
+        bool success;
+        assembly {
+            //store the function sig for  "fee()"
+            mstore(
+                0x00,
+                0xddca3f4300000000000000000000000000000000000000000000000000000000
+            )
 
-        if (_fee == 0) {
-            return true;
-        } else {
-            return false;
+            success := call(
+                gas(), // gas remaining
+                lp, // destination address
+                0, // no ether
+                0x00, // input buffer (starts after the first 32 bytes in the `data` array)
+                0x04, // input length (loaded from the first 32 bytes in the `data` array)
+                0x00, // output buffer
+                0x00 // output length
+            )
         }
+        ///@notice return the opposite of success, meaning if the call succeeded, the address is univ3, and we should
+        ///@notice indicate that _lpIsNotUniV3 is false
+        return !success;
     }
 
     function _getUniV3Fee(address lpAddress)
@@ -611,9 +635,14 @@ contract OrderRouter {
     {
         //Target base amount in value
         uint112 amountIn = _getTargetAmountIn(token0, token1);
+<<<<<<< HEAD
         
         //Don't think this needs to be cached anymore
         // uint256 dexLength = dexes.length;
+=======
+
+        uint256 dexLength = dexes.length;
+>>>>>>> 0xKitsune/tests
 
         SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
         address[] memory _lps = new address[](dexes.length);
@@ -682,13 +711,13 @@ contract OrderRouter {
         returns (uint112 amountIn)
     {
         //Get target decimals for token0, token1
-        uint8 token0Target = _getTargetDecimals(token0);
+        uint8 token0Target = _getTargetDecimals(token0); //18
         // require(false, "Got here");
-        uint8 token1Target = _getTargetDecimals(token1);
+        uint8 token1Target = _getTargetDecimals(token1); //6
 
         //target decimal := the difference in decimal targets between tokens
         uint8 targetDec = (token0Target < token1Target)
-            ? (token1Target - token0Target)
+            ? (token1Target)
             : (token0Target - token1Target);
 
         //Set amountIn to correct target decimals

@@ -31,8 +31,6 @@ contract ConveyorLimitOrdersTest is DSTest {
     Swap swapHelper;
 
     address uniV2Addr = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    //TODO: add univ3 address
-    address uniV3Addr = address(0);
 
     //Initialize cheatcodes
     CheatCodes cheatCodes;
@@ -76,7 +74,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
-        swapHelper = new Swap(uniV2Addr, uniV3Addr, WETH);
+        swapHelper = new Swap(uniV2Addr, WETH);
         conveyorLimitOrders = new ConveyorLimitOrders(
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
