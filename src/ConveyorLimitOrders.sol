@@ -450,12 +450,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         TokenToWethBatchOrder memory batch,
         Order memory order
     ) internal returns (uint128 beaconReward) {
+        uint24 fee= _getUniV3Fee(batch.lpAddress);
         ///@notice swap from A to weth
         uint128 amountOutWeth = uint128(
             _swap(
                 order.tokenIn,
                 WETH,
                 batch.lpAddress,
+                fee,
                 order.quantity,
                 order.amountOutMin,
                 address(this)
@@ -553,12 +555,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         internal
         returns (uint256, uint256)
     {
+        uint24 fee = _getUniV3Fee(batch.lpAddress);
         ///@notice swap from A to weth
         uint128 amountOutWeth = uint128(
             _swap(
                 batch.tokenIn,
                 WETH,
                 batch.lpAddress,
+                fee,
                 batch.amountIn,
                 batch.amountOutMin,
                 address(this)
@@ -872,14 +876,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 protocolFee;
         uint128 beaconReward;
         uint256 amountInWethToB;
-
+        uint24 fee;
         if (order.tokenIn != WETH) {
+            fee = _getUniV3Fee(batch.lpAddressAToWeth);
             ///@notice swap from A to weth
             uint128 amountOutWeth = uint128(
                 _swap(
                     order.tokenIn,
                     WETH,
                     batch.lpAddressAToWeth,
+                    fee,
                     order.quantity,
                     order.amountOutMin,
                     address(this)
@@ -906,12 +912,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ///@notice get amount in for weth to B
             amountInWethToB = order.quantity - protocolFee;
         }
-
+        fee = _getUniV3Fee(batch.lpAddressWethToB);
         ///@notice swap weth for B
         _swap(
             WETH,
             order.tokenOut,
             batch.lpAddressWethToB,
+            fee,
             amountInWethToB,
             order.amountOutMin,
             order.owner
@@ -988,14 +995,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 protocolFee;
         uint128 beaconReward;
         uint256 amountInWethToB;
-
+        uint24 fee;
         if (batch.tokenIn != WETH) {
+            fee = _getUniV3Fee(batch.lpAddressAToWeth);
             ///@notice swap from A to weth
             uint128 amountOutWeth = uint128(
                 _swap(
                     batch.tokenIn,
                     WETH,
                     batch.lpAddressAToWeth,
+                    fee,
                     batch.amountIn,
                     batch.amountOutMin,
                     address(this)
@@ -1023,11 +1032,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             amountInWethToB = batch.amountIn - protocolFee;
         }
 
+        fee = _getUniV3Fee(batch.lpAddressWethToB);
         ///@notice swap weth for B
         uint256 amountOutInB = _swap(
             WETH,
             batch.tokenOut,
             batch.lpAddressWethToB,
+            fee,
             amountInWethToB,
             batch.amountOutMin,
             address(this)
