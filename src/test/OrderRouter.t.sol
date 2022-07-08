@@ -515,9 +515,8 @@ contract OrderRouterTest is DSTest {
     }
 
     function testSwap() public {
-        cheatCodes.deal(address(this), MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-        //testV2 condition
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         //get the token in
         uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
@@ -525,28 +524,18 @@ contract OrderRouterTest is DSTest {
             tokenIn
         );
 
+        IERC20(tokenIn).approve(address(orderRouter), amountReceived);
+
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        address v2LP = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
-        uint256 amountOutMin = 1;
+        uint24 fee = 500;
+        address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+        uint256 amountOut = 1;
+        uint256 amountInMaximum = amountReceived - 1;
         address reciever = address(this);
-        orderRouter.swap(tokenIn, tokenOut, v2LP, amountReceived, amountOutMin,reciever);
-
-        //testV3 condition
-        uint256 amountReceived1 = swapHelper.swapEthForTokenWithUniV2(
-            1000000000000000,
-            tokenIn
-        );
-
-        address v3LP = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
         
-        orderRouter.swap(
-            tokenIn,
-            tokenOut,
-            v3LP,
-            amountReceived1,
-            amountOutMin,
-            reciever
-        );
+        orderRouter.swap(tokenIn, tokenOut, lp, 300, amountReceived, amountInMaximum,reciever);
+
+        
     }
 }
 
@@ -612,16 +601,19 @@ contract OrderRouterWrapper is OrderRouter {
         address tokenIn,
         address tokenOut,
         address lpAddress,
+        uint24 fee,
         uint256 amountIn,
         uint256 amountOutMin,
         address reciever
     ) public returns (uint256 amountOut) {
-        // return _swap(
-        // address tokenIn,
-        // address tokenOut,
-        // address lpAddress,
-        // uint256 amountIn,
-        // uint256 amountOutMin);
+        return _swap(
+         tokenIn,
+        tokenOut,
+         lpAddress,
+         fee,
+         amountIn,
+        amountOutMin,
+         reciever);
     }
 
     function swapV2(

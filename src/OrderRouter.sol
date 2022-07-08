@@ -333,6 +333,7 @@ contract OrderRouter {
         address tokenIn,
         address tokenOut,
         address lpAddress,
+        uint24 fee,
         uint256 amountIn,
         uint256 amountOutMin,
         address reciever
@@ -350,7 +351,7 @@ contract OrderRouter {
             amountOut = _swapV3(
                 tokenIn,
                 tokenOut,
-                _getUniV3Fee(lpAddress),
+                fee,
                 amountIn,
                 amountOutMin,
                 reciever
