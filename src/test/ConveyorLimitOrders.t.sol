@@ -93,6 +93,9 @@ contract ConveyorLimitOrdersTest is DSTest {
     //Single order TokenToWeth success
     function testExecuteTokenToWethSingle() public {
         cheatCodes.prank(tx.origin);
+
+        depositGasCreditsForMockOrders(MAX_UINT);
+
         OrderBook.Order memory order = newMockOrder(
             USDC,
             WETH,
@@ -118,12 +121,16 @@ contract ConveyorLimitOrdersTest is DSTest {
     // Token to Weth Batch success
     function testExecuteTokenToWethOrderBatch() public {
         cheatCodes.prank(tx.origin);
+        depositGasCreditsForMockOrders(MAX_UINT);
+
         bytes32[] memory tokenToWethOrderBatch = newMockTokenToWethBatch();
         conveyorLimitOrders.executeOrders(tokenToWethOrderBatch);
     }
 
     function testExecuteWethToTokenSingle() public {
         cheatCodes.prank(tx.origin);
+        depositGasCreditsForMockOrders(MAX_UINT);
+
         OrderBook.Order memory order = newMockOrder(
             WETH,
             USDC,
@@ -149,12 +156,17 @@ contract ConveyorLimitOrdersTest is DSTest {
     // Token to Weth Batch success
     function testExecuteWethToTokenOrderBatch() public {
         cheatCodes.prank(tx.origin);
+        depositGasCreditsForMockOrders(MAX_UINT);
+
         bytes32[] memory tokenToWethOrderBatch = newMockWethToTokenBatch();
         conveyorLimitOrders.executeOrders(tokenToWethOrderBatch);
     }
 
     function testExecuteTokenToTokenSingle() public {
         cheatCodes.prank(tx.origin);
+
+        depositGasCreditsForMockOrders(MAX_UINT);
+
         OrderBook.Order memory order = newMockOrder(
             DAI,
             USDC,
@@ -180,6 +192,8 @@ contract ConveyorLimitOrdersTest is DSTest {
     // Token to Weth Batch success
     function testExecuteTokenToTokenBatch() public {
         cheatCodes.prank(tx.origin);
+        depositGasCreditsForMockOrders(MAX_UINT);
+
         bytes32[] memory tokenToWethOrderBatch = newMockTokenToTokenBatch();
         conveyorLimitOrders.executeOrders(tokenToWethOrderBatch);
     }
@@ -187,6 +201,8 @@ contract ConveyorLimitOrdersTest is DSTest {
     //weth to taxed token
     function testExecuteWethToTaxedTokenSingle() public {
         cheatCodes.prank(tx.origin);
+        depositGasCreditsForMockOrders(MAX_UINT);
+
         OrderBook.Order memory order = newMockOrder(
             WETH,
             TAXED_TOKEN,
@@ -212,6 +228,8 @@ contract ConveyorLimitOrdersTest is DSTest {
     //TODO:
     function testExecuteWethToTaxedTokenBatch() public {
         cheatCodes.prank(tx.origin);
+        depositGasCreditsForMockOrders(MAX_UINT);
+
         // bytes32[] memory tokenToWethOrderBatch = newMockTokenToTokenBatch();
         // conveyorLimitOrders.executeOrders(tokenToWethOrderBatch);
     }
@@ -219,6 +237,8 @@ contract ConveyorLimitOrdersTest is DSTest {
     //weth to taxed token
     function testExecuteTaxedTokenToWethSingle() public {
         cheatCodes.prank(tx.origin);
+        depositGasCreditsForMockOrders(MAX_UINT);
+
         OrderBook.Order memory order = newMockOrder(
             TAXED_TOKEN,
             WETH,
@@ -244,11 +264,14 @@ contract ConveyorLimitOrdersTest is DSTest {
     //TODO:
     function testExecuteTaxedTokenToWethBatch() public {
         cheatCodes.prank(tx.origin);
+        depositGasCreditsForMockOrders(MAX_UINT);
     }
 
     //weth to taxed token
     function testExecuteTokenToTaxedTokenSingle() public {
         cheatCodes.prank(tx.origin);
+        depositGasCreditsForMockOrders(MAX_UINT);
+
         OrderBook.Order memory order = newMockOrder(
             DAI,
             TAXED_TOKEN,
@@ -274,11 +297,14 @@ contract ConveyorLimitOrdersTest is DSTest {
     //TODO:
     function testExecuteTokenToTaxedTokenBatch() public {
         cheatCodes.prank(tx.origin);
+        depositGasCreditsForMockOrders(MAX_UINT);
     }
 
     //weth to taxed token
     function testExecuteTaxedTokenToTokenSingle() public {
         cheatCodes.prank(tx.origin);
+        depositGasCreditsForMockOrders(MAX_UINT);
+
         OrderBook.Order memory order = newMockOrder(
             TAXED_TOKEN,
             DAI,
@@ -304,11 +330,14 @@ contract ConveyorLimitOrdersTest is DSTest {
     //TODO:
     function testExecuteTaxedTokenToTokenBatch() public {
         cheatCodes.prank(tx.origin);
+        depositGasCreditsForMockOrders(MAX_UINT);
     }
 
     //weth to taxed token
     function testExecuteTaxedTokenToTaxedTokenSingle() public {
         cheatCodes.prank(tx.origin);
+        depositGasCreditsForMockOrders(MAX_UINT);
+
         OrderBook.Order memory order = newMockOrder(
             TAXED_TOKEN,
             TAXED_TOKEN_1,
@@ -334,6 +363,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     //TODO:
     function testExecuteTaxedTokenToTaxedTokenBatch() public {
         cheatCodes.prank(tx.origin);
+        depositGasCreditsForMockOrders(MAX_UINT);
     }
 
     //----------------------------Gas Credit Tests-----------------------------------------
@@ -713,6 +743,14 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     //----------------------------Order Batch Generators-----------------------------------------
 
+    function depositGasCreditsForMockOrders(uint256 _amount) public {
+        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
+            value: _amount
+        }(abi.encodeWithSignature("depositGasCredits()"));
+
+        require(depositSuccess, "error when depositing gas credits");
+    }
+
     function newMockTokenToWethBatch()
         internal
         view
@@ -831,47 +869,6 @@ contract ConveyorLimitOrdersTest is DSTest {
         orderBatch[0] = order1.orderId;
         orderBatch[1] = order2.orderId;
         orderBatch[2] = order3.orderId;
-
-        return orderBatch;
-    }
-
-    function newMockTokenToWethBatchPass1()
-        internal
-        view
-        returns (OrderBook.Order[] memory)
-    {
-        OrderBook.Order memory order1 = newMockOrder(
-            DAI,
-            WETH,
-            18446744073709550,
-            false,
-            false,
-            6900000000000000000,
-            1
-        );
-        OrderBook.Order memory order2 = newMockOrder(
-            DAI,
-            WETH,
-            18446744073709550,
-            false,
-            false,
-            6900000000000000000,
-            1
-        );
-        OrderBook.Order memory order3 = newMockOrder(
-            DAI,
-            WETH,
-            18446744073709550,
-            false,
-            false,
-            6900000000000000000,
-            1
-        );
-
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
-        orderBatch[0] = order1;
-        orderBatch[1] = order2;
-        orderBatch[2] = order3;
 
         return orderBatch;
     }
