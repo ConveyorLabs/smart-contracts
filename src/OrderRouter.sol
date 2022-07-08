@@ -67,9 +67,9 @@ contract OrderRouter {
     //----------------------State Variables------------------------------------//
 
     address owner;
-    
+
     //----------------------State Structures------------------------------------//
-    
+
     /// @notice Array of dex structures to be used throughout the contract for pair spot price calculations
     Dex[] public dexes;
     mapping(address => uint256) dexToIndex;
@@ -421,7 +421,12 @@ contract OrderRouter {
         SpotReserve memory _spRes;
 
         //Return Uniswap V2 Pair address
-        address pairAddress = _getV2PairAddress(_factory, tok0, tok1, _initBytecode);
+        address pairAddress = _getV2PairAddress(
+            _factory,
+            tok0,
+            tok1,
+            _initBytecode
+        );
 
         require(pairAddress != address(0), "Invalid token pair");
 
@@ -436,12 +441,10 @@ contract OrderRouter {
         (_spRes.res0, _spRes.res1) = (reserve0, reserve1);
 
         //Set common based reserve values
-        (uint256 commonReserve0, uint256 commonReserve1) = _getReservesCommonDecimals(
-            tok0,
-            tok1,
-            reserve0,
-            reserve1
-        );
+        (
+            uint256 commonReserve0,
+            uint256 commonReserve1
+        ) = _getReservesCommonDecimals(tok0, tok1, reserve0, reserve1);
 
         unchecked {
             if (token0 == tok0) {
@@ -466,7 +469,12 @@ contract OrderRouter {
         (spRes, poolAddress) = (_spRes, pairAddress);
     }
 
-    function _getReservesCommonDecimals(address tok0, address tok1, uint112 reserve0, uint112 reserve1) internal view returns (uint256 commonReserve0, uint256 commonReserve1){
+    function _getReservesCommonDecimals(
+        address tok0,
+        address tok1,
+        uint112 reserve0,
+        uint112 reserve1
+    ) internal view returns (uint256 commonReserve0, uint256 commonReserve1) {
         //Get target decimals for token0 & token1
         uint8 token0Decimals = _getTargetDecimals(tok0);
         uint8 token1Decimals = _getTargetDecimals(tok1);
@@ -635,14 +643,6 @@ contract OrderRouter {
     {
         //Target base amount in value
         uint112 amountIn = _getTargetAmountIn(token0, token1);
-<<<<<<< HEAD
-        
-        //Don't think this needs to be cached anymore
-        // uint256 dexLength = dexes.length;
-=======
-
-        uint256 dexLength = dexes.length;
->>>>>>> 0xKitsune/tests
 
         SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
         address[] memory _lps = new address[](dexes.length);
