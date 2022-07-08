@@ -342,7 +342,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
        
         //Iterate through all dex's and get best price and corresponding lp
         for(uint256 i =0; i <prices.length;++i){
-            if(prices[i].spotPrice<bestPrice){
+            if(prices[i].spotPrice<bestPrice && prices[i].spotPrice !=0){
                 bestPrice= prices[i].spotPrice;
                 bestLp=lps[i];
             }
@@ -461,7 +461,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 address(this)
             )
         );
-
+        
         uint128 protocolFee = _calculateFee(amountOutWeth);
 
         // safeTransferETH(msg.sender, beaconReward);

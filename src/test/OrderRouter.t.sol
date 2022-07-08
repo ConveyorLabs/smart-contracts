@@ -281,7 +281,7 @@ contract OrderRouterTest is DSTest {
 
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
 
-        orderRouter.swapV2(tokenIn, tokenOut, lp, amountReceived, amountOutMin);
+        orderRouter.swapV2(tokenIn, tokenOut, lp, amountReceived, amountOutMin, address(this));
     }
 
     function testSwapV3() public {
@@ -418,9 +418,10 @@ contract OrderRouterWrapper is OrderRouter {
         address _tokenOut,
         address _lp,
         uint256 _amountIn,
-        uint256 _amountOutMin
+        uint256 _amountOutMin,
+        address _reciever
     ) public returns (uint256) {
-        return _swapV2(_tokenIn, _tokenOut, _lp, _amountIn, _amountOutMin);
+        return _swapV2(_tokenIn, _tokenOut, _lp, _amountIn, _amountOutMin, _reciever);
     }
 
     function swapV3(
@@ -430,7 +431,7 @@ contract OrderRouterWrapper is OrderRouter {
         uint256 _amountIn,
         uint256 _amountOutMin
     ) public returns (uint256) {
-        return _swapV3(_tokenIn, _tokenOut, _fee, _amountIn, _amountOutMin);
+        return _swapV3(_tokenIn, _tokenOut, _fee, _amountIn, _amountOutMin, address(this));
     }
 
     function calculateV2SpotPrice(
