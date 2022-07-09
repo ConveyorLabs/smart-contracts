@@ -356,11 +356,21 @@ contract OrderRouterTest is DSTest {
         (
             OrderRouter.SpotReserve[] memory prices,
             address[] memory lps
-        ) = orderRouter.getAllPrices(usdc, weth, 1, 100);
+        ) = orderRouter.getAllPrices(weth,usdc, 1, 3000);
 
+        (
+            OrderRouter.SpotReserve[] memory prices1,
+            address[] memory lps1
+        ) = orderRouter.getAllPrices(usdc, weth, 1, 3000);
+        console.log("weth/usdc");
         console.log(prices[0].spotPrice);
         console.log(prices[1].spotPrice);
         console.log(prices[2].spotPrice);
+        
+        console.log("usdc/weth");
+        console.log(prices1[0].spotPrice);
+        console.log(prices1[1].spotPrice);
+        console.log(prices1[2].spotPrice);
     }
 
     //TODO: fuzz this

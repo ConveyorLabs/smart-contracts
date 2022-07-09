@@ -555,17 +555,11 @@ contract OrderRouter {
                 // int56 / uint32 = int24
                 tick = _getTick(pool, tickSecond);
             }
-            //so if tickCumulativeDelta < 0 and division has remainder, then rounddown
-            if (
-                tickCumulativesDelta < 0 &&
-                (tickCumulativesDelta % int32(1) != 0)
-            ) {
-                tick--;
-            }
+    
         }
 
         //amountOut = tick range spot over specified tick interval
-        _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token0, token1);
+        _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token1, token0);
 
         return (_spRes, pool);
     }
@@ -622,9 +616,13 @@ contract OrderRouter {
             //Scope to prevent deep stack error
             //Spot price of tickSeconds ago - spot price of current block
             tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
+
+            tick = int24(tickCumulativesDelta / int32(tickSecond));
+
+            if (tickCumulativesDelta < 0 && (tickCumulativesDelta % int32(tickSecond) != 0)) tick--;
         }
         // int56 / uint32 = int24
-        tick = int24(tickCumulativesDelta / (1));
+       return tick;
     }
 
     /// @notice Helper to get all lps and prices across multiple dexes
@@ -643,8 +641,8 @@ contract OrderRouter {
         returns (SpotReserve[] memory prices, address[] memory lps)
     {
         //Target base amount in value
-        uint112 amountIn = _getTargetAmountIn(token0, token1);
-
+        // uint112 amountIn = _getTargetAmountIn(token0, token1);
+        uint112 amountIn = 10**18;
         SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
         address[] memory _lps = new address[](dexes.length);
 
@@ -722,7 +720,7 @@ contract OrderRouter {
             : (token0Target - token1Target);
 
         //Set amountIn to correct target decimals
-        amountIn = uint112(10**(targetDec));
+        amountIn = uint112(targetDec);
     }
 
     /// @notice Helper function to change the base decimal value of token0 & token1 to the same target decimal value
@@ -785,17 +783,32 @@ contract OrderRouter {
     function _getQuoteAtTick(
         int24 tick,
         uint128 baseAmount,
-        address baseToken,
-        address quoteToken
-    ) internal pure returns (uint256 quoteAmount) {
+        address baseToken, //usdc
+        address quoteToken //weth
+    ) internal view returns (uint256) {
         uint160 sqrtRatioX96 = TickMath.getSqrtRatioAtTick(tick);
 
+        uint8 targetDecimalsQuote = _getTargetDecimals(quoteToken);
+        uint8 targetDecimalsBase = _getTargetDecimals(baseToken);
+
+        uint256 adjustedFixed128x128Quote;
+        uint256 quoteAmount;
+        
         // Calculate quoteAmount with better precision if it doesn't overflow when multiplied by itself
         if (sqrtRatioX96 <= type(uint128).max) {
             uint256 ratioX192 = uint256(sqrtRatioX96) * sqrtRatioX96;
             quoteAmount = baseToken < quoteToken
                 ? FullMath.mulDiv(ratioX192, baseAmount, 1 << 192)
                 : FullMath.mulDiv(1 << 192, baseAmount, ratioX192);
+
+            adjustedFixed128x128Quote = uint256(quoteAmount)<<128;
+
+            if(targetDecimalsQuote< targetDecimalsBase){
+                return adjustedFixed128x128Quote/10**targetDecimalsQuote;
+            }else{
+
+                return adjustedFixed128x128Quote/(10**((targetDecimalsQuote-targetDecimalsBase)+targetDecimalsQuote));
+            }
         } else {
             uint256 ratioX128 = FullMath.mulDiv(
                 sqrtRatioX96,
@@ -805,6 +818,14 @@ contract OrderRouter {
             quoteAmount = baseToken < quoteToken
                 ? FullMath.mulDiv(ratioX128, baseAmount, 1 << 128)
                 : FullMath.mulDiv(1 << 128, baseAmount, ratioX128);
+            
+            adjustedFixed128x128Quote = uint256(quoteAmount)<<128;
+            if(targetDecimalsQuote< targetDecimalsBase){
+                return adjustedFixed128x128Quote/10**targetDecimalsQuote;
+            }else{
+
+                return adjustedFixed128x128Quote/(10**((targetDecimalsQuote-targetDecimalsBase)+targetDecimalsQuote));
+            }
         }
     }
 }
