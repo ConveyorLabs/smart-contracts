@@ -466,7 +466,9 @@ contract OrderRouterTest is DSTest {
         assertEq(59, rewardBeacon);
     }
 
-    function testCalculateMaxBeaconReward() public {}
+    function testCalculateMaxBeaconReward() public {
+
+    }
 
     //TODO: fuzz this
     function testCalculateAlphaX() public {
@@ -538,7 +540,6 @@ contract OrderRouterTest is DSTest {
 
     //==================================Swap Tests===========================================
 
-    
     //Uniswap V2 Swap Tests
     function testSwapV2_1() public {
         cheatCodes.deal(address(swapHelper), MAX_UINT);

@@ -651,7 +651,7 @@ contract OrderRouter {
     {
         //Target base amount in value
         // uint112 amountIn = _getTargetAmountIn(token0, token1);
-        uint112 amountIn = 10**18;
+        uint112 amountIn = _getTargetAmountIn(token0, token1);
         SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
         address[] memory _lps = new address[](dexes.length);
 
@@ -726,10 +726,10 @@ contract OrderRouter {
         //target decimal := the difference in decimal targets between tokens
         uint8 targetDec = (token0Target < token1Target)
             ? (token1Target)
-            : (token0Target - token1Target);
+            : (token0Target);
 
         //Set amountIn to correct target decimals
-        amountIn = uint112(targetDec);
+        amountIn = uint112(10**targetDec);
     }
 
     /// @notice Helper function to change the base decimal value of token0 & token1 to the same target decimal value
