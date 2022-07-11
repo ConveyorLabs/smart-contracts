@@ -450,13 +450,13 @@ contract OrderRouter {
         unchecked {
             if (token0 == tok0) {
                 _spRes.spotPrice = ConveyorMath.div128x128(
-                    commonReserve0 << 128,
-                    commonReserve1 << 128
+                    commonReserve1 << 128,
+                    commonReserve0 << 128
                 );
             } else {
                 _spRes.spotPrice = ConveyorMath.div128x128(
-                    commonReserve1 << 128,
-                    commonReserve0 << 128
+                    commonReserve0 << 128,
+                    commonReserve1 << 128
                 );
             }
 
@@ -559,7 +559,7 @@ contract OrderRouter {
         }
 
         //amountOut = tick range spot over specified tick interval
-        _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token1, token0);
+        _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token0, token1);
 
         return (_spRes, pool);
     }
