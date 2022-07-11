@@ -14,7 +14,7 @@ import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/libraries/Uniswap/TickMath.sol";
 import "../lib/interfaces/uniswap-v3/ISwapRouter.sol";
 import "./test/utils/Console.sol";
-
+import "../lib/interfaces/token/IWETH.sol";
 contract OrderRouter {
     //----------------------Structs------------------------------------//
 
@@ -103,6 +103,15 @@ contract OrderRouter {
 
     //----------------------Functions------------------------------------//
 
+    function safeTransferETH(address to, uint256 amount) public {
+        bool success;
+
+        assembly {
+            // Transfer the ETH and store if it succeeded or not.
+            success := call(gas(), to, amount, 0, 0, 0, 0)
+        }
+        require(success, "ETH_TRANSFER_FAILED");
+    }
     /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation
     /// @dev calculation assumes 64x64 fixed point in128 representation for all values
     /// @param amountIn uint128 USDC amount in 64x64 fixed point to calculate the fee % of
@@ -767,7 +776,9 @@ contract OrderRouter {
         pure
         returns (address token0, address token1)
     {
+        
         require(tokenA != tokenB, "UniswapV2Library: IDENTICAL_ADDRESSES");
+
         (token0, token1) = tokenA < tokenB
             ? (tokenA, tokenB)
             : (tokenB, tokenA);

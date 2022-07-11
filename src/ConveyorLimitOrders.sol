@@ -281,47 +281,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         return false;
     }
-
-    // ==================== Order Execution Functions =========================
-
-    ///@notice This function takes in an array of orders,
-    /// @param orderIds array of orders to be executed within the mapping
-    function executeOrders(bytes32[] calldata orderIds) external onlyEOA {
-        ///@notice validate that the order array is in ascending order by quantity
-
-        Order[] memory orders = new Order[](orderIds.length);
-        for (uint256 i = 0; i < orderIds.length; i++) {
-            orders[i] = getOrderById(orderIds[i]);
-        }
-
-        _validateOrderSequencing(orders);
-
-        ///@notice Sequence the orders by priority fee
-        // Order[] memory sequencedOrders = _sequenceOrdersByPriorityFee(orders);
-
-        //TODO: figure out weth to token
-
-        ///@notice check if the token out is weth to determine what type of order execution to use
-        if (orders[0].taxed == true) {
-            if (orders[0].tokenOut == WETH) {
-                _executeTokenToWethTaxedOrders(orders);
-            } else {
-                //If second token is taxed and first token is weth
-                //Then don't do first swap, and out amount of second swap directly to the eoa of the swap
-                //Take out fee's from amount in
-                _executeTokenToTokenTaxedOrders(orders);
-            }
-        } else {
-            if (orders[0].tokenOut == WETH) {
-                _executeTokenToWethOrders(orders);
-            } else {
-                //If first token is weth, don't do the first swap, and take out the fee's from the amountIn
-                _executeTokenToTokenOrders(orders);
-            }
-        }
-    }
-
-    //------------Single Swap Best Dex price Aggregation---------------------------------
+    //===============Single Swap Best Dex Externals============================
 
     function swapTokenToTokenOnBestDex(
         address tokenIn,
@@ -342,9 +302,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
        
         //Iterate through all dex's and get best price and corresponding lp
         for(uint256 i =0; i <prices.length;++i){
-            if(prices[i].spotPrice<bestPrice){
+            if(prices[i].spotPrice !=0){
+                if(prices[i].spotPrice<bestPrice){
                 bestPrice= prices[i].spotPrice;
                 bestLp=lps[i];
+                }
             }
         }
 
@@ -406,6 +368,45 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         return amountOutWeth;
 
+    }
+
+    // ==================== Order Execution Functions =========================
+
+    ///@notice This function takes in an array of orders,
+    /// @param orderIds array of orders to be executed within the mapping
+    function executeOrders(bytes32[] calldata orderIds) external onlyEOA {
+        ///@notice validate that the order array is in ascending order by quantity
+
+        Order[] memory orders = new Order[](orderIds.length);
+        for (uint256 i = 0; i < orderIds.length; i++) {
+            orders[i] = getOrderById(orderIds[i]);
+        }
+
+        _validateOrderSequencing(orders);
+
+        ///@notice Sequence the orders by priority fee
+        // Order[] memory sequencedOrders = _sequenceOrdersByPriorityFee(orders);
+
+        //TODO: figure out weth to token
+
+        ///@notice check if the token out is weth to determine what type of order execution to use
+        if (orders[0].taxed == true) {
+            if (orders[0].tokenOut == WETH) {
+                _executeTokenToWethTaxedOrders(orders);
+            } else {
+                //If second token is taxed and first token is weth
+                //Then don't do first swap, and out amount of second swap directly to the eoa of the swap
+                //Take out fee's from amount in
+                _executeTokenToTokenTaxedOrders(orders);
+            }
+        } else {
+            if (orders[0].tokenOut == WETH) {
+                _executeTokenToWethOrders(orders);
+            } else {
+                //If first token is weth, don't do the first swap, and take out the fee's from the amountIn
+                _executeTokenToTokenOrders(orders);
+            }
+        }
     }
 
     // ==================== Token To Weth Order Execution Logic =========================
@@ -1358,15 +1359,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     //TODO: just import solmate safeTransferETh
 
-    function safeTransferETH(address to, uint256 amount) public {
-        bool success;
-
-        assembly {
-            // Transfer the ETH and store if it succeeded or not.
-            success := call(gas(), to, amount, 0, 0, 0, 0)
-        }
-        require(success, "ETH_TRANSFER_FAILED");
-    }
+    
 
     function simulateTokenToWethPriceChange(
         uint128 alphaX,
