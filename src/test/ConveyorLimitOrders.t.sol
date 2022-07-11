@@ -90,7 +90,19 @@ contract ConveyorLimitOrdersTest is DSTest {
         conveyorLimitOrders.addDex(_dexFactories[2], _hexDems[2], _isUniV2[2]);
     }
 
-    function testFailExecute_InvalidBatchOrder() public {
+    //================================================================
+    //======================= Validate Order Sequence Tests ==========
+    //================================================================
+    function testValidateOrderSequence() public {
+        cheatCodes.prank(tx.origin);
+
+        depositGasCreditsForMockOrders(MAX_UINT);
+
+        bytes32[] memory orderBatch = placeNewMockTokenToTokenBatch();
+        conveyorLimitOrders.executeOrders(orderBatch);
+    }
+
+    function testFailValidateOrderSequence_InvalidBatchOrder() public {
         cheatCodes.prank(tx.origin);
 
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -100,7 +112,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         conveyorLimitOrders.executeOrders(orderBatch);
     }
 
-    function testFailExecute_IncongruentInputTokenInBatch() public {
+    function testFailValidateOrderSequence_IncongruentInputTokenInBatch()
+        public
+    {
         cheatCodes.prank(tx.origin);
 
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -110,7 +124,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         conveyorLimitOrders.executeOrders(orderBatch);
     }
 
-    function testFailExecute_IncongruentOutputTokenInBatch() public {
+    function testFailValidateOrderSequence_IncongruentOutputTokenInBatch()
+        public
+    {
         cheatCodes.prank(tx.origin);
 
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -120,7 +136,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         conveyorLimitOrders.executeOrders(orderBatch);
     }
 
-    function testFailExecute_IncongruentBuySellStatusInBatch() public {
+    function testFailValidateOrderSequence_IncongruentBuySellStatusInBatch()
+        public
+    {
         cheatCodes.prank(tx.origin);
         depositGasCreditsForMockOrders(MAX_UINT);
         bytes32[]
@@ -128,7 +146,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         conveyorLimitOrders.executeOrders(orderBatch);
     }
 
-    function testFailExecute_IncongruentTaxedTokenInBatch() public {
+    function testFailValidateOrderSequence_IncongruentTaxedTokenInBatch()
+        public
+    {
         cheatCodes.prank(tx.origin);
         depositGasCreditsForMockOrders(MAX_UINT);
         bytes32[]

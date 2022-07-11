@@ -299,8 +299,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ///@notice Sequence the orders by priority fee
         // Order[] memory sequencedOrders = _sequenceOrdersByPriorityFee(orders);
 
-        //TODO: figure out weth to token
-
         ///@notice check if the token out is weth to determine what type of order execution to use
         if (orders[0].taxed == true) {
             if (orders[0].tokenOut == WETH) {
