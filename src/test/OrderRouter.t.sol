@@ -89,6 +89,58 @@ contract OrderRouterTest is DSTest {
         assert(!orderRouter.lpIsNotUniV3(uniV3LPAddress));
     }
 
+    function testGetTargetAmountIn() public {
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+        address kope = 0x8CC9b5406049D2b66106bb39C5047666E50F06FE;
+        address ohm = 0x64aa3364F17a4D01c6f1751Fd97C2BD3D7e7f1D5;
+
+        uint112 amountInWethUsdc = orderRouter.getTargetAmountIn(weth, usdc); //18
+        uint112 amountInDaiWeth = orderRouter.getTargetAmountIn(weth, dai); //18
+        uint112 amountInKopeOhm = orderRouter.getTargetAmountIn(kope, ohm); //18
+        uint112 amountInOhmUsdc = orderRouter.getTargetAmountIn(usdc, ohm); //9
+
+        assertEq(amountInWethUsdc, 10**18);
+        assertEq(amountInDaiWeth, 10**18);
+        assertEq(amountInKopeOhm, 10**18);
+        assertEq(amountInOhmUsdc, 10**9);
+        
+    }
+
+    function testChangeBase() public {
+        //----------Test 1 setup----------------------//
+        uint256 reserve0 = 131610640170334000000000000;
+        uint8 dec0 = 18;
+        uint256 reserve1 = 131610640170334;
+        uint8 dec1 = 9;
+        (uint256 r0_out, uint256 r1_out) = orderRouter.convertToCommonBase(
+            reserve0,
+            dec0,
+            reserve1,
+            dec1
+        );
+
+        //----------Test 2 setup-----------------//
+        uint256 reserve01 = 131610640170334;
+        uint8 dec01 = 6;
+        uint256 reserve11 = 47925919677616776812811;
+        uint8 dec11 = 18;
+
+        (uint256 r0_out1, uint256 r1_out1) = orderRouter.convertToCommonBase(
+            reserve01,
+            dec01,
+            reserve11,
+            dec11
+        );
+
+        //Assertion checks
+        assertEq(r1_out, 131610640170334000000000); // 9 decimals added
+        assertEq(r0_out, 131610640170334000000000000); //No change
+        assertEq(r0_out1, 131610640170334000000000000); //12 decimals added
+        assertEq(r1_out1, 47925919677616776812811); //No change
+    }
+
     function testGetTargetDecimals() public {
         //Test Tokens
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -491,38 +543,6 @@ contract OrderRouterTest is DSTest {
         assertEq(340282366886892426828258718426375055715247042, alphaX);
     }
 
-    function testChangeBase() public {
-        //----------Test 1 setup----------------------//
-        uint256 reserve0 = 131610640170334000000000000;
-        uint8 dec0 = 18;
-        uint256 reserve1 = 131610640170334;
-        uint8 dec1 = 9;
-        (uint256 r0_out, uint256 r1_out) = orderRouter.convertToCommonBase(
-            reserve0,
-            dec0,
-            reserve1,
-            dec1
-        );
-
-        //----------Test 2 setup-----------------//
-        uint256 reserve01 = 131610640170334;
-        uint8 dec01 = 6;
-        uint256 reserve11 = 47925919677616776812811;
-        uint8 dec11 = 18;
-
-        (uint256 r0_out1, uint256 r1_out1) = orderRouter.convertToCommonBase(
-            reserve01,
-            dec01,
-            reserve11,
-            dec11
-        );
-
-        //Assertion checks
-        assertEq(r1_out, 131610640170334000000000); // 9 decimals added
-        assertEq(r0_out, 131610640170334000000000000); //No change
-        assertEq(r0_out1, 131610640170334000000000000); //12 decimals added
-        assertEq(r1_out1, 47925919677616776812811); //No change
-    }
 
     //================================================================================================
 
@@ -601,6 +621,27 @@ contract OrderRouterTest is DSTest {
         orderRouter.swapV2(tokenIn, tokenOut, lp, amountReceived, amountOutMin, reciever);
     }
 
+    function testFailSwapV2_InsufficientOutputAmount() public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        address tokenIn = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
+        //get the token in
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+            10000000000000000,
+            tokenIn
+        );
+
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address lp = 0xa2107FA5B38d9bbd2C461D6EDf11B11A50F6b974;
+
+        ///TODO: Get some solid amountOutMin with regard's to slippage on the corresponding lp
+        uint256 amountOutMin = 10000000000000000;
+
+        IERC20(tokenIn).approve(address(orderRouter), amountReceived);
+        address reciever = address(this);
+        orderRouter.swapV2(tokenIn, tokenOut, lp, amountReceived, amountOutMin, reciever);
+    }
+
     //Uniswap V3 SwapRouter Tests
     function testSwapV3_1() public {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
@@ -665,6 +706,27 @@ contract OrderRouterTest is DSTest {
         orderRouter.swapV3(tokenIn, tokenOut, fee, amountInMaximum, amountOut, reciever);
     }
 
+    function testFailSwapV3_InsufficientOutputAmount() public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        address tokenIn = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+        //get the token in
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+            1000000000000000,
+            tokenIn
+        );
+
+        IERC20(tokenIn).approve(address(orderRouter), amountReceived);
+
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        uint24 fee = 500;
+        
+        uint256 amountOut = amountReceived;
+        uint256 amountInMaximum = amountReceived - 1;
+        address reciever = address(this);
+        orderRouter.swapV3(tokenIn, tokenOut, fee, amountInMaximum, amountOut, reciever);
+    }
+
     function testSwap() public {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
@@ -682,6 +744,29 @@ contract OrderRouterTest is DSTest {
         address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
         
         uint256 amountInMaximum = amountReceived - 1;
+        address reciever = address(this);
+        
+        orderRouter.swap(tokenIn, tokenOut, lp, 300, amountReceived, amountInMaximum,reciever);
+
+    }
+
+    function testFailSwap_InsufficientOutputAmount() public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        //get the token in
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+            1000000000000000,
+            tokenIn
+        );
+
+        IERC20(tokenIn).approve(address(orderRouter), amountReceived);
+
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        
+        address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+        
+        uint256 amountInMaximum = amountReceived;
         address reciever = address(this);
         
         orderRouter.swap(tokenIn, tokenOut, lp, 300, amountReceived, amountInMaximum,reciever);
