@@ -635,7 +635,11 @@ contract OrderRouterWrapper is OrderRouter {
         uint256 _amountOutMin,
         address _reciever
     ) public returns (uint256) {
+<<<<<<< HEAD
         return _swapV3(_tokenIn, _tokenOut, _fee, _amountIn, _amountOutMin, _reciever);
+=======
+        return _swapV3(_tokenIn, _tokenOut, _fee, _amountIn, _amountOutMin, address(this));
+>>>>>>> c538fb3eee895bfa42fc59add2342cf972ac3894
     }
 
     function calculateV2SpotPrice(

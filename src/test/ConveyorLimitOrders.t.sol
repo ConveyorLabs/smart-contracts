@@ -800,7 +800,40 @@ contract ConveyorLimitOrdersTest is DSTest {
     //     assertEq(0x000000000000000000000000000007bc019f93509a129114c8df914ab5340000, spot);
 
     // }
+    //----------------------------Single Swap Tests -----------------------------------------
+    
+    function testSwapTokenToTokenOnBestDex() public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        //get the token in
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+            10000000000000000,
+            tokenIn
+        );
+
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address lp = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
+        uint256 amountOutMin = 10000000000;
+
+        IERC20(tokenIn).approve(address(conveyorLimitOrders), amountReceived);
+
+        conveyorLimitOrders.swapTokenToTokenOnBestDex(tokenIn, tokenOut, amountReceived, amountOutMin,100, address(this));
+
+    }
+
+    // function testSwapETHToTokenOnBestDex() public {
+    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        
+
+    //     address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    //     address lp = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
+    //     uint256 amountOutMin = 10000000000;
+
+    //     IERC20(tokenIn).approve(address(conveyorLimitOrders), 10000);
+
+<<<<<<< HEAD
     //================================================================
     //======================= Helper functions =======================
     //================================================================
@@ -864,6 +897,34 @@ contract ConveyorLimitOrdersTest is DSTest {
     }
 
     function placeNewMockTokenToWethBatch()
+=======
+    //     conveyorLimitOrders.swapTokenToTokenOnBestDex(tokenIn, tokenOut, amountReceived, amountOutMin,100, address(this));
+
+    // }
+
+    function testSwapTokenToETHOnBestDex() public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        //get the token in
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+            10000000000000000,
+            tokenIn
+        );
+
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address lp = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
+        uint256 amountOutMin = 10000000000;
+
+        IERC20(tokenIn).approve(address(conveyorLimitOrders), amountReceived);
+
+        conveyorLimitOrders.swapTokenToETHOnBestDex(tokenIn, amountReceived, amountOutMin,100);
+
+    }
+    
+    //----------------------------Order Batch Generators-----------------------------------------
+    function newMockTokenToTokenBatchPass()
+>>>>>>> c538fb3eee895bfa42fc59add2342cf972ac3894
         internal
         returns (bytes32[] memory)
     {

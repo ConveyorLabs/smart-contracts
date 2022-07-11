@@ -282,11 +282,12 @@ contract OrderRouter {
         address _lp,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address reciever
+        address _reciever
     ) internal returns (uint256) {
+  
         /// transfer the tokens to the lp
-        IERC20(_tokenIn).transferFrom(reciever, _lp, _amountIn);
-
+        IERC20(_tokenIn).transferFrom(_reciever, _lp, _amountIn);
+        
         //Sort the tokens
         (address token0, ) = _sortTokens(_tokenIn, _tokenOut);
 
@@ -296,14 +297,14 @@ contract OrderRouter {
             : (_amountOutMin, uint256(0));
 
         ///@notice get the balance before
-        uint256 balanceBefore = IERC20(_tokenOut).balanceOf(reciever);
+        uint256 balanceBefore = IERC20(_tokenOut).balanceOf(_reciever);
 
         /// @notice Swap tokens for wrapped native tokens (nato).
         try
             IUniswapV2Pair(_lp).swap(
                 amount0Out,
                 amount1Out,
-                reciever,
+                _reciever,
                 new bytes(0)
             )
         {} catch {
@@ -311,7 +312,7 @@ contract OrderRouter {
         }
 
         ///@notice calculate the amount recieved
-        uint256 amountRecieved = IERC20(_tokenOut).balanceOf(reciever) -
+        uint256 amountRecieved = IERC20(_tokenOut).balanceOf(_reciever) -
             balanceBefore;
 
         ///@notice if the amount recieved is less than the amount out min, revert
@@ -370,7 +371,7 @@ contract OrderRouter {
         address reciever
     ) internal returns (uint256) {
         /// transfer the tokens to the contract
-        IERC20(_tokenIn).transferFrom(reciever, address(this), _amountIn);
+        IERC20(_tokenIn).transferFrom(msg.sender, address(this), _amountIn);
 
         //Aprove the tokens on the swap router
         IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
