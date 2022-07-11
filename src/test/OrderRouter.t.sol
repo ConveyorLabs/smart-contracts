@@ -352,25 +352,70 @@ contract OrderRouterTest is DSTest {
     function testGetAllPrices() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+        address LINK = 0x514910771AF9Ca656af840dff83E8264EcF986CA ;
+
+        // (
+        //     OrderRouter.SpotReserve[] memory pricesWethUsdc,
+        //     address[] memory lps
+        // ) = orderRouter.getAllPrices(weth,usdc, 1, 3000);
+
+        // (
+        //     OrderRouter.SpotReserve[] memory pricesUsdcWeth,
+        //     address[] memory lps1
+        // ) = orderRouter.getAllPrices(usdc, weth, 1, 3000);
+
+        //Dai-Usdc both directions
+        (
+            OrderRouter.SpotReserve[] memory pricesDaiUsdc,
+            address[] memory lps2
+        ) = orderRouter.getAllPrices(dai,usdc, 1, 100);
 
         (
-            OrderRouter.SpotReserve[] memory prices,
-            address[] memory lps
-        ) = orderRouter.getAllPrices(weth,usdc, 1, 3000);
+            OrderRouter.SpotReserve[] memory pricesUsdcDai,
+            address[] memory lps3
+        ) = orderRouter.getAllPrices(usdc, dai, 1, 100);
+
+        //Link Weth both directions
+        (
+            OrderRouter.SpotReserve[] memory pricesLinkWeth,
+            address[] memory lps4
+        ) = orderRouter.getAllPrices(LINK,weth, 1, 3000);
 
         (
-            OrderRouter.SpotReserve[] memory prices1,
-            address[] memory lps1
-        ) = orderRouter.getAllPrices(usdc, weth, 1, 3000);
-        console.log("weth/usdc");
-        console.log(prices[0].spotPrice);
-        console.log(prices[1].spotPrice);
-        console.log(prices[2].spotPrice);
+            OrderRouter.SpotReserve[] memory pricesWethLink,
+            address[] memory lps5
+        ) = orderRouter.getAllPrices(weth, LINK, 1, 3000);
+
+        // console.log("weth/usdc");
+        // console.log(pricesWethUsdc[0].spotPrice);
+        // console.log(pricesWethUsdc[1].spotPrice);
+        // console.log(pricesWethUsdc[2].spotPrice);
         
-        console.log("usdc/weth");
-        console.log(prices1[0].spotPrice);
-        console.log(prices1[1].spotPrice);
-        console.log(prices1[2].spotPrice);
+        // console.log("usdc/weth");
+        // console.log(pricesUsdcWeth[0].spotPrice);
+        // console.log(pricesUsdcWeth[1].spotPrice);
+        // console.log(pricesUsdcWeth[2].spotPrice);
+
+        console.log("dai/usdc");
+        console.log(pricesDaiUsdc[0].spotPrice);
+        console.log(pricesDaiUsdc[1].spotPrice);
+        console.log(pricesDaiUsdc[2].spotPrice);
+        
+        console.log("usdc/dai");
+        console.log(pricesUsdcDai[0].spotPrice);
+        console.log(pricesUsdcDai[1].spotPrice);
+        console.log(pricesUsdcDai[2].spotPrice);
+
+        console.log("link/weth");
+        console.log(pricesLinkWeth[0].spotPrice);
+        console.log(pricesLinkWeth[1].spotPrice);
+        console.log(pricesLinkWeth[2].spotPrice);
+        
+        console.log("weth/link");
+        console.log(pricesWethLink[0].spotPrice);
+        console.log(pricesWethLink[1].spotPrice);
+        console.log(pricesWethLink[2].spotPrice);
     }
 
     //TODO: fuzz this
