@@ -490,7 +490,14 @@ contract OrderRouterTest is DSTest {
 
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
         address reciever = address(this);
-        orderRouter.swapV2(tokenIn, tokenOut, lp, amountReceived, amountOutMin, reciever);
+        orderRouter.swapV2(
+            tokenIn,
+            tokenOut,
+            lp,
+            amountReceived,
+            amountOutMin,
+            reciever
+        );
     }
 
     function testSwapV3() public {
@@ -511,7 +518,14 @@ contract OrderRouterTest is DSTest {
         uint256 amountOut = 1;
         uint256 amountInMaximum = amountReceived - 1;
         address reciever = address(this);
-        orderRouter.swapV3(tokenIn, tokenOut, fee, amountInMaximum, amountOut, reciever);
+        orderRouter.swapV3(
+            tokenIn,
+            tokenOut,
+            fee,
+            amountInMaximum,
+            amountOut,
+            reciever
+        );
     }
 
     function testSwap() public {
@@ -532,10 +546,16 @@ contract OrderRouterTest is DSTest {
         uint256 amountOut = 1;
         uint256 amountInMaximum = amountReceived - 1;
         address reciever = address(this);
-        
-        orderRouter.swap(tokenIn, tokenOut, lp, 300, amountReceived, amountInMaximum,reciever);
 
-        
+        orderRouter.swap(
+            tokenIn,
+            tokenOut,
+            lp,
+            300,
+            amountReceived,
+            amountInMaximum,
+            reciever
+        );
     }
 }
 
@@ -606,14 +626,16 @@ contract OrderRouterWrapper is OrderRouter {
         uint256 amountOutMin,
         address reciever
     ) public returns (uint256 amountOut) {
-        return _swap(
-         tokenIn,
-        tokenOut,
-         lpAddress,
-         fee,
-         amountIn,
-        amountOutMin,
-         reciever);
+        return
+            _swap(
+                tokenIn,
+                tokenOut,
+                lpAddress,
+                fee,
+                amountIn,
+                amountOutMin,
+                reciever
+            );
     }
 
     function swapV2(
@@ -624,7 +646,15 @@ contract OrderRouterWrapper is OrderRouter {
         uint256 _amountOutMin,
         address _reciever
     ) public returns (uint256) {
-        return _swapV2(_tokenIn, _tokenOut, _lp, _amountIn, _amountOutMin, _reciever);
+        return
+            _swapV2(
+                _tokenIn,
+                _tokenOut,
+                _lp,
+                _amountIn,
+                _amountOutMin,
+                _reciever
+            );
     }
 
     function swapV3(
@@ -635,11 +665,15 @@ contract OrderRouterWrapper is OrderRouter {
         uint256 _amountOutMin,
         address _reciever
     ) public returns (uint256) {
-<<<<<<< HEAD
-        return _swapV3(_tokenIn, _tokenOut, _fee, _amountIn, _amountOutMin, _reciever);
-=======
-        return _swapV3(_tokenIn, _tokenOut, _fee, _amountIn, _amountOutMin, address(this));
->>>>>>> c538fb3eee895bfa42fc59add2342cf972ac3894
+        return
+            _swapV3(
+                _tokenIn,
+                _tokenOut,
+                _fee,
+                _amountIn,
+                _amountOutMin,
+                _reciever
+            );
     }
 
     function calculateV2SpotPrice(
