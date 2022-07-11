@@ -137,7 +137,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         if (gasCreditBalance[order.owner] < refreshFee) {
             revert InsufficientGasCreditBalance();
         }
-       
+
         //Get current gas price from v3 Aggregator
         uint256 gasPrice = getGasPrice();
         //Require gas credit withdrawal doesn't exceeed minimum gas credit requirements
@@ -331,26 +331,30 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint24 FEE,
         address reciever
     ) public returns (uint256 amountOut) {
-
         //Initialize tick second to smallest range
         uint32 tickSecond = 1;
 
-        (SpotReserve[] memory prices, address[] memory lps) = _getAllPrices(tokenIn, tokenOut, tickSecond, FEE);
+        (SpotReserve[] memory prices, address[] memory lps) = _getAllPrices(
+            tokenIn,
+            tokenOut,
+            tickSecond,
+            FEE
+        );
 
-        uint256 bestPrice=0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+        uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
         address bestLp;
-       
+
         //Iterate through all dex's and get best price and corresponding lp
-        for(uint256 i =0; i <prices.length;++i){
-            if(prices[i].spotPrice<bestPrice){
-                bestPrice= prices[i].spotPrice;
-                bestLp=lps[i];
+        for (uint256 i = 0; i < prices.length; ++i) {
+            if (prices[i].spotPrice < bestPrice) {
+                bestPrice = prices[i].spotPrice;
+                bestLp = lps[i];
             }
         }
 
-        if(_lpIsNotUniV3(bestLp)){
+        if (_lpIsNotUniV3(bestLp)) {
             //Call swap univ2
-            amountOut=_swapV2(
+            amountOut = _swapV2(
                 tokenIn,
                 tokenOut,
                 bestLp,
@@ -358,8 +362,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 amountOutMin,
                 reciever
             );
-        }else{
-           amountOut= _swapV3(
+        } else {
+            amountOut = _swapV3(
                 tokenIn,
                 tokenOut,
                 FEE,
@@ -369,7 +373,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
         }
     }
- 
 
     function swapETHToTokenOnBestDex(
         address tokenOut,
@@ -377,16 +380,23 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 amountOutMin,
         uint24 FEE
     ) external payable returns (uint256 amountOut) {
-        
-        if(msg.value != amountIn){
+        if (msg.value != amountIn) {
             revert InsufficientDepositAmount();
         }
 
-        (bool success, )=address(IWETH((WETH))).call{value: amountIn}(abi.encodeWithSignature("deposit()"));
-        if(success){
-            amountOut=swapTokenToTokenOnBestDex(WETH, tokenOut, amountIn, amountOutMin, FEE, msg.sender);
+        (bool success, ) = address(IWETH((WETH))).call{value: amountIn}(
+            abi.encodeWithSignature("deposit()")
+        );
+        if (success) {
+            amountOut = swapTokenToTokenOnBestDex(
+                WETH,
+                tokenOut,
+                amountIn,
+                amountOutMin,
+                FEE,
+                msg.sender
+            );
         }
-        
     }
 
     function swapTokenToETHOnBestDex(
@@ -395,17 +405,24 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 amountOutMin,
         uint24 FEE
     ) external returns (uint256) {
+        uint256 amountOutWeth = swapTokenToTokenOnBestDex(
+            tokenIn,
+            WETH,
+            amountIn,
+            amountOutMin,
+            FEE,
+            address(this)
+        );
 
-        uint256 amountOutWeth=swapTokenToTokenOnBestDex(tokenIn, WETH, amountIn, amountOutMin, FEE, address(this));
+        (bool success, ) = address(IWETH((WETH))).call{value: amountIn}(
+            abi.encodeWithSignature("withdraw(uint256)", amountOutWeth)
+        );
 
-        (bool success, )=address(IWETH((WETH))).call{value: amountIn}(abi.encodeWithSignature("withdraw(uint256)", amountOutWeth));
-        
-        if(success){
+        if (success) {
             safeTransferETH(msg.sender, amountOutWeth);
         }
 
         return amountOutWeth;
-
     }
 
     // ==================== Token To Weth Order Execution Logic =========================
@@ -450,7 +467,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         TokenToWethBatchOrder memory batch,
         Order memory order
     ) internal returns (uint128 beaconReward) {
-        uint24 fee= _getUniV3Fee(batch.lpAddress);
+        uint24 fee = _getUniV3Fee(batch.lpAddress);
         ///@notice swap from A to weth
         uint128 amountOutWeth = uint128(
             _swap(
@@ -1308,30 +1325,34 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ==================== Misc Helper Functions =========================
 
     function _validateOrderSequencing(Order[] memory orders) internal pure {
-        for (uint256 i = 0; i < orders.length - 1; i++) {
+        for (uint256 i = 1; i < orders.length - 1; i++) {
             Order memory currentOrder = orders[i];
-            Order memory nextOrder = orders[i + 1];
+            Order memory lastOrder = orders[i - 1];
 
-            //TODO: change this to custom errors
-            require(
-                currentOrder.quantity <= nextOrder.quantity,
-                "Invalid Batch Ordering"
-            );
+            ///@notice check if the current order is less than or equal to the next order
+            if (currentOrder.quantity >= lastOrder.quantity) {
+                revert InvalidBatchOrder();
+            }
 
-            require(
-                currentOrder.tokenIn == nextOrder.tokenIn,
-                "incongruent token group"
-            );
+            ///@notice check if the token in is the same for the last order
+            if (currentOrder.tokenIn == lastOrder.tokenIn) {
+                revert IncongruentInputTokenInBatch();
+            }
 
-            require(
-                currentOrder.tokenOut == nextOrder.tokenOut,
-                "incongruent token group"
-            );
+            ///@notice check if the token out is the same for the last order
+            if (currentOrder.tokenOut == lastOrder.tokenOut) {
+                revert IncongruentOutputTokenInBatch();
+            }
 
-            require(
-                currentOrder.taxed == nextOrder.taxed,
-                "incongruent taxed group"
-            );
+            ///@notice check if the token tax status is the same for the last order
+            if (currentOrder.buy == lastOrder.buy) {
+                revert IncongruentBuySellStatusInBatch();
+            }
+
+            ///@notice check if the token tax status is the same for the last order
+            if (currentOrder.tokenOut == lastOrder.tokenOut) {
+                revert IncongruentTaxedTokenInBatch();
+            }
         }
     }
 
