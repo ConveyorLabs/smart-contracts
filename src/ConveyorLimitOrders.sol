@@ -738,7 +738,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     )
                 ) {
                     //Transfer the tokenIn from the user's wallet to the contract
-                    ///Todo: Check if success, if not cancel the order
+                    ///TODO: Check if success, if not cancel the order
                     transferTokensToContract(
                         currentOrder.owner,
                         currentOrder.tokenIn,
