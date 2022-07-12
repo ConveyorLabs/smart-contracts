@@ -183,7 +183,7 @@ contract OrderRouter {
         uint128 reserve0,
         uint128 reserve1,
         uint128 fee
-    ) public pure returns (uint128) {
+    ) public view returns (uint128) {
         unchecked {
             uint128 maxReward = ConveyorMath.mul64x64(
                 fee,
@@ -214,64 +214,44 @@ contract OrderRouter {
         uint128 reserve1SnapShot,
         uint128 reserve0Execution,
         uint128 reserve1Execution
-    ) internal pure returns (uint256 alphaX) {
-        //Store execution spot price in int128 executionSpot
-        uint128 executionSpot = ConveyorMath.div64x64(
-            reserve0Execution,
-            reserve1Execution
-        );
+    ) internal view returns (uint128 alphaX) {
+        
+            //k = rx*ry
+        uint256 k = uint256(reserve0SnapShot*reserve1SnapShot);
+            //sqrt(k) 64.64 form
+        uint256 sqrtK128x128 = ConveyorMath.sqrt128x128(k<<128);
+        console.logString("sqrt k");
+        console.logUint(sqrtK128x128);
+        
+        
 
-        //Store snapshot spot price in int128 snapshotSpot
-        uint128 snapShotSpot = ConveyorMath.div64x64(
-            reserve0SnapShot,
-            reserve1SnapShot
-        );
+        //sqrt(rx)
+        uint256 sqrtReserve0SnapShot128x128 = ConveyorMath.sqrt128x128(uint256(reserve0SnapShot)<<128);
+        console.logString("sqrt r0");
+        console.logUint(sqrtReserve0SnapShot128x128);
+        //Delta change in spot prices from snapshot-> execution
+        uint256 delta;
+        delta = ConveyorMath.div128x128(ConveyorMath.div128x128(uint256(reserve0SnapShot)<<128, uint256(reserve1SnapShot)<<128), ConveyorMath.div128x128(uint256(reserve0Execution)<<128, uint256(reserve1Execution)<<128));
+        console.logUint(delta);
+        if(delta > uint256(1)<<128){
+            delta = delta- (uint256(1)<<128);
+        }else{
+            delta = (uint256(1)<<128)-delta;
+        }
+        
+        console.logString("delta");
+        console.logUint(delta);
+        uint256 numeratorPartial128x128 = ConveyorMath.sqrt128x128(ConveyorMath.add128x128(ConveyorMath.mul128x64(uint256(reserve1SnapShot)<<128, uint128(delta>>64)), uint256(reserve1SnapShot)<<128));
+        console.logUint(numeratorPartial128x128);
+        uint128 numerator128x128 = ConveyorMath.sub64UI(ConveyorMath.mul64x64(uint128(numeratorPartial128x128>>64),ConveyorMath.mul64x64(uint128(sqrtK128x128>>64), uint128(sqrtReserve0SnapShot128x128>>64))),(k));
+        console.logString("Numerator");
+        console.logUint(numerator128x128);
+        alphaX = ConveyorMath.div64x64(numerator128x128, uint128(reserve1SnapShot)<<64);
 
-        //Store difference proportional difference between executionSpot and snapShotSpot in int128 delta
-        uint128 delta = uint128(
-            ConveyorMath.abs(
-                int128(ConveyorMath.div64x64(executionSpot, snapShotSpot)) -
-                    (1 << 64)
-            )
-        );
-
-        //Store k=reserve0SnapShot*reserve1SnapShot in int256 k
-        uint256 k = uint256(
-            ConveyorMath.mul64x64(reserve0SnapShot, reserve1SnapShot)
-        ) << 64;
-
-        //Store sqrt k in sqrtK int128
-        uint128 sqrtK = ConveyorMath.sqrtu(k);
-
-        //Store sqrt of reserve0SnapShot in sqrtReserve0Snap
-        uint128 sqrtReserve0Snap = ConveyorMath.sqrtu(
-            uint256(reserve0SnapShot) << 64
-        );
-
-        //sqrtNumPartial := sqrt(delta*r_y+r_y)
-        uint128 sqrtNumPartial = ConveyorMath.sqrtu(
-            uint256(
-                ConveyorMath.mul64x64(delta, reserve1SnapShot) +
-                    reserve1SnapShot
-            ) << 64
-        );
-
-        //Full numerator in numerator uint256 of alphaX fraction ==> sqrt(k)*sqrt(r_x)*sqrt(delta*r_y+r_y)-k
-        uint256 numerator = (uint256(
-            ConveyorMath.mul64x64(
-                ConveyorMath.mul64x64(sqrtK, sqrtReserve0Snap),
-                sqrtNumPartial
-            )
-        ) << 64) - k;
-
-        alphaX = ConveyorMath.div128x128(
-            numerator,
-            (uint256(reserve1SnapShot) << 64)
-        );
     }
 
     //------------------------Admin Functions----------------------------
-
+   
     /// @notice Add Dex struct to dexes array from arr _factory, and arr _hexDem
     /// @param _factory address[] dex factory address's to add
     /// @param _hexDem Factory address create2 deployment bytecode array

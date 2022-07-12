@@ -11,6 +11,7 @@ import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
 import "../OrderRouter.sol";
+import "./utils/ScriptRunner.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -292,8 +293,8 @@ contract OrderRouterTest is DSTest {
             ConveyorLimitOrders.SpotReserve memory priceDaiWeth,
             address poolAddressDaiWeth
         ) = orderRouter.calculateV3SpotPrice(
-                weth,
                 dai,
+                weth,
                 1 * 10**18,
                 3000,
                 1,
@@ -317,8 +318,8 @@ contract OrderRouterTest is DSTest {
             ConveyorLimitOrders.SpotReserve memory priceDaiUsdc,
             address poolAddressDaiUsdc
         ) = orderRouter.calculateV3SpotPrice(
-                usdc,
                 dai,
+                usdc,
                  1*10**18,
                  3000,
                  1,
@@ -518,29 +519,71 @@ contract OrderRouterTest is DSTest {
         assertEq(59, rewardBeacon);
     }
 
-    function testCalculateMaxBeaconReward() public {
+    // function testCalculateMaxBeaconReward() public {
+
+    // }
+
+    // //TODO: fuzz this
+    // function testCalculateAlphaX1() public {
+    //     uint128 reserve0SnapShot = 100001;
+    //     uint128 reserve1SnapShot = 10000001;
+    //     uint128 reserve0Execution = 200001;
+    //     uint128 reserve1Execution = 5000025;
+
+    //     uint256 alphaX = orderRouter.calculateAlphaX(
+    //         reserve0SnapShot,
+    //         reserve1SnapShot,
+    //         reserve0Execution,
+    //         reserve1Execution
+    //     );
+
+    //     assertEq(340282366886892426828258718426375055715247042, alphaX);
+    // }
+
+    function testSub64UI() public {
+
+        console.logUint(ConveyorMath.sub64UI(1567890100000000000000000000000000, 84995492631925));
 
     }
 
-    //TODO: fuzz this
-    function testCalculateAlphaX() public {
-        uint128 reserve0SnapShot = 47299249002010446421409070433015781392384000000 >>
-                64;
-        uint128 reserve1SnapShot = 16441701632611160000000000000000000000000000 >>
-                64;
-        uint128 reserve0Execution = 47639531368931384884872445040447549603840000000 >>
-                64;
-        uint128 reserve1Execution = 16324260906687270000000000000000000000000000 >>
-                64;
+     function testSqrt() public {
 
-        uint256 alphaX = orderRouter.calculateAlphaX(
-            reserve0SnapShot,
-            reserve1SnapShot,
-            reserve0Execution,
-            reserve1Execution
-        );
+        //console.logUint(ConveyorMath.mul128x64(3811162509514510456918485264351887360000, 3743106036130323098097120681749450326016>>64));
 
-        assertEq(340282366886892426828258718426375055715247042, alphaX);
+    }
+    function testCalculateAlphaX(uint128 _alphaX,uint112 _reserve0, uint112 _reserve1) public {
+        
+        
+        bool run = false;
+        if (_alphaX>100 && _reserve0>100000 && _reserve1>10000000){
+            unchecked {
+                if(!(_reserve0*_reserve1>0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)){
+                    run = true;
+                }
+            }
+            
+        }
+
+        
+       if(run==true){
+                uint256 k = _reserve0*_reserve1;
+                uint128 reserve0Execution = _alphaX+_reserve0;
+                if(reserve0Execution <=0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF){
+                    uint128 reserve1Execution = uint128(k/reserve0Execution);
+                    uint256 alphaX = orderRouter.calculateAlphaX(
+                        uint128(_reserve0),
+                        uint128(_reserve1),
+                        reserve0Execution,
+                        reserve1Execution
+                    );
+                    uint128 alphaXShifted = uint128(alphaX);
+                    console.logUint(alphaX);
+                    console.logUint(10000);
+                    assertEq(alphaX, uint128(_alphaX)<<64);
+                }
+            
+        }
+    
     }
 
 
@@ -804,7 +847,7 @@ contract OrderRouterWrapper is OrderRouter {
         uint128 reserve0,
         uint128 reserve1,
         uint128 fee
-    ) public pure returns (uint128) {
+    ) public view returns (uint128) {
         return
             _calculateMaxBeaconReward(
                 reserve0SnapShot,
@@ -820,7 +863,7 @@ contract OrderRouterWrapper is OrderRouter {
         uint128 reserve1SnapShot,
         uint128 reserve0Execution,
         uint128 reserve1Execution
-    ) public pure returns (uint256) {
+    ) public view returns (uint256) {
         return
             _calculateAlphaX(
                 reserve0SnapShot,

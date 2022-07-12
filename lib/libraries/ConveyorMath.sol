@@ -82,6 +82,16 @@ library ConveyorMath {
         }
     }
 
+    function sub64UI(uint128 x, uint256 y) internal pure returns (uint128) {
+        unchecked {
+            uint128 x_low = x & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+            uint256 result = x-(y<<64);
+          
+            require(result >= 0x0 && uint128(result) <= uint128(MAX_64x64));
+            return uint128(result);
+        }
+    }
+
     /// @notice helper to add two unsigened 128.128 fixed point numbers
     /// @param x 128.128 unsigned fixed point number
     /// @param y 128.128 unsigned fixed point number
@@ -136,6 +146,8 @@ library ConveyorMath {
             return answer;
         }
     }
+
+
 
     /// @notice helper function to multiply two unsigned 64.64 fixed point numbers
     /// @param x 128.128 unsigned fixed point number
@@ -521,4 +533,20 @@ library ConveyorMath {
             }
         }
     }
+
+    function sqrt128x128 (uint256 x) internal pure returns (uint256) {
+        unchecked {
+        require (x >= 0);
+        return uint256(sqrtu(x))<<64;
+        }
+  }
+
+  
+
+  function sqrt (int128 x) internal pure returns (int128) {
+    unchecked {
+      require (x >= 0);
+      return int128 (sqrtu (uint256 (int256 (x)) << 64));
+    }
+  }
 }
