@@ -1323,32 +1323,32 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ==================== Misc Helper Functions =========================
 
     function _validateOrderSequencing(Order[] memory orders) internal pure {
-        for (uint256 i = 1; i < orders.length - 1; i++) {
+        for (uint256 i = 0; i < orders.length - 1; i++) {
             Order memory currentOrder = orders[i];
-            Order memory lastOrder = orders[i - 1];
+            Order memory nextOrder = orders[i + 1];
 
             ///@notice check if the current order is less than or equal to the next order
-            if (currentOrder.quantity >= lastOrder.quantity) {
+            if (currentOrder.quantity > nextOrder.quantity) {
                 revert InvalidBatchOrder();
             }
 
             ///@notice check if the token in is the same for the last order
-            if (currentOrder.tokenIn == lastOrder.tokenIn) {
+            if (currentOrder.tokenIn != nextOrder.tokenIn) {
                 revert IncongruentInputTokenInBatch();
             }
 
             ///@notice check if the token out is the same for the last order
-            if (currentOrder.tokenOut == lastOrder.tokenOut) {
+            if (currentOrder.tokenOut != nextOrder.tokenOut) {
                 revert IncongruentOutputTokenInBatch();
             }
 
             ///@notice check if the token tax status is the same for the last order
-            if (currentOrder.buy == lastOrder.buy) {
+            if (currentOrder.buy != nextOrder.buy) {
                 revert IncongruentBuySellStatusInBatch();
             }
 
             ///@notice check if the token tax status is the same for the last order
-            if (currentOrder.tokenOut == lastOrder.tokenOut) {
+            if (currentOrder.tokenOut != nextOrder.tokenOut) {
                 revert IncongruentTaxedTokenInBatch();
             }
         }

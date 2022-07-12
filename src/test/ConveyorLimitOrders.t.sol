@@ -96,18 +96,20 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     function testValidateOrderSequence() public {
         cheatCodes.deal(address(this), MAX_UINT);
-
         depositGasCreditsForMockOrders(MAX_UINT - 100000000);
 
-        //TODO: this is not working
-        swapHelper.swapEthForTokenWithUniV2(10 ether, UNI);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-        // bytes32[] memory orderBatch = placeNewMockTokenToTokenBatch();
+        bytes32[] memory orderIds = placeNewMockTokenToTokenBatch();
 
-        // conveyorLimitOrders.executeOrders(orderBatch);
+        cheatCodes.prank(tx.origin);
+        conveyorLimitOrders.executeOrders(orderIds);
     }
 
     function testFailValidateOrderSequence_InvalidBatchOrder() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT - 100000000);
+
         cheatCodes.prank(tx.origin);
 
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -1254,7 +1256,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             UNI,
             DAI,
             12,
-            false,
+            true,
             false,
             1,
             1
