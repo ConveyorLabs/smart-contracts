@@ -452,7 +452,7 @@ library ConveyorMath {
     /// @return unsigned 64.64 fixed point number
     function exp(uint128 x) internal pure returns (uint128) {
         unchecked {
-            require(x < 0x400000000000000000); // Overflow
+            require(x < 0x400000000000000000, "Exponential overflow"); // Overflow
 
             return
                 exp_2(

@@ -116,28 +116,39 @@ contract OrderRouter {
     /// @dev calculation assumes 64x64 fixed point in128 representation for all values
     /// @param amountIn uint128 USDC amount in 64x64 fixed point to calculate the fee % of
     /// @return Out64x64 int128 Fee percent
-    function _calculateFee(uint128 amountIn)
+    function _calculateFee(uint256 amountIn, address usdc, address weth)
         internal
-        pure
-        returns (uint128 Out64x64)
+        view
+        returns (uint128)
     {
-        require(
-            !(amountIn << 64 > 0xfffffffffffffffffffffffffff),
-            "Overflow Error"
-        );
+        uint128 Out64x64;
 
-        uint128 iamountIn = amountIn << 64;
-        uint128 numerator = 16602069666338597000; //.9 sccale := 1e19 ==> 64x64 fixed representation
+        (SpotReserve memory _spRes, ) = _calculateV2SpotPrice(weth, usdc, dexes[0].factoryAddress, dexes[0].initBytecode);
+        uint256 spotPrice = _spRes.spotPrice;
 
-        uint128 denominator = (23058430092136940000 +
-            ConveyorMath.exp(ConveyorMath.div64x64(iamountIn, 75000 << 64)));
+        uint256 amountInUsdcDollarValue = ConveyorMath.mul128I(spotPrice, amountIn)/uint256(10**18);
+        
+        
+        uint256 numerator = 16602069666338597000<<64; // 128x128 fixed representation
+        
+        uint128 exponent = uint128(ConveyorMath.divUU(amountInUsdcDollarValue, 75000));
 
-        uint128 rationalFraction = ConveyorMath.div64x64(
+        if(exponent>=0x400000000000000000){
+            Out64x64 = 18446744073709552;
+            return Out64x64;
+        }
+
+        uint256 denominator = ConveyorMath.add128x128(23058430092136940000<<64,uint256(ConveyorMath.exp(exponent))<<64);
+        
+        // require(false, "Blah");
+        uint256 rationalFraction = ConveyorMath.div128x128(
             numerator,
             denominator
         );
+        
 
-        Out64x64 = (rationalFraction + 1844674407370955300) / 10**2;
+        Out64x64 = (uint128(rationalFraction>>64) + 1844674407370955300) / 10**2;
+        return Out64x64;
     }
 
     /// @notice Helper function to calculate beacon and conveyor reward on transaction execution
@@ -147,25 +158,29 @@ contract OrderRouter {
     /// @return beaconReward beacon reward in wei
     function _calculateReward(uint128 percentFee, uint128 wethValue)
         internal
-        pure
+        view
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
-        uint128 conveyorPercent = (percentFee +
+        uint256 totalWethReward = ConveyorMath.mul64I(percentFee, uint256(wethValue));
+        uint128 conveyorPercent;
+        conveyorPercent = (percentFee +
             ConveyorMath.div64x64(
                 92233720368547760 - percentFee,
                 uint128(2) << 64
             ) +
             uint128(18446744073709550)) * 10**2;
-        uint128 beaconPercent = (uint128(1) << 64) - conveyorPercent;
+        
+        if(conveyorPercent< 7378697629483821000){
+            conveyorPercent=7583661452525017000;
+        }
+        
+        conveyorReward = uint128(ConveyorMath.mul64I(
+            conveyorPercent,
+            totalWethReward
+        ));
 
-        conveyorReward = ConveyorMath.mul64x64(
-            ConveyorMath.mul64x64(percentFee, wethValue),
-            conveyorPercent
-        );
-        beaconReward = ConveyorMath.mul64x64(
-            ConveyorMath.mul64x64(percentFee, wethValue),
-            beaconPercent
-        );
+        beaconReward = uint128(totalWethReward)- conveyorReward;
+        
 
         return (conveyorReward, beaconReward);
     }

@@ -498,12 +498,15 @@ contract OrderRouterTest is DSTest {
     //=========================================Fee Helper Functions============================================
     //TODO: fuzz this
     function testCalculateFee() public {
-        uint128 feePercent1 = orderRouter.calculateFee(100000);
-        uint128 feePercent2 = orderRouter.calculateFee(150000);
-        uint128 feePercent3 = orderRouter.calculateFee(200000);
-        uint128 feePercent4 = orderRouter.calculateFee(50);
-        uint128 feePercent5 = orderRouter.calculateFee(250);
-
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        uint128 feePercent1 = orderRouter.calculateFee(1*10**18, usdc, weth);
+        uint128 feePercent2 = orderRouter.calculateFee(5*10**18,usdc, weth);
+        uint128 feePercent3 = orderRouter.calculateFee(20*10**18,usdc, weth);
+        uint128 feePercent4 = orderRouter.calculateFee(5*10**18,usdc, weth);
+        
+        uint128 feePercent5 = orderRouter.calculateFee(1000000000000000000*10**18,usdc, weth);
+        //require(false, "Got here");
         assertEq(feePercent1, 51363403165874997);
         assertEq(feePercent2, 37664201948990181);
         assertEq(feePercent3, 29060577804403466);
@@ -517,8 +520,8 @@ contract OrderRouterTest is DSTest {
         (uint128 rewardConveyor, uint128 rewardBeacon) = orderRouter
             .calculateReward(18446744073709550, 100000);
         console.logString("Input 1 CalculateReward");
-        assertEq(39, rewardConveyor);
-        assertEq(59, rewardBeacon);
+        assertEq(rewardConveyor, 39);
+        assertEq(rewardBeacon, 60);
     }
 
     function testCalculateMaxBeaconReward(
@@ -931,8 +934,8 @@ contract OrderRouterTest is DSTest {
 
 //wrapper around OrderRouter to expose internal functions for testing
 contract OrderRouterWrapper is OrderRouter {
-    function calculateFee(uint128 amountIn) public returns (uint128 Out64x64) {
-        return _calculateFee(amountIn);
+    function calculateFee(uint128 amountIn, address usdc, address weth) public returns (uint128 Out64x64) {
+        return _calculateFee(amountIn, usdc, weth);
     }
 
     function getV3PoolFee(address pairAddress)
@@ -945,7 +948,7 @@ contract OrderRouterWrapper is OrderRouter {
 
     function calculateReward(uint128 percentFee, uint128 wethValue)
         public
-        pure
+        view
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
         return _calculateReward(percentFee, wethValue);

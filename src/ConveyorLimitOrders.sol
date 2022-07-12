@@ -32,6 +32,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     //Immutable weth address
     address immutable WETH;
 
+    //Immutable usdc address
+    address immutable USDC;
+
     //Immutable refresh fee paid monthly by an order to stay in the Conveyor queue
     uint256 immutable refreshFee;
 
@@ -46,12 +49,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     constructor(
         address _gasOracle,
         address _weth,
+        address _usdc,
         uint256 _refreshFee,
         uint256 _refreshInterval,
         uint256 _executionCost
     ) OrderBook(_gasOracle) {
         refreshFee = _refreshFee;
         WETH = _weth;
+        USDC = _usdc;
         refreshInterval = _refreshInterval;
         executionCost = _executionCost;
     }
@@ -473,7 +478,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             )
         );
 
-        uint128 protocolFee = _calculateFee(amountOutWeth);
+        uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
         // safeTransferETH(msg.sender, beaconReward);
 
@@ -582,7 +587,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //TODO: require amountOutWeth> batchAmountOutMin ?
 
         ///@notice take out fees
-        uint128 protocolFee = _calculateFee(amountOutWeth);
+        uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
         (, uint128 beaconReward) = _calculateReward(protocolFee, amountOutWeth);
 
@@ -904,7 +909,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
 
             ///@notice take out fees
-            protocolFee = _calculateFee(amountOutWeth);
+            protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
             (, beaconReward) = _calculateReward(protocolFee, amountOutWeth);
 
@@ -912,7 +917,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             amountInWethToB = amountOutWeth - protocolFee;
         } else {
             //If token in == weth calculate fee on amount In
-            protocolFee = _calculateFee(uint128(order.quantity));
+            protocolFee = _calculateFee(uint128(order.quantity), USDC, WETH);
 
             //Take out beacon reward from order quantity
             (, beaconReward) = _calculateReward(
@@ -1025,7 +1030,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
 
             ///@notice take out fees
-            protocolFee = _calculateFee(amountOutWeth);
+            protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
             (, beaconReward) = _calculateReward(protocolFee, amountOutWeth);
 
@@ -1033,7 +1038,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             amountInWethToB = amountOutWeth - protocolFee;
         } else {
             ///@notice take out fees from the batch amountIn since token0 is weth
-            protocolFee = _calculateFee(uint128(batch.amountIn));
+            protocolFee = _calculateFee(uint128(batch.amountIn), USDC, WETH);
 
             //Take out beacon/conveyor reward
             (, beaconReward) = _calculateReward(
