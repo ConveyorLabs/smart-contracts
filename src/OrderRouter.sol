@@ -294,7 +294,12 @@ contract OrderRouter {
         address reciever
     ) internal returns (uint256) {
         /// transfer the tokens to the lp
-        IERC20(_tokenIn).transferFrom(reciever, _lp, _amountIn);
+        if(address(this) != reciever){
+            IERC20(_tokenIn).transferFrom(reciever, _lp, _amountIn);
+        }else{
+            IERC20(_tokenIn).transfer(_lp, _amountIn);
+        }
+        
 
         //Sort the tokens
         (address token0, ) = _sortTokens(_tokenIn, _tokenOut);
@@ -379,7 +384,10 @@ contract OrderRouter {
         address reciever
     ) internal returns (uint256) {
         /// transfer the tokens to the contract
-        IERC20(_tokenIn).transferFrom(reciever, address(this), _amountIn);
+        if(reciever != address(this)){
+            IERC20(_tokenIn).transferFrom(reciever, address(this), _amountIn);
+        }
+        
 
         //Aprove the tokens on the swap router
         IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
@@ -817,7 +825,6 @@ contract OrderRouter {
             if(targetDecimalsQuote< targetDecimalsBase){
                 return adjustedFixed128x128Quote/10**targetDecimalsQuote;
             }else{
-
                 return adjustedFixed128x128Quote/(10**((targetDecimalsQuote-targetDecimalsBase)+targetDecimalsQuote));
             }
         } else {

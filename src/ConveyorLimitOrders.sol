@@ -304,8 +304,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         for(uint256 i =0; i <prices.length;++i){
             if(prices[i].spotPrice !=0){
                 if(prices[i].spotPrice<bestPrice){
-                bestPrice= prices[i].spotPrice;
-                bestLp=lps[i];
+                    bestPrice= prices[i].spotPrice;
+                    bestLp=lps[i];
                 }
             }
         }
@@ -357,14 +357,17 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 amountOutMin,
         uint24 FEE
     ) external returns (uint256) {
-
+        // IERC20(tokenIn).approve(address(this), amountIn);
         uint256 amountOutWeth=swapTokenToTokenOnBestDex(tokenIn, WETH, amountIn, amountOutMin, FEE, address(this));
-
-        (bool success, )=address(IWETH((WETH))).call{value: amountIn}(abi.encodeWithSignature("withdraw(uint256)", amountOutWeth));
-        
-        if(success){
-            safeTransferETH(msg.sender, amountOutWeth);
+        uint256 balanceBefore = address(this).balance;
+        // require(false,"Got here");
+        IWETH(WETH).withdraw(amountOutWeth);
+        if((address(this).balance - balanceBefore != amountOutWeth)){
+            revert WethWithdrawUnsuccessful();
         }
+        
+        safeTransferETH(msg.sender, amountOutWeth);
+        
 
         return amountOutWeth;
 

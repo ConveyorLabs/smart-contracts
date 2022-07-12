@@ -11,3 +11,4 @@ error OrderHasReachedExpiration();
 error InsufficientOutputAmount();
 error MsgSenderIsNotOwner();
 error InsufficientDepositAmount();
+error WethWithdrawUnsuccessful();
