@@ -566,7 +566,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         IERC20(tokenIn).approve(address(conveyorLimitOrders), amountReceived);
         address reciever = address(this);
-        conveyorLimitOrders.swapTokenToTokenOnBestDex(tokenIn, tokenOut, amountReceived, amountOutMin, 500, reciever);
+        conveyorLimitOrders.swapTokenToTokenOnBestDex(tokenIn, tokenOut, amountReceived, amountOutMin, 500, reciever, address(this));
 
     }
 
@@ -589,22 +589,15 @@ contract ConveyorLimitOrdersTest is DSTest {
     }
 
     function testSwapEthToTokenOnBestDex() public {
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        cheatCodes.deal(address(this), MAX_UINT);
 
-        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            10000000000000000,
-            tokenIn
-        );
-
-        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         
-        uint256 amountOutMin = amountReceived - 1;
-
-        IERC20(tokenIn).approve(address(conveyorLimitOrders), amountReceived);
-        address reciever = address(this);
-        conveyorLimitOrders.swapTokenToTokenOnBestDex(tokenIn, tokenOut, amountReceived, amountOutMin, 500, reciever);
+        
+        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
+            value: 1000000000000000000
+        }(abi.encodeWithSignature("swapETHToTokenOnBestDex(address,uint256,uint256,uint24)", tokenOut, 1000000000000000000, 10000, 500));
+        
     }
 
     //----------------------------Order Batch Generators-----------------------------------------

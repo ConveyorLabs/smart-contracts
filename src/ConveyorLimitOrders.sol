@@ -289,7 +289,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 amountIn,
         uint256 amountOutMin,
         uint24 FEE,
-        address reciever
+        address reciever,
+        address sender
     ) public returns (uint256 amountOut) {
 
         //Initialize tick second to smallest range
@@ -318,7 +319,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 bestLp,
                 amountIn,
                 amountOutMin,
-                reciever
+                reciever,
+                sender
             );
         }else{
            amountOut= _swapV3(
@@ -327,7 +329,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 FEE,
                 amountIn,
                 amountOutMin,
-                reciever
+                reciever, 
+                sender 
             );
         }
     }
@@ -344,9 +347,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             revert InsufficientDepositAmount();
         }
 
-        (bool success, )=address(IWETH((WETH))).call{value: amountIn}(abi.encodeWithSignature("deposit()"));
+        (bool success, )=address(IWETH(WETH)).call{value: amountIn}(abi.encodeWithSignature("deposit()"));
+        // require(false, "Got here");
         if(success){
-            amountOut=swapTokenToTokenOnBestDex(WETH, tokenOut, amountIn, amountOutMin, FEE, msg.sender);
+            amountOut=swapTokenToTokenOnBestDex(WETH, tokenOut, amountIn, amountOutMin, FEE, msg.sender, address(this));
         }
         
     }
@@ -358,7 +362,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint24 FEE
     ) external returns (uint256) {
         // IERC20(tokenIn).approve(address(this), amountIn);
-        uint256 amountOutWeth=swapTokenToTokenOnBestDex(tokenIn, WETH, amountIn, amountOutMin, FEE, address(this));
+        uint256 amountOutWeth=swapTokenToTokenOnBestDex(tokenIn, WETH, amountIn, amountOutMin, FEE, address(this), msg.sender);
         uint256 balanceBefore = address(this).balance;
         // require(false,"Got here");
         IWETH(WETH).withdraw(amountOutWeth);
@@ -464,7 +468,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 fee,
                 order.quantity,
                 order.amountOutMin,
-                address(this)
+                address(this),
+                order.owner
             )
         );
 
@@ -569,6 +574,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 fee,
                 batch.amountIn,
                 batch.amountOutMin,
+                address(this),
                 address(this)
             )
         );
@@ -892,7 +898,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     fee,
                     order.quantity,
                     order.amountOutMin,
-                    address(this)
+                    address(this),
+                    order.owner
                 )
             );
 
@@ -925,7 +932,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             fee,
             amountInWethToB,
             order.amountOutMin,
-            order.owner
+            order.owner,
+            address(this)
         );
 
         //Cache orderId
@@ -1011,6 +1019,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     fee,
                     batch.amountIn,
                     batch.amountOutMin,
+                    address(this),
                     address(this)
                 )
             );
@@ -1045,6 +1054,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             fee,
             amountInWethToB,
             batch.amountOutMin,
+            address(this),
             address(this)
         );
 

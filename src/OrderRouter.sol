@@ -291,16 +291,14 @@ contract OrderRouter {
         address _lp,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address reciever
+        address reciever,
+        address sender
     ) internal returns (uint256) {
-        /// transfer the tokens to the lp
-        if(address(this) != reciever){
-            IERC20(_tokenIn).transferFrom(reciever, _lp, _amountIn);
-        }else{
-            IERC20(_tokenIn).transfer(_lp, _amountIn);
-        }
-        
 
+        /// transfer the tokens to the lp
+        
+        IERC20(_tokenIn).transferFrom(sender, _lp, _amountIn);
+        
         //Sort the tokens
         (address token0, ) = _sortTokens(_tokenIn, _tokenOut);
 
@@ -350,7 +348,8 @@ contract OrderRouter {
         uint24 fee,
         uint256 amountIn,
         uint256 amountOutMin,
-        address reciever
+        address reciever,
+        address sender
     ) internal returns (uint256 amountOut) {
         if (_lpIsNotUniV3(lpAddress)) {
             amountOut = _swapV2(
@@ -359,7 +358,8 @@ contract OrderRouter {
                 lpAddress,
                 amountIn,
                 amountOutMin,
-                reciever
+                reciever,
+                sender
             );
         } else {
             amountOut = _swapV3(
@@ -368,7 +368,8 @@ contract OrderRouter {
                 fee,
                 amountIn,
                 amountOutMin,
-                reciever
+                reciever,
+                sender
             );
         }
     }
@@ -381,14 +382,14 @@ contract OrderRouter {
         uint24 _fee,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address reciever
+        address reciever,
+        address sender
     ) internal returns (uint256) {
         /// transfer the tokens to the contract
-        if(reciever != address(this)){
-            IERC20(_tokenIn).transferFrom(reciever, address(this), _amountIn);
+        if(sender != address(this)){
+            IERC20(_tokenIn).transferFrom(sender, address(this), _amountIn);
         }
         
-
         //Aprove the tokens on the swap router
         IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
 
