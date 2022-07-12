@@ -24,14 +24,14 @@ contract ScriptRunner {
         return bytecode;
     }
 
-    function runPythonScript(string memory fileName, string memory args)
+    function runPythonScript(string memory path, string memory args)
         public
         returns (bytes memory)
     {
         string[] memory cmds = new string[](3);
         cmds[0] = "python3";
-        cmds[1] = string.concat("scripts/", fileName, ".py");
-        cmds[2] = args;
+        cmds[1] = path;
+        cmds[3] = args;
 
         bytes memory bytecode = cheatCodes.ffi(cmds);
 

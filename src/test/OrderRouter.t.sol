@@ -13,6 +13,8 @@ import "../../lib/interfaces/token/IERC20.sol";
 import "../OrderRouter.sol";
 import "./utils/ScriptRunner.sol";
 
+// import "../../scripts/logistic_curve.py";
+
 interface CheatCodes {
     function prank(address) external;
 
@@ -27,7 +29,7 @@ contract OrderRouterTest is DSTest {
 
     IUniswapV2Router02 uniV2Router;
     IUniswapV2Factory uniV2Factory;
-
+    ScriptRunner scriptRunner;
     OrderRouter orderRouterContract;
 
     OrderRouterWrapper orderRouter;
@@ -59,7 +61,7 @@ contract OrderRouterTest is DSTest {
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
-
+        scriptRunner = new ScriptRunner();
         //Initialize swap router in constructor
         orderRouter = new OrderRouterWrapper();
 
@@ -497,21 +499,19 @@ contract OrderRouterTest is DSTest {
 
     //=========================================Fee Helper Functions============================================
     //TODO: fuzz this
-    function testCalculateFee() public {
+    function testCalculateFee() public  {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        uint128 feePercent1 = orderRouter.calculateFee(1*10**18, usdc, weth);
-        uint128 feePercent2 = orderRouter.calculateFee(5*10**18,usdc, weth);
-        uint128 feePercent3 = orderRouter.calculateFee(20*10**18,usdc, weth);
-        uint128 feePercent4 = orderRouter.calculateFee(5*10**18,usdc, weth);
+        uint256 amountIn = 1100*10**18;
+       
         
-        uint128 feePercent5 = orderRouter.calculateFee(1000000000000000000*10**18,usdc, weth);
+        string memory path = "scripts/logistic_curve.py";
+        string memory args = uint2str(amountIn);
+        
+        bytes memory output = scriptRunner.runPythonScript(path, args);
+        console.logBytes(output);
         //require(false, "Got here");
-        assertEq(feePercent1, 51363403165874997);
-        assertEq(feePercent2, 37664201948990181);
-        assertEq(feePercent3, 29060577804403466);
-        assertEq(feePercent4, 92211856751802878);
-        assertEq(feePercent5, 92124386183756525);
+        
     }
 
     /// TODO: fuzz this
@@ -522,6 +522,26 @@ contract OrderRouterTest is DSTest {
         console.logString("Input 1 CalculateReward");
         assertEq(rewardConveyor, 39);
         assertEq(rewardBeacon, 60);
+    }
+
+    function uint2str(uint256 _i) internal pure returns (string memory str) {
+        if (_i == 0) {
+            return "0";
+        }
+        uint256 j = _i;
+        uint256 length;
+        while (j != 0) {
+            length++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(length);
+        uint256 k = length;
+        j = _i;
+        while (j != 0) {
+            bstr[--k] = bytes1(uint8(48 + (j % 10)));
+            j /= 10;
+        }
+        str = string(bstr);
     }
 
     function testCalculateMaxBeaconReward(
@@ -541,7 +561,7 @@ contract OrderRouterTest is DSTest {
             _reserve1 > 100 &&
             _alphaX < _reserve0 &&
             _alphaX < _reserve1 &&
-            uint128(553402322211286500) <=_fee &&
+            uint128(553402322211286500) <= _fee &&
             _fee <= uint128(922337203685477600)
         ) {
             if (
@@ -559,15 +579,19 @@ contract OrderRouterTest is DSTest {
                 if (reserve0Execution <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF) {
                     uint128 reserve1Execution = k / reserve0Execution;
 
-                    uint128 maxBeaconReward = orderRouter.calculateMaxBeaconReward(
-                        _reserve0,
-                        _reserve1,
-                        reserve0Execution,
-                        reserve1Execution,
-                        _fee
-                    );
+                    uint128 maxBeaconReward = orderRouter
+                        .calculateMaxBeaconReward(
+                            _reserve0,
+                            _reserve1,
+                            reserve0Execution,
+                            reserve1Execution,
+                            _fee
+                        );
 
-                    uint128 expected = ConveyorMath.mul64x64(_fee, uint128(_alphaX)<<64);
+                    uint128 expected = ConveyorMath.mul64x64(
+                        _fee,
+                        uint128(_alphaX) << 64
+                    );
 
                     assertEq(maxBeaconReward, expected);
                 }
@@ -934,7 +958,11 @@ contract OrderRouterTest is DSTest {
 
 //wrapper around OrderRouter to expose internal functions for testing
 contract OrderRouterWrapper is OrderRouter {
-    function calculateFee(uint128 amountIn, address usdc, address weth) public returns (uint128 Out64x64) {
+    function calculateFee(
+        uint128 amountIn,
+        address usdc,
+        address weth
+    ) public returns (uint128 Out64x64) {
         return _calculateFee(amountIn, usdc, weth);
     }
 
