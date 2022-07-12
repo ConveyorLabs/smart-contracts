@@ -128,27 +128,6 @@ library ConveyorMath {
         }
     }
 
-    /// @notice helper function to multiply two unsigned 128.128 fixed point numbers
-    /// @param x 128.128 unsigned fixed point number
-    /// @param y 128.128 unsigned fixed point number
-    /// @return unsigned
-    function mul128x128(uint256 x, uint256 y) internal pure returns (uint256) {
-        unchecked {
-            if (x == 0 || y == 0) {
-                return 0;
-            }
-
-            uint256 hi = (x * (y & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF));
-            uint256 lo = (x * (y >> 128)) << 128;
-
-            uint256 answer = hi + lo;
-            require(answer <= MAX_128x128);
-            return answer;
-        }
-    }
-
-
-
     /// @notice helper function to multiply two unsigned 64.64 fixed point numbers
     /// @param x 128.128 unsigned fixed point number
     /// @param y 64.64 unsigned fixed point number
