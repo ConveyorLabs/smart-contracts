@@ -265,7 +265,7 @@ library ConveyorMath {
     /// @param x uint256 unsigned integer
     /// @param y uint256 unsigned integer
     /// @return unsigned 64.64 fixed point number
-    function divUU(uint256 x, uint256 y) private pure returns (uint128) {
+    function divUU(uint256 x, uint256 y) internal pure returns (uint128) {
         unchecked {
             require(y != 0);
 

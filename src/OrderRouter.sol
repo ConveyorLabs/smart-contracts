@@ -183,18 +183,17 @@ contract OrderRouter {
         uint128 reserve0,
         uint128 reserve1,
         uint128 fee
-    ) public view returns (uint128) {
+    ) public pure returns (uint128) {
         unchecked {
             uint128 maxReward = ConveyorMath.mul64x64(
                 fee,
-                uint128(
-                    _calculateAlphaX(
-                        reserve0SnapShot,
-                        reserve1SnapShot,
-                        reserve0,
-                        reserve1
-                    ) >> 64
-                )
+                _calculateAlphaX(
+                    reserve0SnapShot,
+                    reserve1SnapShot,
+                    reserve0,
+                    reserve1
+                ) 
+                
             );
 
             //TODO: do we need this?
@@ -214,38 +213,31 @@ contract OrderRouter {
         uint128 reserve1SnapShot,
         uint128 reserve0Execution,
         uint128 reserve1Execution
-    ) internal view returns (uint128 alphaX) {
-        
+    ) internal pure returns (uint128 alphaX) {
+        //require(false, "Got here");
             //k = rx*ry
-        uint256 k = uint256(reserve0SnapShot*reserve1SnapShot);
+        uint256 k = uint256(reserve0SnapShot)*reserve1SnapShot;
+        
             //sqrt(k) 64.64 form
         uint256 sqrtK128x128 = ConveyorMath.sqrt128x128(k<<128);
-        console.logString("sqrt k");
-        console.logUint(sqrtK128x128);
         
-        
-
         //sqrt(rx)
         uint256 sqrtReserve0SnapShot128x128 = ConveyorMath.sqrt128x128(uint256(reserve0SnapShot)<<128);
-        console.logString("sqrt r0");
-        console.logUint(sqrtReserve0SnapShot128x128);
+        
         //Delta change in spot prices from snapshot-> execution
         uint256 delta;
         delta = ConveyorMath.div128x128(ConveyorMath.div128x128(uint256(reserve0SnapShot)<<128, uint256(reserve1SnapShot)<<128), ConveyorMath.div128x128(uint256(reserve0Execution)<<128, uint256(reserve1Execution)<<128));
-        console.logUint(delta);
+        
         if(delta > uint256(1)<<128){
             delta = delta- (uint256(1)<<128);
         }else{
             delta = (uint256(1)<<128)-delta;
         }
         
-        console.logString("delta");
-        console.logUint(delta);
         uint256 numeratorPartial128x128 = ConveyorMath.sqrt128x128(ConveyorMath.add128x128(ConveyorMath.mul128x64(uint256(reserve1SnapShot)<<128, uint128(delta>>64)), uint256(reserve1SnapShot)<<128));
-        console.logUint(numeratorPartial128x128);
+       
         uint128 numerator128x128 = ConveyorMath.sub64UI(ConveyorMath.mul64x64(uint128(numeratorPartial128x128>>64),ConveyorMath.mul64x64(uint128(sqrtK128x128>>64), uint128(sqrtReserve0SnapShot128x128>>64))),(k));
-        console.logString("Numerator");
-        console.logUint(numerator128x128);
+        
         alphaX = ConveyorMath.div64x64(numerator128x128, uint128(reserve1SnapShot)<<64);
 
     }

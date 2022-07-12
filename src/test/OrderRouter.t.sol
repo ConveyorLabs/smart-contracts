@@ -106,7 +106,6 @@ contract OrderRouterTest is DSTest {
         assertEq(amountInDaiWeth, 10**18);
         assertEq(amountInKopeOhm, 10**18);
         assertEq(amountInOhmUsdc, 10**9);
-        
     }
 
     function testChangeBase() public {
@@ -212,14 +211,14 @@ contract OrderRouterTest is DSTest {
                 _sushiFactoryAddress,
                 _sushiHexDem
             );
-        
+
         assertEq(priceWethUsdc.spotPrice, expectedUsdcWeth);
     }
 
     function testCalculateV2SpotSushiTest2() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address kope = 0x8CC9b5406049D2b66106bb39C5047666E50F06FE;
-       
+
         //Token0 = Kope
         //Get Reserve0 & Reserve1 from sushi pool
         (uint112 reserve0Kope, uint112 reserve1Weth1, ) = IUniswapV2Pair(
@@ -240,7 +239,6 @@ contract OrderRouterTest is DSTest {
             );
 
         assertEq(priceWethKope.spotPrice, expectedWethKope);
-        
     }
 
     function testCalculateV2SpotSushiTest3() public {
@@ -248,28 +246,27 @@ contract OrderRouterTest is DSTest {
         address ohm = 0x64aa3364F17a4D01c6f1751Fd97C2BD3D7e7f1D5;
 
         (uint112 reserve0ohm, uint112 reserve1Dai, ) = IUniswapV2Pair(
-                0x055475920a8c93CfFb64d039A8205F7AcC7722d3
-            ).getReserves();
+            0x055475920a8c93CfFb64d039A8205F7AcC7722d3
+        ).getReserves();
 
-            uint128 reserve0OhmCommon = reserve0ohm * 10**9;
-            //Divide corresponding reserves for assertion
-            uint256 expectedOhmDai = ConveyorMath.div128x128(
-                uint256(reserve0OhmCommon) << 128,
-                uint256(reserve1Dai) << 128
+        uint128 reserve0OhmCommon = reserve0ohm * 10**9;
+        //Divide corresponding reserves for assertion
+        uint256 expectedOhmDai = ConveyorMath.div128x128(
+            uint256(reserve0OhmCommon) << 128,
+            uint256(reserve1Dai) << 128
+        );
+        (
+            ConveyorLimitOrders.SpotReserve memory priceOhmDai,
+            address poolAddressOhmDai
+        ) = orderRouter.calculateV2SpotPrice(
+                dai,
+                ohm,
+                _sushiFactoryAddress,
+                _sushiHexDem
             );
-            (
-                ConveyorLimitOrders.SpotReserve memory priceOhmDai,
-                address poolAddressOhmDai
-            ) = orderRouter.calculateV2SpotPrice(
-                    dai,
-                    ohm,
-                    _sushiFactoryAddress,
-                    _sushiHexDem
-                );
-            
-            assertEq(priceOhmDai.spotPrice, expectedOhmDai);
-    }
 
+        assertEq(priceOhmDai.spotPrice, expectedOhmDai);
+    }
 
     function testCalculateV3SpotPrice1() public {
         //Test token address's
@@ -310,9 +307,18 @@ contract OrderRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        address poolDaiUsdc = IUniswapV3Factory(_uniV3FactoryAddress).getPool(dai, usdc, 3000);
+        address poolDaiUsdc = IUniswapV3Factory(_uniV3FactoryAddress).getPool(
+            dai,
+            usdc,
+            3000
+        );
         int24 tickDaiUsdc = orderRouter.getTick(poolDaiUsdc, 1);
-        uint256 expectedDaiUsdc = orderRouter.getQuoteAtTick(tickDaiUsdc, 1*10**18, dai, usdc);
+        uint256 expectedDaiUsdc = orderRouter.getQuoteAtTick(
+            tickDaiUsdc,
+            1 * 10**18,
+            dai,
+            usdc
+        );
 
         (
             ConveyorLimitOrders.SpotReserve memory priceDaiUsdc,
@@ -320,13 +326,13 @@ contract OrderRouterTest is DSTest {
         ) = orderRouter.calculateV3SpotPrice(
                 dai,
                 usdc,
-                 1*10**18,
-                 3000,
-                 1,
+                1 * 10**18,
+                3000,
+                1,
                 _uniV3FactoryAddress
             );
 
-         assertEq(priceDaiUsdc.spotPrice, expectedDaiUsdc);
+        assertEq(priceDaiUsdc.spotPrice, expectedDaiUsdc);
     }
 
     function testCalculateV2SpotUni1() public {
@@ -356,16 +362,14 @@ contract OrderRouterTest is DSTest {
             );
 
         uint256 spotPriceWethUsdc = price1.spotPrice;
-        
+
         assertEq(spotPriceWethUsdc, expectedWethUsdc);
-        
     }
 
     function testCalculateV2SpotUni2() public {
-       
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-       
+
         (uint112 reserve0Dai, uint112 reserve1Usdc, ) = IUniswapV2Pair(
             0xAE461cA67B15dc8dc81CE7615e0320dA1A9aB8D5
         ).getReserves();
@@ -385,16 +389,14 @@ contract OrderRouterTest is DSTest {
                 _uniswapV2HexDem
             );
 
-
         assertEq(spotPriceDaiUsdc.spotPrice, expectedDaiUsdc);
-
     }
 
     function testCalculateV2SpotUni3() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
 
-         (uint112 reserve0Wax, uint112 reserve1Weth3, ) = IUniswapV2Pair(
+        (uint112 reserve0Wax, uint112 reserve1Weth3, ) = IUniswapV2Pair(
             0x0ee0cb563A52Ae1170Ac34fBb94C50e89aDDE4bD
         ).getReserves();
 
@@ -415,18 +417,19 @@ contract OrderRouterTest is DSTest {
 
         assertEq(spotPriceWethWax.spotPrice, expectedWaxeWeth);
     }
+
     //fork block 15085186
     function testGetAllPrices1() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        address LINK = 0x514910771AF9Ca656af840dff83E8264EcF986CA ;
+        address LINK = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
 
         //Dai-Usdc both directions
         (
             OrderRouter.SpotReserve[] memory pricesDaiUsdc,
             address[] memory lps2
-        ) = orderRouter.getAllPrices(dai,usdc, 1, 100);
+        ) = orderRouter.getAllPrices(dai, usdc, 1, 100);
 
         (
             OrderRouter.SpotReserve[] memory pricesUsdcDai,
@@ -437,19 +440,18 @@ contract OrderRouterTest is DSTest {
         (
             OrderRouter.SpotReserve[] memory pricesLinkWeth,
             address[] memory lps4
-        ) = orderRouter.getAllPrices(LINK,weth, 1, 3000);
+        ) = orderRouter.getAllPrices(LINK, weth, 1, 3000);
 
         (
             OrderRouter.SpotReserve[] memory pricesWethLink,
             address[] memory lps5
         ) = orderRouter.getAllPrices(weth, LINK, 1, 3000);
 
-
         console.log("dai/usdc");
         console.log(pricesDaiUsdc[0].spotPrice);
         console.log(pricesDaiUsdc[1].spotPrice);
         console.log(pricesDaiUsdc[2].spotPrice);
-        
+
         console.log("usdc/dai");
         console.log(pricesUsdcDai[0].spotPrice);
         console.log(pricesUsdcDai[1].spotPrice);
@@ -459,7 +461,7 @@ contract OrderRouterTest is DSTest {
         console.log(pricesLinkWeth[0].spotPrice);
         console.log(pricesLinkWeth[1].spotPrice);
         console.log(pricesLinkWeth[2].spotPrice);
-        
+
         console.log("weth/link");
         console.log(pricesWethLink[0].spotPrice);
         console.log(pricesWethLink[1].spotPrice);
@@ -469,12 +471,11 @@ contract OrderRouterTest is DSTest {
     function testGetAllPrices2() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    
 
         (
             OrderRouter.SpotReserve[] memory pricesWethUsdc,
             address[] memory lps
-        ) = orderRouter.getAllPrices(weth,usdc, 1, 3000);
+        ) = orderRouter.getAllPrices(weth, usdc, 1, 3000);
 
         (
             OrderRouter.SpotReserve[] memory pricesUsdcWeth,
@@ -485,12 +486,13 @@ contract OrderRouterTest is DSTest {
         console.log(pricesWethUsdc[0].spotPrice);
         console.log(pricesWethUsdc[1].spotPrice);
         console.log(pricesWethUsdc[2].spotPrice);
-        
+
         console.log("usdc/weth");
         console.log(pricesUsdcWeth[0].spotPrice);
         console.log(pricesUsdcWeth[1].spotPrice);
         console.log(pricesUsdcWeth[2].spotPrice);
     }
+
     //================================================================================================
 
     //=========================================Fee Helper Functions============================================
@@ -519,73 +521,101 @@ contract OrderRouterTest is DSTest {
         assertEq(59, rewardBeacon);
     }
 
-    // function testCalculateMaxBeaconReward() public {
-
-    // }
-
-    // //TODO: fuzz this
-    // function testCalculateAlphaX1() public {
-    //     uint128 reserve0SnapShot = 100001;
-    //     uint128 reserve1SnapShot = 10000001;
-    //     uint128 reserve0Execution = 200001;
-    //     uint128 reserve1Execution = 5000025;
-
-    //     uint256 alphaX = orderRouter.calculateAlphaX(
-    //         reserve0SnapShot,
-    //         reserve1SnapShot,
-    //         reserve0Execution,
-    //         reserve1Execution
-    //     );
-
-    //     assertEq(340282366886892426828258718426375055715247042, alphaX);
-    // }
-
-    function testSub64UI() public {
-
-        console.logUint(ConveyorMath.sub64UI(1567890100000000000000000000000000, 84995492631925));
-
-    }
-
-     function testSqrt() public {
-
-        //console.logUint(ConveyorMath.mul128x64(3811162509514510456918485264351887360000, 3743106036130323098097120681749450326016>>64));
-
-    }
-    function testCalculateAlphaX(uint128 _alphaX,uint112 _reserve0, uint112 _reserve1) public {
-        
-        
+    function testCalculateMaxBeaconReward(
+        uint64 _alphaX,
+        uint128 _reserve0,
+        uint128 _reserve1,
+        uint128 _fee
+    ) public {
         bool run = false;
-        if (_alphaX>100 && _reserve0>100000 && _reserve1>10000000){
-            unchecked {
-                if(!(_reserve0*_reserve1>0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)){
-                    run = true;
-                }
+
+        if (
+            _alphaX > 0 &&
+            _alphaX % 10 == 0 &&
+            _reserve0 > 100 &&
+            _reserve0 % 10 == 0 &&
+            _reserve1 % 10 == 0 &&
+            _reserve1 > 100 &&
+            _alphaX < _reserve0 &&
+            _alphaX < _reserve1 &&
+            uint128(553402322211286500) <=_fee &&
+            _fee <= uint128(922337203685477600)
+        ) {
+            if (
+                !(_reserve0 * _reserve1 >
+                    0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
+            ) {
+                run = true;
             }
-            
         }
 
-        
-       if(run==true){
-                uint256 k = _reserve0*_reserve1;
-                uint128 reserve0Execution = _alphaX+_reserve0;
-                if(reserve0Execution <=0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF){
-                    uint128 reserve1Execution = uint128(k/reserve0Execution);
+        if (run == true) {
+            uint128 k = _reserve0 * _reserve1;
+            unchecked {
+                uint128 reserve0Execution = _alphaX + _reserve0;
+                if (reserve0Execution <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF) {
+                    uint128 reserve1Execution = k / reserve0Execution;
+
+                    uint128 maxBeaconReward = orderRouter.calculateMaxBeaconReward(
+                        _reserve0,
+                        _reserve1,
+                        reserve0Execution,
+                        reserve1Execution,
+                        _fee
+                    );
+
+                    uint128 expected = ConveyorMath.mul64x64(_fee, uint128(_alphaX)<<64);
+
+                    assertEq(maxBeaconReward, expected);
+                }
+            }
+        }
+    }
+
+    function testCalculateAlphaX(
+        uint64 _alphaX,
+        uint128 _reserve0,
+        uint128 _reserve1
+    ) public {
+        bool run = false;
+
+        if (
+            _alphaX > 0 &&
+            _alphaX % 10 == 0 &&
+            _reserve0 > 100 &&
+            _reserve0 % 10 == 0 &&
+            _reserve1 % 10 == 0 &&
+            _reserve1 > 100 &&
+            _alphaX < _reserve0 &&
+            _alphaX < _reserve1
+        ) {
+            if (
+                !(_reserve0 * _reserve1 >
+                    0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
+            ) {
+                run = true;
+            }
+        }
+
+        if (run == true) {
+            uint128 k = _reserve0 * _reserve1;
+            unchecked {
+                uint128 reserve0Execution = _alphaX + _reserve0;
+                if (reserve0Execution <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF) {
+                    uint128 reserve1Execution = k / reserve0Execution;
+
                     uint256 alphaX = orderRouter.calculateAlphaX(
-                        uint128(_reserve0),
-                        uint128(_reserve1),
+                        _reserve0,
+                        _reserve1,
                         reserve0Execution,
                         reserve1Execution
                     );
-                    uint128 alphaXShifted = uint128(alphaX);
-                    console.logUint(alphaX);
-                    console.logUint(10000);
-                    assertEq(alphaX, uint128(_alphaX)<<64);
-                }
-            
-        }
-    
-    }
 
+                    assertEq(alphaX, uint128(_alphaX) << 64);
+                }
+            }
+        }
+    }
 
     //================================================================================================
 
@@ -620,7 +650,15 @@ contract OrderRouterTest is DSTest {
 
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
         address reciever = address(this);
-        orderRouter.swapV2(tokenIn, tokenOut, lp, amountReceived, amountOutMin, reciever,address(this));
+        orderRouter.swapV2(
+            tokenIn,
+            tokenOut,
+            lp,
+            amountReceived,
+            amountOutMin,
+            reciever,
+            address(this)
+        );
     }
 
     function testSwapV2_2() public {
@@ -640,7 +678,15 @@ contract OrderRouterTest is DSTest {
 
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
         address reciever = address(this);
-        orderRouter.swapV2(tokenIn, tokenOut, lp, amountReceived, amountOutMin, reciever,address(this));
+        orderRouter.swapV2(
+            tokenIn,
+            tokenOut,
+            lp,
+            amountReceived,
+            amountOutMin,
+            reciever,
+            address(this)
+        );
     }
 
     function testSwapV2_3() public {
@@ -661,7 +707,15 @@ contract OrderRouterTest is DSTest {
 
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
         address reciever = address(this);
-        orderRouter.swapV2(tokenIn, tokenOut, lp, amountReceived, amountOutMin, reciever,address(this));
+        orderRouter.swapV2(
+            tokenIn,
+            tokenOut,
+            lp,
+            amountReceived,
+            amountOutMin,
+            reciever,
+            address(this)
+        );
     }
 
     function testFailSwapV2_InsufficientOutputAmount() public {
@@ -682,7 +736,15 @@ contract OrderRouterTest is DSTest {
 
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
         address reciever = address(this);
-        orderRouter.swapV2(tokenIn, tokenOut, lp, amountReceived, amountOutMin, reciever,address(this));
+        orderRouter.swapV2(
+            tokenIn,
+            tokenOut,
+            lp,
+            amountReceived,
+            amountOutMin,
+            reciever,
+            address(this)
+        );
     }
 
     //Uniswap V3 SwapRouter Tests
@@ -700,11 +762,19 @@ contract OrderRouterTest is DSTest {
 
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         uint24 fee = 500;
-        
+
         uint256 amountOut = 1;
         uint256 amountInMaximum = amountReceived - 1;
         address reciever = address(this);
-        orderRouter.swapV3(tokenIn, tokenOut, fee, amountInMaximum, amountOut, reciever,address(this));
+        orderRouter.swapV3(
+            tokenIn,
+            tokenOut,
+            fee,
+            amountInMaximum,
+            amountOut,
+            reciever,
+            address(this)
+        );
     }
 
     function testSwapV3_2() public {
@@ -721,11 +791,19 @@ contract OrderRouterTest is DSTest {
 
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         uint24 fee = 500;
-        
+
         uint256 amountOut = 1;
         uint256 amountInMaximum = amountReceived - 1;
         address reciever = address(this);
-        orderRouter.swapV3(tokenIn, tokenOut, fee, amountInMaximum, amountOut, reciever, address(this));
+        orderRouter.swapV3(
+            tokenIn,
+            tokenOut,
+            fee,
+            amountInMaximum,
+            amountOut,
+            reciever,
+            address(this)
+        );
     }
 
     function testSwapV3_3() public {
@@ -742,11 +820,19 @@ contract OrderRouterTest is DSTest {
 
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         uint24 fee = 500;
-        
+
         uint256 amountOut = 1;
         uint256 amountInMaximum = amountReceived - 1;
         address reciever = address(this);
-        orderRouter.swapV3(tokenIn, tokenOut, fee, amountInMaximum, amountOut, reciever, address(this));
+        orderRouter.swapV3(
+            tokenIn,
+            tokenOut,
+            fee,
+            amountInMaximum,
+            amountOut,
+            reciever,
+            address(this)
+        );
     }
 
     function testFailSwapV3_InsufficientOutputAmount() public {
@@ -763,11 +849,19 @@ contract OrderRouterTest is DSTest {
 
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         uint24 fee = 500;
-        
+
         uint256 amountOut = amountReceived;
         uint256 amountInMaximum = amountReceived - 1;
         address reciever = address(this);
-        orderRouter.swapV3(tokenIn, tokenOut, fee, amountInMaximum, amountOut, reciever, address(this));
+        orderRouter.swapV3(
+            tokenIn,
+            tokenOut,
+            fee,
+            amountInMaximum,
+            amountOut,
+            reciever,
+            address(this)
+        );
     }
 
     function testSwap() public {
@@ -783,14 +877,22 @@ contract OrderRouterTest is DSTest {
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
 
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        
+
         address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
-        
+
         uint256 amountInMaximum = amountReceived - 1;
         address reciever = address(this);
-        
-        orderRouter.swap(tokenIn, tokenOut, lp, 300, amountReceived, amountInMaximum,reciever, address(this));
 
+        orderRouter.swap(
+            tokenIn,
+            tokenOut,
+            lp,
+            300,
+            amountReceived,
+            amountInMaximum,
+            reciever,
+            address(this)
+        );
     }
 
     function testFailSwap_InsufficientOutputAmount() public {
@@ -806,14 +908,22 @@ contract OrderRouterTest is DSTest {
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
 
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        
+
         address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
-        
+
         uint256 amountInMaximum = amountReceived;
         address reciever = address(this);
-        
-        orderRouter.swap(tokenIn, tokenOut, lp, 300, amountReceived, amountInMaximum,reciever, address(this));
 
+        orderRouter.swap(
+            tokenIn,
+            tokenOut,
+            lp,
+            300,
+            amountReceived,
+            amountInMaximum,
+            reciever,
+            address(this)
+        );
     }
 
     //================================================================================================
@@ -847,7 +957,7 @@ contract OrderRouterWrapper is OrderRouter {
         uint128 reserve0,
         uint128 reserve1,
         uint128 fee
-    ) public view returns (uint128) {
+    ) public pure returns (uint128) {
         return
             _calculateMaxBeaconReward(
                 reserve0SnapShot,
@@ -863,7 +973,7 @@ contract OrderRouterWrapper is OrderRouter {
         uint128 reserve1SnapShot,
         uint128 reserve0Execution,
         uint128 reserve1Execution
-    ) public view returns (uint256) {
+    ) public pure returns (uint256) {
         return
             _calculateAlphaX(
                 reserve0SnapShot,
@@ -884,18 +994,20 @@ contract OrderRouterWrapper is OrderRouter {
         uint24 fee,
         uint256 amountIn,
         uint256 amountOutMin,
-        address reciever, 
+        address reciever,
         address sender
     ) public returns (uint256 amountOut) {
-        return _swap(
-         tokenIn,
-        tokenOut,
-         lpAddress,
-         fee,
-         amountIn,
-        amountOutMin,
-         reciever,
-         sender);
+        return
+            _swap(
+                tokenIn,
+                tokenOut,
+                lpAddress,
+                fee,
+                amountIn,
+                amountOutMin,
+                reciever,
+                sender
+            );
     }
 
     function swapV2(
@@ -907,7 +1019,16 @@ contract OrderRouterWrapper is OrderRouter {
         address _reciever,
         address _sender
     ) public returns (uint256) {
-        return _swapV2(_tokenIn, _tokenOut, _lp, _amountIn, _amountOutMin, _reciever, _sender);
+        return
+            _swapV2(
+                _tokenIn,
+                _tokenOut,
+                _lp,
+                _amountIn,
+                _amountOutMin,
+                _reciever,
+                _sender
+            );
     }
 
     function swapV3(
@@ -919,7 +1040,16 @@ contract OrderRouterWrapper is OrderRouter {
         address _reciever,
         address _sender
     ) public returns (uint256) {
-        return _swapV3(_tokenIn, _tokenOut, _fee, _amountIn, _amountOutMin, _reciever, _sender);
+        return
+            _swapV3(
+                _tokenIn,
+                _tokenOut,
+                _fee,
+                _amountIn,
+                _amountOutMin,
+                _reciever,
+                _sender
+            );
     }
 
     function calculateV2SpotPrice(
