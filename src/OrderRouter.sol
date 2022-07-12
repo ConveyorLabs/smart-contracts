@@ -116,7 +116,7 @@ contract OrderRouter {
     /// @dev calculation assumes 64x64 fixed point in128 representation for all values
     /// @param amountIn uint128 USDC amount in 64x64 fixed point to calculate the fee % of
     /// @return Out64x64 int128 Fee percent
-    function _calculateFee(uint256 amountIn, address usdc, address weth)
+    function _calculateFee(uint128 amountIn, address usdc, address weth)
         internal
         view
         returns (uint128)
@@ -127,27 +127,33 @@ contract OrderRouter {
         uint256 spotPrice = _spRes.spotPrice;
 
         uint256 amountInUsdcDollarValue = ConveyorMath.mul128I(spotPrice, amountIn)/uint256(10**18);
-        
+        console.logUint(amountInUsdcDollarValue);
+        if(amountInUsdcDollarValue>= 1000000){
+            Out64x64 = 18446744073709552;
+            return Out64x64;
+        }
         
         uint256 numerator = 16602069666338597000<<64; // 128x128 fixed representation
         
-        uint128 exponent = uint128(ConveyorMath.divUU(amountInUsdcDollarValue, 75000));
+        uint128 exponent = uint128(ConveyorMath.divUI(amountInUsdcDollarValue, 75000));
 
         if(exponent>=0x400000000000000000){
             Out64x64 = 18446744073709552;
             return Out64x64;
         }
-
+        console.logUint(numerator);
         uint256 denominator = ConveyorMath.add128x128(23058430092136940000<<64,uint256(ConveyorMath.exp(exponent))<<64);
-        
+        console.logUint(denominator);
         // require(false, "Blah");
         uint256 rationalFraction = ConveyorMath.div128x128(
             numerator,
             denominator
         );
+        console.logUint(rationalFraction);
         
-
-        Out64x64 = (uint128(rationalFraction>>64) + 1844674407370955300) / 10**2;
+        console.logUint(ConveyorMath.add64x64(uint128(rationalFraction>>64), 1844674407370955300));
+        Out64x64 = ConveyorMath.div64x64(ConveyorMath.add64x64(uint128(rationalFraction>>64), 1844674407370955300), uint128(100<<64));
+        
         return Out64x64;
     }
 

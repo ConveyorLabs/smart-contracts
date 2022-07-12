@@ -31,7 +31,7 @@ contract ScriptRunner {
         string[] memory cmds = new string[](3);
         cmds[0] = "python3";
         cmds[1] = path;
-        cmds[3] = args;
+        cmds[2] = args;
 
         bytes memory bytecode = cheatCodes.ffi(cmds);
 
