@@ -186,11 +186,11 @@
 - success ✅ 
 -  insufficient output amount
 
-## _calculateV2SpotPrice
+## _calculateV2SpotPrice ✅ 
  - Success: fork specific block
  - Fail: fork specific block
 
-## _calculateV3SpotPrice
+## _calculateV3SpotPrice ✅ 
 - success: Fork specific block
 - fail: Fork specific block
 
@@ -202,9 +202,9 @@
 
 ## _getAllPrices ✅ 
 
-## _getTargetAmountIn
+## _getTargetAmountIn ✅
 
-## _convertToCommonBase
+## _convertToCommonBase ✅
 
 ## _getTargetDecimals ✅ 
 

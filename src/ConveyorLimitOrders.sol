@@ -32,6 +32,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     //Immutable weth address
     address immutable WETH;
 
+    //Immutable usdc address
+    address immutable USDC;
+
     //Immutable refresh fee paid monthly by an order to stay in the Conveyor queue
     uint256 immutable refreshFee;
 
@@ -46,12 +49,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     constructor(
         address _gasOracle,
         address _weth,
+        address _usdc,
         uint256 _refreshFee,
         uint256 _refreshInterval,
         uint256 _executionCost
     ) OrderBook(_gasOracle) {
         refreshFee = _refreshFee;
         WETH = _weth;
+        USDC = _usdc;
         refreshInterval = _refreshInterval;
         executionCost = _executionCost;
     }
@@ -281,6 +286,101 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         return false;
     }
+    //===============Single Swap Best Dex Externals============================
+
+    function swapTokenToTokenOnBestDex(
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        uint24 FEE,
+        address reciever,
+        address sender
+    ) public returns (uint256 amountOut) {
+
+        //Initialize tick second to smallest range
+        uint32 tickSecond = 1;
+
+        (SpotReserve[] memory prices, address[] memory lps) = _getAllPrices(tokenIn, tokenOut, tickSecond, FEE);
+
+        uint256 bestPrice=0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+        address bestLp;
+       
+        //Iterate through all dex's and get best price and corresponding lp
+        for(uint256 i =0; i <prices.length;++i){
+            if(prices[i].spotPrice !=0){
+                if(prices[i].spotPrice<bestPrice){
+                    bestPrice= prices[i].spotPrice;
+                    bestLp=lps[i];
+                }
+            }
+        }
+
+        if(_lpIsNotUniV3(bestLp)){
+            //Call swap univ2
+            amountOut=_swapV2(
+                tokenIn,
+                tokenOut,
+                bestLp,
+                amountIn,
+                amountOutMin,
+                reciever,
+                sender
+            );
+        }else{
+           amountOut= _swapV3(
+                tokenIn,
+                tokenOut,
+                FEE,
+                amountIn,
+                amountOutMin,
+                reciever, 
+                sender 
+            );
+        }
+    }
+ 
+
+    function swapETHToTokenOnBestDex(
+        address tokenOut,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        uint24 FEE
+    ) external payable returns (uint256 amountOut) {
+        
+        if(msg.value != amountIn){
+            revert InsufficientDepositAmount();
+        }
+
+        (bool success, )=address(IWETH(WETH)).call{value: amountIn}(abi.encodeWithSignature("deposit()"));
+        // require(false, "Got here");
+        if(success){
+            amountOut=swapTokenToTokenOnBestDex(WETH, tokenOut, amountIn, amountOutMin, FEE, msg.sender, address(this));
+        }
+        
+    }
+
+    function swapTokenToETHOnBestDex(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        uint24 FEE
+    ) external returns (uint256) {
+        // IERC20(tokenIn).approve(address(this), amountIn);
+        uint256 amountOutWeth=swapTokenToTokenOnBestDex(tokenIn, WETH, amountIn, amountOutMin, FEE, address(this), msg.sender);
+        uint256 balanceBefore = address(this).balance;
+        // require(false,"Got here");
+        IWETH(WETH).withdraw(amountOutWeth);
+        if((address(this).balance - balanceBefore != amountOutWeth)){
+            revert WethWithdrawUnsuccessful();
+        }
+        
+        safeTransferETH(msg.sender, amountOutWeth);
+        
+
+        return amountOutWeth;
+
+    }
 
     // ==================== Order Execution Functions =========================
 
@@ -319,93 +419,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 _executeTokenToTokenOrders(orders);
             }
         }
-    }
-
-    //------------Single Swap Best Dex price Aggregation---------------------------------
-
-    function swapTokenToTokenOnBestDex(
-        address tokenIn,
-        address tokenOut,
-        uint256 amountIn,
-        uint256 amountOutMin,
-        uint24 FEE,
-        address reciever
-    ) public returns (uint256 amountOut) {
-
-        //Initialize tick second to smallest range
-        uint32 tickSecond = 1;
-
-        (SpotReserve[] memory prices, address[] memory lps) = _getAllPrices(tokenIn, tokenOut, tickSecond, FEE);
-
-        uint256 bestPrice=0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-        address bestLp;
-       
-        //Iterate through all dex's and get best price and corresponding lp
-        for(uint256 i =0; i <prices.length;++i){
-            if(prices[i].spotPrice<bestPrice){
-                bestPrice= prices[i].spotPrice;
-                bestLp=lps[i];
-            }
-        }
-
-        if(_lpIsNotUniV3(bestLp)){
-            //Call swap univ2
-            amountOut=_swapV2(
-                tokenIn,
-                tokenOut,
-                bestLp,
-                amountIn,
-                amountOutMin,
-                reciever
-            );
-        }else{
-           amountOut= _swapV3(
-                tokenIn,
-                tokenOut,
-                FEE,
-                amountIn,
-                amountOutMin,
-                reciever
-            );
-        }
-    }
- 
-
-    function swapETHToTokenOnBestDex(
-        address tokenOut,
-        uint256 amountIn,
-        uint256 amountOutMin,
-        uint24 FEE
-    ) external payable returns (uint256 amountOut) {
-        
-        if(msg.value != amountIn){
-            revert InsufficientDepositAmount();
-        }
-
-        (bool success, )=address(IWETH((WETH))).call{value: amountIn}(abi.encodeWithSignature("deposit()"));
-        if(success){
-            amountOut=swapTokenToTokenOnBestDex(WETH, tokenOut, amountIn, amountOutMin, FEE, msg.sender);
-        }
-        
-    }
-
-    function swapTokenToETHOnBestDex(
-        address tokenIn,
-        uint256 amountIn,
-        uint256 amountOutMin,
-        uint24 FEE
-    ) external returns (uint256) {
-
-        uint256 amountOutWeth=swapTokenToTokenOnBestDex(tokenIn, WETH, amountIn, amountOutMin, FEE, address(this));
-
-        (bool success, )=address(IWETH((WETH))).call{value: amountIn}(abi.encodeWithSignature("withdraw(uint256)", amountOutWeth));
-        
-        if(success){
-            safeTransferETH(msg.sender, amountOutWeth);
-        }
-
-        return amountOutWeth;
-
     }
 
     // ==================== Token To Weth Order Execution Logic =========================
@@ -460,11 +473,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 fee,
                 order.quantity,
                 order.amountOutMin,
-                address(this)
+                address(this),
+                order.owner
             )
         );
 
-        uint128 protocolFee = _calculateFee(amountOutWeth);
+        uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
         // safeTransferETH(msg.sender, beaconReward);
 
@@ -565,6 +579,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 fee,
                 batch.amountIn,
                 batch.amountOutMin,
+                address(this),
                 address(this)
             )
         );
@@ -572,7 +587,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //TODO: require amountOutWeth> batchAmountOutMin ?
 
         ///@notice take out fees
-        uint128 protocolFee = _calculateFee(amountOutWeth);
+        uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
         (, uint128 beaconReward) = _calculateReward(protocolFee, amountOutWeth);
 
@@ -888,12 +903,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     fee,
                     order.quantity,
                     order.amountOutMin,
-                    address(this)
+                    address(this),
+                    order.owner
                 )
             );
 
             ///@notice take out fees
-            protocolFee = _calculateFee(amountOutWeth);
+            protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
             (, beaconReward) = _calculateReward(protocolFee, amountOutWeth);
 
@@ -901,7 +917,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             amountInWethToB = amountOutWeth - protocolFee;
         } else {
             //If token in == weth calculate fee on amount In
-            protocolFee = _calculateFee(uint128(order.quantity));
+            protocolFee = _calculateFee(uint128(order.quantity), USDC, WETH);
 
             //Take out beacon reward from order quantity
             (, beaconReward) = _calculateReward(
@@ -921,7 +937,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             fee,
             amountInWethToB,
             order.amountOutMin,
-            order.owner
+            order.owner,
+            address(this)
         );
 
         //Cache orderId
@@ -1007,12 +1024,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     fee,
                     batch.amountIn,
                     batch.amountOutMin,
+                    address(this),
                     address(this)
                 )
             );
 
             ///@notice take out fees
-            protocolFee = _calculateFee(amountOutWeth);
+            protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
             (, beaconReward) = _calculateReward(protocolFee, amountOutWeth);
 
@@ -1020,7 +1038,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             amountInWethToB = amountOutWeth - protocolFee;
         } else {
             ///@notice take out fees from the batch amountIn since token0 is weth
-            protocolFee = _calculateFee(uint128(batch.amountIn));
+            protocolFee = _calculateFee(uint128(batch.amountIn), USDC, WETH);
 
             //Take out beacon/conveyor reward
             (, beaconReward) = _calculateReward(
@@ -1041,6 +1059,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             fee,
             amountInWethToB,
             batch.amountOutMin,
+            address(this),
             address(this)
         );
 
@@ -1358,15 +1377,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     //TODO: just import solmate safeTransferETh
 
-    function safeTransferETH(address to, uint256 amount) public {
-        bool success;
-
-        assembly {
-            // Transfer the ETH and store if it succeeded or not.
-            success := call(gas(), to, amount, 0, 0, 0, 0)
-        }
-        require(success, "ETH_TRANSFER_FAILED");
-    }
+    
 
     function simulateTokenToWethPriceChange(
         uint128 alphaX,

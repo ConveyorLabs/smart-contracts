@@ -14,7 +14,7 @@ import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/libraries/Uniswap/TickMath.sol";
 import "../lib/interfaces/uniswap-v3/ISwapRouter.sol";
 import "./test/utils/Console.sol";
-
+import "../lib/interfaces/token/IWETH.sol";
 contract OrderRouter {
     //----------------------Structs------------------------------------//
 
@@ -103,32 +103,58 @@ contract OrderRouter {
 
     //----------------------Functions------------------------------------//
 
+    function safeTransferETH(address to, uint256 amount) public {
+        bool success;
+
+        assembly {
+            // Transfer the ETH and store if it succeeded or not.
+            success := call(gas(), to, amount, 0, 0, 0, 0)
+        }
+        require(success, "ETH_TRANSFER_FAILED");
+    }
     /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation
     /// @dev calculation assumes 64x64 fixed point in128 representation for all values
     /// @param amountIn uint128 USDC amount in 64x64 fixed point to calculate the fee % of
     /// @return Out64x64 int128 Fee percent
-    function _calculateFee(uint128 amountIn)
+    function _calculateFee(uint128 amountIn, address usdc, address weth)
         internal
-        pure
-        returns (uint128 Out64x64)
+        view
+        returns (uint128)
     {
-        require(
-            !(amountIn << 64 > 0xfffffffffffffffffffffffffff),
-            "Overflow Error"
-        );
+        uint128 Out64x64;
 
-        uint128 iamountIn = amountIn << 64;
-        uint128 numerator = 16602069666338597000; //.9 sccale := 1e19 ==> 64x64 fixed representation
+        (SpotReserve memory _spRes, ) = _calculateV2SpotPrice(weth, usdc, dexes[0].factoryAddress, dexes[0].initBytecode);
+        uint256 spotPrice = _spRes.spotPrice;
 
-        uint128 denominator = (23058430092136940000 +
-            ConveyorMath.exp(ConveyorMath.div64x64(iamountIn, 75000 << 64)));
+        uint256 amountInUsdcDollarValue = ConveyorMath.mul128I(spotPrice, amountIn)/uint256(10**18);
+        console.logUint(amountInUsdcDollarValue);
+        if(amountInUsdcDollarValue>= 1000000){
+            Out64x64 = 18446744073709552;
+            return Out64x64;
+        }
+        
+        uint256 numerator = 16602069666338597000<<64; // 128x128 fixed representation
+        
+        uint128 exponent = uint128(ConveyorMath.divUI(amountInUsdcDollarValue, 75000));
 
-        uint128 rationalFraction = ConveyorMath.div64x64(
+        if(exponent>=0x400000000000000000){
+            Out64x64 = 18446744073709552;
+            return Out64x64;
+        }
+        console.logUint(numerator);
+        uint256 denominator = ConveyorMath.add128x128(23058430092136940000<<64,uint256(ConveyorMath.exp(exponent))<<64);
+        console.logUint(denominator);
+        // require(false, "Blah");
+        uint256 rationalFraction = ConveyorMath.div128x128(
             numerator,
             denominator
         );
-
-        Out64x64 = (rationalFraction + 1844674407370955300) / 10**2;
+        console.logUint(rationalFraction);
+        
+        console.logUint(ConveyorMath.add64x64(uint128(rationalFraction>>64), 1844674407370955300));
+        Out64x64 = ConveyorMath.div64x64(ConveyorMath.add64x64(uint128(rationalFraction>>64), 1844674407370955300), uint128(100<<64));
+        
+        return Out64x64;
     }
 
     /// @notice Helper function to calculate beacon and conveyor reward on transaction execution
@@ -138,25 +164,29 @@ contract OrderRouter {
     /// @return beaconReward beacon reward in wei
     function _calculateReward(uint128 percentFee, uint128 wethValue)
         internal
-        pure
+        view
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
-        uint128 conveyorPercent = (percentFee +
+        uint256 totalWethReward = ConveyorMath.mul64I(percentFee, uint256(wethValue));
+        uint128 conveyorPercent;
+        conveyorPercent = (percentFee +
             ConveyorMath.div64x64(
                 92233720368547760 - percentFee,
                 uint128(2) << 64
             ) +
             uint128(18446744073709550)) * 10**2;
-        uint128 beaconPercent = (uint128(1) << 64) - conveyorPercent;
+        
+        if(conveyorPercent< 7378697629483821000){
+            conveyorPercent=7583661452525017000;
+        }
+        
+        conveyorReward = uint128(ConveyorMath.mul64I(
+            conveyorPercent,
+            totalWethReward
+        ));
 
-        conveyorReward = ConveyorMath.mul64x64(
-            ConveyorMath.mul64x64(percentFee, wethValue),
-            conveyorPercent
-        );
-        beaconReward = ConveyorMath.mul64x64(
-            ConveyorMath.mul64x64(percentFee, wethValue),
-            beaconPercent
-        );
+        beaconReward = uint128(totalWethReward)- conveyorReward;
+        
 
         return (conveyorReward, beaconReward);
     }
@@ -178,14 +208,13 @@ contract OrderRouter {
         unchecked {
             uint128 maxReward = ConveyorMath.mul64x64(
                 fee,
-                uint128(
-                    _calculateAlphaX(
-                        reserve0SnapShot,
-                        reserve1SnapShot,
-                        reserve0,
-                        reserve1
-                    ) >> 64
-                )
+                _calculateAlphaX(
+                    reserve0SnapShot,
+                    reserve1SnapShot,
+                    reserve0,
+                    reserve1
+                ) 
+                
             );
 
             //TODO: do we need this?
@@ -205,64 +234,37 @@ contract OrderRouter {
         uint128 reserve1SnapShot,
         uint128 reserve0Execution,
         uint128 reserve1Execution
-    ) internal pure returns (uint256 alphaX) {
-        //Store execution spot price in int128 executionSpot
-        uint128 executionSpot = ConveyorMath.div64x64(
-            reserve0Execution,
-            reserve1Execution
-        );
+    ) internal pure returns (uint128 alphaX) {
+        //require(false, "Got here");
+            //k = rx*ry
+        uint256 k = uint256(reserve0SnapShot)*reserve1SnapShot;
+        
+            //sqrt(k) 64.64 form
+        uint256 sqrtK128x128 = ConveyorMath.sqrt128x128(k<<128);
+        
+        //sqrt(rx)
+        uint256 sqrtReserve0SnapShot128x128 = ConveyorMath.sqrt128x128(uint256(reserve0SnapShot)<<128);
+        
+        //Delta change in spot prices from snapshot-> execution
+        uint256 delta;
+        delta = ConveyorMath.div128x128(ConveyorMath.div128x128(uint256(reserve0SnapShot)<<128, uint256(reserve1SnapShot)<<128), ConveyorMath.div128x128(uint256(reserve0Execution)<<128, uint256(reserve1Execution)<<128));
+        
+        if(delta > uint256(1)<<128){
+            delta = delta- (uint256(1)<<128);
+        }else{
+            delta = (uint256(1)<<128)-delta;
+        }
+        
+        uint256 numeratorPartial128x128 = ConveyorMath.sqrt128x128(ConveyorMath.add128x128(ConveyorMath.mul128x64(uint256(reserve1SnapShot)<<128, uint128(delta>>64)), uint256(reserve1SnapShot)<<128));
+       
+        uint128 numerator128x128 = ConveyorMath.sub64UI(ConveyorMath.mul64x64(uint128(numeratorPartial128x128>>64),ConveyorMath.mul64x64(uint128(sqrtK128x128>>64), uint128(sqrtReserve0SnapShot128x128>>64))),(k));
+        
+        alphaX = ConveyorMath.div64x64(numerator128x128, uint128(reserve1SnapShot)<<64);
 
-        //Store snapshot spot price in int128 snapshotSpot
-        uint128 snapShotSpot = ConveyorMath.div64x64(
-            reserve0SnapShot,
-            reserve1SnapShot
-        );
-
-        //Store difference proportional difference between executionSpot and snapShotSpot in int128 delta
-        uint128 delta = uint128(
-            ConveyorMath.abs(
-                int128(ConveyorMath.div64x64(executionSpot, snapShotSpot)) -
-                    (1 << 64)
-            )
-        );
-
-        //Store k=reserve0SnapShot*reserve1SnapShot in int256 k
-        uint256 k = uint256(
-            ConveyorMath.mul64x64(reserve0SnapShot, reserve1SnapShot)
-        ) << 64;
-
-        //Store sqrt k in sqrtK int128
-        uint128 sqrtK = ConveyorMath.sqrtu(k);
-
-        //Store sqrt of reserve0SnapShot in sqrtReserve0Snap
-        uint128 sqrtReserve0Snap = ConveyorMath.sqrtu(
-            uint256(reserve0SnapShot) << 64
-        );
-
-        //sqrtNumPartial := sqrt(delta*r_y+r_y)
-        uint128 sqrtNumPartial = ConveyorMath.sqrtu(
-            uint256(
-                ConveyorMath.mul64x64(delta, reserve1SnapShot) +
-                    reserve1SnapShot
-            ) << 64
-        );
-
-        //Full numerator in numerator uint256 of alphaX fraction ==> sqrt(k)*sqrt(r_x)*sqrt(delta*r_y+r_y)-k
-        uint256 numerator = (uint256(
-            ConveyorMath.mul64x64(
-                ConveyorMath.mul64x64(sqrtK, sqrtReserve0Snap),
-                sqrtNumPartial
-            )
-        ) << 64) - k;
-
-        alphaX = ConveyorMath.div128x128(
-            numerator,
-            (uint256(reserve1SnapShot) << 64)
-        );
     }
 
     //------------------------Admin Functions----------------------------
-
+   
     /// @notice Add Dex struct to dexes array from arr _factory, and arr _hexDem
     /// @param _factory address[] dex factory address's to add
     /// @param _hexDem Factory address create2 deployment bytecode array
@@ -282,11 +284,14 @@ contract OrderRouter {
         address _lp,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address reciever
+        address reciever,
+        address sender
     ) internal returns (uint256) {
-        /// transfer the tokens to the lp
-        IERC20(_tokenIn).transferFrom(reciever, _lp, _amountIn);
 
+        /// transfer the tokens to the lp
+        
+        IERC20(_tokenIn).transferFrom(sender, _lp, _amountIn);
+        
         //Sort the tokens
         (address token0, ) = _sortTokens(_tokenIn, _tokenOut);
 
@@ -336,7 +341,8 @@ contract OrderRouter {
         uint24 fee,
         uint256 amountIn,
         uint256 amountOutMin,
-        address reciever
+        address reciever,
+        address sender
     ) internal returns (uint256 amountOut) {
         if (_lpIsNotUniV3(lpAddress)) {
             amountOut = _swapV2(
@@ -345,7 +351,8 @@ contract OrderRouter {
                 lpAddress,
                 amountIn,
                 amountOutMin,
-                reciever
+                reciever,
+                sender
             );
         } else {
             amountOut = _swapV3(
@@ -354,7 +361,8 @@ contract OrderRouter {
                 fee,
                 amountIn,
                 amountOutMin,
-                reciever
+                reciever,
+                sender
             );
         }
     }
@@ -367,11 +375,14 @@ contract OrderRouter {
         uint24 _fee,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address reciever
+        address reciever,
+        address sender
     ) internal returns (uint256) {
         /// transfer the tokens to the contract
-        IERC20(_tokenIn).transferFrom(reciever, address(this), _amountIn);
-
+        if(sender != address(this)){
+            IERC20(_tokenIn).transferFrom(sender, address(this), _amountIn);
+        }
+        
         //Aprove the tokens on the swap router
         IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
 
@@ -450,13 +461,13 @@ contract OrderRouter {
         unchecked {
             if (token0 == tok0) {
                 _spRes.spotPrice = ConveyorMath.div128x128(
-                    commonReserve0 << 128,
-                    commonReserve1 << 128
+                    commonReserve1 << 128,
+                    commonReserve0 << 128
                 );
             } else {
                 _spRes.spotPrice = ConveyorMath.div128x128(
-                    commonReserve1 << 128,
-                    commonReserve0 << 128
+                    commonReserve0 << 128,
+                    commonReserve1 << 128
                 );
             }
 
@@ -555,13 +566,7 @@ contract OrderRouter {
                 // int56 / uint32 = int24
                 tick = _getTick(pool, tickSecond);
             }
-            //so if tickCumulativeDelta < 0 and division has remainder, then rounddown
-            if (
-                tickCumulativesDelta < 0 &&
-                (tickCumulativesDelta % int32(1) != 0)
-            ) {
-                tick--;
-            }
+    
         }
 
         //amountOut = tick range spot over specified tick interval
@@ -622,9 +627,13 @@ contract OrderRouter {
             //Scope to prevent deep stack error
             //Spot price of tickSeconds ago - spot price of current block
             tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
+
+            tick = int24(tickCumulativesDelta / int32(tickSecond));
+
+            if (tickCumulativesDelta < 0 && (tickCumulativesDelta % int32(tickSecond) != 0)) tick--;
         }
         // int56 / uint32 = int24
-        tick = int24(tickCumulativesDelta / (1));
+       return tick;
     }
 
     /// @notice Helper to get all lps and prices across multiple dexes
@@ -643,8 +652,8 @@ contract OrderRouter {
         returns (SpotReserve[] memory prices, address[] memory lps)
     {
         //Target base amount in value
+        // uint112 amountIn = _getTargetAmountIn(token0, token1);
         uint112 amountIn = _getTargetAmountIn(token0, token1);
-
         SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
         address[] memory _lps = new address[](dexes.length);
 
@@ -719,10 +728,10 @@ contract OrderRouter {
         //target decimal := the difference in decimal targets between tokens
         uint8 targetDec = (token0Target < token1Target)
             ? (token1Target)
-            : (token0Target - token1Target);
+            : (token0Target);
 
         //Set amountIn to correct target decimals
-        amountIn = uint112(10**(targetDec));
+        amountIn = uint112(10**targetDec);
     }
 
     /// @notice Helper function to change the base decimal value of token0 & token1 to the same target decimal value
@@ -769,7 +778,9 @@ contract OrderRouter {
         pure
         returns (address token0, address token1)
     {
+        
         require(tokenA != tokenB, "UniswapV2Library: IDENTICAL_ADDRESSES");
+
         (token0, token1) = tokenA < tokenB
             ? (tokenA, tokenB)
             : (tokenB, tokenA);
@@ -785,17 +796,31 @@ contract OrderRouter {
     function _getQuoteAtTick(
         int24 tick,
         uint128 baseAmount,
-        address baseToken,
-        address quoteToken
-    ) internal pure returns (uint256 quoteAmount) {
+        address baseToken, //usdc
+        address quoteToken //weth
+    ) internal view returns (uint256) {
         uint160 sqrtRatioX96 = TickMath.getSqrtRatioAtTick(tick);
 
+        uint8 targetDecimalsQuote = _getTargetDecimals(quoteToken);
+        uint8 targetDecimalsBase = _getTargetDecimals(baseToken);
+
+        uint256 adjustedFixed128x128Quote;
+        uint256 quoteAmount;
+        
         // Calculate quoteAmount with better precision if it doesn't overflow when multiplied by itself
         if (sqrtRatioX96 <= type(uint128).max) {
             uint256 ratioX192 = uint256(sqrtRatioX96) * sqrtRatioX96;
             quoteAmount = baseToken < quoteToken
                 ? FullMath.mulDiv(ratioX192, baseAmount, 1 << 192)
                 : FullMath.mulDiv(1 << 192, baseAmount, ratioX192);
+
+            adjustedFixed128x128Quote = uint256(quoteAmount)<<128;
+
+            if(targetDecimalsQuote< targetDecimalsBase){
+                return adjustedFixed128x128Quote/10**targetDecimalsQuote;
+            }else{
+                return adjustedFixed128x128Quote/(10**((targetDecimalsQuote-targetDecimalsBase)+targetDecimalsQuote));
+            }
         } else {
             uint256 ratioX128 = FullMath.mulDiv(
                 sqrtRatioX96,
@@ -805,6 +830,14 @@ contract OrderRouter {
             quoteAmount = baseToken < quoteToken
                 ? FullMath.mulDiv(ratioX128, baseAmount, 1 << 128)
                 : FullMath.mulDiv(1 << 128, baseAmount, ratioX128);
+            
+            adjustedFixed128x128Quote = uint256(quoteAmount)<<128;
+            if(targetDecimalsQuote< targetDecimalsBase){
+                return adjustedFixed128x128Quote/10**targetDecimalsQuote;
+            }else{
+
+                return adjustedFixed128x128Quote/(10**((targetDecimalsQuote-targetDecimalsBase)+targetDecimalsQuote));
+            }
         }
     }
 }

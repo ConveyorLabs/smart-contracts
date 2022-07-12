@@ -81,6 +81,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         conveyorLimitOrders = new ConveyorLimitOrders(
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             5,
             2592000,
             3000000
@@ -710,6 +711,57 @@ contract ConveyorLimitOrdersTest is DSTest {
     //     assertEq(0x000000000000000000000000000007bc019f93509a129114c8df914ab5340000, spot);
 
     // }
+
+    //Swap Token to Token on best Dex tests
+    function testSwapTokenToTokenOnBestDex() public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        //get the token in
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+            10000000000000000,
+            tokenIn
+        );
+
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        
+        uint256 amountOutMin = amountReceived - 1;
+
+        IERC20(tokenIn).approve(address(conveyorLimitOrders), amountReceived);
+        address reciever = address(this);
+        conveyorLimitOrders.swapTokenToTokenOnBestDex(tokenIn, tokenOut, amountReceived, amountOutMin, 500, reciever, address(this));
+
+    }
+
+    function testSwapTokenToEthOnBestDex() public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        //get the token in
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+            10000000000000000,
+            tokenIn
+        );
+
+        uint256 amountOutMin = amountReceived - 1;
+
+        IERC20(tokenIn).approve(address(conveyorLimitOrders), amountReceived);
+        console.logUint(address(this).balance);
+        conveyorLimitOrders.swapTokenToETHOnBestDex(tokenIn, amountReceived, amountOutMin, 500);
+        console.logUint(address(this).balance);
+    }
+
+    function testSwapEthToTokenOnBestDex() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+
+        address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        
+        
+        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
+            value: 1000000000000000000
+        }(abi.encodeWithSignature("swapETHToTokenOnBestDex(address,uint256,uint256,uint24)", tokenOut, 1000000000000000000, 10000, 500));
+        
+    }
 
     //----------------------------Order Batch Generators-----------------------------------------
 
