@@ -499,47 +499,49 @@ contract OrderRouterTest is DSTest {
 
     //=========================================Fee Helper Functions============================================
     //TODO: fuzz this
-    function testCalculateFee(uint112 _amount) public  {
-        
+    function testCalculateFee(uint112 _amount) public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        if(_amount>0){
-            
-           ( ConveyorLimitOrders.SpotReserve memory price1,
-            address poolAddress0
-        ) = orderRouter.calculateV2SpotPrice(
-                weth,
-                usdc,
-                0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
-                _uniswapV2HexDem
-            );
+        if (_amount > 0) {
+            (
+                ConveyorLimitOrders.SpotReserve memory price1,
+                address poolAddress0
+            ) = orderRouter.calculateV2SpotPrice(
+                    weth,
+                    usdc,
+                    0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
+                    _uniswapV2HexDem
+                );
             uint256 spotPrice = price1.spotPrice;
-            
-            uint256 amountInUsdcDollarValue = uint256(ConveyorMath.mul128I(spotPrice, uint256(_amount))/uint256(10**18));
+
+            uint256 amountInUsdcDollarValue = uint256(
+                ConveyorMath.mul128I(spotPrice, uint256(_amount)) /
+                    uint256(10**18)
+            );
             console.logUint(amountInUsdcDollarValue);
             string memory path = "scripts/logistic_curve.py";
-         
-            string memory args = uint2str(amountInUsdcDollarValue);
-        
-            bytes memory output = scriptRunner.runPythonScript(path, args);
-            
-            uint256 fee = orderRouter.calculateFee(_amount, usdc, weth);
-            
-            uint256 expected = bytesToUint(output);
-            assertEq(fee/1000, expected/1000);
 
+            string memory args = uint2str(amountInUsdcDollarValue);
+
+            bytes memory output = scriptRunner.runPythonScript(path, args);
+
+            uint256 fee = orderRouter.calculateFee(_amount, usdc, weth);
+
+            uint256 expected = bytesToUint(output);
+            assertEq(fee / 1000, expected / 1000);
         }
-           
-        
     }
 
-    function bytesToUint(bytes memory b) internal pure returns (uint256){
+    function bytesToUint(bytes memory b) internal pure returns (uint256) {
         uint256 number;
-        for(uint i=0;i<b.length;i++){
-            number = number + uint(uint8(b[i]))*(2**(8*(b.length-(i+1))));
+        for (uint256 i = 0; i < b.length; i++) {
+            number =
+                number +
+                uint256(uint8(b[i])) *
+                (2**(8 * (b.length - (i + 1))));
         }
         return number;
-        }
+    }
 
     /// TODO: fuzz this
     function testCalculateOrderReward() public {

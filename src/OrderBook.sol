@@ -77,7 +77,10 @@ contract OrderBook is GasOracle {
         uint256 tokenBalance = IERC20(orderToken).balanceOf(msg.sender);
 
         //TODO: check for tokenIn/weth and tokenOut/weth else revert
-        uint256 totalApprovedQuantity = IERC20(orderToken).allowance(msg.sender,address(this));
+        uint256 totalApprovedQuantity = IERC20(orderToken).allowance(
+            msg.sender,
+            address(this)
+        );
 
         for (uint256 i = 0; i < orderGroup.length; ++i) {
             Order memory newOrder = orderGroup[i];
@@ -110,25 +113,19 @@ contract OrderBook is GasOracle {
             );
 
             //add new order to state
+            newOrder.orderId = orderId;
             orderIdToOrder[orderId] = newOrder;
+
             addressToOrderIds[msg.sender][orderId] = true;
             //update total orders per address
             ++totalOrdersPerAddress[msg.sender];
-
-            //Increment totalOrdersQuantity on current order
-            // incrementTotalOrdersQuantity(
-            //     newOrder.tokenIn,
-            //     msg.sender,
-            //     newOrder.quantity
-            // );
 
             //update order ids for event emission
             orderIds[orderIdIndex] = orderId;
             ++orderIdIndex;
 
             //Increment totalApproved quantity on each iteration
-            totalApprovedQuantity+=newOrder.quantity;
-
+            totalApprovedQuantity += newOrder.quantity;
         }
 
         //Approve total quantity of order group for the contract to spend
@@ -224,7 +221,7 @@ contract OrderBook is GasOracle {
         //     order.quantity
         // );
 
-        totalOrdersQuantity[totalOrdersValueKey]-= order.quantity;
+        totalOrdersQuantity[totalOrdersValueKey] -= order.quantity;
 
         //emit a canceled order event
         //TODO: do this in assembly

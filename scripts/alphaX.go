@@ -16,5 +16,6 @@ func calculateAlphaX(reserve0SnapShot *big.Int, reserve1SnapShot *big.Int, reser
 	numeratorPartial2 := new(big.Float).Sqrt(new(big.Float).Add(new(big.Float).Mul(delta, new(big.Float).SetInt(reserve1SnapShot)), new(big.Float).SetInt(reserve1SnapShot)))
 	numerator := new(big.Float).Sub(new(big.Float).Mul(numeratorPartial1, numeratorPartial2), new(big.Float).Mul(new(big.Float).SetInt(reserve0SnapShot), new(big.Float).SetInt(reserve1SnapShot)))
 	exp := big.NewInt(0).Exp(big.NewInt(2), big.NewInt(64), nil)
+
 	return new(big.Float).Mul(new(big.Float).Quo(numerator, new(big.Float).SetInt(reserve1SnapShot)), new(big.Float).SetInt(exp))
 }
