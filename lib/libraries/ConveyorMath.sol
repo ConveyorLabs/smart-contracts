@@ -82,6 +82,16 @@ library ConveyorMath {
         }
     }
 
+    function sub64UI(uint128 x, uint256 y) internal pure returns (uint128) {
+        unchecked {
+            uint128 x_low = x & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+            uint256 result = x-(y<<64);
+          
+            require(result >= 0x0 && uint128(result) <= uint128(MAX_64x64));
+            return uint128(result);
+        }
+    }
+
     /// @notice helper to add two unsigened 128.128 fixed point numbers
     /// @param x 128.128 unsigned fixed point number
     /// @param y 128.128 unsigned fixed point number
@@ -115,25 +125,6 @@ library ConveyorMath {
             uint256 answer = (uint256(x) * y) >> 64;
             require(answer <= MAX_64x64);
             return uint128(answer);
-        }
-    }
-
-    /// @notice helper function to multiply two unsigned 128.128 fixed point numbers
-    /// @param x 128.128 unsigned fixed point number
-    /// @param y 128.128 unsigned fixed point number
-    /// @return unsigned
-    function mul128x128(uint256 x, uint256 y) internal pure returns (uint256) {
-        unchecked {
-            if (x == 0 || y == 0) {
-                return 0;
-            }
-
-            uint256 hi = (x * (y & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF));
-            uint256 lo = (x * (y >> 128)) << 128;
-
-            uint256 answer = hi + lo;
-            require(answer <= MAX_128x128);
-            return answer;
         }
     }
 
@@ -253,7 +244,7 @@ library ConveyorMath {
     /// @param x uint256 unsigned integer
     /// @param y uint256 unsigned integer
     /// @return unsigned 64.64 fixed point number
-    function divUU(uint256 x, uint256 y) private pure returns (uint128) {
+    function divUU(uint256 x, uint256 y) internal pure returns (uint128) {
         unchecked {
             require(y != 0);
 
@@ -461,7 +452,7 @@ library ConveyorMath {
     /// @return unsigned 64.64 fixed point number
     function exp(uint128 x) internal pure returns (uint128) {
         unchecked {
-            require(x < 0x400000000000000000); // Overflow
+            require(x < 0x400000000000000000, "Exponential overflow"); // Overflow
 
             return
                 exp_2(
@@ -521,4 +512,20 @@ library ConveyorMath {
             }
         }
     }
+
+    function sqrt128x128 (uint256 x) internal pure returns (uint256) {
+        unchecked {
+        require (x >= 0);
+        return uint256(sqrtu(x))<<64;
+        }
+  }
+
+  
+
+  function sqrt (int128 x) internal pure returns (int128) {
+    unchecked {
+      require (x >= 0);
+      return int128 (sqrtu (uint256 (int256 (x)) << 64));
+    }
+  }
 }
