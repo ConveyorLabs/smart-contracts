@@ -89,6 +89,15 @@ contract ConveyorLimitOrdersTest is DSTest {
         conveyorLimitOrders.addDex(_dexFactories[2], _hexDems[2], _isUniV2[2]);
     }
 
+    function testOnlyEOA() public {
+        cheatCodes.prank(tx.origin);
+        conveyorLimitOrders.invokeOnlyEOA();
+    }
+
+    function testFailOnlyEOA() public {
+        conveyorLimitOrders.invokeOnlyEOA();
+    }
+
     //================================================================
     //================= Validate Order Sequence Tests ================
     //================================================================
@@ -175,11 +184,29 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     // Token to Weth Batch success
     function testExecuteTokenToWethOrderBatch() public {
-        cheatCodes.prank(tx.origin);
+        cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethBatch();
+
+        //check that the orders have been placed
+        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
+            ConveyorLimitOrders.Order memory order = conveyorLimitOrders
+                .getOrderById(tokenToWethOrderBatch[i]);
+
+            assert(order.orderId != bytes32(0));
+        }
+
+        cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(tokenToWethOrderBatch);
+
+        //check that the orders have been fufilled and cancelled
+        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
+            ConveyorLimitOrders.Order memory order = conveyorLimitOrders
+                .getOrderById(tokenToWethOrderBatch[i]);
+            assert(order.orderId == bytes32(0));
+        }
     }
 
     function testExecuteWethToTokenSingle() public {
@@ -993,7 +1020,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             DAI,
             WETH,
             1,
-            false,
+            true,
             false,
             1,
             10
@@ -1002,7 +1029,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             DAI,
             WETH,
             1,
-            false,
+            true,
             false,
             1,
             11
@@ -1011,7 +1038,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             DAI,
             WETH,
             1,
-            false,
+            true,
             false,
             1,
             12
@@ -1621,6 +1648,8 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
             _executionCost
         )
     {}
+
+    function invokeOnlyEOA() public onlyEOA {}
 
     function executeTokenToWethOrders(Order[] calldata orders) external {
         _executeTokenToWethOrders(orders);

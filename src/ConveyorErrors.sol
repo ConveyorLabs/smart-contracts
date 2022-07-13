@@ -17,3 +17,4 @@ error IncongruentOutputTokenInBatch();
 error IncongruentTaxedTokenInBatch();
 error IncongruentBuySellStatusInBatch();
 error WethWithdrawUnsuccessful();
+error MsgSenderIsNotTxOrigin();

@@ -20,7 +20,9 @@ import "../lib/interfaces/token/IWETH.sol";
 contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ========================================= Modifiers =============================================
     modifier onlyEOA() {
-        require(msg.sender == tx.origin);
+        if (msg.sender != tx.origin) {
+            revert MsgSenderIsNotTxOrigin();
+        }
         _;
     }
 
