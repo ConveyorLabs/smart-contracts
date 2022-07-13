@@ -113,17 +113,12 @@ contract OrderBook is GasOracle {
             );
 
             //add new order to state
+            newOrder.orderId = orderId;
             orderIdToOrder[orderId] = newOrder;
+
             addressToOrderIds[msg.sender][orderId] = true;
             //update total orders per address
             ++totalOrdersPerAddress[msg.sender];
-
-            //Increment totalOrdersQuantity on current order
-            // incrementTotalOrdersQuantity(
-            //     newOrder.tokenIn,
-            //     msg.sender,
-            //     newOrder.quantity
-            // );
 
             //update order ids for event emission
             orderIds[orderIdIndex] = orderId;

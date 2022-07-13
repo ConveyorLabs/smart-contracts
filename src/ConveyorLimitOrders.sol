@@ -286,7 +286,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         return false;
     }
-<<<<<<< HEAD
 
     // ==================== Order Execution Functions =========================
 
@@ -326,9 +325,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     //------------Single Swap Best Dex price Aggregation---------------------------------
-=======
-    //===============Single Swap Best Dex Externals============================
->>>>>>> staging
 
     function swapTokenToTokenOnBestDex(
         address tokenIn,
@@ -353,19 +349,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address bestLp;
 
         //Iterate through all dex's and get best price and corresponding lp
-<<<<<<< HEAD
         for (uint256 i = 0; i < prices.length; ++i) {
-            if (prices[i].spotPrice < bestPrice && prices[i].spotPrice != 0) {
-                bestPrice = prices[i].spotPrice;
-                bestLp = lps[i];
-=======
-        for(uint256 i =0; i <prices.length;++i){
-            if(prices[i].spotPrice !=0){
-                if(prices[i].spotPrice<bestPrice){
-                    bestPrice= prices[i].spotPrice;
-                    bestLp=lps[i];
+            if (prices[i].spotPrice != 0) {
+                if (prices[i].spotPrice < bestPrice) {
+                    bestPrice = prices[i].spotPrice;
+                    bestLp = lps[i];
                 }
->>>>>>> staging
             }
         }
 
@@ -387,8 +376,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 FEE,
                 amountIn,
                 amountOutMin,
-                reciever, 
-                sender 
+                reciever,
+                sender
             );
         }
     }
@@ -403,10 +392,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             revert InsufficientDepositAmount();
         }
 
-<<<<<<< HEAD
-        (bool success, ) = address(IWETH((WETH))).call{value: amountIn}(
+        (bool success, ) = address(IWETH(WETH)).call{value: amountIn}(
             abi.encodeWithSignature("deposit()")
         );
+        // require(false, "Got here");
         if (success) {
             amountOut = swapTokenToTokenOnBestDex(
                 WETH,
@@ -414,14 +403,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 amountIn,
                 amountOutMin,
                 FEE,
-                msg.sender
+                msg.sender,
+                address(this)
             );
-=======
-        (bool success, )=address(IWETH(WETH)).call{value: amountIn}(abi.encodeWithSignature("deposit()"));
-        // require(false, "Got here");
-        if(success){
-            amountOut=swapTokenToTokenOnBestDex(WETH, tokenOut, amountIn, amountOutMin, FEE, msg.sender, address(this));
->>>>>>> staging
         }
     }
 
@@ -431,81 +415,29 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 amountOutMin,
         uint24 FEE
     ) external returns (uint256) {
-<<<<<<< HEAD
+        // IERC20(tokenIn).approve(address(this), amountIn);
         uint256 amountOutWeth = swapTokenToTokenOnBestDex(
             tokenIn,
             WETH,
             amountIn,
             amountOutMin,
             FEE,
-            address(this)
+            address(this),
+            msg.sender
         );
-
-        (bool success, ) = address(IWETH((WETH))).call{value: amountIn}(
-            abi.encodeWithSignature("withdraw(uint256)", amountOutWeth)
-        );
-
-        if (success) {
-            safeTransferETH(msg.sender, amountOutWeth);
-        }
-
-        return amountOutWeth;
-=======
-        // IERC20(tokenIn).approve(address(this), amountIn);
-        uint256 amountOutWeth=swapTokenToTokenOnBestDex(tokenIn, WETH, amountIn, amountOutMin, FEE, address(this), msg.sender);
         uint256 balanceBefore = address(this).balance;
         // require(false,"Got here");
         IWETH(WETH).withdraw(amountOutWeth);
-        if((address(this).balance - balanceBefore != amountOutWeth)){
+        if ((address(this).balance - balanceBefore != amountOutWeth)) {
             revert WethWithdrawUnsuccessful();
         }
-        
+
         safeTransferETH(msg.sender, amountOutWeth);
-        
 
         return amountOutWeth;
-
     }
 
     // ==================== Order Execution Functions =========================
-
-    ///@notice This function takes in an array of orders,
-    /// @param orderIds array of orders to be executed within the mapping
-    function executeOrders(bytes32[] calldata orderIds) external onlyEOA {
-        ///@notice validate that the order array is in ascending order by quantity
-
-        Order[] memory orders = new Order[](orderIds.length);
-        for (uint256 i = 0; i < orderIds.length; i++) {
-            orders[i] = getOrderById(orderIds[i]);
-        }
-
-        _validateOrderSequencing(orders);
-
-        ///@notice Sequence the orders by priority fee
-        // Order[] memory sequencedOrders = _sequenceOrdersByPriorityFee(orders);
-
-        //TODO: figure out weth to token
-
-        ///@notice check if the token out is weth to determine what type of order execution to use
-        if (orders[0].taxed == true) {
-            if (orders[0].tokenOut == WETH) {
-                _executeTokenToWethTaxedOrders(orders);
-            } else {
-                //If second token is taxed and first token is weth
-                //Then don't do first swap, and out amount of second swap directly to the eoa of the swap
-                //Take out fee's from amount in
-                _executeTokenToTokenTaxedOrders(orders);
-            }
-        } else {
-            if (orders[0].tokenOut == WETH) {
-                _executeTokenToWethOrders(orders);
-            } else {
-                //If first token is weth, don't do the first swap, and take out the fee's from the amountIn
-                _executeTokenToTokenOrders(orders);
-            }
-        }
->>>>>>> staging
-    }
 
     // ==================== Token To Weth Order Execution Logic =========================
     ///@notice execute an array of orders from token to weth
@@ -1466,8 +1398,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // fallback() external payable{}
 
     //TODO: just import solmate safeTransferETh
-
-    
 
     function simulateTokenToWethPriceChange(
         uint128 alphaX,
