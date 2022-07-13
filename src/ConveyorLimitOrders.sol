@@ -1370,7 +1370,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
 
             ///@notice check if the token tax status is the same for the last order
-            if (currentOrder.tokenOut != nextOrder.tokenOut) {
+            if (currentOrder.taxed != nextOrder.taxed) {
                 revert IncongruentTaxedTokenInBatch();
             }
         }
