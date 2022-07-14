@@ -199,15 +199,20 @@ contract OrderRouter {
             percentFee,
             uint256(wethValue)
         );
+
         uint128 conveyorPercent;
-        conveyorPercent =
-            (percentFee +
-                ConveyorMath.div64x64(
-                    92233720368547760 - percentFee,
-                    uint128(2) << 64
-                ) +
-                uint128(18446744073709550)) *
-            10**2;
+        if (percentFee <= 92233720368547760) {
+            conveyorPercent =
+                (percentFee +
+                    ConveyorMath.div64x64(
+                        92233720368547760 - percentFee,
+                        uint128(2) << 64
+                    ) +
+                    uint128(18446744073709550)) *
+                10**2;
+        } else {
+            conveyorPercent = percentFee + uint128(18446744073709550) * 10**2;
+        }
 
         if (conveyorPercent < 7378697629483821000) {
             conveyorPercent = 7583661452525017000;
@@ -656,12 +661,12 @@ contract OrderRouter {
         return !success;
     }
 
-    function _getUniV3Fee(address lpAddress)
-        internal
-        view
-        returns (uint24 fee)
-    {
-        return IUniswapV3Pool(lpAddress).fee();
+    function _getUniV3Fee(address lpAddress) internal returns (uint24 fee) {
+        if (!_lpIsNotUniV3(lpAddress)) {
+            return IUniswapV3Pool(lpAddress).fee();
+        } else {
+            return uint24(0);
+        }
     }
 
     function _getTick(address pool, uint32 tickSecond)

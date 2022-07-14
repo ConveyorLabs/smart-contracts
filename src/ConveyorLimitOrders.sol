@@ -590,6 +590,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         returns (uint256, uint256)
     {
         uint24 fee = _getUniV3Fee(batch.lpAddress);
+
+        require(false, "hard coded revert in _executeTokenToWethBatch");
+
         ///@notice swap from A to weth
         uint128 amountOutWeth = uint128(
             _swap(
@@ -622,8 +625,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 delete addressToOrderIds[orderIdToOrder[orderId].owner][
                     orderId
                 ];
+
                 //decrement from total orders per address
                 --totalOrdersPerAddress[orderIdToOrder[orderId].owner];
+
                 //Decrement total orders quantity for each order
                 decrementTotalOrdersQuantity(
                     orderIdToOrder[orderId].tokenIn,
@@ -632,6 +637,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
             }
         }
+
         return (uint256(amountOutWeth - protocolFee), uint256(beaconReward));
     }
 
