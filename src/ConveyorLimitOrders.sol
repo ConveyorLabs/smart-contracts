@@ -612,21 +612,20 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //Scope all this
         {
             //Iterate through all orderIds in the batch and delete the orders from queue post execution
-            for (uint256 i = 0; i < batch.orderIds.length; ++i) {
+            for (uint256 i = 0; i < batch.batchLength; ++i) {
                 bytes32 orderId = batch.orderIds[i];
 
-                //FIXME: We are hitting an underflow here
+                ///@notice cache the order to avoid unecessary sloads
+                Order memory cachedOrder = orderIdToOrder[orderId];
 
                 //decrement from total orders per address
-                --totalOrdersPerAddress[orderIdToOrder[orderId].owner];
-
-                require(false, "hit require false in _executeTokenToWethBatch");
+                --totalOrdersPerAddress[cachedOrder.owner];
 
                 //Decrement total orders quantity for each order
                 decrementTotalOrdersQuantity(
-                    orderIdToOrder[orderId].tokenIn,
-                    orderIdToOrder[orderId].owner,
-                    orderIdToOrder[orderId].quantity
+                    cachedOrder.tokenIn,
+                    cachedOrder.owner,
+                    cachedOrder.quantity
                 );
 
                 // Delete Order Orders[order.orderId] from ActiveOrders mapping
@@ -638,7 +637,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
         }
 
-        return (uint256(amountOutWeth - protocolFee), uint256(beaconReward));
+        //TODO: FIXME: this used to be uint256(amountOutWeth - protocolFee)
+        ///
+        return (uint256(amountOutWeth - beaconReward), uint256(beaconReward));
     }
 
     // ==================== Token to Weth Helper Functions =========================
@@ -782,9 +783,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         currentOrder.quantity
                     );
 
-                    uint256 batchOrderDepth = currentTokenToWethBatchOrder
-                        .batchOwners
-                        .length - 1;
+                    uint256 batchLength = currentTokenToWethBatchOrder
+                        .batchLength;
 
                     ///@notice add the order to the current batch order
                     currentTokenToWethBatchOrder.amountIn += currentOrder
@@ -792,17 +792,17 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                     ///@notice add owner of the order to the batchOwners
                     currentTokenToWethBatchOrder.batchOwners[
-                        batchOrderDepth
+                        batchLength
                     ] = currentOrder.owner;
 
                     ///@notice add the order quantity of the order to ownerShares
                     currentTokenToWethBatchOrder.ownerShares[
-                        batchOrderDepth
+                        batchLength
                     ] = currentOrder.quantity;
 
                     ///@notice add the orderId to the batch order
                     currentTokenToWethBatchOrder.orderIds[
-                        batchOrderDepth
+                        batchLength
                     ] = currentOrder.orderId;
 
                     ///@notice increment the batch length
@@ -834,6 +834,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 amount
     ) internal returns (bool) {
         try IERC20(token).transferFrom(sender, address(this), amount) {} catch {
+            console.log(sender);
+            console.log(IERC20(token).allowance(sender, address(this)));
+
             return false;
         }
         return true;

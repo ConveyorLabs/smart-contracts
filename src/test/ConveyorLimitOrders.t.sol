@@ -181,12 +181,24 @@ contract ConveyorLimitOrdersTest is DSTest {
     // Token to Weth Batch success
 
     function testExecuteTokenToWethOrderBatch() public {
-        cheatCodes.deal(address(this), MAX_UINT);
+        address prankedAddress = 0xEF4005187cCE914d386bE3625706479D36c1bb94;
+        cheatCodes.prank(prankedAddress);
+        cheatCodes.deal(prankedAddress, MAX_UINT);
 
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
+        cheatCodes.prank(prankedAddress);
         bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethBatch();
+
+        uint256 allowance = IERC20(DAI).allowance(
+            prankedAddress,
+            address(conveyorLimitOrders)
+        );
+
+        console.log(allowance);
+
+        require(false, "checking allowance");
 
         //check that the orders have been placed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
