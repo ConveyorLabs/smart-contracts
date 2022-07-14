@@ -139,7 +139,6 @@ contract OrderRouter {
             spotPrice,
             amountIn
         ) / uint256(10**18);
-        console.logUint(amountInUsdcDollarValue);
         if (amountInUsdcDollarValue >= 1000000) {
             Out64x64 = 18446744073709552;
             return Out64x64;
@@ -155,25 +154,15 @@ contract OrderRouter {
             Out64x64 = 18446744073709552;
             return Out64x64;
         }
-        console.logUint(numerator);
         uint256 denominator = ConveyorMath.add128x128(
             23058430092136940000 << 64,
             uint256(ConveyorMath.exp(exponent)) << 64
         );
-        console.logUint(denominator);
-        // require(false, "Blah");
         uint256 rationalFraction = ConveyorMath.div128x128(
             numerator,
             denominator
         );
-        console.logUint(rationalFraction);
 
-        console.logUint(
-            ConveyorMath.add64x64(
-                uint128(rationalFraction >> 64),
-                1844674407370955300
-            )
-        );
         Out64x64 = ConveyorMath.div64x64(
             ConveyorMath.add64x64(
                 uint128(rationalFraction >> 64),
@@ -270,7 +259,6 @@ contract OrderRouter {
         uint128 reserve0Execution,
         uint128 reserve1Execution
     ) internal pure returns (uint128 alphaX) {
-        //require(false, "Got here");
         //k = rx*ry
         uint256 k = uint256(reserve0SnapShot) * reserve1SnapShot;
 
@@ -724,7 +712,6 @@ contract OrderRouter {
 
         //Iterate through Dex's in dexes check if isUniV2 and accumulate spot price to meanSpotPrice
         for (uint256 i = 0; i < dexes.length; ++i) {
-            // require(false, "Got here");
             if (dexes[i].isUniV2) {
                 {
                     //Right shift spot price 9 decimals and add to meanSpotPrice
@@ -787,7 +774,6 @@ contract OrderRouter {
     {
         //Get target decimals for token0, token1
         uint8 token0Target = _getTargetDecimals(token0); //18
-        // require(false, "Got here");
         uint8 token1Target = _getTargetDecimals(token1); //6
 
         //target decimal := the difference in decimal targets between tokens

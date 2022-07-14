@@ -112,7 +112,6 @@ contract OrderBookTest is DSTest {
         try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
             uint256 amountOut
         ) {
-            console.log(amountOut);
             OrderBook.Order memory order = newOrder(
                 swapToken,
                 wnato,
@@ -133,6 +132,15 @@ contract OrderBookTest is DSTest {
 
             //check that the orderId is not zero value
             assert((orderId != bytes32(0)));
+
+            assertEq(
+                orderBook.totalOrdersQuantity(
+                    keccak256(abi.encode(address(this), swapToken))
+                ),
+                amountOut
+            );
+
+            assertEq(orderBook.totalOrdersPerAddress(address(this)), 1);
         } catch {}
     }
 

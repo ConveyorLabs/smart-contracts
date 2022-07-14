@@ -397,7 +397,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         (bool success, ) = address(IWETH(WETH)).call{value: amountIn}(
             abi.encodeWithSignature("deposit()")
         );
-        // require(false, "Got here");
         if (success) {
             amountOut = swapTokenToTokenOnBestDex(
                 WETH,
@@ -428,7 +427,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             msg.sender
         );
         uint256 balanceBefore = address(this).balance;
-        // require(false,"Got here");
         IWETH(WETH).withdraw(amountOutWeth);
         if ((address(this).balance - balanceBefore != amountOutWeth)) {
             revert WethWithdrawUnsuccessful();
@@ -591,8 +589,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     {
         uint24 fee = _getUniV3Fee(batch.lpAddress);
 
-        require(false, "hard coded revert in _executeTokenToWethBatch");
-
         ///@notice swap from A to weth
         uint128 amountOutWeth = uint128(
             _swap(
@@ -608,7 +604,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         );
 
         //TODO: require amountOutWeth> batchAmountOutMin ?
-
         ///@notice take out fees
         uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
@@ -620,14 +615,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             for (uint256 i = 0; i < batch.orderIds.length; ++i) {
                 bytes32 orderId = batch.orderIds[i];
 
-                // Delete Order Orders[order.orderId] from ActiveOrders mapping
-                delete orderIdToOrder[orderId];
-                delete addressToOrderIds[orderIdToOrder[orderId].owner][
-                    orderId
-                ];
+                //FIXME: We are hitting an underflow here
 
                 //decrement from total orders per address
                 --totalOrdersPerAddress[orderIdToOrder[orderId].owner];
+
+                require(false, "hit require false in _executeTokenToWethBatch");
 
                 //Decrement total orders quantity for each order
                 decrementTotalOrdersQuantity(
@@ -635,6 +628,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     orderIdToOrder[orderId].owner,
                     orderIdToOrder[orderId].quantity
                 );
+
+                // Delete Order Orders[order.orderId] from ActiveOrders mapping
+                delete addressToOrderIds[orderIdToOrder[orderId].owner][
+                    orderId
+                ];
+
+                delete orderIdToOrder[orderId];
             }
         }
 

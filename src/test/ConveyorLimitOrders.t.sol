@@ -182,6 +182,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     function testExecuteTokenToWethOrderBatch() public {
         cheatCodes.deal(address(this), MAX_UINT);
+
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
