@@ -44,6 +44,7 @@ contract OrderRouter {
     }
 
     struct TokenToWethBatchOrder {
+        uint256 batchLength;
         uint256 amountIn;
         uint256 amountOutMin;
         address tokenIn;
@@ -54,6 +55,7 @@ contract OrderRouter {
     }
 
     struct TokenToTokenBatchOrder {
+        uint256 batchLength;
         uint256 amountIn;
         //TODO: need to set amount out min somewhere
         uint256 amountOutMin;
@@ -584,28 +586,27 @@ contract OrderRouter {
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
     /// @param amountIn amountIn to get out amount spot
-    /// @param FEE lp fee
+    /// @param fee lp fee
     /// @param tickSecond the tick second range to get the lp spot price from
     /// @param _factory Uniswap v3 factory address
     function _calculateV3SpotPrice(
         address token0,
         address token1,
         uint112 amountIn,
-        uint24 FEE,
+        uint24 fee,
         uint32 tickSecond,
         address _factory
     ) internal view returns (SpotReserve memory, address) {
         SpotReserve memory _spRes;
 
         address pool;
-
         int24 tick;
-        int56 tickCumulativesDelta;
 
         //Scope to prevent stack too deep error
         {
             //Pool address for token pair
-            pool = IUniswapV3Factory(_factory).getPool(token0, token1, FEE);
+            //TODO: remove this please
+            pool = IUniswapV3Factory(_factory).getPool(token0, token1, 3000);
 
             if (pool == address(0)) {
                 return (_spRes, address(0));

@@ -559,12 +559,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ///@notice add the beacon reward to the totalBeaconReward
             totalBeaconReward += beaconReward;
 
-            uint256 ownerSharesLength = batch.ownerShares.length;
-
             uint256[] memory ownerShares = batch.ownerShares;
             uint256 amountIn = batch.amountIn;
 
-            for (uint256 j = 0; j < ownerSharesLength; ++j) {
+            uint256 batchOrderLength = tokenToWethBatchOrders[i].batchLength;
+
+            for (uint256 j = 0; j < batchOrderLength; ++j) {
                 ///@notice calculate how much to pay each user from the shares they own
                 uint128 orderShare = ConveyorMath.divUI(
                     ownerShares[j],
@@ -646,7 +646,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = _getAllPrices(orders[0].tokenIn, WETH, 300, 1);
+        ) = _getAllPrices(orders[0].tokenIn, WETH, 500, 1);
 
         TokenToWethExecutionPrice[]
             memory executionPrices = new TokenToWethExecutionPrice[](
@@ -673,6 +673,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ///@notice initialize a new batch order
         return
             TokenToWethBatchOrder(
+                ///@notice initialize batch length to 0
+                0,
                 ///@notice initialize amountIn
                 0,
                 ///@notice initialize amountOutMin
@@ -693,7 +695,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _batchTokenToWethOrders(
         Order[] memory orders,
         TokenToWethExecutionPrice[] memory executionPrices
-    ) internal returns (TokenToWethBatchOrder[] memory tokenToWethBatchOrders) {
+    ) internal returns (TokenToWethBatchOrder[] memory) {
+        TokenToWethBatchOrder[]
+            memory tokenToWethBatchOrders = new TokenToWethBatchOrder[](
+                orders.length
+            );
+
         Order memory firstOrder = orders[0];
         bool buyOrder = _buyOrSell(firstOrder);
 
@@ -711,6 +718,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices[currentBestPriceIndex].lpAddressAToWeth
             );
 
+        uint256 currentTokenToWethBatchOrdersIndex = 0;
+
         //loop each order
         for (uint256 i = 0; i < orders.length; i++) {
             ///@notice get the index of the best exectuion price
@@ -723,8 +732,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             if (i > 0 && currentBestPriceIndex != bestPriceIndex) {
                 ///@notice add the current batch order to the batch orders array
                 tokenToWethBatchOrders[
-                    tokenToWethBatchOrders.length
+                    currentTokenToWethBatchOrdersIndex
                 ] = currentTokenToWethBatchOrder;
+
+                ++currentTokenToWethBatchOrdersIndex;
 
                 //-
                 ///@notice update the currentBestPriceIndex
@@ -765,9 +776,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         currentOrder.quantity
                     );
 
-                    uint256 batchOrderLength = currentTokenToWethBatchOrder
+                    uint256 batchOrderDepth = currentTokenToWethBatchOrder
                         .batchOwners
-                        .length;
+                        .length - 1;
 
                     ///@notice add the order to the current batch order
                     currentTokenToWethBatchOrder.amountIn += currentOrder
@@ -775,18 +786,21 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                     ///@notice add owner of the order to the batchOwners
                     currentTokenToWethBatchOrder.batchOwners[
-                        batchOrderLength
+                        batchOrderDepth
                     ] = currentOrder.owner;
 
                     ///@notice add the order quantity of the order to ownerShares
                     currentTokenToWethBatchOrder.ownerShares[
-                        batchOrderLength
+                        batchOrderDepth
                     ] = currentOrder.quantity;
 
                     ///@notice add the orderId to the batch order
                     currentTokenToWethBatchOrder.orderIds[
-                        batchOrderLength
+                        batchOrderDepth
                     ] = currentOrder.orderId;
+
+                    ///@notice increment the batch length
+                    ++currentTokenToWethBatchOrder.batchLength;
 
                     ///@notice update the best execution price
                     (
@@ -804,6 +818,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 }
             }
         }
+
+        return tokenToWethBatchOrders;
     }
 
     function transferTokensToContract(
@@ -998,11 +1014,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ///@notice add the beacon reward to the totalBeaconReward
             totalBeaconReward += beaconReward;
 
-            uint256 ownerSharesLength = batch.ownerShares.length;
             uint256[] memory ownerShares = batch.ownerShares;
             uint256 amountIn = batch.amountIn;
 
-            for (uint256 j = 0; j < ownerSharesLength; ++j) {
+            uint256 batchOrderLength = tokenToTokenBatchOrders[i].batchLength;
+
+            for (uint256 j = 0; j < batchOrderLength; ++j) {
                 //64.64
                 ///@notice calculate how much to pay each user from the shares they own
                 uint128 orderShare = ConveyorMath.divUI(
@@ -1120,12 +1137,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = _getAllPrices(orders[0].tokenIn, WETH, 300, 1);
+        ) = _getAllPrices(orders[0].tokenIn, WETH, 3000, 1);
 
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
-        ) = _getAllPrices(WETH, orders[0].tokenOut, 300, 1);
+        ) = _getAllPrices(WETH, orders[0].tokenOut, 3000, 1);
 
         TokenToTokenExecutionPrice[]
             memory executionPrices = new TokenToTokenExecutionPrice[](
@@ -1179,6 +1196,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         return (
             TokenToTokenBatchOrder(
+                ///@notice initialize batch length to 0
+                0,
                 ///@notice initialize amountIn
                 0,
                 ///@notice initialize amountOutMin
@@ -1298,6 +1317,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     currentTokenToTokenBatchOrder.orderIds[
                         batchOrderLength
                     ] = currentOrder.orderId;
+
+                    ///@notice increment the batch length
+                    ++currentTokenToTokenBatchOrder.batchLength;
 
                     ///@notice update the best execution price
                     (
