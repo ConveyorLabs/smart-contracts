@@ -82,7 +82,7 @@ contract OrderBook is GasOracle {
 
         //TODO: check for tokenIn/weth and tokenOut/weth else revert
         uint256 totalApprovedQuantity = IERC20(orderToken).allowance(
-            msg.sender,
+            orderGroup[0].owner,
             address(this)
         );
 

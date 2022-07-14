@@ -547,13 +547,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 totalBeaconReward;
 
         for (uint256 i = 0; i < tokenToWethBatchOrders.length; i++) {
-            TokenToWethBatchOrder memory batch = tokenToWethBatchOrders[i];
+            if(tokenToWethBatchOrders[i].batchLength>0){
+                TokenToWethBatchOrder memory batch = tokenToWethBatchOrders[i];
 
             (
                 uint256 amountOut,
                 uint256 beaconReward
             ) = _executeTokenToWethBatch(tokenToWethBatchOrders[i]);
-
+            
             ///@notice add the beacon reward to the totalBeaconReward
             totalBeaconReward += beaconReward;
 
@@ -561,7 +562,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint256 amountIn = batch.amountIn;
 
             uint256 batchOrderLength = tokenToWethBatchOrders[i].batchLength;
-
+            
             for (uint256 j = 0; j < batchOrderLength; ++j) {
                 ///@notice calculate how much to pay each user from the shares they own
                 uint128 orderShare = ConveyorMath.divUI(
@@ -576,9 +577,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                 ///@notice send the swap profit to the user
                 safeTransferETH(batch.batchOwners[j], orderPayout);
+                
+            }
+
+            
             }
         }
-
+            
+        
         ///@notice calculate the beacon runner profit and pay the beacon
         safeTransferETH(msg.sender, totalBeaconReward);
     }
@@ -602,7 +608,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 address(this)
             )
         );
-
+        
         //TODO: require amountOutWeth> batchAmountOutMin ?
         ///@notice take out fees
         uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
@@ -639,6 +645,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         //TODO: FIXME: this used to be uint256(amountOutWeth - protocolFee)
         ///
+        
         return (uint256(amountOutWeth - beaconReward), uint256(beaconReward));
     }
 
