@@ -342,9 +342,6 @@ contract OrderRouter {
         address sender
     ) internal returns (uint256) {
         /// transfer the tokens to the lp
-
-        // require(false, "here, new error!");
-
         IERC20(_tokenIn).transferFrom(sender, _lp, _amountIn);
 
         //Sort the tokens
@@ -367,6 +364,7 @@ contract OrderRouter {
                 new bytes(0)
             )
         {} catch {
+            //TODO: emit an event for the error that happened
             return 0;
         }
 
