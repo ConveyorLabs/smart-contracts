@@ -858,6 +858,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     //     assertEq(0x000000000000000000000000000007bc019f93509a129114c8df914ab5340000, spot);
 
     // }
+
     //----------------------------Single Swap Tests -----------------------------------------
 
     // function testSwapTokenToTokenOnBestDex() public {
@@ -1059,13 +1060,52 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             5000000000000000000002
         );
+         OrderBook.Order memory order4 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            false,
+            1,
+            5000000000000000000003
+        );
+        OrderBook.Order memory order5 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            false,
+            1,
+            5000000000000000000004
+        );
+         OrderBook.Order memory order6 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            false,
+            1,
+            5000000000000000000005
+        );
+        OrderBook.Order memory order7 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            false,
+            1,
+            5000000000000000000006
+        );
 
         ConveyorLimitOrders.Order[]
-            memory orderBatch = new ConveyorLimitOrders.Order[](3);
+            memory orderBatch = new ConveyorLimitOrders.Order[](7);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
-
+        orderBatch[3] = order4;
+        orderBatch[4] = order5;
+        orderBatch[5] = order6;
+        orderBatch[6] = order7;
         return placeMultipleMockOrder(orderBatch);
     }
 
