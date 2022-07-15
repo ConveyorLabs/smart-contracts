@@ -126,6 +126,9 @@ contract OrderBookTest is DSTest {
             //add the order to the arrOrder and add the arrOrder to the orderGroup
             orderGroup[0] = order;
 
+            //approve the contract to spend the tokens
+            IERC20(swapToken).approve(address(orderBook), MAX_UINT);
+
             //place order
             bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
             bytes32 orderId = orderIds[0];
@@ -142,6 +145,50 @@ contract OrderBookTest is DSTest {
 
             assertEq(orderBook.totalOrdersPerAddress(address(this)), 1);
         } catch {}
+    }
+
+    function testFailPlaceOrder_InsufficientAllowanceForOrderPlacement(
+        uint256 swapAmount,
+        uint256 executionPrice
+    ) public {
+        cheatCodes.deal(address(this), MAX_UINT);
+
+        //if the fuzzed amount is enough to complete the swap
+        try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
+            uint256 amountOut
+        ) {
+            OrderBook.Order memory order = newOrder(
+                swapToken,
+                wnato,
+                executionPrice,
+                amountOut,
+                amountOut
+            );
+
+            //create a new array of orders
+            ConveyorLimitOrders.Order[]
+                memory orderGroup = new ConveyorLimitOrders.Order[](1);
+            //add the order to the arrOrder and add the arrOrder to the orderGroup
+            orderGroup[0] = order;
+
+            //place order
+            bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
+            bytes32 orderId = orderIds[0];
+
+            //check that the orderId is not zero value
+            assert((orderId != bytes32(0)));
+
+            assertEq(
+                orderBook.totalOrdersQuantity(
+                    keccak256(abi.encode(address(this), swapToken))
+                ),
+                amountOut
+            );
+
+            assertEq(orderBook.totalOrdersPerAddress(address(this)), 1);
+        } catch {
+            require(false, "swap failed");
+        }
     }
 
     function testFailPlaceOrder_InsufficientWalletBalance() public {

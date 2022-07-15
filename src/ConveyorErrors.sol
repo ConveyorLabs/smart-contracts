@@ -11,6 +11,7 @@ error OrderHasReachedExpiration();
 error InsufficientOutputAmount();
 error MsgSenderIsNotOwner();
 error InsufficientDepositAmount();
+error InsufficientAllowanceForOrderPlacement();
 error InvalidBatchOrder();
 error IncongruentInputTokenInBatch();
 error IncongruentOutputTokenInBatch();
