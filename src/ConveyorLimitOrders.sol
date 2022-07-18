@@ -884,6 +884,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     ///@notice execute an array of orders from token to token
     function _executeTokenToTokenOrders(Order[] memory orders) internal {
+        
         ///@notice get all execution price possibilities
         TokenToTokenExecutionPrice[]
             memory executionPrices = _initializeTokenToTokenExecutionPrices(
@@ -1122,22 +1123,28 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //Scope all this
         {
             //Iterate through all orderIds in the batch and delete the orders from queue post execution
-            for (uint256 i = 0; i < batch.orderIds.length; ++i) {
+            for (uint256 i = 0; i < batch.batchLength; ++i) {
                 bytes32 orderId = batch.orderIds[i];
 
+                Order memory cachedOrder = orderIdToOrder[orderId];
+                
+                //decrement from total orders per address
+                --totalOrdersPerAddress[cachedOrder.owner];
+
+                //Decrement total orders quantity for each order
+                decrementTotalOrdersQuantity(
+                    cachedOrder.tokenIn,
+                    cachedOrder.owner,
+                    cachedOrder.quantity
+                );
+
                 // Delete Order Orders[order.orderId] from ActiveOrders mapping
-                delete orderIdToOrder[orderId];
+                
                 delete addressToOrderIds[orderIdToOrder[orderId].owner][
                     orderId
                 ];
-                //decrement from total orders per address
-                --totalOrdersPerAddress[orderIdToOrder[orderId].owner];
-                //Decrement total orders quantity for each order
-                decrementTotalOrdersQuantity(
-                    orderIdToOrder[orderId].tokenIn,
-                    orderIdToOrder[orderId].owner,
-                    orderIdToOrder[orderId].quantity
-                );
+
+                delete orderIdToOrder[orderId];
             }
         }
 
@@ -1276,7 +1283,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices[currentBestPriceIndex].lpAddressAToWeth,
                 executionPrices[currentBestPriceIndex].lpAddressWethToB
             );
-
+        
+        uint256 currentTokenToTokenBatchOrdersIndex = 0;
+        
         //loop each order
         for (uint256 i = 0; i < orders.length; i++) {
             ///@notice get the index of the best exectuion price
@@ -1289,8 +1298,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             if (i > 0 && currentBestPriceIndex != bestPriceIndex) {
                 ///@notice add the current batch order to the batch orders array
                 tokenToTokenBatchOrders[
-                    tokenToTokenBatchOrders.length
+                    currentTokenToTokenBatchOrdersIndex
                 ] = currentTokenToTokenBatchOrder;
+
+                currentTokenToTokenBatchOrdersIndex++;
 
                 //-
                 ///@notice update the currentBestPriceIndex
@@ -1365,6 +1376,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 }
             }
         }
+        
+        ///@notice add the last batch to the tokenToWethBatchOrders array
+        tokenToTokenBatchOrders[
+            currentTokenToTokenBatchOrdersIndex
+        ] = currentTokenToTokenBatchOrder;
+        
+        
     }
 
     ///@notice returns the index of the best price in the executionPrices array

@@ -303,10 +303,11 @@ contract ConveyorLimitOrdersTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-        IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
+        // swapHelper.swapEthForTokenWithUniV2(MAX_UINT, UNI);
 
-        bytes32[]
-            memory tokenToTokenOrderBatch = placeNewMockTokenToTokenBatch();
+        IERC20(UNI).approve(address(conveyorLimitOrders), MAX_UINT);
+
+        bytes32[] memory tokenToTokenOrderBatch = placeNewMockTokenToTokenBatch();
 
         //check that the orders have been placed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
@@ -319,12 +320,14 @@ contract ConveyorLimitOrdersTest is DSTest {
         cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(tokenToTokenOrderBatch);
 
-        //check that the orders have been fufilled and removed
+        // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order = conveyorLimitOrders
                 .getOrderById(tokenToTokenOrderBatch[i]);
             assert(order.orderId == bytes32(0));
         }
+
+       
     }
 
     //weth to taxed token
@@ -1609,7 +1612,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         internal
         returns (bytes32[] memory)
     {
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, UNI);
+        swapHelper.swapEthForTokenWithUniV2(10000 ether, UNI);
 
         OrderBook.Order memory order1 = newMockOrder(
             UNI,
@@ -1617,8 +1620,8 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             true,
             false,
-            1,
-            10
+            5000000000000000000,
+            1000000000000000000
         );
 
         OrderBook.Order memory order2 = newMockOrder(
@@ -1627,8 +1630,8 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             true,
             false,
-            1,
-            11
+            5000000000000000000,
+            1000000000000000000
         );
         OrderBook.Order memory order3 = newMockOrder(
             UNI,
@@ -1636,8 +1639,8 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             true,
             false,
-            1,
-            12
+            5000000000000000000,
+            1000000000000000000
         );
 
         ConveyorLimitOrders.Order[]
