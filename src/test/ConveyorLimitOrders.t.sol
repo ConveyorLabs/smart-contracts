@@ -302,7 +302,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
-        
+
         IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
 
         bytes32[]
@@ -1068,7 +1068,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             5000000000000000000002
         );
-         OrderBook.Order memory order4 = newMockOrder(
+        OrderBook.Order memory order4 = newMockOrder(
             DAI,
             WETH,
             1,
@@ -1086,7 +1086,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             5000000000000000000004
         );
-         OrderBook.Order memory order6 = newMockOrder(
+        OrderBook.Order memory order6 = newMockOrder(
             DAI,
             WETH,
             1,
