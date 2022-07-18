@@ -368,28 +368,28 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     //weth to taxed token
     function testExecuteTaxedTokenToWethSingle() public {
-        cheatCodes.prank(tx.origin);
+        cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
 
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+
+        IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
+
         OrderBook.Order memory order = newMockOrder(
-            TAXED_TOKEN,
+            DAI,
             WETH,
-            //Set price to 1 meaning that the order will execute if price > 1
             1,
-            //set buy order to true
-            true,
-            //set taxed to false
             false,
-            //amountoutmin
+            true,
             1,
-            //quantity
-            1
+            5000000000000000000001
         );
+        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
+        orderGroup[0] = order;
+        bytes32[] memory orderBatch = conveyorLimitOrders.placeOrder(orderGroup);
 
-        bytes32[] memory orderBatch = new bytes32[](1);
-
-        orderBatch[0] = order.orderId;
-
+        cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(orderBatch);
     }
 
