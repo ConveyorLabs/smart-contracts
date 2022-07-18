@@ -1174,7 +1174,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
         ) = _getAllPrices(orders[0].tokenIn, WETH, 1, 100);
-
+        console.logString("SpotPrice");
+        
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
