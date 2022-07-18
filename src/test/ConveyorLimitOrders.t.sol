@@ -750,7 +750,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             buy: true,
             taxed: false,
             lastRefreshTimestamp: 0,
-            expirationTimestamp: 0x0000000000000000000000000000000000000000000000000000008062c30102,
+            expirationTimestamp: 0x0000000000000000000000000000000000000000000000000000000000c30102,
             quantity: 0,
             amountOutMin: 6900000000000000000,
             owner: address(this),

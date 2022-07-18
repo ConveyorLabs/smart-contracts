@@ -161,8 +161,8 @@ contract OrderBookTest is DSTest {
                 swapToken,
                 wnato,
                 uint128(executionPrice),
-                uint112(amountOut),
-                uint112(amountOut)
+                uint128(amountOut),
+                uint128(amountOut)
             );
 
             //create a new array of orders
@@ -227,8 +227,8 @@ contract OrderBookTest is DSTest {
                 swapToken,
                 wnato,
                 uint128(executionPrice),
-                uint112(amountOut),
-                uint112(amountOut)
+                uint128(amountOut),
+                uint128(amountOut)
             );
 
             try
@@ -273,8 +273,8 @@ contract OrderBookTest is DSTest {
                 swapToken,
                 wnato,
                 uint128(executionPrice),
-                uint112(amountOut),
-                uint112(amountOut)
+                uint128(amountOut),
+                uint128(amountOut)
             );
             //place a mock order
             bytes32 orderId = placeMockOrder(order);
@@ -286,8 +286,8 @@ contract OrderBookTest is DSTest {
                     swapToken,
                     wnato,
                     uint128(executionPrice1),
-                    uint112(amountOut1),
-                    uint112(amountOut1)
+                    uint128(amountOut1),
+                    uint128(amountOut1)
                 );
                 updatedOrder.orderId = orderId;
 
@@ -309,9 +309,9 @@ contract OrderBookTest is DSTest {
             ConveyorLimitOrders.Order memory order = newOrder(
                 swapToken,
                 wnato,
-                uint112(amountOut),
-                uint112(executionPrice),
-                uint112(executionPrice)
+                uint128(amountOut),
+                uint128(executionPrice),
+                uint128(executionPrice)
             );
 
             //place a mock order
@@ -322,8 +322,8 @@ contract OrderBookTest is DSTest {
                 swapToken,
                 wnato,
                 10,
-                uint112(executionPrice),
-                uint112(executionPrice)
+                uint128(executionPrice),
+                uint128(executionPrice)
             );
             updatedOrder.orderId = orderId;
 
@@ -396,9 +396,9 @@ contract OrderBookTest is DSTest {
             ConveyorLimitOrders.Order memory order = newOrder(
                 swapToken,
                 wnato,
-                uint112(amountOut),
-                uint112(executionPrice),
-                uint112(executionPrice)
+                uint128(amountOut),
+                uint128(executionPrice),
+                uint128(executionPrice)
             );
             //place a mock order
             bytes32 orderId = placeMockOrder(order);
@@ -415,9 +415,9 @@ contract OrderBookTest is DSTest {
 
     ///@notice cancel multiple orders
     function testCancelOrders(
-        uint112 swapAmount,
+        uint128 swapAmount,
         uint128 executionPrice,
-        uint112 swapAmount1,
+        uint128 swapAmount1,
         uint128 executionPrice1
     ) public {
         cheatCodes.deal(address(this), MAX_UINT);
@@ -427,9 +427,9 @@ contract OrderBookTest is DSTest {
             OrderBook.Order memory order1 = newOrder(
                 swapToken,
                 wnato,
-                uint112(amountOut),
-                uint112(executionPrice),
-                uint112(executionPrice)
+                uint128(amountOut),
+                uint128(executionPrice),
+                uint128(executionPrice)
             );
 
             try
@@ -438,9 +438,9 @@ contract OrderBookTest is DSTest {
                 OrderBook.Order memory order2 = newOrder(
                     swapToken,
                     wnato,
-                    uint112(amountOut1),
-                    uint112(executionPrice1),
-                    uint112(executionPrice1)
+                    uint128(amountOut1),
+                    uint128(executionPrice1),
+                    uint128(executionPrice1)
                 );
 
                 //create a new array of orders
@@ -605,8 +605,8 @@ contract OrderBookTest is DSTest {
         address tokenIn,
         address tokenOut,
         uint128 price,
-        uint112 quantity,
-        uint112 amountOutMin
+        uint128 quantity,
+        uint128 amountOutMin
     ) internal view returns (ConveyorLimitOrders.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
