@@ -1167,6 +1167,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         view
         returns (TokenToTokenExecutionPrice[] memory)
     {
+        address tokenIn = orders[0].tokenIn;
+        
         //TODO: need to make fee dynamic
         (
             SpotReserve[] memory spotReserveAToWeth,

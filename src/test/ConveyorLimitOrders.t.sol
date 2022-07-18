@@ -81,8 +81,8 @@ contract ConveyorLimitOrdersTest is DSTest {
             3000000
         );
         conveyorLimitOrders.addDex(_dexFactories[0], _hexDems[0], _isUniV2[0]);
-        conveyorLimitOrders.addDex(_dexFactories[1], _hexDems[1], _isUniV2[1]);
-        conveyorLimitOrders.addDex(_dexFactories[2], _hexDems[2], _isUniV2[2]);
+        // conveyorLimitOrders.addDex(_dexFactories[1], _hexDems[1], _isUniV2[1]);
+        // conveyorLimitOrders.addDex(_dexFactories[2], _hexDems[2], _isUniV2[2]);
     }
 
     function testOnlyEOA() public {

@@ -484,7 +484,8 @@ contract OrderRouter {
             (tok0, tok1) = _sortTokens(token0, token1);
         }
         SpotReserve memory _spRes;
-
+        console.logAddress(_factory);
+        console.logBytes32(_initBytecode);
         //Return Uniswap V2 Pair address
         address pairAddress = _getV2PairAddress(
             _factory,
@@ -492,9 +493,15 @@ contract OrderRouter {
             tok1,
             _initBytecode
         );
+        console.log("Pair address");
+        console.logAddress(pairAddress);
 
         require(pairAddress != address(0), "Invalid token pair");
+        console.log("tok 0");
+        console.logAddress(tok0);
 
+        console.log("tok 1");
+        console.logAddress(tok1);
         if (!(IUniswapV2Factory(_factory).getPair(tok0, tok1) == pairAddress)) {
             return (_spRes, address(0));
         }
@@ -516,12 +523,16 @@ contract OrderRouter {
                 _spRes.spotPrice = ConveyorMath.div128x128(
                     commonReserve1 << 128,
                     commonReserve0 << 128
+                   
                 );
+                 console.log("tok0==token0");
             } else {
                 _spRes.spotPrice = ConveyorMath.div128x128(
                     commonReserve0 << 128,
                     commonReserve1 << 128
+                    
                 );
+                console.log("tok0!=token0");
             }
 
             require(
@@ -708,12 +719,22 @@ contract OrderRouter {
         //Target base amount in value
         // uint112 amountIn = _getTargetAmountIn(token0, token1);
         uint112 amountIn = _getTargetAmountIn(token0, token1);
+        console.log(amountIn);
         SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
         address[] memory _lps = new address[](dexes.length);
-
+        console.logString("dexes length");
+        console.log(dexes.length);
         //Iterate through Dex's in dexes check if isUniV2 and accumulate spot price to meanSpotPrice
         for (uint256 i = 0; i < dexes.length; ++i) {
             if (dexes[i].isUniV2) {
+                console.logString("token0");
+                console.logAddress(token0);
+                console.logString("token1");
+                console.logAddress(token1);
+                console.logString("factory");
+                console.logAddress(dexes[i].factoryAddress);
+                console.logString("init bytecode");
+                console.logBytes32(dexes[i].initBytecode);
                 {
                     //Right shift spot price 9 decimals and add to meanSpotPrice
                     (
@@ -725,6 +746,7 @@ contract OrderRouter {
                             dexes[i].factoryAddress,
                             dexes[i].initBytecode
                         );
+                    
                     if (spotPrice.spotPrice != 0) {
                         _spotPrices[i] = spotPrice;
                         _lps[i] = poolAddress;

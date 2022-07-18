@@ -68,9 +68,9 @@ contract OrderRouterTest is DSTest {
         uniswapV2.factoryAddress = _uniV2FactoryAddress;
 
         orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
-        orderRouter.addDex(_sushiFactoryAddress, _sushiHexDem, true);
-        ///@notice
-        orderRouter.addDex(_uniV3FactoryAddress, 0x00, false);
+        // orderRouter.addDex(_sushiFactoryAddress, _sushiHexDem, true);
+        // ///@notice
+        // orderRouter.addDex(_uniV3FactoryAddress, 0x00, false);
 
         uniV2Router = IUniswapV2Router02(_uniV2Address);
         uniV2Factory = IUniswapV2Factory(_uniV2FactoryAddress);
@@ -429,45 +429,45 @@ contract OrderRouterTest is DSTest {
         address UNI = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
         //Dai-Usdc both directions
         (
-            OrderRouter.SpotReserve[] memory pricesUNIDAI,
+            OrderRouter.SpotReserve[] memory pricesUNWeth,
             address[] memory lps2
         ) = orderRouter.getAllPrices(UNI, weth, 1, 100);
 
-        (
-            OrderRouter.SpotReserve[] memory pricesUsdcDai,
-            address[] memory lps3
-        ) = orderRouter.getAllPrices(weth, dai, 1, 100);
+        // (
+        //     OrderRouter.SpotReserve[] memory pricesWethDai,
+        //     address[] memory lps3
+        // ) = orderRouter.getAllPrices(weth, dai, 1, 100);
 
-        //Link Weth both directions
-        (
-            OrderRouter.SpotReserve[] memory pricesLinkWeth,
-            address[] memory lps4
-        ) = orderRouter.getAllPrices(LINK, weth, 1, 3000);
+        // //Link Weth both directions
+        // (
+        //     OrderRouter.SpotReserve[] memory pricesLinkWeth,
+        //     address[] memory lps4
+        // ) = orderRouter.getAllPrices(LINK, weth, 1, 3000);
 
-        (
-            OrderRouter.SpotReserve[] memory pricesWethLink,
-            address[] memory lps5
-        ) = orderRouter.getAllPrices(weth, LINK, 1, 3000);
+        // (
+        //     OrderRouter.SpotReserve[] memory pricesWethLink,
+        //     address[] memory lps5
+        // ) = orderRouter.getAllPrices(weth, LINK, 1, 3000);
 
         console.log("uni/weth");
-        console.log(pricesUNIDAI[0].spotPrice);
-        console.log(pricesUNIDAI[1].spotPrice);
-        console.log(pricesUNIDAI[2].spotPrice);
+        console.log(pricesUNWeth[0].spotPrice);
+        // console.log(pricesUNWeth[1].spotPrice);
+        // console.log(pricesUNWeth[2].spotPrice);
 
-        console.log("dai/weth");
-        console.log(pricesUsdcDai[0].spotPrice);
-        console.log(pricesUsdcDai[1].spotPrice);
-        console.log(pricesUsdcDai[2].spotPrice);
+        // console.log("weth/dai");
+        // console.log(pricesWethDai[0].spotPrice);
+        // console.log(pricesWethDai[1].spotPrice);
+        // console.log(pricesWethDai[2].spotPrice);
 
-        console.log("link/weth");
-        console.log(pricesLinkWeth[0].spotPrice);
-        console.log(pricesLinkWeth[1].spotPrice);
-        console.log(pricesLinkWeth[2].spotPrice);
+        // console.log("link/weth");
+        // console.log(pricesLinkWeth[0].spotPrice);
+        // console.log(pricesLinkWeth[1].spotPrice);
+        // console.log(pricesLinkWeth[2].spotPrice);
 
-        console.log("weth/link");
-        console.log(pricesWethLink[0].spotPrice);
-        console.log(pricesWethLink[1].spotPrice);
-        console.log(pricesWethLink[2].spotPrice);
+        // console.log("weth/link");
+        // console.log(pricesWethLink[0].spotPrice);
+        // console.log(pricesWethLink[1].spotPrice);
+        // console.log(pricesWethLink[2].spotPrice);
     }
 
     function testGetAllPrices2() public {
