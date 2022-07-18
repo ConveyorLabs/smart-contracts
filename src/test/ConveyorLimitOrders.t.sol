@@ -691,7 +691,8 @@ contract ConveyorLimitOrdersTest is DSTest {
             expirationTimestamp: 2419200,
             quantity: 0,
             amountOutMin: 6900000000000000000,
-            owner: address(this)
+            owner: address(this),
+            fee: uint24(3000)
         });
 
         bytes32 orderId = placeMockOrder(order);
@@ -718,7 +719,8 @@ contract ConveyorLimitOrdersTest is DSTest {
             expirationTimestamp: 2419200,
             quantity: 0,
             amountOutMin: 6900000000000000000,
-            owner: address(this)
+            owner: address(this),
+            fee: uint24(3000)
         });
         bytes32 orderId = placeMockOrder(order);
         bool refreshSuccess = conveyorLimitOrders.refreshOrder(orderId);
@@ -751,7 +753,8 @@ contract ConveyorLimitOrdersTest is DSTest {
             expirationTimestamp: 0x0000000000000000000000000000000000000000000000000000008062c30102,
             quantity: 0,
             amountOutMin: 6900000000000000000,
-            owner: address(this)
+            owner: address(this),
+            fee: uint24(3000)
         });
 
         bytes32 orderId = placeMockOrder(order);
@@ -778,7 +781,8 @@ contract ConveyorLimitOrdersTest is DSTest {
             expirationTimestamp: 2419200,
             quantity: 0,
             amountOutMin: 6900000000000000000,
-            owner: address(this)
+            owner: address(this),
+            fee: uint24(3000)
         });
 
         bytes32 orderId = placeMockOrder(order);
@@ -815,7 +819,8 @@ contract ConveyorLimitOrdersTest is DSTest {
             expirationTimestamp: 2419200,
             quantity: 0,
             amountOutMin: 6900000000000000000,
-            owner: address(this)
+            owner: address(this),
+            fee: uint24(3000)
         });
         bytes32 orderId = placeMockOrder(order);
 
@@ -974,11 +979,11 @@ contract ConveyorLimitOrdersTest is DSTest {
     function newMockOrder(
         address tokenIn,
         address tokenOut,
-        uint256 price,
+        uint128 price,
         bool buy,
         bool taxed,
-        uint256 amountOutMin,
-        uint256 quantity
+        uint112 amountOutMin,
+        uint112 quantity
     ) internal view returns (ConveyorLimitOrders.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
@@ -992,7 +997,8 @@ contract ConveyorLimitOrdersTest is DSTest {
             price: price,
             amountOutMin: amountOutMin,
             quantity: quantity,
-            owner: msg.sender
+            owner: msg.sender,
+            fee: uint24(3000)
         });
     }
 

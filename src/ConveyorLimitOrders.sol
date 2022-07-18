@@ -170,7 +170,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             refreshFee;
 
         //Change order.lastRefreshTimestamp to current block.timestamp
-        order.lastRefreshTimestamp = block.timestamp;
+        order.lastRefreshTimestamp = uint32(block.timestamp);
 
         return true;
     }
@@ -296,7 +296,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function executeOrders(bytes32[] calldata orderIds) external onlyEOA {
         ///@notice validate that the order array is in ascending order by quantity
         Order[] memory orders = new Order[](orderIds.length);
-        
+
         for (uint256 i = 0; i < orderIds.length; i++) {
             orders[i] = getOrderById(orderIds[i]);
         }

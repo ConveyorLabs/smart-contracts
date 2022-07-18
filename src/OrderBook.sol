@@ -27,11 +27,12 @@ contract OrderBook is GasOracle {
         bytes32 orderId;
         bool buy;
         bool taxed;
-        uint256 lastRefreshTimestamp;
-        uint256 expirationTimestamp;
-        uint256 price;
-        uint256 amountOutMin;
-        uint256 quantity;
+        uint64 lastRefreshTimestamp;
+        uint64 expirationTimestamp;
+        uint128 price;
+        uint112 amountOutMin;
+        uint112 quantity;
+        uint24 fee;
         address owner;
     }
 
