@@ -295,8 +295,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @param orderIds array of orders to be executed within the mapping
     function executeOrders(bytes32[] calldata orderIds) external onlyEOA {
         ///@notice validate that the order array is in ascending order by quantity
-
         Order[] memory orders = new Order[](orderIds.length);
+        
         for (uint256 i = 0; i < orderIds.length; i++) {
             orders[i] = getOrderById(orderIds[i]);
         }
@@ -1204,6 +1204,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         );
     }
 
+    ///@notice Helper function to initialize a blank TokenToTokenBatchOrder to be populated
+    ///@param initArrayLength Length of the order's in the batch
+    ///@param tokenIn tokenIn address on the batch
+    ///@param tokenOut tokenOut address on the batch
+    ///@param lpAddressAToWeth lp address of tokenIn to Weth
+    ///@param lpAddressWethToB lp address of Weth to tokenOut
+    ///@return TokenToTokenBatchOrder empty batch to be populated with orders
     function _initializeNewTokenToTokenBatchOrder(
         uint256 initArrayLength,
         address tokenIn,
@@ -1239,6 +1246,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         );
     }
 
+    ///@notice Helper function to batch TokenToToken order's in the context of order execution
+    ///@param orders Array of order's to be batched retrieved from orderID's
+    ///@param executionPrices Array of TokenToTokenExecutionPrices to be used to determine order batches
+    ///@return tokenToTokenBatchOrders Order batches on respective Dex's
     function _batchTokenToTokenOrders(
         Order[] memory orders,
         TokenToTokenExecutionPrice[] memory executionPrices
@@ -1314,9 +1325,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         currentOrder.amountOutMin
                     )
                 ) {
-                    uint256 batchOrderLength = currentTokenToTokenBatchOrder
-                        .batchOwners
-                        .length;
+
+                    uint256 batchLength = currentTokenToTokenBatchOrder
+                        .batchLength;
 
                     ///@notice add the order to the current batch order
                     currentTokenToTokenBatchOrder.amountIn += currentOrder
@@ -1324,17 +1335,17 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                     ///@notice add owner of the order to the batchOwners
                     currentTokenToTokenBatchOrder.batchOwners[
-                        batchOrderLength
+                        batchLength
                     ] = currentOrder.owner;
 
                     ///@notice add the order quantity of the order to ownerShares
                     currentTokenToTokenBatchOrder.ownerShares[
-                        batchOrderLength
+                        batchLength
                     ] = currentOrder.quantity;
 
                     ///@notice add the orderId to the batch order
                     currentTokenToTokenBatchOrder.orderIds[
-                        batchOrderLength
+                        batchLength
                     ] = currentOrder.orderId;
 
                     ///@notice increment the batch length
@@ -1447,6 +1458,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         TokenToWethExecutionPrice memory executionPrice
     ) internal pure returns (TokenToWethExecutionPrice memory) {
         //TODO: update this to make sure weth is the right reserve position
+        //TODO:^^
+        //---------------------------------------------------
+        ///FIXME: Don't forget about this before audit
         (
             executionPrice.price,
             executionPrice.aToWethReserve0,
@@ -1456,6 +1470,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             executionPrice.aToWethReserve0,
             executionPrice.aToWethReserve1
         );
+        //TODO:^^
+        //---------------------------------------------------
+        ///FIXME: Don't forget about this before audit
         //TODO:^^
         //---------------------------------------------------
 
@@ -1497,11 +1514,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ) << 64;
 
         //TODO: update this to make sure weth is the right reserve position
+        //TODO:^^
+        //---------------------------------------------------
+        ///FIXME: Don't forget about this before audit
         executionPrice.price = newTokenToTokenSpotPrice;
         executionPrice.aToWethReserve0 = newReserveAToken;
         executionPrice.aToWethReserve1 = newReserveAWeth;
         executionPrice.wethToBReserve0 = newReserveBWeth;
         executionPrice.wethToBReserve1 = newReserveBToken;
+        ///FIXME: Don't forget about this before audit
         //TODO:^^
         //---------------------------------------------------
 
@@ -1509,9 +1530,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     /// @notice Helper function to determine the spot price change to the lp after introduction alphaX amount into the reserve pool
-    // / @param alphaX uint256 amount to be added to reserve_x to get out token_y
-    // / @param reserves current lp reserves for tokenIn and tokenOut
-    // / @return unsigned The amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
+    /// @param alphaX uint256 amount to be added to reserve_x to get out token_y
+    /// @param reserveA current lp reserves for tokenIn and tokenOut
+    /// @param reserveB current lp reserves for tokenIn and tokenOut
+    /// @return unsigned The amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
     function simulateAToBPriceChange(
         uint128 alphaX,
         uint128 reserveA,
@@ -1573,6 +1595,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 order_quantity,
         uint256 amountOutMin
     ) internal pure returns (bool) {
-        return spot_price * order_quantity >= amountOutMin;
+        return ConveyorMath.mul128I(spot_price, order_quantity) >= amountOutMin;
     }
 }
