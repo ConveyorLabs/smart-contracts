@@ -41,7 +41,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     //TODO: add taxed token
-    address TAXED_TOKEN = address(0);
+    address TAXED_TOKEN = 0x16631e53C20Fd2670027C6D53EfE2642929b285C;
     address TAXED_TOKEN_1 = address(0);
 
     //MAX_UINT for testing
@@ -395,8 +395,30 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     //TODO:
     function testExecuteTaxedTokenToWethBatch() public {
-        cheatCodes.prank(tx.origin);
+        cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
+        bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethTaxedBatch();
+
+        //check that the orders have been placed
+        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
+            ConveyorLimitOrders.Order memory order = conveyorLimitOrders
+                .getOrderById(tokenToWethOrderBatch[i]);
+
+            assert(order.orderId != bytes32(0));
+        }
+
+        cheatCodes.prank(tx.origin);
+        conveyorLimitOrders.executeOrders(tokenToWethOrderBatch);
+
+        // check that the orders have been fufilled and removed
+        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
+            ConveyorLimitOrders.Order memory order = conveyorLimitOrders
+                .getOrderById(tokenToWethOrderBatch[i]);
+            assert(order.orderId == bytes32(0));
+        }
     }
 
     //weth to taxed token
@@ -1104,6 +1126,88 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            1,
+            5000000000000000000006
+        );
+
+        ConveyorLimitOrders.Order[]
+            memory orderBatch = new ConveyorLimitOrders.Order[](7);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
+        orderBatch[2] = order3;
+        orderBatch[3] = order4;
+        orderBatch[4] = order5;
+        orderBatch[5] = order6;
+        orderBatch[6] = order7;
+        return placeMultipleMockOrder(orderBatch);
+    }
+
+    function placeNewMockTokenToWethTaxedBatch()
+        internal
+        returns (bytes32[] memory)
+    {
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+
+        OrderBook.Order memory order1 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            true,
+            1,
+            5000000000000000000000
+        );
+        OrderBook.Order memory order2 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            true,
+            1,
+            5000000000000000000001
+        );
+        OrderBook.Order memory order3 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            true,
+            1,
+            5000000000000000000002
+        );
+        OrderBook.Order memory order4 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            true,
+            1,
+            5000000000000000000003
+        );
+        OrderBook.Order memory order5 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            true,
+            1,
+            5000000000000000000004
+        );
+        OrderBook.Order memory order6 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            true,
+            1,
+            5000000000000000000005
+        );
+        OrderBook.Order memory order7 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            true,
             1,
             5000000000000000000006
         );

@@ -442,19 +442,20 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ==================== Token To Weth Order Execution Logic =========================
     ///@notice execute an array of orders from token to weth
     function _executeTokenToWethTaxedOrders(Order[] memory orders) internal {
+        
         ///@notice get all execution price possibilities
         TokenToWethExecutionPrice[]
             memory executionPrices = _initializeTokenToWethExecutionPrices(
                 orders
             );
-
+        
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
         TokenToWethBatchOrder[]
             memory tokenToWethBatchOrders = _batchTokenToWethOrders(
                 orders,
                 executionPrices
             );
-
+        
         ///@notice execute the batch orders
         _executeTokenToWethBatchTaxedOrders(tokenToWethBatchOrders);
     }
@@ -462,19 +463,21 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _executeTokenToWethBatchTaxedOrders(
         TokenToWethBatchOrder[] memory tokenToWethBatchOrders
     ) internal {
+        
         uint128 totalBeaconReward;
         for (uint256 i = 0; i < tokenToWethBatchOrders.length; i++) {
             TokenToWethBatchOrder memory batch = tokenToWethBatchOrders[i];
-            for (uint256 j = 0; j < batch.orderIds.length; j++) {
-                Order memory order = getOrderById(batch.orderIds[i]);
+            for (uint256 j = 0; j < batch.batchLength; j++) {
+                Order memory order = getOrderById(batch.orderIds[j]);
                 totalBeaconReward += _executeTokenToWethTaxedOrder(
                     batch,
                     order
                 );
             }
         }
-
+        
         safeTransferETH(msg.sender, totalBeaconReward);
+        
     }
 
     function _executeTokenToWethTaxedOrder(
@@ -482,6 +485,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         Order memory order
     ) internal returns (uint128 beaconReward) {
         uint24 fee = _getUniV3Fee(batch.lpAddress);
+        
         ///@notice swap from A to weth
         uint128 amountOutWeth = uint128(
             _swap(
@@ -495,6 +499,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 order.owner
             )
         );
+        
 
         uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
@@ -762,7 +767,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
 
             Order memory currentOrder = orders[i];
-
+            
             ///@notice if the order meets the execution price
             if (
                 _orderMeetsExecutionPrice(
@@ -770,7 +775,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     executionPrices[bestPriceIndex].price,
                     buyOrder
                 )
+
             ) {
+                // require(false, "here");
                 ///@notice if the order can execute without hitting slippage
                 if (
                     _orderCanExecute(
@@ -779,6 +786,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         currentOrder.amountOutMin
                     )
                 ) {
+                    
                     //Transfer the tokenIn from the user's wallet to the contract
                     ///TODO: Check if success, if not cancel the order
                     transferTokensToContract(
