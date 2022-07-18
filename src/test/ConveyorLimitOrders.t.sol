@@ -307,7 +307,8 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         IERC20(UNI).approve(address(conveyorLimitOrders), MAX_UINT);
 
-        bytes32[] memory tokenToTokenOrderBatch = placeNewMockTokenToTokenBatch();
+        bytes32[]
+            memory tokenToTokenOrderBatch = placeNewMockTokenToTokenBatch();
 
         //check that the orders have been placed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
@@ -326,8 +327,6 @@ contract ConveyorLimitOrdersTest is DSTest {
                 .getOrderById(tokenToTokenOrderBatch[i]);
             assert(order.orderId == bytes32(0));
         }
-
-       
     }
 
     //weth to taxed token
@@ -1617,7 +1616,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         OrderBook.Order memory order1 = newMockOrder(
             UNI,
             DAI,
-            1,
+            uint128(MAX_UINT),
             true,
             false,
             5000000000000000000,
@@ -1627,7 +1626,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         OrderBook.Order memory order2 = newMockOrder(
             UNI,
             DAI,
-            1,
+            uint128(MAX_UINT),
             true,
             false,
             5000000000000000000,
@@ -1636,7 +1635,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         OrderBook.Order memory order3 = newMockOrder(
             UNI,
             DAI,
-            1,
+            uint128(MAX_UINT),
             true,
             false,
             5000000000000000000,

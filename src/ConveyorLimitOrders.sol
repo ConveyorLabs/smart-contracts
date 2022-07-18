@@ -884,7 +884,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     ///@notice execute an array of orders from token to token
     function _executeTokenToTokenOrders(Order[] memory orders) internal {
-        
         ///@notice get all execution price possibilities
         TokenToTokenExecutionPrice[]
             memory executionPrices = _initializeTokenToTokenExecutionPrices(
@@ -1127,7 +1126,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 bytes32 orderId = batch.orderIds[i];
 
                 Order memory cachedOrder = orderIdToOrder[orderId];
-                
+
                 //decrement from total orders per address
                 --totalOrdersPerAddress[cachedOrder.owner];
 
@@ -1139,7 +1138,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
 
                 // Delete Order Orders[order.orderId] from ActiveOrders mapping
-                
+
                 delete addressToOrderIds[orderIdToOrder[orderId].owner][
                     orderId
                 ];
@@ -1283,9 +1282,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices[currentBestPriceIndex].lpAddressAToWeth,
                 executionPrices[currentBestPriceIndex].lpAddressWethToB
             );
-        
+
         uint256 currentTokenToTokenBatchOrdersIndex = 0;
-        
+
         //loop each order
         for (uint256 i = 0; i < orders.length; i++) {
             ///@notice get the index of the best exectuion price
@@ -1336,6 +1335,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         currentOrder.amountOutMin
                     )
                 ) {
+                    console.log(i);
 
                     uint256 batchLength = currentTokenToTokenBatchOrder
                         .batchLength;
@@ -1374,15 +1374,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     cancelOrder(currentOrder.orderId);
                     //TODO: emit order cancellation
                 }
+            } else {
+                console.log(i);
             }
         }
-        
+
         ///@notice add the last batch to the tokenToWethBatchOrders array
         tokenToTokenBatchOrders[
             currentTokenToTokenBatchOrdersIndex
         ] = currentTokenToTokenBatchOrder;
-        
-        
     }
 
     ///@notice returns the index of the best price in the executionPrices array
