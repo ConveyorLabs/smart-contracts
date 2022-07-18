@@ -426,17 +426,17 @@ contract OrderRouterTest is DSTest {
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         address LINK = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
-
+        address UNI = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
         //Dai-Usdc both directions
         (
-            OrderRouter.SpotReserve[] memory pricesDaiUsdc,
+            OrderRouter.SpotReserve[] memory pricesUNIDAI,
             address[] memory lps2
-        ) = orderRouter.getAllPrices(dai, usdc, 1, 100);
+        ) = orderRouter.getAllPrices(UNI, weth, 1, 100);
 
         (
             OrderRouter.SpotReserve[] memory pricesUsdcDai,
             address[] memory lps3
-        ) = orderRouter.getAllPrices(usdc, dai, 1, 100);
+        ) = orderRouter.getAllPrices(weth, dai, 1, 100);
 
         //Link Weth both directions
         (
@@ -449,12 +449,12 @@ contract OrderRouterTest is DSTest {
             address[] memory lps5
         ) = orderRouter.getAllPrices(weth, LINK, 1, 3000);
 
-        console.log("dai/usdc");
-        console.log(pricesDaiUsdc[0].spotPrice);
-        console.log(pricesDaiUsdc[1].spotPrice);
-        console.log(pricesDaiUsdc[2].spotPrice);
+        console.log("uni/weth");
+        console.log(pricesUNIDAI[0].spotPrice);
+        console.log(pricesUNIDAI[1].spotPrice);
+        console.log(pricesUNIDAI[2].spotPrice);
 
-        console.log("usdc/dai");
+        console.log("dai/weth");
         console.log(pricesUsdcDai[0].spotPrice);
         console.log(pricesUsdcDai[1].spotPrice);
         console.log(pricesUsdcDai[2].spotPrice);

@@ -786,14 +786,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         currentOrder.amountOutMin
                     )
                 ) {
-                    
-                    //Transfer the tokenIn from the user's wallet to the contract
-                    ///TODO: Check if success, if not cancel the order
-                    transferTokensToContract(
-                        currentOrder.owner,
-                        currentOrder.tokenIn,
-                        currentOrder.quantity
-                    );
+                    if(!currentOrder.taxed){
+                        //Transfer the tokenIn from the user's wallet to the contract
+                        ///TODO: Check if success, if not cancel the order
+                        transferTokensToContract(
+                            currentOrder.owner,
+                            currentOrder.tokenIn,
+                            currentOrder.quantity
+                        );
+                    }
 
                     uint256 batchLength = currentTokenToWethBatchOrder
                         .batchLength;
@@ -1170,12 +1171,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = _getAllPrices(orders[0].tokenIn, WETH, 3000, 1);
+        ) = _getAllPrices(orders[0].tokenIn, WETH, 1, 100);
 
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
-        ) = _getAllPrices(WETH, orders[0].tokenOut, 3000, 1);
+        ) = _getAllPrices(WETH, orders[0].tokenOut, 1, 3000);
 
         TokenToTokenExecutionPrice[]
             memory executionPrices = new TokenToTokenExecutionPrice[](
@@ -1185,6 +1186,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         {
             for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
                 for (uint256 j = 0; j < spotReserveWethToB.length; ++j) {
+                    console.log(i);
+                    console.log(j);
+                    console.log(spotReserveAToWeth[i].spotPrice);
+                    console.log(spotReserveWethToB[j].spotPrice);
                     uint128 spotPriceFinal = _calculateTokenToWethToTokenSpotPrice(
                             spotReserveAToWeth[i].spotPrice,
                             spotReserveWethToB[j].spotPrice
@@ -1336,6 +1341,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 )
             ) {
                 ///@notice if the order can execute without hitting slippage
+                // uint256 executionPrice = executionPrices[bestPriceIndex].price;
+                // assembly {
+                //     mstore(0x00, executionPrice)
+                //     revert(0x00,0x20)
+                // }
                 if (
                     _orderCanExecute(
                         executionPrices[bestPriceIndex].price,
@@ -1621,6 +1631,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 order_quantity,
         uint256 amountOutMin
     ) internal pure returns (bool) {
-        return ConveyorMath.mul128I(spot_price, order_quantity) >= amountOutMin;
+        return ConveyorMath.mul64I(uint128(spot_price), order_quantity) >= amountOutMin;
     }
 }
