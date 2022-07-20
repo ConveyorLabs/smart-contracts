@@ -777,7 +777,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     buyOrder
                 )
             ) {
-                // require(false, "here");
                 ///@notice if the order can execute without hitting slippage
                 if (
                     _orderCanExecute(
@@ -786,15 +785,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         currentOrder.amountOutMin
                     )
                 ) {
-                    if (!currentOrder.taxed) {
-                        //Transfer the tokenIn from the user's wallet to the contract
-                        ///TODO: Check if success, if not cancel the order
-                        transferTokensToContract(
-                            currentOrder.owner,
-                            currentOrder.tokenIn,
-                            currentOrder.quantity
-                        );
-                    }
+                    //Transfer the tokenIn from the user's wallet to the contract
+                    ///TODO: Check if success, if not cancel the order
+                    transferTokensToContract(
+                        currentOrder.owner,
+                        currentOrder.tokenIn,
+                        currentOrder.quantity
+                    );
 
                     uint256 batchLength = currentTokenToWethBatchOrder
                         .batchLength;
@@ -1395,7 +1392,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             currentOrder.amountOutMin
                         )
                     ) {
-                        
+                        require(false, "here");
 
                         uint256 batchLength = currentTokenToTokenBatchOrder
                             .batchLength;
@@ -1672,8 +1669,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 order_quantity,
         uint256 amountOutMin
     ) internal pure returns (bool) {
-        return
-            ConveyorMath.mul64I(uint128(spot_price), order_quantity) >=
-            amountOutMin;
+        return spot_price * order_quantity >= amountOutMin;
     }
 }

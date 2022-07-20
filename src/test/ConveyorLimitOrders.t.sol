@@ -1732,8 +1732,8 @@ contract ConveyorLimitOrdersTest is DSTest {
         OrderBook.Order memory order1 = newMockOrder(
             UNI,
             DAI,
-            uint128(MAX_UINT),
-            true,
+            1,
+            false,
             false,
             5000000000000000000,
             1000000000000000000
@@ -1742,8 +1742,8 @@ contract ConveyorLimitOrdersTest is DSTest {
         OrderBook.Order memory order2 = newMockOrder(
             UNI,
             DAI,
-            uint128(MAX_UINT),
-            true,
+            1,
+            false,
             false,
             5000000000000000000,
             1000000000000000000
@@ -1751,8 +1751,8 @@ contract ConveyorLimitOrdersTest is DSTest {
         OrderBook.Order memory order3 = newMockOrder(
             UNI,
             DAI,
-            uint128(MAX_UINT),
-            true,
+            1,
+            false,
             false,
             5000000000000000000,
             1000000000000000000
@@ -1777,7 +1777,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             UNI,
             DAI,
             1,
-            true,
+            false,
             false,
             1,
             10
@@ -1787,7 +1787,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             UNI,
             DAI,
             1,
-            true,
+            false,
             false,
             1,
             11
@@ -1796,7 +1796,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             UNI,
             DAI,
             1,
-            true,
+            false,
             false,
             1,
             12
