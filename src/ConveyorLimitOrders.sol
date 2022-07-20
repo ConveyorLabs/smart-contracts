@@ -1392,8 +1392,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             currentOrder.amountOutMin
                         )
                     ) {
-                        require(false, "here");
-
+                        // require(false, "here");
+                        transferTokensToContract(
+                        currentOrder.owner,
+                        currentOrder.tokenIn,
+                        currentOrder.quantity
+                    );
                         uint256 batchLength = currentTokenToTokenBatchOrder
                             .batchLength;
 

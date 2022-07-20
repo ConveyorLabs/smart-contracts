@@ -315,7 +315,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-        // swapHelper.swapEthForTokenWithUniV2(MAX_UINT, UNI);
+        swapHelper.swapEthForTokenWithUniV2(100000 ether, UNI);
 
         IERC20(UNI).approve(address(conveyorLimitOrders), MAX_UINT);
 
@@ -1727,7 +1727,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         internal
         returns (bytes32[] memory)
     {
-        swapHelper.swapEthForTokenWithUniV2(10000 ether, UNI);
+        swapHelper.swapEthForTokenWithUniV2(100000000 ether, UNI);
 
         OrderBook.Order memory order1 = newMockOrder(
             UNI,
