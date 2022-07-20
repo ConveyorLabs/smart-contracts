@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.15;
+pragma solidity >=0.8.14;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
-import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "./test/utils/Console.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
@@ -54,8 +53,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address _usdc,
         uint256 _refreshFee,
         uint256 _refreshInterval,
-        uint256 _executionCost
-    ) OrderBook(_gasOracle) {
+        uint256 _executionCost,
+        bytes32[] memory _deploymentByteCodes,
+        address[] memory _dexFactories,
+        bool[] memory _isUniV2
+    )
+        OrderBook(_gasOracle)
+        OrderRouter(_deploymentByteCodes, _dexFactories, _isUniV2)
+    {
         refreshFee = _refreshFee;
         WETH = _weth;
         USDC = _usdc;
@@ -442,20 +447,19 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ==================== Token To Weth Order Execution Logic =========================
     ///@notice execute an array of orders from token to weth
     function _executeTokenToWethTaxedOrders(Order[] memory orders) internal {
-        
         ///@notice get all execution price possibilities
         TokenToWethExecutionPrice[]
             memory executionPrices = _initializeTokenToWethExecutionPrices(
                 orders
             );
-        
+
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
         TokenToWethBatchOrder[]
             memory tokenToWethBatchOrders = _batchTokenToWethOrders(
                 orders,
                 executionPrices
             );
-        
+
         ///@notice execute the batch orders
         _executeTokenToWethBatchTaxedOrders(tokenToWethBatchOrders);
     }
@@ -463,7 +467,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _executeTokenToWethBatchTaxedOrders(
         TokenToWethBatchOrder[] memory tokenToWethBatchOrders
     ) internal {
-        
         uint128 totalBeaconReward;
         for (uint256 i = 0; i < tokenToWethBatchOrders.length; i++) {
             TokenToWethBatchOrder memory batch = tokenToWethBatchOrders[i];
@@ -475,9 +478,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
             }
         }
-        
+
         safeTransferETH(msg.sender, totalBeaconReward);
-        
     }
 
     function _executeTokenToWethTaxedOrder(
@@ -485,7 +487,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         Order memory order
     ) internal returns (uint128 beaconReward) {
         uint24 fee = _getUniV3Fee(batch.lpAddress);
-        
+
         ///@notice swap from A to weth
         uint128 amountOutWeth = uint128(
             _swap(
@@ -499,7 +501,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 order.owner
             )
         );
-        
 
         uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
@@ -767,7 +768,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
 
             Order memory currentOrder = orders[i];
-            
+
             ///@notice if the order meets the execution price
             if (
                 _orderMeetsExecutionPrice(
@@ -775,9 +776,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     executionPrices[bestPriceIndex].price,
                     buyOrder
                 )
-
             ) {
-                // require(false, "here");
                 ///@notice if the order can execute without hitting slippage
                 if (
                     _orderCanExecute(
@@ -786,15 +785,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         currentOrder.amountOutMin
                     )
                 ) {
-                    if(!currentOrder.taxed){
-                        //Transfer the tokenIn from the user's wallet to the contract
-                        ///TODO: Check if success, if not cancel the order
-                        transferTokensToContract(
-                            currentOrder.owner,
-                            currentOrder.tokenIn,
-                            currentOrder.quantity
-                        );
-                    }
+                    //Transfer the tokenIn from the user's wallet to the contract
+                    ///TODO: Check if success, if not cancel the order
+                    transferTokensToContract(
+                        currentOrder.owner,
+                        currentOrder.tokenIn,
+                        currentOrder.quantity
+                    );
 
                     uint256 batchLength = currentTokenToWethBatchOrder
                         .batchLength;
@@ -1068,6 +1065,38 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         safeTransferETH(msg.sender, totalBeaconReward);
     }
 
+    function calculateAmountOutMinAToWeth(
+        address lpAddressWethToB,
+        uint256 amountOutMin,
+        bytes32 orderId
+    ) internal returns (uint256 amountOutMinAToWeth) {
+        uint256 spotPrice;
+
+        if (!_lpIsNotUniV3(lpAddressWethToB)) {
+            Order memory order = getOrderById(orderId);
+           
+            uint112 amountIn = _getTargetAmountIn(order.tokenOut, WETH);
+           
+            spotPrice = _getQuoteAtTick(1, amountIn, WETH, order.tokenOut);
+        } else {
+            if (WETH == IUniswapV2Pair(lpAddressWethToB).token0()) {
+                spotPrice =
+                    uint256(
+                        IUniswapV2Pair(lpAddressWethToB).price0CumulativeLast()
+                    ) <<
+                    16;
+            } else {
+                spotPrice =
+                    uint256(
+                        IUniswapV2Pair(lpAddressWethToB).price1CumulativeLast()
+                    ) <<
+                    16;
+            }
+        }
+
+        amountOutMinAToWeth = ConveyorMath.mul128I(spotPrice, amountOutMin);
+    }
+
     ///@return (amountOut, beaconReward)
     ///@dev the amountOut is the amount out - protocol fees
     function _executeTokenToTokenBatch(TokenToTokenBatchOrder memory batch)
@@ -1078,85 +1107,99 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 beaconReward;
         uint256 amountInWethToB;
         uint24 fee;
-        if (batch.tokenIn != WETH) {
-            fee = _getUniV3Fee(batch.lpAddressAToWeth);
-            ///@notice swap from A to weth
-            uint128 amountOutWeth = uint128(
-                _swap(
-                    batch.tokenIn,
-                    WETH,
-                    batch.lpAddressAToWeth,
-                    fee,
-                    batch.amountIn,
-                    batch.amountOutMin,
-                    address(this),
-                    address(this)
-                )
+        if (!(batch.batchLength == 0)) {
+            uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWeth(
+                batch.lpAddressWethToB,
+                batch.amountOutMin,
+                batch.orderIds[0]
             );
 
-            ///@notice take out fees
-            protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
-
-            (, beaconReward) = _calculateReward(protocolFee, amountOutWeth);
-
-            ///@notice get amount in for weth to B
-            amountInWethToB = amountOutWeth - protocolFee;
-        } else {
-            ///@notice take out fees from the batch amountIn since token0 is weth
-            protocolFee = _calculateFee(uint128(batch.amountIn), USDC, WETH);
-
-            //Take out beacon/conveyor reward
-            (, beaconReward) = _calculateReward(
-                protocolFee,
-                uint128(batch.amountIn)
-            );
-
-            ///@notice get amount in for weth to B
-            amountInWethToB = batch.amountIn - protocolFee;
-        }
-
-        fee = _getUniV3Fee(batch.lpAddressWethToB);
-        ///@notice swap weth for B
-        uint256 amountOutInB = _swap(
-            WETH,
-            batch.tokenOut,
-            batch.lpAddressWethToB,
-            fee,
-            amountInWethToB,
-            batch.amountOutMin,
-            address(this),
-            address(this)
-        );
-
-        //Scope all this
-        {
-            //Iterate through all orderIds in the batch and delete the orders from queue post execution
-            for (uint256 i = 0; i < batch.batchLength; ++i) {
-                bytes32 orderId = batch.orderIds[i];
-
-                Order memory cachedOrder = orderIdToOrder[orderId];
-
-                //decrement from total orders per address
-                --totalOrdersPerAddress[cachedOrder.owner];
-
-                //Decrement total orders quantity for each order
-                decrementTotalOrdersQuantity(
-                    cachedOrder.tokenIn,
-                    cachedOrder.owner,
-                    cachedOrder.quantity
+            if (batch.tokenIn != WETH) {
+                fee = _getUniV3Fee(batch.lpAddressAToWeth);
+                ///@notice swap from A to weth
+                uint128 amountOutWeth = uint128(
+                    _swap(
+                        batch.tokenIn,
+                        WETH,
+                        batch.lpAddressAToWeth,
+                        fee,
+                        batch.amountIn,
+                        batchAmountOutMinAToWeth,
+                        address(this),
+                        address(this)
+                    )
                 );
 
-                // Delete Order Orders[order.orderId] from ActiveOrders mapping
+                ///@notice take out fees
+                protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
-                delete addressToOrderIds[orderIdToOrder[orderId].owner][
-                    orderId
-                ];
+                (, beaconReward) = _calculateReward(protocolFee, amountOutWeth);
 
-                delete orderIdToOrder[orderId];
+                ///@notice get amount in for weth to B
+                amountInWethToB = amountOutWeth - beaconReward;
+            } else {
+                ///@notice take out fees from the batch amountIn since token0 is weth
+                protocolFee = _calculateFee(
+                    uint128(batch.amountIn),
+                    USDC,
+                    WETH
+                );
+
+                //Take out beacon/conveyor reward
+                (, beaconReward) = _calculateReward(
+                    protocolFee,
+                    uint128(batch.amountIn)
+                );
+
+                ///@notice get amount in for weth to B
+                amountInWethToB = batch.amountIn - protocolFee;
             }
-        }
 
-        return (amountOutInB, uint256(beaconReward));
+            fee = _getUniV3Fee(batch.lpAddressWethToB);
+            ///@notice swap weth for B
+            uint256 amountOutInB = _swap(
+                WETH,
+                batch.tokenOut,
+                batch.lpAddressWethToB,
+                fee,
+                amountInWethToB,
+                batch.amountOutMin,
+                address(this),
+                address(this)
+            );
+
+            //Scope all this
+            {
+                //Iterate through all orderIds in the batch and delete the orders from queue post execution
+                for (uint256 i = 0; i < batch.batchLength; ++i) {
+                    bytes32 orderId = batch.orderIds[i];
+
+                    Order memory cachedOrder = orderIdToOrder[orderId];
+
+                    //decrement from total orders per address
+                    --totalOrdersPerAddress[cachedOrder.owner];
+
+                    //Decrement total orders quantity for each order
+                    decrementTotalOrdersQuantity(
+                        cachedOrder.tokenIn,
+                        cachedOrder.owner,
+                        cachedOrder.quantity
+                    );
+
+                    // Delete Order Orders[order.orderId] from ActiveOrders mapping
+
+                    delete addressToOrderIds[orderIdToOrder[orderId].owner][
+                        orderId
+                    ];
+
+                    delete orderIdToOrder[orderId];
+                }
+            }
+
+            return (amountOutInB, uint256(beaconReward));
+        }else{
+            return (0,0);
+        }
     }
 
     // ==================== Token to Token Helper Functions =========================
@@ -1168,14 +1211,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         returns (TokenToTokenExecutionPrice[] memory)
     {
         address tokenIn = orders[0].tokenIn;
-        
+
         //TODO: need to make fee dynamic
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
         ) = _getAllPrices(orders[0].tokenIn, WETH, 1, 100);
-        console.logString("SpotPrice");
-        
+
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
@@ -1189,14 +1231,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         {
             for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
                 for (uint256 j = 0; j < spotReserveWethToB.length; ++j) {
-                    console.log(i);
-                    console.log(j);
-                    console.log(spotReserveAToWeth[i].spotPrice);
-                    console.log(spotReserveWethToB[j].spotPrice);
-                    uint128 spotPriceFinal = _calculateTokenToWethToTokenSpotPrice(
+                    uint256 spotPriceFinal = uint256(
+                        _calculateTokenToWethToTokenSpotPrice(
                             spotReserveAToWeth[i].spotPrice,
                             spotReserveWethToB[j].spotPrice
-                        );
+                        )
+                    ) << 64;
+
                     executionPrices[i] = TokenToTokenExecutionPrice(
                         spotReserveAToWeth[i].res0,
                         spotReserveAToWeth[i].res1,
@@ -1279,6 +1320,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         internal
         returns (TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders)
     {
+        tokenToTokenBatchOrders = new TokenToTokenBatchOrder[](orders.length);
         Order memory firstOrder = orders[0];
         bool buyOrder = _buyOrSell(firstOrder);
 
@@ -1300,103 +1342,100 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
 
         uint256 currentTokenToTokenBatchOrdersIndex = 0;
-
-        //loop each order
-        for (uint256 i = 0; i < orders.length; i++) {
-            ///@notice get the index of the best exectuion price
-            uint256 bestPriceIndex = _findBestTokenToTokenExecutionPrice(
-                executionPrices,
-                buyOrder
-            );
-
-            ///@notice if the best price has changed since the last order
-            if (i > 0 && currentBestPriceIndex != bestPriceIndex) {
-                ///@notice add the current batch order to the batch orders array
-                tokenToTokenBatchOrders[
-                    currentTokenToTokenBatchOrdersIndex
-                ] = currentTokenToTokenBatchOrder;
-
-                currentTokenToTokenBatchOrdersIndex++;
-
-                //-
-                ///@notice update the currentBestPriceIndex
-                currentBestPriceIndex = bestPriceIndex;
-
-                ///@notice initialize a new batch order
-                //TODO: need to implement logic to trim 0 val orders
-                currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
-                    orders.length,
-                    batchOrderTokenIn,
-                    batchOrderTokenOut,
-                    executionPrices[bestPriceIndex].lpAddressAToWeth,
-                    executionPrices[bestPriceIndex].lpAddressWethToB
-                );
-            }
-
-            Order memory currentOrder = orders[i];
-
-            ///@notice if the order meets the execution price
-            if (
-                _orderMeetsExecutionPrice(
-                    currentOrder.price,
-                    executionPrices[bestPriceIndex].price,
+        {
+            //loop each order
+            for (uint256 i = 0; i < orders.length; i++) {
+                ///@notice get the index of the best exectuion price
+                uint256 bestPriceIndex = _findBestTokenToTokenExecutionPrice(
+                    executionPrices,
                     buyOrder
-                )
-            ) {
-                ///@notice if the order can execute without hitting slippage
-                // uint256 executionPrice = executionPrices[bestPriceIndex].price;
-                // assembly {
-                //     mstore(0x00, executionPrice)
-                //     revert(0x00,0x20)
-                // }
+                );
+
+                ///@notice if the best price has changed since the last order
+                if (i > 0 && currentBestPriceIndex != bestPriceIndex) {
+                    ///@notice add the current batch order to the batch orders array
+                    tokenToTokenBatchOrders[
+                        currentTokenToTokenBatchOrdersIndex
+                    ] = currentTokenToTokenBatchOrder;
+
+                    currentTokenToTokenBatchOrdersIndex++;
+
+                    //-
+                    ///@notice update the currentBestPriceIndex
+                    currentBestPriceIndex = bestPriceIndex;
+
+                    ///@notice initialize a new batch order
+                    //TODO: need to implement logic to trim 0 val orders
+                    currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
+                        orders.length,
+                        batchOrderTokenIn,
+                        batchOrderTokenOut,
+                        executionPrices[bestPriceIndex].lpAddressAToWeth,
+                        executionPrices[bestPriceIndex].lpAddressWethToB
+                    );
+                }
+
+                Order memory currentOrder = orders[i];
+
+                ///@notice if the order meets the execution price
                 if (
-                    _orderCanExecute(
+                    _orderMeetsExecutionPrice(
+                        currentOrder.price,
                         executionPrices[bestPriceIndex].price,
-                        currentOrder.quantity,
-                        currentOrder.amountOutMin
+                        buyOrder
                     )
                 ) {
-                    console.log(i);
-
-                    uint256 batchLength = currentTokenToTokenBatchOrder
-                        .batchLength;
-
-                    ///@notice add the order to the current batch order
-                    currentTokenToTokenBatchOrder.amountIn += currentOrder
-                        .quantity;
-
-                    ///@notice add owner of the order to the batchOwners
-                    currentTokenToTokenBatchOrder.batchOwners[
-                        batchLength
-                    ] = currentOrder.owner;
-
-                    ///@notice add the order quantity of the order to ownerShares
-                    currentTokenToTokenBatchOrder.ownerShares[
-                        batchLength
-                    ] = currentOrder.quantity;
-
-                    ///@notice add the orderId to the batch order
-                    currentTokenToTokenBatchOrder.orderIds[
-                        batchLength
-                    ] = currentOrder.orderId;
-
-                    ///@notice increment the batch length
-                    ++currentTokenToTokenBatchOrder.batchLength;
-
-                    ///@notice update the best execution price
-                    (
-                        executionPrices[bestPriceIndex]
-                    ) = simulateTokenToTokenPriceChange(
-                        uint128(currentTokenToTokenBatchOrder.amountIn),
-                        executionPrices[bestPriceIndex]
+                    if (
+                        _orderCanExecute(
+                            executionPrices[bestPriceIndex].price,
+                            currentOrder.quantity,
+                            currentOrder.amountOutMin
+                        )
+                    ) {
+                        // require(false, "here");
+                        transferTokensToContract(
+                        currentOrder.owner,
+                        currentOrder.tokenIn,
+                        currentOrder.quantity
                     );
-                } else {
-                    ///@notice cancel the order due to insufficient slippage
-                    cancelOrder(currentOrder.orderId);
-                    //TODO: emit order cancellation
-                }
-            } else {
-                console.log(i);
+                        uint256 batchLength = currentTokenToTokenBatchOrder
+                            .batchLength;
+
+                        ///@notice add the order to the current batch order
+                        currentTokenToTokenBatchOrder.amountIn += currentOrder
+                            .quantity;
+
+                        ///@notice add owner of the order to the batchOwners
+                        currentTokenToTokenBatchOrder.batchOwners[
+                                batchLength
+                            ] = currentOrder.owner;
+
+                        ///@notice add the order quantity of the order to ownerShares
+                        currentTokenToTokenBatchOrder.ownerShares[
+                                batchLength
+                            ] = currentOrder.quantity;
+
+                        ///@notice add the orderId to the batch order
+                        currentTokenToTokenBatchOrder.orderIds[
+                            batchLength
+                        ] = currentOrder.orderId;
+
+                        ///@notice increment the batch length
+                        ++currentTokenToTokenBatchOrder.batchLength;
+
+                        ///@notice update the best execution price
+                        (
+                            executionPrices[bestPriceIndex]
+                        ) = simulateTokenToTokenPriceChange(
+                            uint128(currentTokenToTokenBatchOrder.amountIn),
+                            executionPrices[bestPriceIndex]
+                        );
+                    } else {
+                        ///@notice cancel the order due to insufficient slippage
+                        cancelOrder(currentOrder.orderId);
+                        //TODO: emit order cancellation
+                    }
+                } 
             }
         }
 
@@ -1634,6 +1673,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 order_quantity,
         uint256 amountOutMin
     ) internal pure returns (bool) {
-        return ConveyorMath.mul64I(uint128(spot_price), order_quantity) >= amountOutMin;
+        return spot_price * order_quantity >= amountOutMin;
     }
 }
