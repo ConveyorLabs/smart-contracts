@@ -58,7 +58,6 @@ contract OrderRouter {
     struct TokenToTokenBatchOrder {
         uint256 batchLength;
         uint256 amountIn;
-        //TODO: need to set amount out min somewhere
         uint256 amountOutMin;
         address tokenIn;
         address tokenOut;
@@ -68,6 +67,7 @@ contract OrderRouter {
         uint256[] ownerShares;
         bytes32[] orderIds;
     }
+    
     //----------------------State Variables------------------------------------//
 
     address owner;
@@ -109,11 +109,13 @@ contract OrderRouter {
         bool[] memory _isUniV2
     ) {
         for (uint256 i = 0; i < _deploymentByteCodes.length; ++i) {
-            dexes.push(Dex({
-                factoryAddress: _dexFactories[i],
-                initBytecode: _deploymentByteCodes[i],
-                isUniV2: _isUniV2[i]
-            }));
+            dexes.push(
+                Dex({
+                    factoryAddress: _dexFactories[i],
+                    initBytecode: _deploymentByteCodes[i],
+                    isUniV2: _isUniV2[i]
+                })
+            );
         }
 
         owner = msg.sender;
@@ -480,18 +482,6 @@ contract OrderRouter {
         ///TODO: revisit this, if we should wrap this in an unchecked,
     }
 
-    function throwAwayThisBugSucks() public view {
-        address pairAddress = 0xd3d2E2692501A5c9Ca623199D38826e513033a17;
-        //Set reserve0, reserve1 to current LP reserves
-        (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pairAddress).getReserves();
-            console.log(reserve0);
-            console.log(reserve1);
-
-    }
-
-    function callUniswap() public {
-        _calculateV2SpotPrice(address(0), address(0), address(0), bytes32(0));
-    }
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
@@ -502,96 +492,115 @@ contract OrderRouter {
         address token1,
         address _factory,
         bytes32 _initBytecode
-    ) public view returns (SpotReserve memory spRes, address poolAddress) {
-        // require(token0 != token1, "Invalid Token Pair, IDENTICAL Address's");
+    ) internal view returns (SpotReserve memory spRes, address poolAddress) {
+        require(token0 != token1, "Invalid Token Pair, IDENTICAL Address's");
 
-       
+        SpotReserve memory _spRes;
 
-        // SpotReserve memory _spRes;
+        bool isUniswapV2 = dexes[0].factoryAddress == _factory ? true : false;
 
-        // bool isUniswapV2 = dexes[0].factoryAddress == _factory ? true : false;
+        //Return Uniswap V2 Pair address
+        address pairAddress = pairForV2Fork(
+            _factory,
+            token0,
+            token1,
+            isUniswapV2,
+            _initBytecode
+        );
 
-        // //Return Uniswap V2 Pair address
-        // address pairAddress = pairForV2Fork(
-        //     _factory,
-        //     token0,
-        //     token1,
-        //     isUniswapV2,
-        //     _initBytecode
-        // );
-       address pairAddress = 0xd3d2E2692501A5c9Ca623199D38826e513033a17;
-
-        // if(pairAddress == address(0)){
-        //     return (_spRes, address(0));
-        // }
+        if (pairAddress == address(0)) {
+            return (_spRes, address(0));
+        }
 
         //Set reserve0, reserve1 to current LP reserves
-        (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pairAddress).getReserves();
-            console.log(reserve0);
-            console.log(reserve1);
-            require(false,"here");
-        // uint256 testReserve0 = IERC20(token0).balanceOf(pairAddress);
-       
-    //     address TOKEN0= IUniswapV2Pair(pairAddress).token0();
-    //     console.logAddress(TOKEN0);
-    //     if(token0 == TOKEN0){
-    //          //Set common based reserve values
-    //         (
-    //             uint112 commonReserve0,
-    //             uint112 commonReserve1
-    //         ) = _getReservesCommonDecimals(token0, token1, reserve0, reserve1);
-    //         (_spRes.res0, _spRes.res1, _spRes.token0IsReserve0) = (commonReserve0, commonReserve1,true);
-    //     }else{
-    //         (
-    //             uint112 commonReserve0,
-    //             uint112 commonReserve1
-    //         ) = _getReservesCommonDecimals(token1, token0, reserve0, reserve1);
-    //         (_spRes.res0, _spRes.res1, _spRes.token0IsReserve0) = (commonReserve0, commonReserve1,false);
-    //     }
-       
-    //     unchecked {
-    //         if (token0 == TOKEN0) {
-               
-    //             _spRes.spotPrice = IUniswapV2Pair(pairAddress).price0CumulativeLast();
-                
-    //         } else {
-    //             _spRes.spotPrice = IUniswapV2Pair(pairAddress).price1CumulativeLast();
-            
-                
-    //         }
+        (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pairAddress)
+            .getReserves();
 
-    //         require(
-    //             _spRes.spotPrice <=
-    //                 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-    //         );
-    //    }
+        address TOKEN0 = IUniswapV2Pair(pairAddress).token0();
+       
+        if (token0 == TOKEN0) {
+            //Set common based reserve values
+            (
+                uint112 commonReserve0,
+                uint112 commonReserve1
+            ) = _getReservesCommonDecimals(token0, token1, reserve0, reserve1);
+            (_spRes.res0, _spRes.res1, _spRes.token0IsReserve0) = (
+                commonReserve0,
+                commonReserve1,
+                true
+            );
+        } else {
+            (
+                uint112 commonReserve0,
+                uint112 commonReserve1
+            ) = _getReservesCommonDecimals(token1, token0, reserve0, reserve1);
+            (_spRes.res0, _spRes.res1, _spRes.token0IsReserve0) = (
+                commonReserve0,
+                commonReserve1,
+                false
+            );
+        }
 
-      
-    //     (spRes, poolAddress) = (_spRes, pairAddress);
+        unchecked {
+            if (token0 == TOKEN0) {
+                _spRes.spotPrice = IUniswapV2Pair(pairAddress)
+                    .price0CumulativeLast();
+            } else {
+                _spRes.spotPrice = IUniswapV2Pair(pairAddress)
+                    .price1CumulativeLast();
+            }
+
+            require(
+                _spRes.spotPrice <=
+                    0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+            );
+        }
+
+        (spRes, poolAddress) = (_spRes, pairAddress);
     }
-
-    
 
     // calculates the CREATE2 address for a pair without making any external calls
-    function pairForV2Fork(address factory, address tokenA, address tokenB, bool isUniswapV2, bytes32 initByteCode) internal pure returns (address pair) {
+    function pairForV2Fork(
+        address factory,
+        address tokenA,
+        address tokenB,
+        bool isUniswapV2,
+        bytes32 initByteCode
+    ) internal pure returns (address pair) {
         (address token0, address token1) = _sortTokens(tokenA, tokenB);
-        if(isUniswapV2){
-            pair = address(uint160(uint256(keccak256(abi.encodePacked(
-                hex'ff',
-                factory,
-                keccak256(abi.encodePacked(token0, token1)),
-                hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f' // init code hash
-            )))));
-        }else{
-            pair = address(uint160(uint(keccak256(abi.encodePacked(
-                hex'ff',
-                factory,
-                keccak256(abi.encodePacked(token0, token1)),
-                initByteCode // init code hash
-            )))));
+        if (isUniswapV2) {
+            pair = address(
+                uint160(
+                    uint256(
+                        keccak256(
+                            abi.encodePacked(
+                                hex"ff",
+                                factory,
+                                keccak256(abi.encodePacked(token0, token1)),
+                                hex"96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f" // init code hash
+                            )
+                        )
+                    )
+                )
+            );
+        } else {
+            pair = address(
+                uint160(
+                    uint256(
+                        keccak256(
+                            abi.encodePacked(
+                                hex"ff",
+                                factory,
+                                keccak256(abi.encodePacked(token0, token1)),
+                                initByteCode // init code hash
+                            )
+                        )
+                    )
+                )
+            );
         }
-        
     }
+
     function _getReservesCommonDecimals(
         address tok0,
         address tok1,
@@ -617,7 +626,15 @@ contract OrderRouter {
         uint112 reserve0,
         uint112 reserve1,
         address pool
-    ) internal view returns (uint112 commonReserve0, uint112 commonReserve1, bool token0IsReserve0) {
+    )
+        internal
+        view
+        returns (
+            uint112 commonReserve0,
+            uint112 commonReserve1,
+            bool token0IsReserve0
+        )
+    {
         //Get target decimals for token0 & token1
         uint8 token0Decimals = _getTargetDecimals(token0);
         uint8 token1Decimals = _getTargetDecimals(token1);
@@ -625,7 +642,7 @@ contract OrderRouter {
         address TOKEN0 = IUniswapV3Pool(pool).token0();
 
         token0IsReserve0 = TOKEN0 == token0 ? true : false;
-        if(token0IsReserve0){
+        if (token0IsReserve0) {
             //Set common based reserve values
             (commonReserve0, commonReserve1) = _convertToCommonBase(
                 reserve0,
@@ -633,7 +650,7 @@ contract OrderRouter {
                 reserve1,
                 token1Decimals
             );
-        }else{
+        } else {
             //Set common based reserve values
             (commonReserve0, commonReserve1) = _convertToCommonBase(
                 reserve0,
@@ -642,10 +659,7 @@ contract OrderRouter {
                 token0Decimals
             );
         }
-        
     }
-
-    
 
     // function _getV3PairAddress(address token0, address token1)
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
@@ -666,34 +680,45 @@ contract OrderRouter {
         SpotReserve memory _spRes;
 
         //Scope to prevent stack too deep error
-        
-            //Pool address for token pair
-            //TODO: remove this please
-        address pool = IUniswapV3Factory(_factory).getPool(token0, token1, 3000);
+
+        //Pool address for token pair
+        //TODO: remove this please
+        address pool = IUniswapV3Factory(_factory).getPool(
+            token0,
+            token1,
+            fee
+        );
 
         if (pool == address(0)) {
             return (_spRes, address(0));
         }
-       
-        
+
         {
             unchecked {
-                uint112 reserve0= uint112(IERC20(token0).balanceOf(pool));
-                uint112 reserve1= uint112(IERC20(token1).balanceOf(pool));
-                
-                
-                (uint112 commonReserve0, uint112 commonReserve1, bool token0IsReserve0)= _getReservesCommonDecimalsV3(token0, token1, reserve0, reserve1, pool);
-                    
-                _spRes.res0= commonReserve0;
-                _spRes.res1=commonReserve1;
-                _spRes.token0IsReserve0= token0IsReserve0;
+                uint112 reserve0 = uint112(IERC20(token0).balanceOf(pool));
+                uint112 reserve1 = uint112(IERC20(token1).balanceOf(pool));
+
+                (
+                    uint112 commonReserve0,
+                    uint112 commonReserve1,
+                    bool token0IsReserve0
+                ) = _getReservesCommonDecimalsV3(
+                        token0,
+                        token1,
+                        reserve0,
+                        reserve1,
+                        pool
+                    );
+
+                _spRes.res0 = commonReserve0;
+                _spRes.res1 = commonReserve1;
+                _spRes.token0IsReserve0 = token0IsReserve0;
 
                 require(_spRes.res0 <= type(uint128).max);
                 require(_spRes.res1 <= type(uint128).max);
             }
-        
         }
-                // int56 / uint32 = int24
+        // int56 / uint32 = int24
         int24 tick = _getTick(pool, tickSecond);
 
         //amountOut = tick range spot over specified tick interval
@@ -909,10 +934,16 @@ contract OrderRouter {
     }
 
     /// @notice Helper function to return sorted token addresses
-    function _sortTokens(address tokenA, address tokenB) internal pure returns (address token0, address token1) {
-        require(tokenA != tokenB, 'UniswapV2Library: IDENTICAL_ADDRESSES');
-        (token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
-        require(token0 != address(0), 'UniswapV2Library: ZERO_ADDRESS');
+    function _sortTokens(address tokenA, address tokenB)
+        internal
+        pure
+        returns (address token0, address token1)
+    {
+        require(tokenA != tokenB, "UniswapV2Library: IDENTICAL_ADDRESSES");
+        (token0, token1) = tokenA < tokenB
+            ? (tokenA, tokenB)
+            : (tokenB, tokenA);
+        require(token0 != address(0), "UniswapV2Library: ZERO_ADDRESS");
     }
 
     /// @notice Given a tick and a token amount, calculates the amount of token received in exchange

@@ -130,22 +130,6 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         conveyorLimitOrders.validateOrderSequencing(orderBatch);
     }
-
-    function testIUniswapV2Pair() public {
-        address pairAddress = 0xd3d2E2692501A5c9Ca623199D38826e513033a17;
-        (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(pairAddress).getReserves();
-        console.log(reserve0);
-        console.log(reserve1);
-        conveyorLimitOrders.throwAwayThisBugSucks();
-    }
-
-    function testThrowAway() public {
-        conveyorLimitOrders.throwAwayThisBugSucks();
-    }
-
-    function testMockCallThingy() public {
-        conveyorLimitOrders.callUniswap();
-    }
     
     
 
