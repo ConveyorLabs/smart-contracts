@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.15;
+pragma solidity >=0.8.14;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
-import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "./test/utils/Console.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
@@ -54,8 +53,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address _usdc,
         uint256 _refreshFee,
         uint256 _refreshInterval,
-        uint256 _executionCost
-    ) OrderBook(_gasOracle) {
+        uint256 _executionCost,
+        bytes32[] memory _deploymentByteCodes,
+        address[] memory _dexFactories,
+        bool[] memory _isUniV2
+    ) OrderBook(_gasOracle) OrderRouter(_deploymentByteCodes, _dexFactories, _isUniV2){
         refreshFee = _refreshFee;
         WETH = _weth;
         USDC = _usdc;
@@ -1175,7 +1177,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             address[] memory lpAddressesAToWeth
         ) = _getAllPrices(orders[0].tokenIn, WETH, 1, 100);
         console.logString("SpotPrice");
-        
+        console.logAddress(lpAddressesAToWeth[0]);
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
@@ -1191,12 +1193,17 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 for (uint256 j = 0; j < spotReserveWethToB.length; ++j) {
                     console.log(i);
                     console.log(j);
+                    console.logString("spot price uni to weth");
                     console.log(spotReserveAToWeth[i].spotPrice);
+                    console.logString("spot price weth to dai");
                     console.log(spotReserveWethToB[j].spotPrice);
                     uint128 spotPriceFinal = _calculateTokenToWethToTokenSpotPrice(
                             spotReserveAToWeth[i].spotPrice,
                             spotReserveWethToB[j].spotPrice
                         );
+                        console.logString("reserve 0 reserve 1 uni weth");
+                    console.log(spotReserveAToWeth[i].res0);
+                    console.log(spotReserveAToWeth[i].res1);
                     executionPrices[i] = TokenToTokenExecutionPrice(
                         spotReserveAToWeth[i].res0,
                         spotReserveAToWeth[i].res1,
