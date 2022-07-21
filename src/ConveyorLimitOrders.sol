@@ -1066,35 +1066,66 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     function calculateAmountOutMinAToWeth(
+        address lpAddressAToWeth,
         address lpAddressWethToB,
+        uint256 amountInOrder,
         uint256 amountOutMin,
         bytes32 orderId
     ) internal returns (uint256 amountOutMinAToWeth) {
         uint256 spotPrice;
+        console.logAddress(lpAddressWethToB);
 
-        if (!_lpIsNotUniV3(lpAddressWethToB)) {
+        if (!_lpIsNotUniV3(lpAddressAToWeth)) {
             Order memory order = getOrderById(orderId);
-           
-            uint112 amountIn = _getTargetAmountIn(order.tokenOut, WETH);
-           
-            spotPrice = _getQuoteAtTick(1, amountIn, WETH, order.tokenOut);
+            console.logString("Order token out ");
+            console.logAddress(order.tokenOut);
+            
+            uint112 amountIn = _getGreatestTokenDecimalsAmountIn(order.tokenOut, WETH);
+            (
+                OrderRouter.SpotReserve memory spotReserve,
+
+            ) = _calculateV3SpotPrice(
+                    order.tokenOut,
+                    WETH,
+                    amountIn,
+                    order.fee,
+                    1,
+                    dexes[1].factoryAddress
+                );
+
+            spotPrice = spotReserve.spotPrice;
+
+            amountOutMinAToWeth = ConveyorMath.mul128I(spotPrice, amountOutMin);
+            
         } else {
-            if (WETH == IUniswapV2Pair(lpAddressWethToB).token0()) {
-                spotPrice =
-                    uint256(
-                        IUniswapV2Pair(lpAddressWethToB).price0CumulativeLast()
-                    ) <<
-                    16;
-            } else {
-                spotPrice =
-                    uint256(
-                        IUniswapV2Pair(lpAddressWethToB).price1CumulativeLast()
-                    ) <<
-                    16;
+            (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(lpAddressAToWeth).getReserves();
+            if(WETH == IUniswapV2Pair(lpAddressAToWeth).token0()){
+                amountOutMinAToWeth = getAmountOut(amountInOrder, uint256(reserve1), uint256(reserve0));
+            }else{
+                amountOutMinAToWeth = getAmountOut(amountInOrder, uint256(reserve0), uint256(reserve1));
             }
+            
         }
 
-        amountOutMinAToWeth = ConveyorMath.mul128I(spotPrice, amountOutMin);
+        
+        console.logString("Derived amount out min");
+        console.log(amountOutMinAToWeth);
+    }
+
+    function getAmountOut(
+        uint256 amountIn,
+        uint256 reserveIn,
+        uint256 reserveOut
+    ) internal pure returns (uint256 amountOut) {
+        require(amountIn > 0, "UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT");
+        require(
+            reserveIn > 0 && reserveOut > 0,
+            "UniswapV2Library: INSUFFICIENT_LIQUIDITY"
+        );
+        uint256 amountInWithFee = amountIn *997;
+        uint256 numerator = amountInWithFee*reserveOut;
+        uint256 denominator = reserveIn*1000+(amountInWithFee);
+        amountOut = numerator / denominator;
     }
 
     ///@return (amountOut, beaconReward)
@@ -1109,7 +1140,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint24 fee;
         if (!(batch.batchLength == 0)) {
             uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWeth(
+                batch.lpAddressAToWeth,
                 batch.lpAddressWethToB,
+                batch.amountIn,
                 batch.amountOutMin,
                 batch.orderIds[0]
             );
@@ -1197,8 +1230,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
 
             return (amountOutInB, uint256(beaconReward));
-        }else{
-            return (0,0);
+        } else {
+            return (0, 0);
         }
     }
 
@@ -1216,12 +1249,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = _getAllPrices(orders[0].tokenIn, WETH, 1, 100);
+        ) = _getAllPrices(orders[0].tokenIn, WETH, 1, orders[0].fee);
 
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
-        ) = _getAllPrices(WETH, orders[0].tokenOut, 1, 3000);
+        ) = _getAllPrices(WETH, orders[0].tokenOut, 1, orders[0].fee);
 
         TokenToTokenExecutionPrice[]
             memory executionPrices = new TokenToTokenExecutionPrice[](
@@ -1394,16 +1427,19 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     ) {
                         // require(false, "here");
                         transferTokensToContract(
-                        currentOrder.owner,
-                        currentOrder.tokenIn,
-                        currentOrder.quantity
-                    );
+                            currentOrder.owner,
+                            currentOrder.tokenIn,
+                            currentOrder.quantity
+                        );
                         uint256 batchLength = currentTokenToTokenBatchOrder
                             .batchLength;
 
                         ///@notice add the order to the current batch order
                         currentTokenToTokenBatchOrder.amountIn += currentOrder
                             .quantity;
+
+                        currentTokenToTokenBatchOrder
+                            .amountOutMin += currentOrder.amountOutMin;
 
                         ///@notice add owner of the order to the batchOwners
                         currentTokenToTokenBatchOrder.batchOwners[
@@ -1422,7 +1458,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                         ///@notice increment the batch length
                         ++currentTokenToTokenBatchOrder.batchLength;
-
+                        console.logString("Batch length");
+                        console.log(currentTokenToTokenBatchOrder.batchLength);
                         ///@notice update the best execution price
                         (
                             executionPrices[bestPriceIndex]
@@ -1435,7 +1472,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         cancelOrder(currentOrder.orderId);
                         //TODO: emit order cancellation
                     }
-                } 
+                }
             }
         }
 

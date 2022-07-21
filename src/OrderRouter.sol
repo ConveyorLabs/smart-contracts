@@ -370,7 +370,8 @@ contract OrderRouter {
 
         ///@notice get the balance before
         uint256 balanceBefore = IERC20(_tokenOut).balanceOf(_reciever);
-
+        console.logString("AmountOutMin");
+        console.log(_amountOutMin);
         /// @notice Swap tokens for wrapped native tokens (nato).
         try
             IUniswapV2Pair(_lp).swap(
@@ -379,7 +380,10 @@ contract OrderRouter {
                 _reciever,
                 new bytes(0)
             )
-        {} catch {
+        {
+            console.logString("Passed v2 swap");
+        } catch {
+            console.log("Failed v2");
             //TODO: emit an event for the error that happened
             return 0;
         }
@@ -473,13 +477,16 @@ contract OrderRouter {
             if (_amountOut < _amountOutMin) {
                 return 0;
             }
+            console.logString("Passed V3 Swap");
+            console.logUint(_amountOut);
             return _amountOut;
         } catch {
+            console.logString("Failed V3 swap");
             return 0;
         }
 
         ///@notice calculate the amount recieved
-        ///TODO: revisit this, if we should wrap this in an unchecked,
+        ///TODO: revisit this, if we should wrap this in an uncheck_getTargetAmountIned,
     }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
@@ -661,8 +668,7 @@ contract OrderRouter {
         //Scope to prevent stack too deep error
         {
             //Pool address for token pair
-            //TODO: remove this please
-            pool = IUniswapV3Factory(_factory).getPool(token0, token1, 3000);
+            pool = IUniswapV3Factory(_factory).getPool(token0, token1, fee);
 
             if (pool == address(0)) {
                 return (_spRes, address(0));
@@ -769,7 +775,7 @@ contract OrderRouter {
     {
         //Target base amount in value
         // uint112 amountIn = _getTargetAmountIn(token0, token1);
-        uint112 amountIn = _getTargetAmountIn(token0, token1);
+        uint112 amountIn = _getGreatestTokenDecimalsAmountIn(token0, token1);
 
         SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
         address[] memory _lps = new address[](dexes.length);
@@ -832,7 +838,7 @@ contract OrderRouter {
     }
 
     /// @notice Helper to get amountIn amount for token pair
-    function _getTargetAmountIn(address token0, address token1)
+    function _getGreatestTokenDecimalsAmountIn(address token0, address token1)
         internal
         view
         returns (uint112 amountIn)
@@ -862,7 +868,6 @@ contract OrderRouter {
         uint112 reserve1,
         uint8 token1Decimals
     ) internal view returns (uint112, uint112) {
-        
         /// @dev Conditionally change the decimal to target := max(decimal0, decimal1)
         /// return tuple of modified reserve values in matching decimals
         if (token0Decimals > token1Decimals) {
@@ -913,8 +918,8 @@ contract OrderRouter {
     function _getQuoteAtTick(
         int24 tick,
         uint128 baseAmount,
-        address baseToken, //usdc
-        address quoteToken //weth
+        address baseToken,
+        address quoteToken
     ) internal view returns (uint256) {
         uint160 sqrtRatioX96 = TickMath.getSqrtRatioAtTick(tick);
 

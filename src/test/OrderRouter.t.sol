@@ -433,7 +433,7 @@ contract OrderRouterTest is DSTest {
         (
             OrderRouter.SpotReserve[] memory pricesUNWeth,
             address[] memory lps2
-        ) = orderRouter.getAllPrices(UNI, weth, 1, 100);
+        ) = orderRouter.getAllPrices(dai, weth, 1, 3000);
 
         // (
         //     OrderRouter.SpotReserve[] memory pricesWethDai,
@@ -451,8 +451,8 @@ contract OrderRouterTest is DSTest {
         //     address[] memory lps5
         // ) = orderRouter.getAllPrices(weth, LINK, 1, 3000);
 
-        console.log("uni/weth");
-        console.log(pricesUNWeth[0].spotPrice);
+        console.log("dai/weth");
+        console.log(pricesUNWeth[2].spotPrice);
         // console.log(pricesUNWeth[1].spotPrice);
         // console.log(pricesUNWeth[2].spotPrice);
 
@@ -1174,7 +1174,7 @@ contract OrderRouterWrapper is OrderRouter {
         view
         returns (uint112 amountIn)
     {
-        return _getTargetAmountIn(token0, token1);
+        return _getGreatestTokenDecimalsAmountIn(token0, token1);
     }
 
     function convertToCommonBase(
