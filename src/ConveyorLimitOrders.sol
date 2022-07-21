@@ -1071,30 +1071,42 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         bytes32 orderId
     ) internal returns (uint256 amountOutMinAToWeth) {
         uint256 spotPrice;
+        console.logAddress(lpAddressWethToB);
 
         if (!_lpIsNotUniV3(lpAddressWethToB)) {
             Order memory order = getOrderById(orderId);
-           
-            uint112 amountIn = _getTargetAmountIn(order.tokenOut, WETH);
-           
+            console.logString("Order token out ");
+            console.logAddress(order.tokenOut);
+            uint112 amountIn = _getGreatestTokenDecimalsAmountIn(order.tokenOut, WETH);
+
             spotPrice = _getQuoteAtTick(1, amountIn, WETH, order.tokenOut);
+            console.logString("SpotPrice");
+            console.log(spotPrice);
         } else {
             if (WETH == IUniswapV2Pair(lpAddressWethToB).token0()) {
-                spotPrice =
-                    uint256(
-                        IUniswapV2Pair(lpAddressWethToB).price0CumulativeLast()
-                    ) <<
-                    16;
-            } else {
                 spotPrice =
                     uint256(
                         IUniswapV2Pair(lpAddressWethToB).price1CumulativeLast()
                     ) <<
                     16;
+                    console.logString("SpotPrice");
+                    console.log(spotPrice);
+            } else {
+                spotPrice =
+                    uint256(
+                        IUniswapV2Pair(lpAddressWethToB).price0CumulativeLast()
+                    ) <<
+                    16;
+                    console.logString("SpotPrice");
+                    console.log(spotPrice);
             }
         }
 
+        
+
         amountOutMinAToWeth = ConveyorMath.mul128I(spotPrice, amountOutMin);
+        console.logString("Derived amount out min");
+        console.log(amountOutMinAToWeth);
     }
 
     ///@return (amountOut, beaconReward)
@@ -1124,7 +1136,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         batch.lpAddressAToWeth,
                         fee,
                         batch.amountIn,
-                        batchAmountOutMinAToWeth,
+                        1000000000000000000,
                         address(this),
                         address(this)
                     )
@@ -1163,7 +1175,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 batch.lpAddressWethToB,
                 fee,
                 amountInWethToB,
-                batch.amountOutMin,
+                1,
                 address(this),
                 address(this)
             );
@@ -1197,8 +1209,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
 
             return (amountOutInB, uint256(beaconReward));
-        }else{
-            return (0,0);
+        } else {
+            return (0, 0);
         }
     }
 
@@ -1392,18 +1404,23 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             currentOrder.amountOutMin
                         )
                     ) {
+                        
                         // require(false, "here");
                         transferTokensToContract(
-                        currentOrder.owner,
-                        currentOrder.tokenIn,
-                        currentOrder.quantity
-                    );
+                            currentOrder.owner,
+                            currentOrder.tokenIn,
+                            currentOrder.quantity
+                        );
                         uint256 batchLength = currentTokenToTokenBatchOrder
                             .batchLength;
 
                         ///@notice add the order to the current batch order
                         currentTokenToTokenBatchOrder.amountIn += currentOrder
                             .quantity;
+
+
+                        currentTokenToTokenBatchOrder.amountOutMin += currentOrder
+                            .amountOutMin;
 
                         ///@notice add owner of the order to the batchOwners
                         currentTokenToTokenBatchOrder.batchOwners[
@@ -1422,7 +1439,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                         ///@notice increment the batch length
                         ++currentTokenToTokenBatchOrder.batchLength;
-
+                        console.logString("Batch length");
+                        console.log(currentTokenToTokenBatchOrder.batchLength);
                         ///@notice update the best execution price
                         (
                             executionPrices[bestPriceIndex]
@@ -1435,7 +1453,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         cancelOrder(currentOrder.orderId);
                         //TODO: emit order cancellation
                     }
-                } 
+                }
             }
         }
 

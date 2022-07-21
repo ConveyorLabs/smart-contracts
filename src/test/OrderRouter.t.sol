@@ -1174,7 +1174,7 @@ contract OrderRouterWrapper is OrderRouter {
         view
         returns (uint112 amountIn)
     {
-        return _getTargetAmountIn(token0, token1);
+        return _getGreatestTokenDecimalsAmountIn(token0, token1);
     }
 
     function convertToCommonBase(
