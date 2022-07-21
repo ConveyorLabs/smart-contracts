@@ -1066,28 +1066,27 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     function calculateAmountOutMinAToWeth(
+        address lpAddressAToWeth,
         address lpAddressWethToB,
+        uint256 amountInOrder,
         uint256 amountOutMin,
         bytes32 orderId
     ) internal returns (uint256 amountOutMinAToWeth) {
         uint256 spotPrice;
         console.logAddress(lpAddressWethToB);
 
-        if (!_lpIsNotUniV3(lpAddressWethToB)) {
+        if (!_lpIsNotUniV3(lpAddressAToWeth)) {
             Order memory order = getOrderById(orderId);
             console.logString("Order token out ");
             console.logAddress(order.tokenOut);
-            uint112 amountIn = _getGreatestTokenDecimalsAmountIn(
-                order.tokenOut,
-                WETH
-            );
-
+            
+            uint112 amountIn = _getGreatestTokenDecimalsAmountIn(order.tokenOut, WETH);
             (
                 OrderRouter.SpotReserve memory spotReserve,
 
             ) = _calculateV3SpotPrice(
-                    WETH,
                     order.tokenOut,
+                    WETH,
                     amountIn,
                     order.fee,
                     1,
@@ -1096,33 +1095,37 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
             spotPrice = spotReserve.spotPrice;
 
-            console.log(spotPrice);
-            console.log("spotPrice ^^");
-
-            spotPrice = _getQuoteAtTick(1, amountIn, WETH, order.tokenOut);
+            amountOutMinAToWeth = ConveyorMath.mul128I(spotPrice, amountOutMin);
+            
         } else {
-            if (WETH == IUniswapV2Pair(lpAddressWethToB).token0()) {
-                spotPrice =
-                    uint256(
-                        IUniswapV2Pair(lpAddressWethToB).price1CumulativeLast()
-                    ) <<
-                    16;
-                console.logString("SpotPrice");
-                console.log(spotPrice);
-            } else {
-                spotPrice =
-                    uint256(
-                        IUniswapV2Pair(lpAddressWethToB).price0CumulativeLast()
-                    ) <<
-                    16;
-                console.logString("SpotPrice");
-                console.log(spotPrice);
+            (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(lpAddressAToWeth).getReserves();
+            if(WETH == IUniswapV2Pair(lpAddressAToWeth).token0()){
+                amountOutMinAToWeth = getAmountOut(amountInOrder, uint256(reserve1), uint256(reserve0));
+            }else{
+                amountOutMinAToWeth = getAmountOut(amountInOrder, uint256(reserve0), uint256(reserve1));
             }
+            
         }
 
-        amountOutMinAToWeth = ConveyorMath.mul128I(spotPrice, amountOutMin);
+        
         console.logString("Derived amount out min");
         console.log(amountOutMinAToWeth);
+    }
+
+    function getAmountOut(
+        uint256 amountIn,
+        uint256 reserveIn,
+        uint256 reserveOut
+    ) internal pure returns (uint256 amountOut) {
+        require(amountIn > 0, "UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT");
+        require(
+            reserveIn > 0 && reserveOut > 0,
+            "UniswapV2Library: INSUFFICIENT_LIQUIDITY"
+        );
+        uint256 amountInWithFee = amountIn *997;
+        uint256 numerator = amountInWithFee*reserveOut;
+        uint256 denominator = reserveIn*1000+(amountInWithFee);
+        amountOut = numerator / denominator;
     }
 
     ///@return (amountOut, beaconReward)
@@ -1137,7 +1140,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint24 fee;
         if (!(batch.batchLength == 0)) {
             uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWeth(
+                batch.lpAddressAToWeth,
                 batch.lpAddressWethToB,
+                batch.amountIn,
                 batch.amountOutMin,
                 batch.orderIds[0]
             );

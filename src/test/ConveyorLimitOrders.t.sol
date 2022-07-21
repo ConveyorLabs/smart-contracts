@@ -1738,7 +1738,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
-            500000000000000000000,
+            1000000000000000000000,
             1000000000000000000000
         );
 
@@ -1748,7 +1748,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
-            500000000000000000000,
+            1000000000000000000000,
             1000000000000000000000
         );
         OrderBook.Order memory order3 = newMockOrder(
@@ -1757,7 +1757,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
-            500000000000000000000,
+            1000000000000000000000,
             1000000000000000000000
         );
 
