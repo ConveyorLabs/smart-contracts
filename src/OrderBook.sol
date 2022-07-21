@@ -26,7 +26,9 @@ contract OrderBook is GasOracle {
         bool taxed;
         uint32 lastRefreshTimestamp;
         uint32 expirationTimestamp;
-        uint24 fee;
+        uint24 feeIn;
+        uint24 feeOut;
+        uint24 tax;
         uint128 price;
         uint128 amountOutMin;
         uint128 quantity;
