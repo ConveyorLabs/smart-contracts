@@ -379,9 +379,10 @@ contract OrderRouter {
                 amount1Out,
                 _reciever,
                 new bytes(0)
-                
             )
-        {console.logString("Passed v2 swap");} catch {
+        {
+            console.logString("Passed v2 swap");
+        } catch {
             console.log("Failed v2");
             //TODO: emit an event for the error that happened
             return 0;
@@ -868,7 +869,6 @@ contract OrderRouter {
         uint112 reserve1,
         uint8 token1Decimals
     ) internal view returns (uint112, uint112) {
-        
         /// @dev Conditionally change the decimal to target := max(decimal0, decimal1)
         /// return tuple of modified reserve values in matching decimals
         if (token0Decimals > token1Decimals) {
@@ -919,8 +919,8 @@ contract OrderRouter {
     function _getQuoteAtTick(
         int24 tick,
         uint128 baseAmount,
-        address baseToken, 
-        address quoteToken 
+        address baseToken,
+        address quoteToken
     ) internal view returns (uint256) {
         uint160 sqrtRatioX96 = TickMath.getSqrtRatioAtTick(tick);
 
