@@ -1082,9 +1082,24 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 WETH
             );
 
-            spotPrice = _getQuoteAtTick(1, amountIn, WETH, order.tokenOut);
-            console.logString("SpotPrice");
+            (
+                OrderRouter.SpotReserve memory spotReserve,
+
+            ) = _calculateV3SpotPrice(
+                    WETH,
+                    order.tokenOut,
+                    amountIn,
+                    order.fee,
+                    1,
+                    dexes[1].factoryAddress
+                );
+
+            spotPrice = spotReserve.spotPrice;
+
             console.log(spotPrice);
+            console.log("spotPrice ^^");
+
+            spotPrice = _getQuoteAtTick(1, amountIn, WETH, order.tokenOut);
         } else {
             if (WETH == IUniswapV2Pair(lpAddressWethToB).token0()) {
                 spotPrice =

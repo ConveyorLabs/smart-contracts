@@ -668,8 +668,7 @@ contract OrderRouter {
         //Scope to prevent stack too deep error
         {
             //Pool address for token pair
-            //TODO: remove this please
-            pool = IUniswapV3Factory(_factory).getPool(token0, token1, 3000);
+            pool = IUniswapV3Factory(_factory).getPool(token0, token1, fee);
 
             if (pool == address(0)) {
                 return (_spRes, address(0));
