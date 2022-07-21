@@ -276,6 +276,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     function testExecuteWethToTokenOrderBatch() public {
         cheatCodes.prank(tx.origin);
         depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         bytes32[] memory tokenToWethOrderBatch = placeNewMockWethToTokenBatch();
         conveyorLimitOrders.executeOrders(tokenToWethOrderBatch);
