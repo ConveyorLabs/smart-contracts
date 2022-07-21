@@ -1244,12 +1244,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = _getAllPrices(orders[0].tokenIn, WETH, 1, 100);
+        ) = _getAllPrices(orders[0].tokenIn, WETH, 1, orders[0].fee);
 
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
-        ) = _getAllPrices(WETH, orders[0].tokenOut, 1, 3000);
+        ) = _getAllPrices(WETH, orders[0].tokenOut, 1, orders[0].fee);
 
         TokenToTokenExecutionPrice[]
             memory executionPrices = new TokenToTokenExecutionPrice[](
