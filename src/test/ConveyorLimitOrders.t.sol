@@ -9,6 +9,7 @@ import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
 import "./utils/Swap.sol";
+import "../../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -48,41 +49,51 @@ contract ConveyorLimitOrdersTest is DSTest {
     uint256 constant MAX_UINT = 2**256 - 1;
 
     //Factory and router address's
-    address _uniV2Address = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    address _sushiSwapRouterAddress =
+        0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
     address _uniV2FactoryAddress = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
-    address _sushiFactoryAddress = 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac;
+    // address _sushiFactoryAddress = 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac;
     address _uniV3FactoryAddress = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 
     //Chainlink ERC20 address
     address swapToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
-    bytes32 _sushiHexDem =
-        0xe18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303;
+    // bytes32 _sushiHexDem =
+    //     hex"e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303";
     bytes32 _uniswapV2HexDem =
-        0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
+        hex"96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f";
 
     //Initialize array of Dex specifications
-    bytes32[] _hexDems = [_uniswapV2HexDem, _sushiHexDem, _uniswapV2HexDem];
+    bytes32[] _hexDems = [
+        _uniswapV2HexDem,
+        // _sushiHexDem,
+        bytes32(0)
+    ];
     address[] _dexFactories = [
         _uniV2FactoryAddress,
-        _sushiFactoryAddress,
+        // _sushiFactoryAddress,
         _uniV3FactoryAddress
     ];
-    bool[] _isUniV2 = [true, true, false];
+    bool[] _isUniV2 = [
+        true,
+        //  true,
+        false
+    ];
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
-        swapHelper = new Swap(uniV2Addr, WETH);
+        swapHelper = new Swap(_sushiSwapRouterAddress, WETH);
+
         conveyorLimitOrders = new ConveyorLimitOrdersWrapper(
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             5,
             2592000,
-            3000000
+            3000000,
+            _hexDems,
+            _dexFactories,
+            _isUniV2
         );
-        conveyorLimitOrders.addDex(_dexFactories[0], _hexDems[0], _isUniV2[0]);
-        // conveyorLimitOrders.addDex(_dexFactories[1], _hexDems[1], _isUniV2[1]);
-        // conveyorLimitOrders.addDex(_dexFactories[2], _hexDems[2], _isUniV2[2]);
     }
 
     function testOnlyEOA() public {
@@ -265,6 +276,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     function testExecuteWethToTokenOrderBatch() public {
         cheatCodes.prank(tx.origin);
         depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         bytes32[] memory tokenToWethOrderBatch = placeNewMockWethToTokenBatch();
         conveyorLimitOrders.executeOrders(tokenToWethOrderBatch);
@@ -303,7 +315,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-        // swapHelper.swapEthForTokenWithUniV2(MAX_UINT, UNI);
+        swapHelper.swapEthForTokenWithUniV2(100000 ether, UNI);
 
         IERC20(UNI).approve(address(conveyorLimitOrders), MAX_UINT);
 
@@ -386,7 +398,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         );
         OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         orderGroup[0] = order;
-        bytes32[] memory orderBatch = conveyorLimitOrders.placeOrder(orderGroup);
+        bytes32[] memory orderBatch = conveyorLimitOrders.placeOrder(
+            orderGroup
+        );
 
         cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(orderBatch);
@@ -399,7 +413,8 @@ contract ConveyorLimitOrdersTest is DSTest {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
-        bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethTaxedBatch();
+        bytes32[]
+            memory tokenToWethOrderBatch = placeNewMockTokenToWethTaxedBatch();
 
         //check that the orders have been placed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
@@ -1715,35 +1730,35 @@ contract ConveyorLimitOrdersTest is DSTest {
         internal
         returns (bytes32[] memory)
     {
-        swapHelper.swapEthForTokenWithUniV2(10000 ether, UNI);
+        swapHelper.swapEthForTokenWithUniV2(100000000 ether, UNI);
 
         OrderBook.Order memory order1 = newMockOrder(
             UNI,
             DAI,
-            uint128(MAX_UINT),
-            true,
+            1,
             false,
-            5000000000000000000,
-            1000000000000000000
+            false,
+            1000000000000000000000,
+            1000000000000000000000
         );
 
         OrderBook.Order memory order2 = newMockOrder(
             UNI,
             DAI,
-            uint128(MAX_UINT),
-            true,
+            1,
             false,
-            5000000000000000000,
-            1000000000000000000
+            false,
+            1000000000000000000000,
+            1000000000000000000000
         );
         OrderBook.Order memory order3 = newMockOrder(
             UNI,
             DAI,
-            uint128(MAX_UINT),
-            true,
+            1,
             false,
-            5000000000000000000,
-            1000000000000000000
+            false,
+            1000000000000000000000,
+            1000000000000000000000
         );
 
         ConveyorLimitOrders.Order[]
@@ -1765,7 +1780,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             UNI,
             DAI,
             1,
-            true,
+            false,
             false,
             1,
             10
@@ -1775,7 +1790,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             UNI,
             DAI,
             1,
-            true,
+            false,
             false,
             1,
             11
@@ -1784,7 +1799,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             UNI,
             DAI,
             1,
-            true,
+            false,
             false,
             1,
             12
@@ -1807,7 +1822,10 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
         address _usdc,
         uint256 _refreshFee,
         uint256 _refreshInterval,
-        uint256 _executionCost
+        uint256 _executionCost,
+        bytes32[] memory _initBytecodes,
+        address[] memory _dexFactories,
+        bool[] memory _isUniV2
     )
         ConveyorLimitOrders(
             _gasOracle,
@@ -1815,7 +1833,10 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
             _usdc,
             _refreshFee,
             _refreshInterval,
-            _executionCost
+            _executionCost,
+            _initBytecodes,
+            _dexFactories,
+            _isUniV2
         )
     {}
 

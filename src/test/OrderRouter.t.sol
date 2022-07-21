@@ -57,20 +57,22 @@ contract OrderRouterTest is DSTest {
     uint256 constant MAX_UINT = 2**256 - 1;
 
     //Dex[] dexes array of dex structs
-    ConveyorLimitOrders.Dex public uniswapV2;
+    bytes32[] _hexDems = [_uniswapV2HexDem, _sushiHexDem, _uniswapV2HexDem];
+    address[] _dexFactories = [
+        _uniV2FactoryAddress,
+        _sushiFactoryAddress,
+        _uniV3FactoryAddress
+    ];
+    bool[] _isUniV2 = [true, true, false];
+    
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         scriptRunner = new ScriptRunner();
+
+        
         //Initialize swap router in constructor
-        orderRouter = new OrderRouterWrapper();
-
-        uniswapV2.factoryAddress = _uniV2FactoryAddress;
-
-        orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
-        // orderRouter.addDex(_sushiFactoryAddress, _sushiHexDem, true);
-        // ///@notice
-        // orderRouter.addDex(_uniV3FactoryAddress, 0x00, false);
+        orderRouter = new OrderRouterWrapper(_hexDems,_dexFactories,_isUniV2);
 
         uniV2Router = IUniswapV2Router02(_uniV2Address);
         uniV2Factory = IUniswapV2Factory(_uniV2FactoryAddress);
@@ -112,9 +114,9 @@ contract OrderRouterTest is DSTest {
 
     function testChangeBase() public {
         //----------Test 1 setup----------------------//
-        uint256 reserve0 = 131610640170334000000000000;
+        uint112 reserve0 = 131610640170334000000000000;
         uint8 dec0 = 18;
-        uint256 reserve1 = 131610640170334;
+        uint112 reserve1 = 131610640170334;
         uint8 dec1 = 9;
         (uint256 r0_out, uint256 r1_out) = orderRouter.convertToCommonBase(
             reserve0,
@@ -124,9 +126,9 @@ contract OrderRouterTest is DSTest {
         );
 
         //----------Test 2 setup-----------------//
-        uint256 reserve01 = 131610640170334;
+        uint112 reserve01 = 131610640170334;
         uint8 dec01 = 6;
-        uint256 reserve11 = 47925919677616776812811;
+        uint112 reserve11 = 47925919677616776812811;
         uint8 dec11 = 18;
 
         (uint256 r0_out1, uint256 r1_out1) = orderRouter.convertToCommonBase(
@@ -431,7 +433,7 @@ contract OrderRouterTest is DSTest {
         (
             OrderRouter.SpotReserve[] memory pricesUNWeth,
             address[] memory lps2
-        ) = orderRouter.getAllPrices(UNI, weth, 1, 100);
+        ) = orderRouter.getAllPrices(dai, weth, 1, 3000);
 
         // (
         //     OrderRouter.SpotReserve[] memory pricesWethDai,
@@ -449,8 +451,8 @@ contract OrderRouterTest is DSTest {
         //     address[] memory lps5
         // ) = orderRouter.getAllPrices(weth, LINK, 1, 3000);
 
-        console.log("uni/weth");
-        console.log(pricesUNWeth[0].spotPrice);
+        console.log("dai/weth");
+        console.log(pricesUNWeth[2].spotPrice);
         // console.log(pricesUNWeth[1].spotPrice);
         // console.log(pricesUNWeth[2].spotPrice);
 
@@ -987,6 +989,18 @@ contract OrderRouterTest is DSTest {
 
 //wrapper around OrderRouter to expose internal functions for testing
 contract OrderRouterWrapper is OrderRouter {
+    constructor(
+        bytes32[] memory _initBytecodes,
+        address[] memory _dexFactories,
+        bool[] memory _isUniV2
+        
+    ) OrderRouter(
+        _initBytecodes,
+        _dexFactories,
+        _isUniV2
+
+    ){}
+
     function calculateFee(
         uint128 amountIn,
         address usdc,
@@ -1005,7 +1019,7 @@ contract OrderRouterWrapper is OrderRouter {
 
     function calculateReward(uint128 percentFee, uint128 wethValue)
         public
-        view
+        pure
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
         return _calculateReward(percentFee, wethValue);
@@ -1160,15 +1174,15 @@ contract OrderRouterWrapper is OrderRouter {
         view
         returns (uint112 amountIn)
     {
-        return _getTargetAmountIn(token0, token1);
+        return _getGreatestTokenDecimalsAmountIn(token0, token1);
     }
 
     function convertToCommonBase(
-        uint256 reserve0,
+        uint112 reserve0,
         uint8 token0Decimals,
-        uint256 reserve1,
+        uint112 reserve1,
         uint8 token1Decimals
-    ) public pure returns (uint256, uint256) {
+    ) public view returns (uint128, uint128) {
         return
             _convertToCommonBase(
                 reserve0,

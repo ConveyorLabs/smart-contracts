@@ -45,6 +45,21 @@ contract OrderBookTest is DSTest {
     address swapToken1 = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
 
     uint256 immutable MAX_UINT = type(uint256).max;
+    //Factory and router address's
+    address _sushiSwapRouterAddress =
+        0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
+    address _uniV2FactoryAddress = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+    address _uniV3FactoryAddress = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
+
+    //Chainlink ERC20 address
+
+    bytes32 _uniswapV2HexDem =
+        0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
+
+    //Initialize array of Dex specifications
+    bytes32[] _hexDems = [_uniswapV2HexDem, _uniswapV2HexDem];
+    address[] _dexFactories = [_uniV2FactoryAddress, _uniV3FactoryAddress];
+    bool[] _isUniV2 = [true, false];
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
@@ -54,9 +69,12 @@ contract OrderBookTest is DSTest {
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             5,
             2592000,
-            300000
+            300000,
+            _hexDems,
+            _dexFactories,
+            _isUniV2
         );
-        swapHelper = new Swap(uniV2Addr, wnato);
+        swapHelper = new Swap(_sushiSwapRouterAddress, wnato);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
         orderBook = new OrderBookWrapper(aggregatorV3Address);
