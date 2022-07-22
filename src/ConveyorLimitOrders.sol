@@ -299,6 +299,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice This function takes in an array of orders,
     /// @param orderIds array of orders to be executed within the mapping
     function executeOrders(bytes32[] calldata orderIds) external onlyEOA {
+        
         ///@notice validate that the order array is in ascending order by quantity
         Order[] memory orders = new Order[](orderIds.length);
 
@@ -663,7 +664,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = _getAllPrices(orders[0].tokenIn, WETH, 500, 1);
+        ) = _getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn, 1);
 
         TokenToWethExecutionPrice[]
             memory executionPrices = new TokenToWethExecutionPrice[](
@@ -1088,7 +1089,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     order.tokenOut,
                     WETH,
                     amountIn,
-                    order.fee,
+                    order.feeOut,
                     1,
                     dexes[1].factoryAddress
                 );
@@ -1104,7 +1105,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }else{
                 amountOutMinAToWeth = getAmountOut(amountInOrder, uint256(reserve0), uint256(reserve1));
             }
-            
         }
 
         
@@ -1249,12 +1249,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = _getAllPrices(orders[0].tokenIn, WETH, 1, orders[0].fee);
+        ) = _getAllPrices(tokenIn, WETH, 1, orders[0].feeIn);
 
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
-        ) = _getAllPrices(WETH, orders[0].tokenOut, 1, orders[0].fee);
+        ) = _getAllPrices(WETH, orders[0].tokenOut, 1, orders[0].feeOut);
 
         TokenToTokenExecutionPrice[]
             memory executionPrices = new TokenToTokenExecutionPrice[](
@@ -1545,7 +1545,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    //TODO:
+    //TODO: currently not in use for architecture
     function _sequenceOrdersByPriorityFee(Order[] calldata orders)
         internal
         returns (Order[] memory)

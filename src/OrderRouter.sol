@@ -867,7 +867,7 @@ contract OrderRouter {
         uint8 token0Decimals,
         uint112 reserve1,
         uint8 token1Decimals
-    ) internal view returns (uint112, uint112) {
+    ) internal pure returns (uint112, uint112) {
         /// @dev Conditionally change the decimal to target := max(decimal0, decimal1)
         /// return tuple of modified reserve values in matching decimals
         if (token0Decimals > token1Decimals) {
