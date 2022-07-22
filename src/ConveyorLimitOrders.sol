@@ -1045,9 +1045,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
 
             ///@notice get amount in for weth to B
-            amountInWethToB = order.quantity - protocolFee;
+            amountInWethToB = order.quantity - beaconReward;
         }
+
         fee = _getUniV3Fee(batch.lpAddressWethToB);
+
         ///@notice swap weth for B
         _swap(
             WETH,
