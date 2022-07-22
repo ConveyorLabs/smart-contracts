@@ -42,7 +42,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     //TODO: add taxed token
-    address TAXED_TOKEN = 0x16631e53C20Fd2670027C6D53EfE2642929b285C;
+    address TAXED_TOKEN = 0xCE3f08e664693ca792caCE4af1364D5e220827B2; //Saitama 4% Tax 9 decimals
     address TAXED_TOKEN_1 = address(0);
 
     //MAX_UINT for testing

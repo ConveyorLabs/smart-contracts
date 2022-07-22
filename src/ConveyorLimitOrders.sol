@@ -299,7 +299,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice This function takes in an array of orders,
     /// @param orderIds array of orders to be executed within the mapping
     function executeOrders(bytes32[] calldata orderIds) external onlyEOA {
-        
+
         ///@notice validate that the order array is in ascending order by quantity
         Order[] memory orders = new Order[](orderIds.length);
 
@@ -945,6 +945,53 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
+    function calculateAmountOutMinAToWethTaxed(
+        address lpAddressAToWeth,
+        address lpAddressWethToB,
+        uint256 amountInOrder,
+        uint256 amountOutMin,
+        bytes32 orderId,
+        uint8 taxIn
+    ) internal returns (uint256 amountOutMinAToWethTaxed) {
+        uint256 spotPrice;
+        console.logAddress(lpAddressWethToB);
+
+        if (!_lpIsNotUniV3(lpAddressAToWeth)) {
+            Order memory order = getOrderById(orderId);
+            uint112 amountIn = _getGreatestTokenDecimalsAmountIn(order.tokenOut, WETH);
+            (
+                OrderRouter.SpotReserve memory spotReserve,
+
+            ) = _calculateV3SpotPrice(
+                    order.tokenOut,
+                    WETH,
+                    amountIn,
+                    order.feeOut,
+                    1,
+                    ///TODO: Figure out where to index dexes for v3
+                    dexes[1].factoryAddress
+                );
+
+            spotPrice = spotReserve.spotPrice;
+            
+            uint256 amountOutMinAToWeth = ConveyorMath.mul128I(spotPrice, amountOutMin);
+            uint256 amountOutMinAToWethTaxedBuffer = ConveyorMath.mul128I(uint256(taxIn), amountOutMinAToWeth);
+            amountOutMinAToWethTaxed = amountOutMinAToWeth - amountOutMinAToWethTaxedBuffer;
+
+            
+        } else {
+            (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(lpAddressAToWeth).getReserves();
+            if(WETH == IUniswapV2Pair(lpAddressAToWeth).token0()){
+                uint256 amountOutMinAToWeth = getAmountOut(amountInOrder, uint256(reserve1), uint256(reserve0));
+                uint256 amountOutMinAToWethTaxedBuffer = ConveyorMath.mul128I(uint256(taxIn), amountOutMinAToWeth);
+                amountOutMinAToWethTaxed = amountOutMinAToWeth - amountOutMinAToWethTaxedBuffer;
+            }else{
+                uint256 amountOutMinAToWeth = getAmountOut(amountInOrder, uint256(reserve0), uint256(reserve1));
+                uint256 amountOutMinAToWethTaxedBuffer = ConveyorMath.mul128I(uint256(taxIn), amountOutMinAToWeth);
+                amountOutMinAToWethTaxed = amountOutMinAToWeth - amountOutMinAToWethTaxedBuffer;
+            }
+        }
+    }
     ///@dev the amountOut is the amount out - protocol fees
     function _executeTokenToTokenTaxedOrder(
         TokenToTokenBatchOrder memory batch,
@@ -956,6 +1003,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint24 fee;
         if (order.tokenIn != WETH) {
             fee = _getUniV3Fee(batch.lpAddressAToWeth);
+
+            uint256 amountOutMinTaxed = calculateAmountOutMinAToWethTaxed(
+                batch.lpAddressAToWeth,
+                batch.lpAddressWethToB,
+                order.quantity,
+                order.amountOutMin,
+                order.orderId,
+                order.taxIn
+            );
+
             ///@notice swap from A to weth
             uint128 amountOutWeth = uint128(
                 _swap(
@@ -964,7 +1021,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     batch.lpAddressAToWeth,
                     fee,
                     order.quantity,
-                    order.amountOutMin,
+                    amountOutMinTaxed,
                     address(this),
                     order.owner
                 )
@@ -1066,6 +1123,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         safeTransferETH(msg.sender, totalBeaconReward);
     }
 
+    ///TODO: Account for v3 fee on amountOut conversion
     function calculateAmountOutMinAToWeth(
         address lpAddressAToWeth,
         address lpAddressWethToB,
@@ -1107,10 +1165,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
         }
 
-        
-        console.logString("Derived amount out min");
-        console.log(amountOutMinAToWeth);
     }
+
+    
 
     function getAmountOut(
         uint256 amountIn,
