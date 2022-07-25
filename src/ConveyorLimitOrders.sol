@@ -979,10 +979,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 spotPrice,
                 amountOutMin
             );
-            uint256 amountOutMinAToWethTaxedBuffer = ConveyorMath.mul128I(
-                    uint256(taxIn)<<128,
-                    amountOutMinAToWeth
-                );
+            uint256 amountOutMinAToWethTaxedBuffer = (taxIn*amountOutMinAToWeth)/ 10**5;
 
                 uint256 amountOutMinAToWethTaxedBufferRebased = amountOutMinAToWethTaxedBuffer / 10**3;
 
@@ -999,10 +996,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     uint256(reserve1),
                     uint256(reserve0)
                 );
-                uint256 amountOutMinAToWethTaxedBuffer = ConveyorMath.mul128I(
-                    uint256(taxIn)<<128,
-                    amountOutMinAToWeth
-                );
+                uint256 amountOutMinAToWethTaxedBuffer = (taxIn*amountOutMinAToWeth)/ 10**5;
 
                 uint256 amountOutMinAToWethTaxedBufferRebased = amountOutMinAToWethTaxedBuffer / 10**3;
 
@@ -1015,10 +1009,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     uint256(reserve0),
                     uint256(reserve1)
                 );
-                uint256 amountOutMinAToWethTaxedBuffer = ConveyorMath.mul128I(
-                    uint256(taxIn)<<128,
-                    amountOutMinAToWeth
-                );
+                uint256 amountOutMinAToWethTaxedBuffer = (taxIn*amountOutMinAToWeth)/ 10**5;
 
                 uint256 amountOutMinAToWethTaxedBufferRebased = amountOutMinAToWethTaxedBuffer / 10**3;
 
@@ -1041,12 +1032,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         if (order.tokenIn != WETH) {
             fee = _getUniV3Fee(batch.lpAddressAToWeth);
             
-            uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWeth(
+            uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWethTaxed(
                 batch.lpAddressAToWeth,
                 batch.lpAddressWethToB,
-                batch.amountIn,
+                order.quantity,
                 batch.amountOutMin,
-                batch.orderIds[0]
+                batch.orderIds[0],
+                order.taxIn
             );
             
             ///@notice swap from A to weth
