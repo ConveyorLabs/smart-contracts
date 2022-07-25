@@ -474,7 +474,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             false,
             true,
             4000,
-            1,
+            0,
             20000000000000000, //2,000,000
             3000,
             3000,
@@ -522,11 +522,11 @@ contract ConveyorLimitOrdersTest is DSTest {
             MAX_U32
         );
 
-        bytes32 orderId = placeMockOrder(order);
-
-        bytes32[] memory orderBatch = new bytes32[](1);
-
-        orderBatch[0] = orderId;
+        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
+        orderGroup[0] = order;
+        bytes32[] memory orderBatch = conveyorLimitOrders.placeOrder(
+            orderGroup
+        );
 
         cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(orderBatch);

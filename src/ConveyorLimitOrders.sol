@@ -915,14 +915,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             memory executionPrices = _initializeTokenToTokenExecutionPrices(
                 orders
             );
-
+        
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
         TokenToTokenBatchOrder[]
             memory tokenToTokenBatchOrders = _batchTokenToTokenOrders(
                 orders,
                 executionPrices
             );
-
+        
         ///@notice execute the batch orders
         _executeTokenToTokenBatchTaxedOrders(tokenToTokenBatchOrders);
     }
@@ -933,13 +933,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         for (uint256 i = 0; i < tokenToTokenBatchOrders.length; i++) {
             TokenToTokenBatchOrder memory batch = tokenToTokenBatchOrders[i];
             uint128 totalBeaconReward;
-            for (uint256 j = 0; j < batch.orderIds.length; j++) {
+            for (uint256 j = 0; j < batch.batchLength; j++) {
                 Order memory order = getOrderById(batch.orderIds[j]);
                 totalBeaconReward += _executeTokenToTokenTaxedOrder(
                     tokenToTokenBatchOrders[i],
                     order
                 );
             }
+           
 
             safeTransferETH(msg.sender, totalBeaconReward);
         }
@@ -979,12 +980,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 amountOutMin
             );
             uint256 amountOutMinAToWethTaxedBuffer = ConveyorMath.mul128I(
-                uint256(taxIn),
-                amountOutMinAToWeth
-            );
-            amountOutMinAToWethTaxed =
-                amountOutMinAToWeth -
-                amountOutMinAToWethTaxedBuffer;
+                    uint256(taxIn)<<128,
+                    amountOutMinAToWeth
+                );
+
+                uint256 amountOutMinAToWethTaxedBufferRebased = amountOutMinAToWethTaxedBuffer / 10**3;
+
+                amountOutMinAToWethTaxed =
+                    amountOutMinAToWeth -
+                    amountOutMinAToWethTaxedBufferRebased;
         } else {
             (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(
                 lpAddressAToWeth
@@ -996,12 +1000,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     uint256(reserve0)
                 );
                 uint256 amountOutMinAToWethTaxedBuffer = ConveyorMath.mul128I(
-                    uint256(taxIn),
+                    uint256(taxIn)<<128,
                     amountOutMinAToWeth
                 );
+
+                uint256 amountOutMinAToWethTaxedBufferRebased = amountOutMinAToWethTaxedBuffer / 10**3;
+
                 amountOutMinAToWethTaxed =
                     amountOutMinAToWeth -
-                    amountOutMinAToWethTaxedBuffer;
+                    amountOutMinAToWethTaxedBufferRebased;
             } else {
                 uint256 amountOutMinAToWeth = getAmountOut(
                     amountInOrder,
@@ -1009,12 +1016,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     uint256(reserve1)
                 );
                 uint256 amountOutMinAToWethTaxedBuffer = ConveyorMath.mul128I(
-                    uint256(taxIn),
+                    uint256(taxIn)<<128,
                     amountOutMinAToWeth
                 );
+
+                uint256 amountOutMinAToWethTaxedBufferRebased = amountOutMinAToWethTaxedBuffer / 10**3;
+
                 amountOutMinAToWethTaxed =
                     amountOutMinAToWeth -
-                    amountOutMinAToWethTaxedBuffer;
+                    amountOutMinAToWethTaxedBufferRebased;
             }
         }
     }
@@ -1030,16 +1040,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint24 fee;
         if (order.tokenIn != WETH) {
             fee = _getUniV3Fee(batch.lpAddressAToWeth);
-
-            uint256 amountOutMinTaxed = calculateAmountOutMinAToWethTaxed(
+            
+            uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWeth(
                 batch.lpAddressAToWeth,
                 batch.lpAddressWethToB,
-                order.quantity,
-                order.amountOutMin,
-                order.orderId,
-                order.taxIn
+                batch.amountIn,
+                batch.amountOutMin,
+                batch.orderIds[0]
             );
-
+            
             ///@notice swap from A to weth
             uint128 amountOutWeth = uint128(
                 _swap(
@@ -1048,19 +1057,19 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     batch.lpAddressAToWeth,
                     fee,
                     order.quantity,
-                    amountOutMinTaxed,
+                    batchAmountOutMinAToWeth,
                     address(this),
                     order.owner
                 )
             );
-
+            
             ///@notice take out fees
             protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
-
+            
             (, beaconReward) = _calculateReward(protocolFee, amountOutWeth);
 
             ///@notice get amount in for weth to B
-            amountInWethToB = amountOutWeth - protocolFee;
+            amountInWethToB = amountOutWeth - beaconReward;
         } else {
             //If token in == weth calculate fee on amount In
             protocolFee = _calculateFee(uint128(order.quantity), USDC, WETH);
