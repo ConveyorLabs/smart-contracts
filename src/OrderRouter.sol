@@ -768,9 +768,14 @@ contract OrderRouter {
         address token1,
         uint32 tickSecond,
         uint24 FEE
-    ) internal view returns (SpotReserve[] memory, address[] memory) {
+    )
+        internal
+        view
+        returns (SpotReserve[] memory prices, address[] memory lps)
+    {
         if (token0 != token1) {
             //Target base amount in value
+            // uint112 amountIn = _getTargetAmountIn(token0, token1);
             uint112 amountIn = _getGreatestTokenDecimalsAmountIn(
                 token0,
                 token1
@@ -821,6 +826,7 @@ contract OrderRouter {
                     }
                 }
             }
+
             return (_spotPrices, _lps);
         } else {
             SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);

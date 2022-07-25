@@ -1044,7 +1044,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     batch.orderIds[0],
                     order.taxIn
                 );
-
+            console.log(batchAmountOutMinAToWeth);
             ///@notice swap from A to weth
             uint128 amountOutWeth = uint128(
                 _swap(
@@ -1796,22 +1796,20 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128[] memory newReserves = new uint128[](2);
 
         unchecked {
-            uint128 numerator = reserveA + alphaX;
-            uint256 k = uint256(reserveA * reserveB);
+            uint128 numerator = reserveA + alphaX; //11068720173663754
+            uint256 k = uint256(reserveA * reserveB); //1101968080474711952935030209443346410
 
-            uint128 denominator = ConveyorMath.divUI(
+            uint256 denominator = ConveyorMath.divUI128x128(
                 k,
                 uint256(reserveA) + alphaX
             );
-
+        
             uint256 spotPrice = uint256(
                 ConveyorMath.div128x128(
                     uint256(numerator) << 128,
-                    uint256(denominator) << 64
+                    denominator
                 )
             );
-
-            console.log("here");
 
             require(
                 spotPrice <=
@@ -1819,7 +1817,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 "overflow"
             );
             newReserves[0] = numerator;
-            newReserves[1] = denominator;
+            newReserves[1] = uint128(denominator>>128);
 
             return (spotPrice, newReserves[0], newReserves[1]);
         }
