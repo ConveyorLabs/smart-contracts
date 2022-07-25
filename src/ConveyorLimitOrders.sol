@@ -852,7 +852,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address token,
         uint256 amount
     ) internal returns (bool) {
-        
         try IERC20(token).transferFrom(sender, address(this), amount) {} catch {
             return false;
         }
@@ -1541,15 +1540,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             currentOrder.amountOutMin
                         )
                     ) {
-                        console.log("here");
-
                         transferTokensToContract(
                             currentOrder.owner,
                             currentOrder.tokenIn,
                             currentOrder.quantity
                         );
-
-                        console.log("here1");
 
                         uint256 batchLength = currentTokenToTokenBatchOrder
                             .batchLength;
@@ -1578,6 +1573,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                         ///@notice increment the batch length
                         ++currentTokenToTokenBatchOrder.batchLength;
+
                         ///@notice update the best execution price
                         (
                             executionPrices[bestPriceIndex]
@@ -1593,7 +1589,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 }
             }
         }
-        // require(false, "here");
 
         ///@notice add the last batch to the tokenToWethBatchOrders array
         tokenToTokenBatchOrders[
@@ -1690,7 +1685,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function simulateTokenToWethPriceChange(
         uint128 alphaX,
         TokenToWethExecutionPrice memory executionPrice
-    ) internal pure returns (TokenToWethExecutionPrice memory) {
+    ) internal view returns (TokenToWethExecutionPrice memory) {
         //TODO: update this to make sure weth is the right reserve position
         //TODO:^^
         //---------------------------------------------------
@@ -1716,7 +1711,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function simulateTokenToTokenPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
-    ) internal pure returns (TokenToTokenExecutionPrice memory) {
+    ) internal view returns (TokenToTokenExecutionPrice memory) {
         //TODO: check if weth to token or token to weth and then change these vals
         uint128 reserveAToken = executionPrice.aToWethReserve0;
         uint128 reserveAWeth = executionPrice.aToWethReserve1;
@@ -1787,13 +1782,17 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 reserveB
     )
         internal
-        pure
+        view
         returns (
             uint256,
             uint128,
             uint128
         )
     {
+        console.log(reserveA);
+        console.log(reserveB);
+        console.log(alphaX);
+
         uint128[] memory newReserves = new uint128[](2);
 
         unchecked {
@@ -1802,7 +1801,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
             uint128 denominator = ConveyorMath.divUI(
                 k,
-                uint256(reserveA + alphaX)
+                uint256(reserveA) + alphaX
             );
 
             uint256 spotPrice = uint256(
@@ -1812,6 +1811,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 )
             );
 
+            console.log("here");
+
             require(
                 spotPrice <=
                     0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
@@ -1819,6 +1820,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
             newReserves[0] = numerator;
             newReserves[1] = denominator;
+
             return (spotPrice, newReserves[0], newReserves[1]);
         }
     }
