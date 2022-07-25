@@ -296,7 +296,14 @@ contract ConveyorLimitOrdersTest is DSTest {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, WETH);
+
+        cheatCodes.deal(address(this), MAX_UINT);
+        (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
+            abi.encodeWithSignature("deposit()")
+        );
+
+        //require that the deposit was a success
+        require(depositSuccess, "testDepositGasCredits: deposit failed");
 
         IERC20(WETH).approve(address(conveyorLimitOrders), MAX_UINT);
 
