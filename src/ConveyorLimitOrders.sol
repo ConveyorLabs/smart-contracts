@@ -299,7 +299,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice This function takes in an array of orders,
     /// @param orderIds array of orders to be executed within the mapping
     function executeOrders(bytes32[] calldata orderIds) external onlyEOA {
-
         ///@notice validate that the order array is in ascending order by quantity
         Order[] memory orders = new Order[](orderIds.length);
 
@@ -951,47 +950,74 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 amountInOrder,
         uint256 amountOutMin,
         bytes32 orderId,
-        uint8 taxIn
+        uint16 taxIn
     ) internal returns (uint256 amountOutMinAToWethTaxed) {
         uint256 spotPrice;
         console.logAddress(lpAddressWethToB);
 
         if (!_lpIsNotUniV3(lpAddressAToWeth)) {
             Order memory order = getOrderById(orderId);
-            uint112 amountIn = _getGreatestTokenDecimalsAmountIn(order.tokenOut, WETH);
-            (
-                OrderRouter.SpotReserve memory spotReserve,
-
-            ) = _calculateV3SpotPrice(
-                    order.tokenOut,
-                    WETH,
-                    amountIn,
-                    order.feeOut,
-                    1,
-                    ///TODO: Figure out where to index dexes for v3
-                    dexes[1].factoryAddress
-                );
+            uint112 amountIn = _getGreatestTokenDecimalsAmountIn(
+                order.tokenOut,
+                WETH
+            );
+            (OrderRouter.SpotReserve memory spotReserve, ) = _calculateV3SpotPrice(
+                order.tokenOut,
+                WETH,
+                amountIn,
+                order.feeOut,
+                1,
+                ///TODO: Figure out where to index dexes for v3
+                dexes[1].factoryAddress
+            );
 
             spotPrice = spotReserve.spotPrice;
-            
-            uint256 amountOutMinAToWeth = ConveyorMath.mul128I(spotPrice, amountOutMin);
-            uint256 amountOutMinAToWethTaxedBuffer = ConveyorMath.mul128I(uint256(taxIn), amountOutMinAToWeth);
-            amountOutMinAToWethTaxed = amountOutMinAToWeth - amountOutMinAToWethTaxedBuffer;
 
-            
+            uint256 amountOutMinAToWeth = ConveyorMath.mul128I(
+                spotPrice,
+                amountOutMin
+            );
+            uint256 amountOutMinAToWethTaxedBuffer = ConveyorMath.mul128I(
+                uint256(taxIn),
+                amountOutMinAToWeth
+            );
+            amountOutMinAToWethTaxed =
+                amountOutMinAToWeth -
+                amountOutMinAToWethTaxedBuffer;
         } else {
-            (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(lpAddressAToWeth).getReserves();
-            if(WETH == IUniswapV2Pair(lpAddressAToWeth).token0()){
-                uint256 amountOutMinAToWeth = getAmountOut(amountInOrder, uint256(reserve1), uint256(reserve0));
-                uint256 amountOutMinAToWethTaxedBuffer = ConveyorMath.mul128I(uint256(taxIn), amountOutMinAToWeth);
-                amountOutMinAToWethTaxed = amountOutMinAToWeth - amountOutMinAToWethTaxedBuffer;
-            }else{
-                uint256 amountOutMinAToWeth = getAmountOut(amountInOrder, uint256(reserve0), uint256(reserve1));
-                uint256 amountOutMinAToWethTaxedBuffer = ConveyorMath.mul128I(uint256(taxIn), amountOutMinAToWeth);
-                amountOutMinAToWethTaxed = amountOutMinAToWeth - amountOutMinAToWethTaxedBuffer;
+            (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(
+                lpAddressAToWeth
+            ).getReserves();
+            if (WETH == IUniswapV2Pair(lpAddressAToWeth).token0()) {
+                uint256 amountOutMinAToWeth = getAmountOut(
+                    amountInOrder,
+                    uint256(reserve1),
+                    uint256(reserve0)
+                );
+                uint256 amountOutMinAToWethTaxedBuffer = ConveyorMath.mul128I(
+                    uint256(taxIn),
+                    amountOutMinAToWeth
+                );
+                amountOutMinAToWethTaxed =
+                    amountOutMinAToWeth -
+                    amountOutMinAToWethTaxedBuffer;
+            } else {
+                uint256 amountOutMinAToWeth = getAmountOut(
+                    amountInOrder,
+                    uint256(reserve0),
+                    uint256(reserve1)
+                );
+                uint256 amountOutMinAToWethTaxedBuffer = ConveyorMath.mul128I(
+                    uint256(taxIn),
+                    amountOutMinAToWeth
+                );
+                amountOutMinAToWethTaxed =
+                    amountOutMinAToWeth -
+                    amountOutMinAToWethTaxedBuffer;
             }
         }
     }
+
     ///@dev the amountOut is the amount out - protocol fees
     function _executeTokenToTokenTaxedOrder(
         TokenToTokenBatchOrder memory batch,
@@ -1140,8 +1166,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             Order memory order = getOrderById(orderId);
             console.logString("Order token out ");
             console.logAddress(order.tokenOut);
-            
-            uint112 amountIn = _getGreatestTokenDecimalsAmountIn(order.tokenOut, WETH);
+
+            uint112 amountIn = _getGreatestTokenDecimalsAmountIn(
+                order.tokenOut,
+                WETH
+            );
             (
                 OrderRouter.SpotReserve memory spotReserve,
 
@@ -1157,19 +1186,26 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             spotPrice = spotReserve.spotPrice;
 
             amountOutMinAToWeth = ConveyorMath.mul128I(spotPrice, amountOutMin);
-            
         } else {
-            (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(lpAddressAToWeth).getReserves();
-            if(WETH == IUniswapV2Pair(lpAddressAToWeth).token0()){
-                amountOutMinAToWeth = getAmountOut(amountInOrder, uint256(reserve1), uint256(reserve0));
-            }else{
-                amountOutMinAToWeth = getAmountOut(amountInOrder, uint256(reserve0), uint256(reserve1));
+            (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(
+                lpAddressAToWeth
+            ).getReserves();
+            if (WETH == IUniswapV2Pair(lpAddressAToWeth).token0()) {
+                amountOutMinAToWeth = getAmountOut(
+                    amountInOrder,
+                    uint256(reserve1),
+                    uint256(reserve0)
+                );
+            } else {
+                amountOutMinAToWeth = getAmountOut(
+                    amountInOrder,
+                    uint256(reserve0),
+                    uint256(reserve1)
+                );
             }
         }
-
     }
 
-    
     function getAmountOut(
         uint256 amountIn,
         uint256 reserveIn,
@@ -1180,9 +1216,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             reserveIn > 0 && reserveOut > 0,
             "UniswapV2Library: INSUFFICIENT_LIQUIDITY"
         );
-        uint256 amountInWithFee = amountIn *997;
-        uint256 numerator = amountInWithFee*reserveOut;
-        uint256 denominator = reserveIn*1000+(amountInWithFee);
+        uint256 amountInWithFee = amountIn * 997;
+        uint256 numerator = amountInWithFee * reserveOut;
+        uint256 denominator = reserveIn * 1000 + (amountInWithFee);
         amountOut = numerator / denominator;
     }
 

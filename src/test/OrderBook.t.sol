@@ -628,18 +628,20 @@ contract OrderBookTest is DSTest {
     ) internal view returns (ConveyorLimitOrders.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
-            tokenIn: tokenIn,
-            tokenOut: tokenOut,
-            orderId: bytes32(0),
             buy: false,
             taxed: false,
             lastRefreshTimestamp: 0,
-            expirationTimestamp: 2419200,
+            expirationTimestamp: uint32(MAX_UINT),
+            feeIn: 0,
+            feeOut: 0,
+            taxIn: 0,
             price: price,
-            quantity: quantity,
             amountOutMin: amountOutMin,
-            owner: msg.sender,
-            fee: uint24(3000)
+            quantity: quantity,
+            owner: address(this),
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            orderId: bytes32(0)
         });
     }
 

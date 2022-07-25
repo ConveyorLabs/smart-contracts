@@ -42,11 +42,13 @@ contract ConveyorLimitOrdersTest is DSTest {
     address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     //TODO: add taxed token
-    address TAXED_TOKEN = 0xCE3f08e664693ca792caCE4af1364D5e220827B2; //Saitama 4% Tax 9 decimals
+    address TAXED_TOKEN = 0xCE3f08e664693ca792caCE4af1364D5e220827B2;
     address TAXED_TOKEN_1 = address(0);
 
     //MAX_UINT for testing
     uint256 constant MAX_UINT = 2**256 - 1;
+
+    uint32 constant MAX_U32 = 2**32 - 1;
 
     //Factory and router address's
     address _sushiSwapRouterAddress =
@@ -219,56 +221,59 @@ contract ConveyorLimitOrdersTest is DSTest {
     }
 
     function testExecuteWethToTokenSingle() public {
-        cheatCodes.prank(tx.origin);
+        cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
 
         OrderBook.Order memory order = newMockOrder(
             WETH,
-            USDC,
-            //Set price to 1 meaning that the order will execute if price > 1
+            DAI,
             1,
-            //set buy order to true
-            true,
-            //set taxed to false
             false,
-            //amountoutmin
+            false,
+            0,
             1,
-            //quantity
-            1
+            5000000000000000000000, //5000 WETH
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         bytes32[] memory orderBatch = new bytes32[](1);
 
         orderBatch[0] = order.orderId;
 
+        cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(orderBatch);
     }
 
     //Single order TokenToWeth success
     function testExecuteTokenToWethSingle() public {
-        cheatCodes.prank(tx.origin);
-
+        cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
 
         OrderBook.Order memory order = newMockOrder(
-            USDC,
+            DAI,
             WETH,
-            //Set price to 1 meaning that the order will execute if price > 1
             1,
-            //set buy order to true
-            true,
-            //set taxed to false
             false,
-            //amountoutmin
+            false,
+            0,
             1,
-            //quantity
-            1
+            5000000000000000000000, //5000 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         bytes32[] memory orderBatch = new bytes32[](1);
 
         orderBatch[0] = order.orderId;
 
+        cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(orderBatch);
     }
 
@@ -283,29 +288,31 @@ contract ConveyorLimitOrdersTest is DSTest {
     }
 
     function testExecuteTokenToTokenSingle() public {
-        cheatCodes.prank(tx.origin);
-
+        cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
 
         OrderBook.Order memory order = newMockOrder(
             DAI,
-            USDC,
-            //Set price to 1 meaning that the order will execute if price > 1
+            UNI,
             1,
-            //set buy order to true
-            true,
-            //set taxed to false
             false,
-            //amountoutmin
+            false,
+            0,
             1,
-            //quantity
-            1
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            MAX_U32
         );
 
         bytes32[] memory orderBatch = new bytes32[](1);
 
         orderBatch[0] = order.orderId;
 
+        cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(orderBatch);
     }
 
@@ -349,16 +356,16 @@ contract ConveyorLimitOrdersTest is DSTest {
         OrderBook.Order memory order = newMockOrder(
             WETH,
             TAXED_TOKEN,
-            //Set price to 1 meaning that the order will execute if price > 1
             1,
-            //set buy order to true
-            true,
-            //set taxed to false
             false,
-            //amountoutmin
+            true,
+            4000,
             1,
-            //quantity
-            1
+            20000000000000000, //2,000,000
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         bytes32[] memory orderBatch = new bytes32[](1);
@@ -388,13 +395,18 @@ contract ConveyorLimitOrdersTest is DSTest {
         IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
 
         OrderBook.Order memory order = newMockOrder(
-            DAI,
+            TAXED_TOKEN,
             WETH,
             1,
             false,
             true,
+            4000,
             1,
-            5000000000000000000001
+            20000000000000000, //2,000,000
+            3000,
+            0,
+            0,
+            MAX_U32
         );
         OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         orderGroup[0] = order;
@@ -437,32 +449,36 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     //weth to taxed token
     function testExecuteTokenToTaxedTokenSingle() public {
-        cheatCodes.prank(tx.origin);
         depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
 
         OrderBook.Order memory order = newMockOrder(
             DAI,
             TAXED_TOKEN,
-            //Set price to 1 meaning that the order will execute if price > 1
             1,
-            //set buy order to true
-            true,
-            //set taxed to false
             false,
-            //amountoutmin
+            true,
+            4000,
             1,
-            //quantity
-            1
+            20000000000000000, //2,000,000
+            3000,
+            3000,
+            0,
+            MAX_U32
         );
+
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
 
         bytes32[] memory orderBatch = new bytes32[](1);
 
         orderBatch[0] = order.orderId;
 
+        cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(orderBatch);
     }
 
-    //TODO:
+    //TODO: //FIXME:
     function testExecuteTokenToTaxedTokenBatch() public {
         cheatCodes.prank(tx.origin);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -472,20 +488,22 @@ contract ConveyorLimitOrdersTest is DSTest {
     function testExecuteTaxedTokenToTokenSingle() public {
         cheatCodes.prank(tx.origin);
         depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, TAXED_TOKEN);
 
         OrderBook.Order memory order = newMockOrder(
             TAXED_TOKEN,
             DAI,
-            //Set price to 1 meaning that the order will execute if price > 1
             1,
-            //set buy order to true
-            true,
-            //set taxed to false
             false,
-            //amountoutmin
+            true,
+            4000,
             1,
-            //quantity
-            1
+            20000000000000000, //2,000,000
+            3000,
+            3000,
+            0,
+            MAX_U32
         );
 
         bytes32[] memory orderBatch = new bytes32[](1);
@@ -501,32 +519,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
     }
 
+    //TODO: FIXME:
     //weth to taxed token
-    function testExecuteTaxedTokenToTaxedTokenSingle() public {
-        cheatCodes.prank(tx.origin);
-        depositGasCreditsForMockOrders(MAX_UINT);
-
-        OrderBook.Order memory order = newMockOrder(
-            TAXED_TOKEN,
-            TAXED_TOKEN_1,
-            //Set price to 1 meaning that the order will execute if price > 1
-            1,
-            //set buy order to true
-            true,
-            //set taxed to false
-            false,
-            //amountoutmin
-            1,
-            //quantity
-            1
-        );
-
-        bytes32[] memory orderBatch = new bytes32[](1);
-
-        orderBatch[0] = order.orderId;
-
-        conveyorLimitOrders.executeOrders(orderBatch);
-    }
+    function testExecuteTaxedTokenToTaxedTokenSingle() public {}
 
     //TODO:
     function testExecuteTaxedTokenToTaxedTokenBatch() public {
@@ -720,18 +715,20 @@ contract ConveyorLimitOrdersTest is DSTest {
         swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
 
         ConveyorLimitOrders.Order memory order = OrderBook.Order({
-            tokenIn: swapToken,
-            tokenOut: WETH,
-            price: 16602069666338596454400,
-            orderId: bytes32(0),
             buy: true,
             taxed: false,
             lastRefreshTimestamp: 0,
             expirationTimestamp: 2419200,
-            quantity: 0,
+            feeIn: 0,
+            feeOut: 0,
+            taxIn: 0,
+            price: 16602069666338596454400,
             amountOutMin: 6900000000000000000,
+            quantity: 0,
             owner: address(this),
-            fee: uint24(3000)
+            tokenIn: swapToken,
+            tokenOut: WETH,
+            orderId: bytes32(0)
         });
 
         bytes32 orderId = placeMockOrder(order);
@@ -748,18 +745,20 @@ contract ConveyorLimitOrdersTest is DSTest {
         cheatCodes.deal(address(this), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
         ConveyorLimitOrders.Order memory order = OrderBook.Order({
-            tokenIn: swapToken,
-            tokenOut: WETH,
-            price: 16602069666338596454400,
-            orderId: bytes32(0),
             buy: true,
             taxed: false,
             lastRefreshTimestamp: 0,
             expirationTimestamp: 2419200,
-            quantity: 0,
+            feeIn: 0,
+            feeOut: 0,
+            taxIn: 0,
+            price: 16602069666338596454400,
             amountOutMin: 6900000000000000000,
+            quantity: 0,
             owner: address(this),
-            fee: uint24(3000)
+            tokenIn: swapToken,
+            tokenOut: WETH,
+            orderId: bytes32(0)
         });
         bytes32 orderId = placeMockOrder(order);
         bool refreshSuccess = conveyorLimitOrders.refreshOrder(orderId);
@@ -780,20 +779,21 @@ contract ConveyorLimitOrdersTest is DSTest {
         require(depositSuccess, "testDepositGasCredits: deposit failed");
 
         swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
-
         ConveyorLimitOrders.Order memory order = OrderBook.Order({
-            tokenIn: swapToken,
-            tokenOut: WETH,
-            price: 16602069666338596454400,
-            orderId: bytes32(0),
             buy: true,
             taxed: false,
             lastRefreshTimestamp: 0,
             expirationTimestamp: 0x0000000000000000000000000000000000000000000000000000000000c30102,
-            quantity: 0,
+            feeIn: 0,
+            feeOut: 0,
+            taxIn: 0,
+            price: 16602069666338596454400,
             amountOutMin: 6900000000000000000,
+            quantity: 0,
             owner: address(this),
-            fee: uint24(3000)
+            tokenIn: swapToken,
+            tokenOut: WETH,
+            orderId: bytes32(0)
         });
 
         bytes32 orderId = placeMockOrder(order);
@@ -810,18 +810,20 @@ contract ConveyorLimitOrdersTest is DSTest {
         swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
 
         ConveyorLimitOrders.Order memory order = OrderBook.Order({
-            tokenIn: swapToken,
-            tokenOut: WETH,
-            price: 16602069666338596454400,
-            orderId: bytes32(0),
             buy: true,
             taxed: false,
             lastRefreshTimestamp: 0,
-            expirationTimestamp: 2419200,
-            quantity: 0,
+            expirationTimestamp: 0x0000000000000000000000000000000000000000000000000000000000c30102,
+            feeIn: 0,
+            feeOut: 0,
+            taxIn: 0,
+            price: 16602069666338596454400,
             amountOutMin: 6900000000000000000,
+            quantity: 0,
             owner: address(this),
-            fee: uint24(3000)
+            tokenIn: swapToken,
+            tokenOut: WETH,
+            orderId: bytes32(0)
         });
 
         bytes32 orderId = placeMockOrder(order);
@@ -848,19 +850,22 @@ contract ConveyorLimitOrdersTest is DSTest {
         swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
 
         ConveyorLimitOrders.Order memory order = OrderBook.Order({
-            tokenIn: swapToken,
-            tokenOut: WETH,
-            price: 16602069666338596454400,
-            orderId: bytes32(0),
             buy: true,
             taxed: false,
             lastRefreshTimestamp: 0x0000000000000000000000000000000000000000000000000000000062c30102,
             expirationTimestamp: 2419200,
-            quantity: 0,
+            feeIn: 3000,
+            feeOut: 0,
+            taxIn: 0,
+            price: 16602069666338596454400,
             amountOutMin: 6900000000000000000,
+            quantity: 0,
             owner: address(this),
-            fee: uint24(3000)
+            tokenIn: swapToken,
+            tokenOut: WETH,
+            orderId: bytes32(0)
         });
+
         bytes32 orderId = placeMockOrder(order);
 
         bool refreshSuccess = conveyorLimitOrders.refreshOrder(orderId);
@@ -1021,23 +1026,30 @@ contract ConveyorLimitOrdersTest is DSTest {
         uint128 price,
         bool buy,
         bool taxed,
+        uint16 taxIn,
         uint112 amountOutMin,
-        uint112 quantity
+        uint112 quantity,
+        uint16 feeIn,
+        uint16 feeOut,
+        uint32 lastRefreshTimestamp,
+        uint32 expirationTimestamp
     ) internal view returns (ConveyorLimitOrders.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
-            tokenIn: tokenIn,
-            tokenOut: tokenOut,
-            orderId: bytes32(0),
             buy: buy,
             taxed: taxed,
-            lastRefreshTimestamp: 0,
-            expirationTimestamp: 2419200,
+            lastRefreshTimestamp: lastRefreshTimestamp,
+            expirationTimestamp: expirationTimestamp,
+            feeIn: feeIn,
+            feeOut: feeOut,
+            taxIn: taxIn,
             price: price,
             amountOutMin: amountOutMin,
             quantity: quantity,
             owner: msg.sender,
-            fee: uint24(3000)
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            orderId: bytes32(0)
         });
     }
 
@@ -1086,17 +1098,28 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            5000000000000000000000
+            5000000000000000000000, //5000 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
+
         OrderBook.Order memory order2 = newMockOrder(
             DAI,
             WETH,
             1,
             false,
             false,
+            0,
             1,
-            5000000000000000000001
+            5000000000000000000001, //5001 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
         OrderBook.Order memory order3 = newMockOrder(
             DAI,
@@ -1104,8 +1127,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            5000000000000000000002
+            5000000000000000000002, //5002 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
         OrderBook.Order memory order4 = newMockOrder(
             DAI,
@@ -1113,46 +1141,20 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            5000000000000000000003
+            5000000000000000000003, //5003 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
-        OrderBook.Order memory order5 = newMockOrder(
-            DAI,
-            WETH,
-            1,
-            false,
-            false,
-            1,
-            5000000000000000000004
-        );
-        OrderBook.Order memory order6 = newMockOrder(
-            DAI,
-            WETH,
-            1,
-            false,
-            false,
-            1,
-            5000000000000000000005
-        );
-        OrderBook.Order memory order7 = newMockOrder(
-            DAI,
-            WETH,
-            1,
-            false,
-            false,
-            1,
-            5000000000000000000006
-        );
-
         ConveyorLimitOrders.Order[]
-            memory orderBatch = new ConveyorLimitOrders.Order[](7);
+            memory orderBatch = new ConveyorLimitOrders.Order[](4);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
         orderBatch[3] = order4;
-        orderBatch[4] = order5;
-        orderBatch[5] = order6;
-        orderBatch[6] = order7;
         return placeMultipleMockOrder(orderBatch);
     }
 
@@ -1160,81 +1162,72 @@ contract ConveyorLimitOrdersTest is DSTest {
         internal
         returns (bytes32[] memory)
     {
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, TAXED_TOKEN);
 
         OrderBook.Order memory order1 = newMockOrder(
-            DAI,
+            TAXED_TOKEN,
             WETH,
             1,
             false,
             true,
+            4000,
             1,
-            5000000000000000000000
+            20000000000000000, //2,000,000
+            3000,
+            0,
+            0,
+            MAX_U32
         );
+
         OrderBook.Order memory order2 = newMockOrder(
-            DAI,
+            TAXED_TOKEN,
             WETH,
             1,
             false,
             true,
+            4000,
             1,
-            5000000000000000000001
+            20000000000000000, //2,000,000
+            3000,
+            0,
+            0,
+            MAX_U32
         );
         OrderBook.Order memory order3 = newMockOrder(
-            DAI,
+            TAXED_TOKEN,
             WETH,
             1,
             false,
             true,
+            4000,
             1,
-            5000000000000000000002
+            20000000000000000, //2,000,000
+            3000,
+            0,
+            0,
+            MAX_U32
         );
         OrderBook.Order memory order4 = newMockOrder(
-            DAI,
+            TAXED_TOKEN,
             WETH,
             1,
             false,
             true,
+            4000,
             1,
-            5000000000000000000003
-        );
-        OrderBook.Order memory order5 = newMockOrder(
-            DAI,
-            WETH,
-            1,
-            false,
-            true,
-            1,
-            5000000000000000000004
-        );
-        OrderBook.Order memory order6 = newMockOrder(
-            DAI,
-            WETH,
-            1,
-            false,
-            true,
-            1,
-            5000000000000000000005
-        );
-        OrderBook.Order memory order7 = newMockOrder(
-            DAI,
-            WETH,
-            1,
-            false,
-            true,
-            1,
-            5000000000000000000006
+            20000000000000000, //2,000,000
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         ConveyorLimitOrders.Order[]
-            memory orderBatch = new ConveyorLimitOrders.Order[](7);
+            memory orderBatch = new ConveyorLimitOrders.Order[](4);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
         orderBatch[3] = order4;
-        orderBatch[4] = order5;
-        orderBatch[5] = order6;
-        orderBatch[6] = order7;
         return placeMultipleMockOrder(orderBatch);
     }
 
@@ -1250,17 +1243,28 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            10
+            5000000000000000000000, //5000 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
+
         OrderBook.Order memory order2 = newMockOrder(
             DAI,
             WETH,
             1,
             false,
             false,
+            0,
             1,
-            13
+            5000000000000000000003, //5003 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
         OrderBook.Order memory order3 = newMockOrder(
             DAI,
@@ -1268,9 +1272,15 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            12
+            5000000000000000000002, //5002 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
+
         ConveyorLimitOrders.Order[]
             memory orderBatch = new ConveyorLimitOrders.Order[](3);
         orderBatch[0] = order1;
@@ -1292,17 +1302,28 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            10
+            5000000000000000000000, //5000 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
+
         OrderBook.Order memory order2 = newMockOrder(
             DAI,
             WETH,
             1,
             false,
             false,
+            0,
             1,
-            13
+            5000000000000000000003, //5003 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
         OrderBook.Order memory order3 = newMockOrder(
             DAI,
@@ -1310,9 +1331,15 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            11
+            5000000000000000000002, //5002 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
+
         ConveyorLimitOrders.Order[]
             memory orderBatch = new ConveyorLimitOrders.Order[](3);
         orderBatch[0] = order1;
@@ -1335,30 +1362,43 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            10
+            5000000000000000000000, //5000 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         OrderBook.Order memory order2 = newMockOrder(
-            DAI,
-            WETH,
-            1,
-            false,
-            false,
-            1,
-            11
-        );
-
-        OrderBook.Order memory order3 = newMockOrder(
             USDC,
             WETH,
             1,
             false,
             false,
+            0,
             1,
-            12
+            5000000000000000000001, //5001 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
-
+        OrderBook.Order memory order3 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000002, //5002 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
+        );
         ConveyorLimitOrders.Order[]
             memory orderBatch = new ConveyorLimitOrders.Order[](3);
         orderBatch[0] = order1;
@@ -1388,28 +1428,42 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            10
+            5000000000000000000000, //5000 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         OrderBook.Order memory order2 = newMockOrder(
-            DAI,
-            WETH,
-            1,
-            false,
-            false,
-            1,
-            11
-        );
-
-        OrderBook.Order memory order3 = newMockOrder(
             USDC,
             WETH,
             1,
             false,
             false,
+            0,
             1,
-            12
+            5000000000000000000001, //5001 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
+        );
+        OrderBook.Order memory order3 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000002, //5002 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         ConveyorLimitOrders.Order[]
@@ -1433,8 +1487,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            10
+            5000000000000000000000, //5000 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         OrderBook.Order memory order2 = newMockOrder(
@@ -1443,8 +1502,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             true,
+            0,
             1,
-            11
+            5000000000000000000001, //5001 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
         OrderBook.Order memory order3 = newMockOrder(
             DAI,
@@ -1452,8 +1516,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            12
+            5000000000000000000002, //5002 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         ConveyorLimitOrders.Order[]
@@ -1477,8 +1546,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            10
+            5000000000000000000000, //5000 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         OrderBook.Order memory order2 = newMockOrder(
@@ -1487,8 +1561,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             true,
+            0,
             1,
-            11
+            5000000000000000000001, //5001 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
         OrderBook.Order memory order3 = newMockOrder(
             DAI,
@@ -1496,8 +1575,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            12
+            5000000000000000000002, //5002 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         ConveyorLimitOrders.Order[]
@@ -1521,17 +1605,28 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            10
+            5000000000000000000000, //5000 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
+
         OrderBook.Order memory order2 = newMockOrder(
             DAI,
             USDC,
-            11,
-            false,
-            false,
             1,
-            11
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000001, //5001 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
         OrderBook.Order memory order3 = newMockOrder(
             DAI,
@@ -1539,8 +1634,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            12
+            5000000000000000000002, //5002 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         ConveyorLimitOrders.Order[]
@@ -1564,17 +1664,28 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            10
+            5000000000000000000000, //5000 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
+
         OrderBook.Order memory order2 = newMockOrder(
             DAI,
             USDC,
-            11,
-            false,
-            false,
             1,
-            11
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000001, //5001 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
         OrderBook.Order memory order3 = newMockOrder(
             DAI,
@@ -1582,8 +1693,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            12
+            5000000000000000000002, //5002 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         ConveyorLimitOrders.Order[]
@@ -1607,8 +1723,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            10
+            5000000000000000000000, //5000 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         OrderBook.Order memory order2 = newMockOrder(
@@ -1617,8 +1738,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             true,
             false,
+            0,
             1,
-            11
+            5000000000000000000001, //5001 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
         OrderBook.Order memory order3 = newMockOrder(
             DAI,
@@ -1626,8 +1752,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            12
+            5000000000000000000002, //5002 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         ConveyorLimitOrders.Order[]
@@ -1644,15 +1775,19 @@ contract ConveyorLimitOrdersTest is DSTest {
         returns (ConveyorLimitOrders.Order[] memory)
     {
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-
         OrderBook.Order memory order1 = newMockOrder(
             DAI,
             WETH,
             1,
             false,
             false,
+            0,
             1,
-            10
+            5000000000000000000000, //5000 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         OrderBook.Order memory order2 = newMockOrder(
@@ -1661,8 +1796,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             true,
             false,
+            0,
             1,
-            11
+            5000000000000000000001, //5001 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
         OrderBook.Order memory order3 = newMockOrder(
             DAI,
@@ -1670,8 +1810,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            12
+            5000000000000000000002, //5002 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         ConveyorLimitOrders.Order[]
@@ -1687,25 +1832,34 @@ contract ConveyorLimitOrdersTest is DSTest {
         internal
         returns (bytes32[] memory)
     {
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-
         OrderBook.Order memory order1 = newMockOrder(
             WETH,
             DAI,
             1,
             false,
             false,
+            0,
             1,
-            10
+            5000000000000000000000, //5000 WETH
+            3000,
+            0,
+            0,
+            MAX_U32
         );
+
         OrderBook.Order memory order2 = newMockOrder(
             WETH,
             DAI,
             1,
             false,
             false,
+            0,
             1,
-            11
+            5000000000000000000000, //5000 WETH
+            3000,
+            0,
+            0,
+            MAX_U32
         );
         OrderBook.Order memory order3 = newMockOrder(
             WETH,
@@ -1713,8 +1867,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             false,
+            0,
             1,
-            12
+            5000000000000000000000, //5000 WETH
+            3000,
+            0,
+            0,
+            MAX_U32
         );
 
         ConveyorLimitOrders.Order[]
@@ -1730,35 +1889,51 @@ contract ConveyorLimitOrdersTest is DSTest {
         internal
         returns (bytes32[] memory)
     {
-        swapHelper.swapEthForTokenWithUniV2(100000000 ether, UNI);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
 
         OrderBook.Order memory order1 = newMockOrder(
-            UNI,
             DAI,
+            UNI,
             1,
             false,
             false,
-            1000000000000000000000,
-            1000000000000000000000
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            MAX_U32
         );
 
         OrderBook.Order memory order2 = newMockOrder(
-            UNI,
             DAI,
+            UNI,
             1,
             false,
             false,
-            1000000000000000000000,
-            1000000000000000000000
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            MAX_U32
         );
+
         OrderBook.Order memory order3 = newMockOrder(
-            UNI,
             DAI,
+            UNI,
             1,
             false,
             false,
-            1000000000000000000000,
-            1000000000000000000000
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            MAX_U32
         );
 
         ConveyorLimitOrders.Order[]
@@ -1774,35 +1949,51 @@ contract ConveyorLimitOrdersTest is DSTest {
         internal
         returns (OrderBook.Order[] memory)
     {
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, UNI);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
 
         OrderBook.Order memory order1 = newMockOrder(
-            UNI,
             DAI,
+            UNI,
             1,
             false,
             false,
+            0,
             1,
-            10
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            MAX_U32
         );
 
         OrderBook.Order memory order2 = newMockOrder(
-            UNI,
             DAI,
+            UNI,
             1,
             false,
             false,
+            0,
             1,
-            11
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            MAX_U32
         );
+
         OrderBook.Order memory order3 = newMockOrder(
-            UNI,
             DAI,
+            UNI,
             1,
             false,
             false,
+            0,
             1,
-            12
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            MAX_U32
         );
 
         ConveyorLimitOrders.Order[]

@@ -28,8 +28,7 @@ contract OrderBook is GasOracle {
         uint32 expirationTimestamp;
         uint16 feeIn;
         uint16 feeOut;
-        uint8 taxIn;
-        uint8 taxOut;
+        uint16 taxIn;
         uint128 price;
         uint128 amountOutMin;
         uint128 quantity;
