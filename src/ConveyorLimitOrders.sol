@@ -852,8 +852,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address token,
         uint256 amount
     ) internal returns (bool) {
-        console.log(sender, amount, token);
-        IERC20(token).transferFrom(sender, address(this), amount);
+        
         try IERC20(token).transferFrom(sender, address(this), amount) {} catch {
             return false;
         }
