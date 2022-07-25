@@ -542,7 +542,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 orders,
                 executionPrices
             );
-
+        
         ///@notice execute the batch orders
         _executeTokenToWethBatchOrders(tokenToWethBatchOrders);
     }
@@ -768,7 +768,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
 
             Order memory currentOrder = orders[i];
-
+            console.log(executionPrices[bestPriceIndex].price);
             ///@notice if the order meets the execution price
             if (
                 _orderMeetsExecutionPrice(
@@ -777,6 +777,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     buyOrder
                 )
             ) {
+                
                 ///@notice if the order can execute without hitting slippage
                 if (
                     _orderCanExecute(
@@ -869,7 +870,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint256 bestPrice = 0;
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
-                if (executionPrice > bestPrice) {
+                if (executionPrice > bestPrice && executionPrice !=0) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
                 }
@@ -878,7 +879,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
-                if (executionPrice < bestPrice) {
+                if (executionPrice < bestPrice && executionPrice != 0) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
                 }
