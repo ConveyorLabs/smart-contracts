@@ -768,61 +768,65 @@ contract OrderRouter {
         address token1,
         uint32 tickSecond,
         uint24 FEE
-    )
-        internal
-        view
-        returns (SpotReserve[] memory prices, address[] memory lps)
-    {
-        //Target base amount in value
-        // uint112 amountIn = _getTargetAmountIn(token0, token1);
-        uint112 amountIn = _getGreatestTokenDecimalsAmountIn(token0, token1);
+    ) internal view returns (SpotReserve[] memory, address[] memory) {
+        if (token0 != token1) {
+            //Target base amount in value
+            uint112 amountIn = _getGreatestTokenDecimalsAmountIn(
+                token0,
+                token1
+            );
 
-        SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
-        address[] memory _lps = new address[](dexes.length);
+            SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
+            address[] memory _lps = new address[](dexes.length);
 
-        //Iterate through Dex's in dexes check if isUniV2 and accumulate spot price to meanSpotPrice
-        for (uint256 i = 0; i < dexes.length; ++i) {
-            if (dexes[i].isUniV2) {
-                {
-                    //Right shift spot price 9 decimals and add to meanSpotPrice
-                    (
-                        SpotReserve memory spotPrice,
-                        address poolAddress
-                    ) = _calculateV2SpotPrice(
-                            token0,
-                            token1,
-                            dexes[i].factoryAddress,
-                            dexes[i].initBytecode
-                        );
-
-                    if (spotPrice.spotPrice != 0) {
-                        _spotPrices[i] = spotPrice;
-                        _lps[i] = poolAddress;
-                    }
-                }
-            } else {
-                {
+            //Iterate through Dex's in dexes check if isUniV2 and accumulate spot price to meanSpotPrice
+            for (uint256 i = 0; i < dexes.length; ++i) {
+                if (dexes[i].isUniV2) {
                     {
+                        //Right shift spot price 9 decimals and add to meanSpotPrice
                         (
                             SpotReserve memory spotPrice,
                             address poolAddress
-                        ) = _calculateV3SpotPrice(
+                        ) = _calculateV2SpotPrice(
                                 token0,
                                 token1,
-                                amountIn,
-                                FEE,
-                                tickSecond,
-                                dexes[i].factoryAddress
+                                dexes[i].factoryAddress,
+                                dexes[i].initBytecode
                             );
+
                         if (spotPrice.spotPrice != 0) {
-                            _lps[i] = poolAddress;
                             _spotPrices[i] = spotPrice;
+                            _lps[i] = poolAddress;
+                        }
+                    }
+                } else {
+                    {
+                        {
+                            (
+                                SpotReserve memory spotPrice,
+                                address poolAddress
+                            ) = _calculateV3SpotPrice(
+                                    token0,
+                                    token1,
+                                    amountIn,
+                                    FEE,
+                                    tickSecond,
+                                    dexes[i].factoryAddress
+                                );
+                            if (spotPrice.spotPrice != 0) {
+                                _lps[i] = poolAddress;
+                                _spotPrices[i] = spotPrice;
+                            }
                         }
                     }
                 }
             }
+            return (_spotPrices, _lps);
+        } else {
+            SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
+            address[] memory _lps = new address[](dexes.length);
+            return (_spotPrices, _lps);
         }
-        (prices, lps) = (_spotPrices, _lps);
     }
 
     //TODO: duplicate, remove this

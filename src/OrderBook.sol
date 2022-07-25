@@ -86,6 +86,8 @@ contract OrderBook is GasOracle {
         for (uint256 i = 0; i < orderGroup.length; ++i) {
             Order memory newOrder = orderGroup[i];
 
+            totalOrdersValue += newOrder.quantity;
+
             if (!(orderToken == newOrder.tokenIn)) {
                 revert IncongruentTokenInOrderGroup();
             }

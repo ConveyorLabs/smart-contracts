@@ -223,6 +223,10 @@ contract ConveyorLimitOrdersTest is DSTest {
     function testExecuteWethToTokenSingle() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(50000000 ether, WETH);
+
+        IERC20(WETH).approve(address(conveyorLimitOrders), MAX_UINT);
 
         OrderBook.Order memory order = newMockOrder(
             WETH,
@@ -239,9 +243,10 @@ contract ConveyorLimitOrdersTest is DSTest {
             MAX_U32
         );
 
+        bytes32 orderId = placeMockOrder(order);
         bytes32[] memory orderBatch = new bytes32[](1);
 
-        orderBatch[0] = order.orderId;
+        orderBatch[0] = orderId;
 
         cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(orderBatch);
@@ -315,7 +320,6 @@ contract ConveyorLimitOrdersTest is DSTest {
             MAX_U32
         );
 
-
         bytes32 orderId = placeMockOrder(order);
 
         bytes32[] memory orderBatch = new bytes32[](1);
@@ -349,14 +353,13 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(tokenToTokenOrderBatch);
-        
+
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order = conveyorLimitOrders
                 .getOrderById(tokenToTokenOrderBatch[i]);
             assert(order.orderId == bytes32(0));
         }
-        
     }
 
     //weth to taxed token
