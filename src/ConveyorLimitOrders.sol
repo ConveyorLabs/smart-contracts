@@ -1806,6 +1806,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 order_quantity,
         uint256 amountOutMin
     ) internal pure returns (bool) {
-        return spot_price * order_quantity >= amountOutMin;
+        return ConveyorMath.mul128I(spot_price, order_quantity) >= amountOutMin;
     }
 }
