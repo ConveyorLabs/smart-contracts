@@ -387,7 +387,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             false,
             true,
-            4000,
+            0,
             1,
             20000000000000000, //2,000,000
             3000,
