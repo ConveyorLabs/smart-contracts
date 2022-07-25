@@ -1593,6 +1593,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 }
             }
         }
+        // require(false, "here");
 
         ///@notice add the last batch to the tokenToWethBatchOrders array
         tokenToTokenBatchOrders[

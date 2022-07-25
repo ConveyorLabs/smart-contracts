@@ -419,7 +419,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
 
         cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, TAXED_TOKEN);
 
         IERC20(TAXED_TOKEN).approve(address(conveyorLimitOrders), MAX_UINT);
 
@@ -483,14 +483,15 @@ contract ConveyorLimitOrdersTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-
+        
+        IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
         OrderBook.Order memory order = newMockOrder(
             DAI,
             TAXED_TOKEN,
             1,
             false,
             true,
-            4000,
+            0,
             0,
             20000000000000000, //2,000,000
             3000,
@@ -499,12 +500,12 @@ contract ConveyorLimitOrdersTest is DSTest {
             MAX_U32
         );
 
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-
-        bytes32[] memory orderBatch = new bytes32[](1);
-
-        orderBatch[0] = order.orderId;
-
+        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
+        orderGroup[0] = order;
+        bytes32[] memory orderBatch = conveyorLimitOrders.placeOrder(
+            orderGroup
+        );
+        
         cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(orderBatch);
     }
