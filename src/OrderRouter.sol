@@ -471,21 +471,20 @@ contract OrderRouter {
                 _amountOutMin,
                 0
             );
-        console.logString("Amount in v3 swap");
-        console.log(_amountIn);
-        swapRouter.exactInputSingle(params);
+
+        
         /// @notice Swap tokens for wrapped native tokens (nato).
-        // try swapRouter.exactInputSingle(params) returns (uint256 _amountOut) {
-        //     if (_amountOut < _amountOutMin) {
-        //         return 0;
-        //     }
-        //     console.logString("Passed V3 Swap");
-        //     console.logUint(_amountOut);
-        //     return _amountOut;
-        // } catch {
-        //     console.logString("Failed V3 swap");
-        //     return 0;
-        // }
+        try swapRouter.exactInputSingle(params) returns (uint256 _amountOut) {
+            if (_amountOut < _amountOutMin) {
+                return 0;
+            }
+            console.logString("Passed V3 Swap");
+            console.logUint(_amountOut);
+            return _amountOut;
+        } catch {
+            console.logString("Failed V3 swap");
+            return 0;
+        }
 
         ///@notice calculate the amount recieved
         ///TODO: revisit this, if we should wrap this in an uncheck_getTargetAmountIned,

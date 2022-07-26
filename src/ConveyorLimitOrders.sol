@@ -903,9 +903,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 orders,
                 executionPrices
             );
-
+        
         ///@notice execute the batch orders
         _executeTokenToTokenBatchOrders(tokenToTokenBatchOrders);
+        
     }
 
     ///@notice execute an array of orders from token to token
@@ -1170,7 +1171,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             Order memory order = getOrderById(orderId);
             uint256 amountInBuffer = (amountInOrder * taxIn) / 10**4;
             uint256 amountIn = amountInOrder - amountInBuffer;
-            amountOutMinAToWeth = IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6).quoteExactInputSingle(order.tokenIn, WETH, order.feeIn, amountIn, 0);
+            
+            amountOutMinAToWeth = IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6).quoteExactInputSingle(order.tokenIn, WETH, 3000, amountInOrder, 0);
             
             console.logString("Uniswap v3");
             console.log(amountOutMinAToWeth);
@@ -1225,15 +1227,18 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 amountInWethToB;
         uint24 fee;
         if (!(batch.batchLength == 0)) {
-            uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWeth(
-                batch.lpAddressAToWeth,
-                batch.amountIn,
-                batch.orderIds[0],
-                0
-            );
-
+            
+           
             if (batch.tokenIn != WETH) {
+                uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWeth(
+                    batch.lpAddressAToWeth,
+                    batch.amountIn,
+                    batch.orderIds[0],
+                    0
+                );
                 fee = _getUniV3Fee(batch.lpAddressAToWeth);
+                console.logString("Amount in");
+                console.log(batch.amountIn);
                 ///@notice swap from A to weth
                 uint128 amountOutWeth = uint128(
                     _swap(
