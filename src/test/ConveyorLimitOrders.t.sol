@@ -29,6 +29,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     ConveyorLimitOrdersWrapper conveyorLimitOrders;
 
     Swap swapHelper;
+    Swap swapHelperUniV2;
 
     address uniV2Addr = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
@@ -42,8 +43,9 @@ contract ConveyorLimitOrdersTest is DSTest {
     address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     //TODO: add taxed token
-    address TAXED_TOKEN = 0x8B3192f5eEBD8579568A2Ed41E6FEB402f93f73F;
-    address TAXED_TOKEN_1 = address(0);
+    address TAXED_TOKEN = 0x8B3192f5eEBD8579568A2Ed41E6FEB402f93f73F; //4% Saitoma token
+    address TAXED_TOKEN_1 = 0x90221fb46Dc337813B347A11971FeFF7c8559c0E; // 5% tax Rush token
+    address TAXED_TOKEN_2 =0xd99793A840cB0606456916d1CF5eA199ED93Bf97; //6% tax CHAOS token 27
 
     //MAX_UINT for testing
     uint256 constant MAX_UINT = 2**256 - 1;
@@ -84,7 +86,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         swapHelper = new Swap(_sushiSwapRouterAddress, WETH);
-
+        swapHelperUniV2 = new Swap(uniV2Addr, WETH);
         conveyorLimitOrders = new ConveyorLimitOrdersWrapper(
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
@@ -710,7 +712,56 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     //TODO: FIXME:
     //weth to taxed token
-    function testExecuteTaxedTokenToTaxedTokenSingle() public {}
+    function testExecuteTaxedTokenToTaxedTokenSingle() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelperUniV2), MAX_UINT);
+        swapHelperUniV2.swapEthForTokenWithUniV2(10 ether, TAXED_TOKEN_1);
+
+         OrderBook.Order memory order = newMockOrder(
+            TAXED_TOKEN_1,
+            TAXED_TOKEN_2,
+            1,
+            false,
+            true,
+            4000,
+            1,
+            2000000000000, //2,000,000
+            3000,
+            0,
+            0,
+            MAX_U32
+        );
+
+    
+        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
+        orderGroup[0] = order;
+        bytes32[] memory orderBatch = conveyorLimitOrders.placeOrder(
+            orderGroup
+        );
+    
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
+                .getOrderById(orderBatch[i]);
+
+            assert(order0.orderId != bytes32(0));
+        }
+
+        IERC20(TAXED_TOKEN_1).approve(address(conveyorLimitOrders), MAX_UINT);
+
+        cheatCodes.prank(tx.origin);
+        conveyorLimitOrders.executeOrders(orderBatch);
+
+        // check that the orders have been fufilled and removed
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
+                .getOrderById(orderBatch[i]);
+            assert(order0.orderId == bytes32(0));
+        }
+
+
+
+    }
 
     //TODO:
     function testExecuteTaxedTokenToTaxedTokenBatch() public {
@@ -2205,7 +2256,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             true,
             4000,
             1,
-            2000000000000000, //2,000,000
+            2000000000000, //2,000,000
             3000,
             3000,
             0,
@@ -2220,7 +2271,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             true,
             4000,
             1,
-            2000000000000000, //2,000,001
+            2000000000000, //2,000,001
             3000,
             3000,
             0,
@@ -2235,7 +2286,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             true,
             4000,
             1,
-            2000000000000000, //2,000,002
+            2000000000000, //2,000,002
             3000,
             3000,
             0,
