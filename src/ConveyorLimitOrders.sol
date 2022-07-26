@@ -1172,7 +1172,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint256 amountInBuffer = (amountInOrder * taxIn) / 10**4;
             uint256 amountIn = amountInOrder - amountInBuffer;
             
-            amountOutMinAToWeth = IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6).quoteExactInputSingle(order.tokenIn, WETH, 3000, amountInOrder, 0);
+            amountOutMinAToWeth = IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6).quoteExactInputSingle(order.tokenIn, WETH, 3000, amountIn, 0);
             
             console.logString("Uniswap v3");
             console.log(amountOutMinAToWeth);
