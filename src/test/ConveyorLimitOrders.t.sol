@@ -46,7 +46,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     address TAXED_TOKEN = 0x8B3192f5eEBD8579568A2Ed41E6FEB402f93f73F; //4% Saitoma token
     address TAXED_TOKEN_1 = 0x90221fb46Dc337813B347A11971FeFF7c8559c0E; // 5% tax Rush token
     address TAXED_TOKEN_2 =0xd99793A840cB0606456916d1CF5eA199ED93Bf97; //6% tax CHAOS token 27
-
+    address TAXED_TOKEN_3 = 0xF725f73CAEe250AE384ec38bB2C77C38ef2CcCeA;
     //MAX_UINT for testing
     uint256 constant MAX_UINT = 2**256 - 1;
 
@@ -687,9 +687,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, TAXED_TOKEN);
+        swapHelperUniV2.swapEthForTokenWithUniV2(1000 ether, TAXED_TOKEN_3);
 
-        IERC20(TAXED_TOKEN).approve(address(conveyorLimitOrders), MAX_UINT);
+        IERC20(TAXED_TOKEN_3).approve(address(conveyorLimitOrders), MAX_UINT);
 
         bytes32[] memory orderBatch = placeNewMockTaxedToTokenBatch();
 
@@ -2247,15 +2247,15 @@ contract ConveyorLimitOrdersTest is DSTest {
         internal
         returns (bytes32[] memory)
     {
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+       
 
         OrderBook.Order memory order = newMockOrder(
-            TAXED_TOKEN,
+            TAXED_TOKEN_3,
             DAI,
             1,
             false,
             true,
-            4000,
+            9000,
             1,
             2000000000000, //2,000,000
             3000,
@@ -2265,12 +2265,12 @@ contract ConveyorLimitOrdersTest is DSTest {
         );
 
         OrderBook.Order memory order1 = newMockOrder(
-            TAXED_TOKEN,
+            TAXED_TOKEN_3,
             DAI,
             1,
             false,
             true,
-            4000,
+            9000,
             1,
             2000000000000, //2,000,001
             3000,
@@ -2280,12 +2280,12 @@ contract ConveyorLimitOrdersTest is DSTest {
         );
 
        OrderBook.Order memory order2 = newMockOrder(
-            TAXED_TOKEN,
+            TAXED_TOKEN_3,
             DAI,
             1,
             false,
             true,
-            4000,
+            9000,
             1,
             2000000000000, //2,000,002
             3000,
