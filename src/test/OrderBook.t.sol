@@ -45,6 +45,21 @@ contract OrderBookTest is DSTest {
     address swapToken1 = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
 
     uint256 immutable MAX_UINT = type(uint256).max;
+    //Factory and router address's
+    address _sushiSwapRouterAddress =
+        0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
+    address _uniV2FactoryAddress = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+    address _uniV3FactoryAddress = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
+
+    //Chainlink ERC20 address
+
+    bytes32 _uniswapV2HexDem =
+        0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
+
+    //Initialize array of Dex specifications
+    bytes32[] _hexDems = [_uniswapV2HexDem, _uniswapV2HexDem];
+    address[] _dexFactories = [_uniV2FactoryAddress, _uniV3FactoryAddress];
+    bool[] _isUniV2 = [true, false];
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
@@ -54,9 +69,12 @@ contract OrderBookTest is DSTest {
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             5,
             2592000,
-            300000
+            300000,
+            _hexDems,
+            _dexFactories,
+            _isUniV2
         );
-        swapHelper = new Swap(uniV2Addr, wnato);
+        swapHelper = new Swap(_sushiSwapRouterAddress, wnato);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
         orderBook = new OrderBookWrapper(aggregatorV3Address);
@@ -112,13 +130,57 @@ contract OrderBookTest is DSTest {
         try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
             uint256 amountOut
         ) {
-            console.log(amountOut);
             OrderBook.Order memory order = newOrder(
                 swapToken,
                 wnato,
-                executionPrice,
-                amountOut,
+                uint128(executionPrice),
+                uint112(amountOut),
+                uint112(amountOut)
+            );
+
+            //create a new array of orders
+            ConveyorLimitOrders.Order[]
+                memory orderGroup = new ConveyorLimitOrders.Order[](1);
+            //add the order to the arrOrder and add the arrOrder to the orderGroup
+            orderGroup[0] = order;
+
+            //approve the contract to spend the tokens
+            IERC20(swapToken).approve(address(orderBook), MAX_UINT);
+
+            //place order
+            bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
+            bytes32 orderId = orderIds[0];
+
+            //check that the orderId is not zero value
+            assert((orderId != bytes32(0)));
+
+            assertEq(
+                orderBook.totalOrdersQuantity(
+                    keccak256(abi.encode(address(this), swapToken))
+                ),
                 amountOut
+            );
+
+            assertEq(orderBook.totalOrdersPerAddress(address(this)), 1);
+        } catch {}
+    }
+
+    function testFailPlaceOrder_InsufficientAllowanceForOrderPlacement(
+        uint256 swapAmount,
+        uint256 executionPrice
+    ) public {
+        cheatCodes.deal(address(this), MAX_UINT);
+
+        //if the fuzzed amount is enough to complete the swap
+        try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
+            uint256 amountOut
+        ) {
+            OrderBook.Order memory order = newOrder(
+                swapToken,
+                wnato,
+                uint128(executionPrice),
+                uint128(amountOut),
+                uint128(amountOut)
             );
 
             //create a new array of orders
@@ -133,7 +195,18 @@ contract OrderBookTest is DSTest {
 
             //check that the orderId is not zero value
             assert((orderId != bytes32(0)));
-        } catch {}
+
+            assertEq(
+                orderBook.totalOrdersQuantity(
+                    keccak256(abi.encode(address(this), swapToken))
+                ),
+                amountOut
+            );
+
+            assertEq(orderBook.totalOrdersPerAddress(address(this)), 1);
+        } catch {
+            require(false, "swap failed");
+        }
     }
 
     function testFailPlaceOrder_InsufficientWalletBalance() public {
@@ -171,9 +244,9 @@ contract OrderBookTest is DSTest {
             OrderBook.Order memory order1 = newOrder(
                 swapToken,
                 wnato,
-                executionPrice,
-                amountOut,
-                amountOut
+                uint128(executionPrice),
+                uint128(amountOut),
+                uint128(amountOut)
             );
 
             try
@@ -182,9 +255,9 @@ contract OrderBookTest is DSTest {
                 OrderBook.Order memory order2 = newOrder(
                     swapToken1,
                     wnato,
-                    executionPrice1,
-                    amountOut1,
-                    amountOut1
+                    uint128(executionPrice1),
+                    uint112(amountOut1),
+                    uint112(amountOut1)
                 );
 
                 //create a new array of orders
@@ -217,9 +290,9 @@ contract OrderBookTest is DSTest {
             ConveyorLimitOrders.Order memory order = newOrder(
                 swapToken,
                 wnato,
-                executionPrice,
-                amountOut,
-                amountOut
+                uint128(executionPrice),
+                uint128(amountOut),
+                uint128(amountOut)
             );
             //place a mock order
             bytes32 orderId = placeMockOrder(order);
@@ -230,9 +303,9 @@ contract OrderBookTest is DSTest {
                 ConveyorLimitOrders.Order memory updatedOrder = newOrder(
                     swapToken,
                     wnato,
-                    executionPrice1,
-                    amountOut1,
-                    amountOut1
+                    uint128(executionPrice1),
+                    uint128(amountOut1),
+                    uint128(amountOut1)
                 );
                 updatedOrder.orderId = orderId;
 
@@ -254,9 +327,9 @@ contract OrderBookTest is DSTest {
             ConveyorLimitOrders.Order memory order = newOrder(
                 swapToken,
                 wnato,
-                amountOut,
-                executionPrice,
-                executionPrice
+                uint128(amountOut),
+                uint128(executionPrice),
+                uint128(executionPrice)
             );
 
             //place a mock order
@@ -267,8 +340,8 @@ contract OrderBookTest is DSTest {
                 swapToken,
                 wnato,
                 10,
-                executionPrice,
-                executionPrice
+                uint128(executionPrice),
+                uint128(executionPrice)
             );
             updatedOrder.orderId = orderId;
 
@@ -341,9 +414,9 @@ contract OrderBookTest is DSTest {
             ConveyorLimitOrders.Order memory order = newOrder(
                 swapToken,
                 wnato,
-                amountOut,
-                executionPrice,
-                executionPrice
+                uint128(amountOut),
+                uint128(executionPrice),
+                uint128(executionPrice)
             );
             //place a mock order
             bytes32 orderId = placeMockOrder(order);
@@ -360,10 +433,10 @@ contract OrderBookTest is DSTest {
 
     ///@notice cancel multiple orders
     function testCancelOrders(
-        uint256 swapAmount,
-        uint256 executionPrice,
-        uint256 swapAmount1,
-        uint256 executionPrice1
+        uint128 swapAmount,
+        uint128 executionPrice,
+        uint128 swapAmount1,
+        uint128 executionPrice1
     ) public {
         cheatCodes.deal(address(this), MAX_UINT);
         try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
@@ -372,9 +445,9 @@ contract OrderBookTest is DSTest {
             OrderBook.Order memory order1 = newOrder(
                 swapToken,
                 wnato,
-                amountOut,
-                executionPrice,
-                executionPrice
+                uint128(amountOut),
+                uint128(executionPrice),
+                uint128(executionPrice)
             );
 
             try
@@ -383,9 +456,9 @@ contract OrderBookTest is DSTest {
                 OrderBook.Order memory order2 = newOrder(
                     swapToken,
                     wnato,
-                    amountOut1,
-                    executionPrice1,
-                    executionPrice1
+                    uint128(amountOut1),
+                    uint128(executionPrice1),
+                    uint128(executionPrice1)
                 );
 
                 //create a new array of orders
@@ -549,23 +622,26 @@ contract OrderBookTest is DSTest {
     function newOrder(
         address tokenIn,
         address tokenOut,
-        uint256 price,
-        uint256 quantity,
-        uint256 amountOutMin
+        uint128 price,
+        uint128 quantity,
+        uint128 amountOutMin
     ) internal view returns (ConveyorLimitOrders.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
-            tokenIn: tokenIn,
-            tokenOut: tokenOut,
-            orderId: bytes32(0),
             buy: false,
             taxed: false,
             lastRefreshTimestamp: 0,
-            expirationTimestamp: 2419200,
+            expirationTimestamp: uint32(MAX_UINT),
+            feeIn: 0,
+            feeOut: 0,
+            taxIn: 0,
             price: price,
-            quantity: quantity,
             amountOutMin: amountOutMin,
-            owner: msg.sender
+            quantity: quantity,
+            owner: address(this),
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            orderId: bytes32(0)
         });
     }
 

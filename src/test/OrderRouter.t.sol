@@ -57,20 +57,22 @@ contract OrderRouterTest is DSTest {
     uint256 constant MAX_UINT = 2**256 - 1;
 
     //Dex[] dexes array of dex structs
-    ConveyorLimitOrders.Dex public uniswapV2;
+    bytes32[] _hexDems = [_uniswapV2HexDem, _sushiHexDem, _uniswapV2HexDem];
+    address[] _dexFactories = [
+        _uniV2FactoryAddress,
+        _sushiFactoryAddress,
+        _uniV3FactoryAddress
+    ];
+    bool[] _isUniV2 = [true, true, false];
+    
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         scriptRunner = new ScriptRunner();
+
+        
         //Initialize swap router in constructor
-        orderRouter = new OrderRouterWrapper();
-
-        uniswapV2.factoryAddress = _uniV2FactoryAddress;
-
-        orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
-        orderRouter.addDex(_sushiFactoryAddress, _sushiHexDem, true);
-        ///@notice
-        orderRouter.addDex(_uniV3FactoryAddress, 0x00, false);
+        orderRouter = new OrderRouterWrapper(_hexDems,_dexFactories,_isUniV2);
 
         uniV2Router = IUniswapV2Router02(_uniV2Address);
         uniV2Factory = IUniswapV2Factory(_uniV2FactoryAddress);
@@ -112,9 +114,9 @@ contract OrderRouterTest is DSTest {
 
     function testChangeBase() public {
         //----------Test 1 setup----------------------//
-        uint256 reserve0 = 131610640170334000000000000;
+        uint112 reserve0 = 131610640170334000000000000;
         uint8 dec0 = 18;
-        uint256 reserve1 = 131610640170334;
+        uint112 reserve1 = 131610640170334;
         uint8 dec1 = 9;
         (uint256 r0_out, uint256 r1_out) = orderRouter.convertToCommonBase(
             reserve0,
@@ -124,9 +126,9 @@ contract OrderRouterTest is DSTest {
         );
 
         //----------Test 2 setup-----------------//
-        uint256 reserve01 = 131610640170334;
+        uint112 reserve01 = 131610640170334;
         uint8 dec01 = 6;
-        uint256 reserve11 = 47925919677616776812811;
+        uint112 reserve11 = 47925919677616776812811;
         uint8 dec11 = 18;
 
         (uint256 r0_out1, uint256 r1_out1) = orderRouter.convertToCommonBase(
@@ -426,48 +428,48 @@ contract OrderRouterTest is DSTest {
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         address LINK = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
-
+        address UNI = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
         //Dai-Usdc both directions
         (
-            OrderRouter.SpotReserve[] memory pricesDaiUsdc,
+            OrderRouter.SpotReserve[] memory pricesUNWeth,
             address[] memory lps2
-        ) = orderRouter.getAllPrices(dai, usdc, 1, 100);
+        ) = orderRouter.getAllPrices(dai, weth, 1, 3000);
 
-        (
-            OrderRouter.SpotReserve[] memory pricesUsdcDai,
-            address[] memory lps3
-        ) = orderRouter.getAllPrices(usdc, dai, 1, 100);
+        // (
+        //     OrderRouter.SpotReserve[] memory pricesWethDai,
+        //     address[] memory lps3
+        // ) = orderRouter.getAllPrices(weth, dai, 1, 100);
 
-        //Link Weth both directions
-        (
-            OrderRouter.SpotReserve[] memory pricesLinkWeth,
-            address[] memory lps4
-        ) = orderRouter.getAllPrices(LINK, weth, 1, 3000);
+        // //Link Weth both directions
+        // (
+        //     OrderRouter.SpotReserve[] memory pricesLinkWeth,
+        //     address[] memory lps4
+        // ) = orderRouter.getAllPrices(LINK, weth, 1, 3000);
 
-        (
-            OrderRouter.SpotReserve[] memory pricesWethLink,
-            address[] memory lps5
-        ) = orderRouter.getAllPrices(weth, LINK, 1, 3000);
+        // (
+        //     OrderRouter.SpotReserve[] memory pricesWethLink,
+        //     address[] memory lps5
+        // ) = orderRouter.getAllPrices(weth, LINK, 1, 3000);
 
-        console.log("dai/usdc");
-        console.log(pricesDaiUsdc[0].spotPrice);
-        console.log(pricesDaiUsdc[1].spotPrice);
-        console.log(pricesDaiUsdc[2].spotPrice);
+        console.log("dai/weth");
+        console.log(pricesUNWeth[2].spotPrice);
+        // console.log(pricesUNWeth[1].spotPrice);
+        // console.log(pricesUNWeth[2].spotPrice);
 
-        console.log("usdc/dai");
-        console.log(pricesUsdcDai[0].spotPrice);
-        console.log(pricesUsdcDai[1].spotPrice);
-        console.log(pricesUsdcDai[2].spotPrice);
+        // console.log("weth/dai");
+        // console.log(pricesWethDai[0].spotPrice);
+        // console.log(pricesWethDai[1].spotPrice);
+        // console.log(pricesWethDai[2].spotPrice);
 
-        console.log("link/weth");
-        console.log(pricesLinkWeth[0].spotPrice);
-        console.log(pricesLinkWeth[1].spotPrice);
-        console.log(pricesLinkWeth[2].spotPrice);
+        // console.log("link/weth");
+        // console.log(pricesLinkWeth[0].spotPrice);
+        // console.log(pricesLinkWeth[1].spotPrice);
+        // console.log(pricesLinkWeth[2].spotPrice);
 
-        console.log("weth/link");
-        console.log(pricesWethLink[0].spotPrice);
-        console.log(pricesWethLink[1].spotPrice);
-        console.log(pricesWethLink[2].spotPrice);
+        // console.log("weth/link");
+        // console.log(pricesWethLink[0].spotPrice);
+        // console.log(pricesWethLink[1].spotPrice);
+        // console.log(pricesWethLink[2].spotPrice);
     }
 
     function testGetAllPrices2() public {
@@ -987,6 +989,18 @@ contract OrderRouterTest is DSTest {
 
 //wrapper around OrderRouter to expose internal functions for testing
 contract OrderRouterWrapper is OrderRouter {
+    constructor(
+        bytes32[] memory _initBytecodes,
+        address[] memory _dexFactories,
+        bool[] memory _isUniV2
+        
+    ) OrderRouter(
+        _initBytecodes,
+        _dexFactories,
+        _isUniV2
+
+    ){}
+
     function calculateFee(
         uint128 amountIn,
         address usdc,
@@ -1005,7 +1019,7 @@ contract OrderRouterWrapper is OrderRouter {
 
     function calculateReward(uint128 percentFee, uint128 wethValue)
         public
-        view
+        pure
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
         return _calculateReward(percentFee, wethValue);
@@ -1160,15 +1174,15 @@ contract OrderRouterWrapper is OrderRouter {
         view
         returns (uint112 amountIn)
     {
-        return _getTargetAmountIn(token0, token1);
+        return _getGreatestTokenDecimalsAmountIn(token0, token1);
     }
 
     function convertToCommonBase(
-        uint256 reserve0,
+        uint112 reserve0,
         uint8 token0Decimals,
-        uint256 reserve1,
+        uint112 reserve1,
         uint8 token1Decimals
-    ) public pure returns (uint256, uint256) {
+    ) public view returns (uint128, uint128) {
         return
             _convertToCommonBase(
                 reserve0,

@@ -4,6 +4,7 @@ pragma solidity >=0.8.14;
 import "../lib/interfaces/token/IERC20.sol";
 import "./GasOracle.sol";
 import "./ConveyorErrors.sol";
+import "./test/utils/Console.sol";
 
 contract OrderBook is GasOracle {
     //----------------------Constructor------------------------------------//
@@ -21,33 +22,39 @@ contract OrderBook is GasOracle {
     /// @notice Struct containing the token, orderId, OrderType enum type, price, and quantity for each order
     /// @notice assuming slippage set to 128.128 fixed point representation
     struct Order {
+        bool buy;
+        bool taxed;
+        uint32 lastRefreshTimestamp;
+        uint32 expirationTimestamp;
+        uint16 feeIn;
+        uint16 feeOut;
+        uint16 taxIn;
+        uint128 price;
+        uint128 amountOutMin;
+        uint128 quantity;
+        address owner;
         address tokenIn;
         address tokenOut;
         bytes32 orderId;
-        bool buy;
-        bool taxed;
-        uint256 lastRefreshTimestamp;
-        uint256 expirationTimestamp;
-        uint256 price;
-        uint256 amountOutMin;
-        uint256 quantity;
-        address owner;
     }
 
     //----------------------State Structures------------------------------------//
 
     //order id  to order
     //TODO: deleting doesnt actually get rid of the order, just removes the pointer
-    mapping(bytes32 => Order) orderIdToOrder;
+    mapping(bytes32 => Order) public orderIdToOrder;
 
     //keccak256(msg.sender, tokenAddress) -> total orders quantity
-    mapping(bytes32 => uint256) totalOrdersQuantity;
+    mapping(bytes32 => uint256) public totalOrdersQuantity;
 
     //struct to check if order exists, as well as get all orders for a wallet
-    mapping(address => mapping(bytes32 => bool)) addressToOrderIds;
+    mapping(address => mapping(bytes32 => bool)) public addressToOrderIds;
 
     //Mapping to get total order count for a users address
-    mapping(address => uint256) totalOrdersPerAddress;
+    mapping(address => uint256) public totalOrdersPerAddress;
+
+    //unique number that is used to hash order ids
+    uint256 orderNonce;
 
     //----------------------Functions------------------------------------//
 
@@ -76,14 +83,10 @@ contract OrderBook is GasOracle {
         uint256 totalOrdersValue = _getTotalOrdersValue(orderToken);
         uint256 tokenBalance = IERC20(orderToken).balanceOf(msg.sender);
 
-        //TODO: check for tokenIn/weth and tokenOut/weth else revert
-        uint256 totalApprovedQuantity = IERC20(orderToken).allowance(
-            msg.sender,
-            address(this)
-        );
-
         for (uint256 i = 0; i < orderGroup.length; ++i) {
             Order memory newOrder = orderGroup[i];
+
+            totalOrdersValue += newOrder.quantity;
 
             if (!(orderToken == newOrder.tokenIn)) {
                 revert IncongruentTokenInOrderGroup();
@@ -101,16 +104,17 @@ contract OrderBook is GasOracle {
                 newOrder.quantity
             );
 
-            //TODO: create new order id construction that is simpler, also use assembly to hash this
             bytes32 orderId = keccak256(
-                abi.encodePacked(
-                    msg.sender,
-                    block.timestamp,
-                    orderToken,
-                    newOrder.price,
-                    i
-                )
+                abi.encode(orderNonce, block.timestamp)
             );
+
+            //increment order nonce
+            unchecked {
+                ++orderNonce;
+            }
+
+            //set the order owner as the msg.sender
+            newOrder.owner = msg.sender;
 
             //add new order to state
             newOrder.orderId = orderId;
@@ -118,18 +122,24 @@ contract OrderBook is GasOracle {
 
             addressToOrderIds[msg.sender][orderId] = true;
             //update total orders per address
+
             ++totalOrdersPerAddress[msg.sender];
 
             //update order ids for event emission
             orderIds[orderIdIndex] = orderId;
             ++orderIdIndex;
-
-            //Increment totalApproved quantity on each iteration
-            totalApprovedQuantity += newOrder.quantity;
         }
 
-        //Approve total quantity of order group for the contract to spend
-        IERC20(orderToken).approve(address(this), totalApprovedQuantity);
+        //TODO: check for tokenIn/weth and tokenOut/weth else revert
+
+        uint256 totalApprovedQuantity = IERC20(orderToken).allowance(
+            msg.sender,
+            address(this)
+        );
+
+        if (totalApprovedQuantity < _getTotalOrdersValue(orderToken)) {
+            revert InsufficientAllowanceForOrderPlacement();
+        }
 
         //emit orders placed
         emit OrderPlaced(orderIds);
@@ -150,7 +160,7 @@ contract OrderBook is GasOracle {
         Order memory oldOrder = orderIdToOrder[newOrder.orderId];
         //Hash token and sender for key and accumulate totalOrdersQuantity
         bytes32 totalOrdersValueKey = keccak256(
-            abi.encodePacked(msg.sender, oldOrder.tokenIn)
+            abi.encode(msg.sender, oldOrder.tokenIn)
         );
 
         //Decrement oldOrder Quantity from totalOrdersQuantity
@@ -203,7 +213,7 @@ contract OrderBook is GasOracle {
         Order memory order = orderIdToOrder[orderId];
 
         bytes32 totalOrdersValueKey = keccak256(
-            abi.encodePacked(msg.sender, orderIdToOrder[orderId].tokenIn)
+            abi.encode(msg.sender, orderIdToOrder[orderId].tokenIn)
         );
         //Decrement totalOrdersQuantity on order.tokenIn for order owner
         //decrementTotalOrdersQuantity(order.tokenIn, order.owner, order.quantity);
@@ -239,10 +249,7 @@ contract OrderBook is GasOracle {
         for (uint256 i = 0; i < orderIds.length; ++i) {
             //Hash token and sender for key and accumulate totalOrdersQuantity
             bytes32 totalOrdersValueKey = keccak256(
-                abi.encodePacked(
-                    msg.sender,
-                    orderIdToOrder[orderIds[i]].tokenIn
-                )
+                abi.encode(msg.sender, orderIdToOrder[orderIds[i]].tokenIn)
             );
 
             bytes32 orderId = orderIds[i];
@@ -274,9 +281,7 @@ contract OrderBook is GasOracle {
         returns (uint256)
     {
         //Hash token and sender for key and accumulate totalOrdersQuantity
-        bytes32 totalOrdersValueKey = keccak256(
-            abi.encodePacked(msg.sender, token)
-        );
+        bytes32 totalOrdersValueKey = keccak256(abi.encode(msg.sender, token));
 
         return totalOrdersQuantity[totalOrdersValueKey];
     }
@@ -286,7 +291,7 @@ contract OrderBook is GasOracle {
         address owner,
         uint256 quantity
     ) internal {
-        bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(owner, token));
+        bytes32 totalOrdersValueKey = keccak256(abi.encode(owner, token));
         totalOrdersQuantity[totalOrdersValueKey] -= quantity;
     }
 
@@ -295,7 +300,8 @@ contract OrderBook is GasOracle {
         address owner,
         uint256 quantity
     ) internal {
-        bytes32 totalOrdersValueKey = keccak256(abi.encodePacked(owner, token));
+        bytes32 totalOrdersValueKey = keccak256(abi.encode(owner, token));
+
         totalOrdersQuantity[totalOrdersValueKey] += quantity;
     }
 
@@ -312,11 +318,7 @@ contract OrderBook is GasOracle {
         uint256 multiplier
     ) internal view returns (uint256) {
         uint256 totalOrderCount = totalOrdersPerAddress[userAddress];
-        // require(false, "Got here");
-        // assembly {
-        //     mstore(0x00, gasPrice)
-        //     revert(0x00, 0x20)
-        // }
+
         unchecked {
             uint256 minimumGasCredits = totalOrderCount *
                 gasPrice *

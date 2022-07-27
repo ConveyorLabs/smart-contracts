@@ -22,11 +22,11 @@
 - fail: InsufficientGasCreditBalanceForOrderExecution
 
 
-## refreshOrder
-- success
+## refreshOrder 
+- success ✅ 
 - success: cancel order because of insufficient gas credit balance
-- success: cancel order because of order expired
-- fail: Order not refreshable 
+- success: cancel order because of order expired 
+- fail: Order not refreshable ✅ 
 
 ## executeOrders
 - success: one token to weth order 🟨 
@@ -43,7 +43,7 @@
 - success: one token to weth order
 - success: multiple token to weth orders
 
-## _executeTokenToWethBatch
+## _executeTokenToWethBatch 
 
 ## _initializeTokenToWethExecutionPrices
 
@@ -58,8 +58,6 @@
 - test !_orderCanExecute branch
 
 ## _findBestTokenToWethExecutionPrice
-
-
 
 ## _executeTokenToTokenOrders
 - success: one token to weth order
@@ -88,11 +86,14 @@
 ## _findBestTokenToWethExecutionPrice
 
 
-## _validateOrderSequencing
-- success
-- fail: invalid batch ordering
-- fail: incongruent token group (token in)
-- fail: incongruent token group (token out)
+## _validateOrderSequencing ✅
+- success ✅
+- fail: invalid batch ordering ✅
+- fail: incongruent token group (token in) ✅
+- fail: incongruent token group (token out) ✅
+- fail: incongruent taxed token in batch ✅
+- fail: incongruent buy sell status ✅
+
 
 
 ## simulateTokenToWethPriceChange
