@@ -13,6 +13,7 @@ import "./test/utils/Console.sol";
 import "./OrderBook.sol";
 import "./OrderRouter.sol";
 import "./ConveyorErrors.sol";
+import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/ConveyorTickMath.sol";
@@ -1705,13 +1706,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128 newReserveAWeth,
             uint128 amountOut
         ) = _simulateAToWethPriceChange(alphaX, executionPrice);
-
+        console.log(newSpotPriceA);
         (
             uint256 newSpotPriceB,
             uint128 newReserveBToken,
             uint128 newReserveBWeth
         ) = _simulateWethToBPriceChange(amountOut, executionPrice);
-
+        console.log(newSpotPriceB);
         {
             //Signifying that it weth is token0
             uint256 newTokenToTokenSpotPrice = uint256(
@@ -1720,6 +1721,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     uint128(newSpotPriceB >> 64)
                 )
             ) << 64;
+
 
             //TODO: update this to make sure weth is the right reserve position
             //TODO:^^
@@ -1749,7 +1751,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 reserveAToken = executionPrice.aToWethReserve0;
         uint128 reserveAWeth = executionPrice.aToWethReserve1;
         address poolAddressAToWeth = executionPrice.lpAddressAToWeth;
-         uint128 amountInAToWeth = (_lpIsNotUniV3(poolAddressAToWeth)) ? uint128(alphaX*(10**(executionPrice.decimalsInDecimalsAToWeth[1]-executionPrice.decimalsInDecimalsAToWeth[1]))) : alphaX;
+        uint128 amountInAToWeth = (_lpIsNotUniV3(poolAddressAToWeth)) ? uint128(alphaX*(10**(executionPrice.decimalsInDecimalsAToWeth[1]-executionPrice.decimalsInDecimalsAToWeth[1]))) : alphaX;
         (
             newSpotPriceA,
             newReserveAToken,
@@ -1778,14 +1780,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 reserveBWeth = executionPrice.wethToBReserve0;
         uint128 reserveBToken = executionPrice.wethToBReserve1;
         address poolAddressWethToB = executionPrice.lpAddressWethToB;
-        uint128 amountInWethToB = (_lpIsNotUniV3(poolAddressWethToB)) ? uint128(alphaX*(10**(executionPrice.decimalsInDecimalsWethToB[1]-executionPrice.decimalsInDecimalsWethToB[1]))) : alphaX;
+        
         (
             newSpotPriceB,
             newReserveBWeth,
             newReserveBToken,
 
         ) = simulateAToBPriceChange(
-            amountInWethToB,
+            alphaX,
             reserveBWeth,
             reserveBToken,
             poolAddressWethToB,
@@ -1817,25 +1819,27 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //If not uni v3 do constant product calculation
         if (_lpIsNotUniV3(pool)) {
             unchecked {
-                uint128 numerator = reserveA + alphaX; //11068720173663754
+                uint256 denominator = reserveA + alphaX; //11068720173663754
                 uint256 k = uint256(reserveA * reserveB); //1101968080474711952935030209443346410
 
-                uint256 denominator = k / uint256(reserveA) + alphaX;
+                uint256 numerator = FullMath.mulDiv(uint256(reserveA), uint256(reserveB), denominator);
 
-                uint256 spotPrice = uint256(
-                    ConveyorMath.divUI(denominator, uint256(numerator))
-                ) << 64;
+                uint256 spotPrice = 
+                    ConveyorMath.divUI(numerator, denominator)
+                ;
 
                 require(
                     spotPrice <=
                         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
                     "overflow"
                 );
-                newReserves[0] = numerator;
+                newReserves[0] = uint128(denominator);
                 newReserves[1] = uint128(denominator);
                 uint128 amountOut = uint128(
                     getAmountOut(alphaX, reserveA, reserveB)
                 );
+                console.log("v2 spot");
+                console.log(spotPrice);
                 return (spotPrice, newReserves[0], newReserves[1], amountOut);
             }
         } else {
@@ -1843,7 +1847,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 uint128 spotPrice64x64,
                 uint128 amountOut
             ) = calculateNextSqrtPriceX96(isTokenToWeth, pool, alphaX);
-
+            
             newReserves[0] = 0;
             newReserves[1] = 0;
 
