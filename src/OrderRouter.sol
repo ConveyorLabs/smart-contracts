@@ -529,16 +529,14 @@ contract OrderRouter {
         //Set reserve0, reserve1 to current LP reserves
         (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pairAddress)
             .getReserves();
-
+        
         //Set common based reserve values
         (
             uint256 commonReserve0,
             uint256 commonReserve1
         ) = _getReservesCommonDecimals(tok0, tok1, reserve0, reserve1);
 
-        
-
-        
+             
             if (token0 == tok0) {
                 _spRes.spotPrice = ConveyorMath.div128x128(
                     commonReserve1 << 128,

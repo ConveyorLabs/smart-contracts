@@ -35,4 +35,19 @@ contract Swap {
 
         return amountOut;
     }
+
+    ///@dev the msg.sender needs to have eth before calling this function
+    function swapEthForTokenWithTransferFeesUniV2(uint256 amount, address _swapToken)
+        public
+        
+    {
+        //set the path
+        address[] memory path = new address[](2);
+        path[0] = wnato;
+        path[1] = _swapToken;
+
+        // swap eth for tokens
+        uniV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value:amount}(1, path, msg.sender, (2**256 - 1));
+        
+    }
 }
