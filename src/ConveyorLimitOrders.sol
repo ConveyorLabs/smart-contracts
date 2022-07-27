@@ -1254,16 +1254,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
         ) = _getAllPrices(tokenIn, WETH, 1, orders[0].feeIn);
-        console.log("Weth to b reserves");
-        console.log(spotReserveAToWeth[1].res0);
-        console.log(spotReserveAToWeth[1].res1);
+        
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
         ) = _getAllPrices(WETH, orders[0].tokenOut, 1, orders[0].feeOut);
-        console.log("Weth to b reserves");
-        console.log(spotReserveWethToB[1].res0);
-        console.log(spotReserveWethToB[1].res1);
+        
         TokenToTokenExecutionPrice[]
             memory executionPrices = new TokenToTokenExecutionPrice[](
                 spotReserveAToWeth.length
@@ -1704,8 +1700,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             //Signifying that it weth is token0
             uint256 newTokenToTokenSpotPrice = uint256(
                 ConveyorMath.mul64x64(
-                    uint128(newSpotPriceA),
-                    uint128(newSpotPriceB)
+                    uint128(newSpotPriceA>>64),
+                    uint128(newSpotPriceB>>64)
                 )
             ) << 64;
 
@@ -1802,7 +1798,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         )
     {
         uint128[] memory newReserves = new uint128[](2);
-
+        //If not uni v3 do constant product calculation
         if (_lpIsNotUniV3(pool)) {
             unchecked {
                 uint128 numerator = reserveA + alphaX; //11068720173663754
@@ -1812,7 +1808,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                 uint256 spotPrice = uint256(
                     ConveyorMath.divUI(denominator, uint256(numerator))
-                );
+                )<<64;
                 console.log("Simulated spot price");
                 console.log(spotPrice);
                 require(
@@ -1828,18 +1824,19 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 return (spotPrice, newReserves[0], newReserves[1], amountOut);
             }
         } else {
-            //Sqrt token1/token0
-
+            
             (
-                uint128 sqrtSpotPrice64x64,
+                uint128 spotPrice64x64,
                 uint128 amountOut
             ) = calculateNextSqrtPriceX96(isTokenToWeth, pool, alphaX);
+
             newReserves[0] = 0;
             newReserves[1] = 0;
-            console.log("sqrt thingy");
-            console.log(sqrtSpotPrice64x64);
+            
+            uint256 spotPrice = uint256(spotPrice64x64)<<64;
+
             return (
-                uint256(sqrtSpotPrice64x64),
+                spotPrice,
                 newReserves[0],
                 newReserves[1],
                 amountOut
@@ -1847,61 +1844,68 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
+    ///@notice Helper function to calculate precise price change in a uni v3 pool after alphaX value is added to the liquidity on either token
+    ///@param isTokenToWeth boolean indicating whether swap is happening from token->weth or weth->token respectively
+    ///@param pool address of the Uniswap v3 pool to simulate the price change on
+    ///@param alphaX quantity to be added to the liquidity of tokenIn
+    ///@return spotPrice 64.64 fixed point spot price after the input quantity has been added to the pool
+    ///@return amountOut quantity recieved on the out token post swap
     function calculateNextSqrtPriceX96(
         bool isTokenToWeth,
         address pool,
         uint256 alphaX
-    ) internal returns (uint128 sqrtSpotPrice64x64, uint128 amountOut) {
+    ) internal returns (uint128 spotPrice, uint128 amountOut) {
+        ///@notice sqrtPrice Fixed point 64.96 form token1/token0 exchange rate
         (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(pool).slot0();
 
+        ///@notice Concentrated liquidity in current price tick range
         uint128 liquidity = IUniswapV3Pool(pool).liquidity();
 
+        ///@notice Get token0/token1 from the pool
         address token0 = IUniswapV3Pool(pool).token0();
         address token1 = IUniswapV3Pool(pool).token1();
 
+        ///@notice Boolean indicating whether weth is token0 or token1
         bool wethIsToken0 = token0 == WETH ? true : false;
+
+        ///@notice Instantiate nextSqrtPriceX96 to hold adjusted price after simulated swap
         uint160 nextSqrtPriceX96;
 
+        ///@notice Cache pool fee
         uint24 fee = IUniswapV3Pool(pool).fee();
 
-        console.log("here");
-        console.log(alphaX);
+        ///@notice Conditional whether swap is happening from tokenToWeth or wethToToken
         if (isTokenToWeth) {
             if (wethIsToken0) {
+                ///@notice If weth is token0 and swap is happening from tokenToWeth ==> token1 = token & alphaX is in token1
+                ///@notice Assign amountOut to hold output amount in Weth for subsequent simulation calls
                 amountOut = uint128(
                     IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6)
                         .quoteExactInputSingle(token1, WETH, fee, alphaX, 0)
                 );
+
+                ///@notice tokenIn is token1 therefore 0for1 is false & alphaX is input into tokenIn liquidity ==> rounding down
                 nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
                     sqrtPriceX96,
                     liquidity,
                     alphaX,
                     false
                 );
+                ///@notice Convert output to 64.64 fixed point representation
+                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(nextSqrtPriceX96);
+
+                ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
+                spotPrice = ConveyorMath.mul64x64(ConveyorMath.div64x64(uint128(1)<<64, sqrtSpotPrice64x64),ConveyorMath.div64x64(uint128(1)<<64, sqrtSpotPrice64x64));
+                
             } else {
+
+                ///@notice weth is token1 therefore tokenIn is token0, assign amountOut to wethOut value for subsequent simulations
                 amountOut = uint128(
                     IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6)
                         .quoteExactInputSingle(token0, WETH, fee, alphaX, 0)
                 );
-                nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromOutput(
-                    sqrtPriceX96,
-                    liquidity,
-                    amountOut,
-                    true
-                );
-            }
-        } else {
-            console.log("here2");
-            console.log(alphaX);
 
-            console.log("here3");
-
-            if (wethIsToken0) {
-                amountOut = uint128(
-                    IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6)
-                        .quoteExactInputSingle(WETH, token1, fee, alphaX, 0)
-                );
-                console.log("here1");
+                ///@notice calculate nextSqrtPriceX96 price change on wethOutAmount add false since we are removing the weth liquidity from the pool
                 nextSqrtPriceX96 = SqrtPriceMath
                     .getNextSqrtPriceFromAmount1RoundingDown(
                         sqrtPriceX96,
@@ -1909,22 +1913,53 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         amountOut,
                         false
                     );
+
+                ///@notice Since weth is token1 we have the correct form of sqrtPrice i.e token1/token0 spot, so just convert to 64.64 and square it
+                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(nextSqrtPriceX96);
+                spotPrice = ConveyorMath.mul64x64(sqrtSpotPrice64x64, sqrtSpotPrice64x64);
+            }
+        } else {
+            ///@notice isTokenToWeth =false ==> we are exchanging weth -> token
+            if (wethIsToken0) {
+                ///@notice since weth is token0 set amountOut to token quoted amount out on alphaX Weth into the pool
+                amountOut = uint128(
+                    IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6)
+                        .quoteExactInputSingle(WETH, token1, fee, alphaX, 0)
+                );
+                ///@notice amountOut is in our out token, so set nextSqrtPriceX96 to change in price on amountOut value
+                ///@notice weth is token 0 so set add to false since we are removing token1 liquidity from the pool
+                nextSqrtPriceX96 = SqrtPriceMath
+                    .getNextSqrtPriceFromAmount1RoundingDown(
+                        sqrtPriceX96,
+                        liquidity,
+                        amountOut,
+                        false
+                    );
+                ///@notice since token0 = weth token1/token0 is the proper exchange rate so convert to 64.64 and square to yield the spot price
+                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(nextSqrtPriceX96);
+                spotPrice = ConveyorMath.mul64x64(sqrtSpotPrice64x64, sqrtSpotPrice64x64);
+                
             } else {
+                ///@notice weth == token1 so initialize amountOut on weth-token0
                 amountOut = uint128(
                     IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6)
                         .quoteExactInputSingle(WETH, token0, fee, alphaX, 0)
                 );
-                console.log("here2");
+                
+                ///@notice set nextSqrtPriceX96 to change on Input alphaX which will be in Weth, since weth is token1 0To1=false
                 nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
                     sqrtPriceX96,
                     liquidity,
                     alphaX,
                     false
                 );
+
+                ///@notice convert to 64.64 and take the inverse ^2 to yield token0/token1 spotPrice out
+                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(nextSqrtPriceX96);
+                spotPrice = ConveyorMath.mul64x64(ConveyorMath.div64x64(uint128(1)<<64, sqrtSpotPrice64x64),ConveyorMath.div64x64(uint128(1)<<64, sqrtSpotPrice64x64));
+
             }
         }
-
-        sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(nextSqrtPriceX96);
     }
 
     /// @notice Helper function to determine if order can execute based on the spot price of the lp, the determinig factor is the order.orderType
