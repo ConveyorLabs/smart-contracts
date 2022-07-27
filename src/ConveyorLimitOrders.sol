@@ -775,7 +775,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
 
             Order memory currentOrder = orders[i];
-            console.log(executionPrices[bestPriceIndex].price);
+           
             ///@notice if the order meets the execution price
             if (
                 _orderMeetsExecutionPrice(
@@ -970,7 +970,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 order.taxIn
             );
 
-            console.log(batchAmountOutMinAToWeth);
+            
             ///@notice swap from A to weth
             uint128 amountOutWeth = uint128(
                 _swap(
@@ -1696,9 +1696,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ) = _simulateWethToBPriceChange(amountOut, executionPrice);
 
         {
-            console.logString("Spot Prices");
-            console.log(newSpotPriceA);
-            console.log(newSpotPriceB);
+            
             //Signifying that it weth is token0
             uint256 newTokenToTokenSpotPrice = uint256(
                 ConveyorMath.mul64x64(
@@ -1811,8 +1809,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 uint256 spotPrice = uint256(
                     ConveyorMath.divUI(denominator, uint256(numerator))
                 )<<64;
-                console.log("Simulated spot price");
-                console.log(spotPrice);
+                
                 require(
                     spotPrice <=
                         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
