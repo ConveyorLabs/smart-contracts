@@ -775,7 +775,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
 
             Order memory currentOrder = orders[i];
-           
+
             ///@notice if the order meets the execution price
             if (
                 _orderMeetsExecutionPrice(
@@ -970,7 +970,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 order.taxIn
             );
 
-            
             ///@notice swap from A to weth
             uint128 amountOutWeth = uint128(
                 _swap(
@@ -1095,7 +1094,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
             uint256 amountIn = amountInOrder - amountInBuffer;
 
-            amountOutMinAToWeth = iQuoter.quoteExactInputSingle(order.tokenIn, WETH, order.feeIn, amountIn, 0);
+            amountOutMinAToWeth = iQuoter.quoteExactInputSingle(
+                order.tokenIn,
+                WETH,
+                order.feeIn,
+                amountIn,
+                0
+            );
         } else {
             (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(
                 lpAddressAToWeth
@@ -1256,12 +1261,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
         ) = _getAllPrices(tokenIn, WETH, 1, orders[0].feeIn);
-        
+
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
         ) = _getAllPrices(WETH, orders[0].tokenOut, 1, orders[0].feeOut);
-        
+
         TokenToTokenExecutionPrice[]
             memory executionPrices = new TokenToTokenExecutionPrice[](
                 spotReserveAToWeth.length
@@ -1377,6 +1382,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     {
         tokenToTokenBatchOrders = new TokenToTokenBatchOrder[](orders.length);
         Order memory firstOrder = orders[0];
+        
         bool buyOrder = _buyOrSell(firstOrder);
 
         address batchOrderTokenIn = firstOrder.tokenIn;
@@ -1447,6 +1453,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             currentOrder.amountOutMin
                         )
                     ) {
+                       
                         transferTokensToContract(
                             currentOrder.owner,
                             currentOrder.tokenIn,
@@ -1622,11 +1629,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
     ) internal returns (TokenToTokenExecutionPrice memory) {
-        //TODO: check if weth to token or token to weth and then change these vals
-
-        //TODO:^^
-        //---------------------------------------------------
-
         if (
             executionPrice.aToWethReserve0 != 0 &&
             executionPrice.aToWethReserve1 != 0
@@ -1635,9 +1637,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 alphaX,
                 executionPrice
             );
-            ///FIXME: Don't forget about this before audit
-            //TODO:^^
-            //---------------------------------------------------
         } else {
             executionPrice = _simulateWethToTokenPriceChange(
                 alphaX,
@@ -1696,12 +1695,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ) = _simulateWethToBPriceChange(amountOut, executionPrice);
 
         {
-            
             //Signifying that it weth is token0
             uint256 newTokenToTokenSpotPrice = uint256(
                 ConveyorMath.mul64x64(
-                    uint128(newSpotPriceA>>64),
-                    uint128(newSpotPriceB>>64)
+                    uint128(newSpotPriceA >> 64),
+                    uint128(newSpotPriceB >> 64)
                 )
             ) << 64;
 
@@ -1808,8 +1806,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                 uint256 spotPrice = uint256(
                     ConveyorMath.divUI(denominator, uint256(numerator))
-                )<<64;
-                
+                ) << 64;
+
                 require(
                     spotPrice <=
                         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
@@ -1823,7 +1821,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 return (spotPrice, newReserves[0], newReserves[1], amountOut);
             }
         } else {
-            
             (
                 uint128 spotPrice64x64,
                 uint128 amountOut
@@ -1831,15 +1828,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
             newReserves[0] = 0;
             newReserves[1] = 0;
-            
-            uint256 spotPrice = uint256(spotPrice64x64)<<64;
 
-            return (
-                spotPrice,
-                newReserves[0],
-                newReserves[1],
-                amountOut
-            );
+            uint256 spotPrice = uint256(spotPrice64x64) << 64;
+
+            return (spotPrice, newReserves[0], newReserves[1], amountOut);
         }
     }
 
@@ -1879,8 +1871,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 ///@notice If weth is token0 and swap is happening from tokenToWeth ==> token1 = token & alphaX is in token1
                 ///@notice Assign amountOut to hold output amount in Weth for subsequent simulation calls
                 amountOut = uint128(
-                    iQuoter
-                        .quoteExactInputSingle(token1, WETH, fee, alphaX, 0)
+                    iQuoter.quoteExactInputSingle(token1, WETH, fee, alphaX, 0)
                 );
 
                 ///@notice tokenIn is token1 therefore 0for1 is false & alphaX is input into tokenIn liquidity ==> rounding down
@@ -1890,14 +1881,18 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     alphaX,
                     false
                 );
+
                 ///@notice Convert output to 64.64 fixed point representation
-                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(nextSqrtPriceX96);
+                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
+                    nextSqrtPriceX96
+                );
 
                 ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
-                spotPrice = ConveyorMath.mul64x64(ConveyorMath.div64x64(uint128(1)<<64, sqrtSpotPrice64x64),ConveyorMath.div64x64(uint128(1)<<64, sqrtSpotPrice64x64));
-                
+                spotPrice = ConveyorMath.mul64x64(
+                    ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64),
+                    ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64)
+                );
             } else {
-
                 ///@notice weth is token1 therefore tokenIn is token0, assign amountOut to wethOut value for subsequent simulations
                 amountOut = uint128(
                     iQuoter.quoteExactInputSingle(token0, WETH, fee, alphaX, 0)
@@ -1913,8 +1908,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     );
 
                 ///@notice Since weth is token1 we have the correct form of sqrtPrice i.e token1/token0 spot, so just convert to 64.64 and square it
-                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(nextSqrtPriceX96);
-                spotPrice = ConveyorMath.mul64x64(sqrtSpotPrice64x64, sqrtSpotPrice64x64);
+                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
+                    nextSqrtPriceX96
+                );
+                spotPrice = ConveyorMath.mul64x64(
+                    sqrtSpotPrice64x64,
+                    sqrtSpotPrice64x64
+                );
             }
         } else {
             ///@notice isTokenToWeth =false ==> we are exchanging weth -> token
@@ -1923,6 +1923,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 amountOut = uint128(
                     iQuoter.quoteExactInputSingle(WETH, token1, fee, alphaX, 0)
                 );
+
                 ///@notice amountOut is in our out token, so set nextSqrtPriceX96 to change in price on amountOut value
                 ///@notice weth is token 0 so set add to false since we are removing token1 liquidity from the pool
                 nextSqrtPriceX96 = SqrtPriceMath
@@ -1933,15 +1934,19 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         false
                     );
                 ///@notice since token0 = weth token1/token0 is the proper exchange rate so convert to 64.64 and square to yield the spot price
-                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(nextSqrtPriceX96);
-                spotPrice = ConveyorMath.mul64x64(sqrtSpotPrice64x64, sqrtSpotPrice64x64);
-                
+                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
+                    nextSqrtPriceX96
+                );
+                spotPrice = ConveyorMath.mul64x64(
+                    sqrtSpotPrice64x64,
+                    sqrtSpotPrice64x64
+                );
             } else {
                 ///@notice weth == token1 so initialize amountOut on weth-token0
                 amountOut = uint128(
                     iQuoter.quoteExactInputSingle(WETH, token0, fee, alphaX, 0)
                 );
-                
+
                 ///@notice set nextSqrtPriceX96 to change on Input alphaX which will be in Weth, since weth is token1 0To1=false
                 nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
                     sqrtPriceX96,
@@ -1951,9 +1956,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
 
                 ///@notice convert to 64.64 and take the inverse ^2 to yield token0/token1 spotPrice out
-                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(nextSqrtPriceX96);
-                spotPrice = ConveyorMath.mul64x64(ConveyorMath.div64x64(uint128(1)<<64, sqrtSpotPrice64x64),ConveyorMath.div64x64(uint128(1)<<64, sqrtSpotPrice64x64));
-
+                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
+                    nextSqrtPriceX96
+                );
+                spotPrice = ConveyorMath.mul64x64(
+                    ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64),
+                    ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64)
+                );
             }
         }
     }
