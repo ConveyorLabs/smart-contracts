@@ -86,7 +86,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         swapHelper = new Swap(_sushiSwapRouterAddress, WETH);
-        swapHelperUniV2 = new Swap(uniV2Addr, WETH);
+        // swapHelperUniV2 = new Swap(uniV2Addr, WETH);
         conveyorLimitOrders = new ConveyorLimitOrdersWrapper(
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
@@ -400,7 +400,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-        swapHelper.swapEthForTokenWithUniV2(100000 ether, UNI);
+        // swapHelper.swapEthForTokenWithUniV2(100000 ether, UNI);
 
         IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
 

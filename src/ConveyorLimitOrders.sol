@@ -8,12 +8,14 @@ import "./test/utils/Console.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../lib/libraries/ConveyorMath.sol";
+import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "./test/utils/Console.sol";
 import "./OrderBook.sol";
 import "./OrderRouter.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
+import "../lib/libraries/ConveyorTickMath.sol";
 
 ///@notice for all order placement, order updates and order cancelation logic, see OrderBook
 ///@notice for all order fulfuillment logic, see OrderRouter
@@ -896,17 +898,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             memory executionPrices = _initializeTokenToTokenExecutionPrices(
                 orders
             );
-        
+
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
         TokenToTokenBatchOrder[]
             memory tokenToTokenBatchOrders = _batchTokenToTokenOrders(
                 orders,
                 executionPrices
             );
-        
+
         ///@notice execute the batch orders
         _executeTokenToTokenBatchOrders(tokenToTokenBatchOrders);
-        
     }
 
     ///@notice execute an array of orders from token to token
@@ -945,7 +946,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             safeTransferETH(msg.sender, totalBeaconReward);
         }
     }
-
 
     ///@dev the amountOut is the amount out - protocol fees
     function _executeTokenToTokenTaxedOrder(
@@ -1086,14 +1086,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         bytes32 orderId,
         uint16 taxIn
     ) internal returns (uint256 amountOutMinAToWeth) {
-
         if (!_lpIsNotUniV3(lpAddressAToWeth)) {
             Order memory order = getOrderById(orderId);
             uint256 amountInBuffer = (amountInOrder * taxIn) / 10**4;
             uint256 amountIn = amountInOrder - amountInBuffer;
-            
-            amountOutMinAToWeth = IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6).quoteExactInputSingle(order.tokenIn, WETH, 3000, amountIn, 0);
-            
+
+            amountOutMinAToWeth = IQuoter(
+                0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
+            ).quoteExactInputSingle(order.tokenIn, WETH, 3000, amountIn, 0);
         } else {
             (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(
                 lpAddressAToWeth
@@ -1145,8 +1145,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 amountInWethToB;
         uint24 fee;
         if (!(batch.batchLength == 0)) {
-            
-           
             if (batch.tokenIn != WETH) {
                 uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWeth(
                     batch.lpAddressAToWeth,
@@ -1155,7 +1153,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     0
                 );
                 fee = _getUniV3Fee(batch.lpAddressAToWeth);
-                
+
                 ///@notice swap from A to weth
                 uint128 amountOutWeth = uint128(
                     _swap(
@@ -1256,12 +1254,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
         ) = _getAllPrices(tokenIn, WETH, 1, orders[0].feeIn);
-
+        console.log("Weth to b reserves");
+        console.log(spotReserveAToWeth[1].res0);
+        console.log(spotReserveAToWeth[1].res1);
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
         ) = _getAllPrices(WETH, orders[0].tokenOut, 1, orders[0].feeOut);
-
+        console.log("Weth to b reserves");
+        console.log(spotReserveWethToB[1].res0);
+        console.log(spotReserveWethToB[1].res1);
         TokenToTokenExecutionPrice[]
             memory executionPrices = new TokenToTokenExecutionPrice[](
                 spotReserveAToWeth.length
@@ -1381,12 +1383,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         address batchOrderTokenIn = firstOrder.tokenIn;
         address batchOrderTokenOut = firstOrder.tokenOut;
-        
+
         uint256 currentBestPriceIndex = _findBestTokenToTokenExecutionPrice(
             executionPrices,
             buyOrder
         );
-        
+
         TokenToTokenBatchOrder
             memory currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
                 orders.length,
@@ -1395,7 +1397,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices[currentBestPriceIndex].lpAddressAToWeth,
                 executionPrices[currentBestPriceIndex].lpAddressWethToB
             );
-        
 
         uint256 currentTokenToTokenBatchOrdersIndex = 0;
         {
@@ -1463,7 +1464,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                         currentTokenToTokenBatchOrder
                             .amountOutMin += currentOrder.amountOutMin;
-                        
+
                         ///@notice add owner of the order to the batchOwners
                         currentTokenToTokenBatchOrder.batchOwners[
                                 batchLength
@@ -1489,7 +1490,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             uint128(currentTokenToTokenBatchOrder.amountIn),
                             executionPrices[bestPriceIndex]
                         );
-                        
                     } else {
                         ///@notice cancel the order due to insufficient slippage
                         cancelOrder(currentOrder.orderId);
@@ -1594,7 +1594,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function simulateTokenToWethPriceChange(
         uint128 alphaX,
         TokenToWethExecutionPrice memory executionPrice
-    ) internal view returns (TokenToWethExecutionPrice memory) {
+    ) internal returns (TokenToWethExecutionPrice memory) {
         //TODO: update this to make sure weth is the right reserve position
         //TODO:^^
         //---------------------------------------------------
@@ -1602,11 +1602,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         (
             executionPrice.price,
             executionPrice.aToWethReserve0,
-            executionPrice.aToWethReserve1
+            executionPrice.aToWethReserve1,
+
         ) = simulateAToBPriceChange(
             alphaX,
             executionPrice.aToWethReserve0,
-            executionPrice.aToWethReserve1
+            executionPrice.aToWethReserve1,
+            executionPrice.lpAddressAToWeth,
+            true
         );
         //TODO:^^
         //---------------------------------------------------
@@ -1620,29 +1623,81 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function simulateTokenToTokenPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
-    ) internal view returns (TokenToTokenExecutionPrice memory) {
+    ) internal returns (TokenToTokenExecutionPrice memory) {
         //TODO: check if weth to token or token to weth and then change these vals
-        uint128 reserveAToken = executionPrice.aToWethReserve0;
-        uint128 reserveAWeth = executionPrice.aToWethReserve1;
-        uint128 reserveBWeth = executionPrice.wethToBReserve0;
-        uint128 reserveBToken = executionPrice.wethToBReserve1;
-        
-        
+
         //TODO:^^
         //---------------------------------------------------
 
-        if (reserveAToken != 0 && reserveAWeth != 0) {
-            (
-                uint256 newSpotPriceA,
-                uint128 newReserveAToken,
-                uint128 newReserveAWeth
-            ) = simulateAToBPriceChange(alphaX, reserveAToken, reserveAWeth);
-            
-            (
-                uint256 newSpotPriceB,
-                uint128 newReserveBWeth,
-                uint128 newReserveBToken
-            ) = simulateAToBPriceChange(alphaX, reserveBWeth, reserveBToken);
+        if (
+            executionPrice.aToWethReserve0 != 0 &&
+            executionPrice.aToWethReserve1 != 0
+        ) {
+            executionPrice = _simulateTokenToTokenPriceChange(
+                alphaX,
+                executionPrice
+            );
+            ///FIXME: Don't forget about this before audit
+            //TODO:^^
+            //---------------------------------------------------
+        } else {
+            executionPrice = _simulateWethToTokenPriceChange(
+                alphaX,
+                executionPrice
+            );
+        }
+
+        return executionPrice;
+    }
+
+    function _simulateWethToTokenPriceChange(
+        uint128 alphaX,
+        TokenToTokenExecutionPrice memory executionPrice
+    ) internal returns (TokenToTokenExecutionPrice memory) {
+        uint128 reserveBWeth = executionPrice.wethToBReserve0;
+        uint128 reserveBToken = executionPrice.wethToBReserve1;
+
+        address poolAddressWethToB = executionPrice.lpAddressWethToB;
+        (
+            uint256 newSpotPriceB,
+            uint128 newReserveBWeth,
+            uint128 newReserveBToken,
+
+        ) = simulateAToBPriceChange(
+                alphaX,
+                reserveBWeth,
+                reserveBToken,
+                poolAddressWethToB,
+                false
+            );
+
+        executionPrice.price = newSpotPriceB;
+        executionPrice.aToWethReserve0 = 0;
+        executionPrice.aToWethReserve1 = 0;
+        executionPrice.wethToBReserve0 = newReserveBWeth;
+        executionPrice.wethToBReserve1 = newReserveBToken;
+
+        return executionPrice;
+    }
+
+    function _simulateTokenToTokenPriceChange(
+        uint128 alphaX,
+        TokenToTokenExecutionPrice memory executionPrice
+    ) internal returns (TokenToTokenExecutionPrice memory) {
+        (
+            uint256 newSpotPriceA,
+            uint128 newReserveAToken,
+            uint128 newReserveAWeth,
+            uint128 amountOut
+        ) = _simulateAToWethPriceChange(alphaX, executionPrice);
+
+        (
+            uint256 newSpotPriceB,
+            uint128 newReserveBToken,
+            uint128 newReserveBWeth
+        ) = _simulateWethToBPriceChange(amountOut, executionPrice);
+
+        {
             console.logString("Spot Prices");
             console.log(newSpotPriceA);
             console.log(newSpotPriceB);
@@ -1653,7 +1708,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     uint128(newSpotPriceB)
                 )
             ) << 64;
-            
+
             //TODO: update this to make sure weth is the right reserve position
             //TODO:^^
             //---------------------------------------------------
@@ -1663,24 +1718,67 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             executionPrice.aToWethReserve1 = newReserveAWeth;
             executionPrice.wethToBReserve0 = newReserveBWeth;
             executionPrice.wethToBReserve1 = newReserveBToken;
-            ///FIXME: Don't forget about this before audit
-            //TODO:^^
-            //---------------------------------------------------
-        } else {
-            (
-                uint256 newSpotPriceB,
-                uint128 newReserveBWeth,
-                uint128 newReserveBToken
-            ) = simulateAToBPriceChange(alphaX, reserveBWeth, reserveBToken);
-
-            executionPrice.price = newSpotPriceB;
-            executionPrice.aToWethReserve0 = 0;
-            executionPrice.aToWethReserve1 = 0;
-            executionPrice.wethToBReserve0 = newReserveBWeth;
-            executionPrice.wethToBReserve1 = newReserveBToken;
         }
-
         return executionPrice;
+    }
+
+    function _simulateAToWethPriceChange(
+        uint128 alphaX,
+        TokenToTokenExecutionPrice memory executionPrice
+    )
+        internal
+        returns (
+            uint256 newSpotPriceA,
+            uint128 newReserveAToken,
+            uint128 newReserveAWeth,
+            uint128 amountOut
+        )
+    {
+        uint128 reserveAToken = executionPrice.aToWethReserve0;
+        uint128 reserveAWeth = executionPrice.aToWethReserve1;
+        address poolAddressAToWeth = executionPrice.lpAddressAToWeth;
+
+        (
+            newSpotPriceA,
+            newReserveAToken,
+            newReserveAWeth,
+            amountOut
+        ) = simulateAToBPriceChange(
+            alphaX,
+            reserveAToken,
+            reserveAWeth,
+            poolAddressAToWeth,
+            true
+        );
+    }
+
+    function _simulateWethToBPriceChange(
+        uint128 alphaX,
+        TokenToTokenExecutionPrice memory executionPrice
+    )
+        internal
+        returns (
+            uint256 newSpotPriceB,
+            uint128 newReserveBWeth,
+            uint128 newReserveBToken
+        )
+    {
+        uint128 reserveBWeth = executionPrice.wethToBReserve0;
+        uint128 reserveBToken = executionPrice.wethToBReserve1;
+        address poolAddressWethToB = executionPrice.lpAddressWethToB;
+
+        (
+            newSpotPriceB,
+            newReserveBWeth,
+            newReserveBToken,
+
+        ) = simulateAToBPriceChange(
+            alphaX,
+            reserveBWeth,
+            reserveBToken,
+            poolAddressWethToB,
+            false
+        );
     }
 
     /// @notice Helper function to determine the spot price change to the lp after introduction alphaX amount into the reserve pool
@@ -1691,43 +1789,142 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function simulateAToBPriceChange(
         uint128 alphaX,
         uint128 reserveA,
-        uint128 reserveB
+        uint128 reserveB,
+        address pool,
+        bool isTokenToWeth
     )
         internal
-        pure
         returns (
             uint256,
+            uint128,
             uint128,
             uint128
         )
     {
-        
-
         uint128[] memory newReserves = new uint128[](2);
 
-        unchecked {
-            uint128 numerator = reserveA + alphaX; //11068720173663754
-            uint256 k = uint256(reserveA * reserveB); //1101968080474711952935030209443346410
+        if (_lpIsNotUniV3(pool)) {
+            unchecked {
+                uint128 numerator = reserveA + alphaX; //11068720173663754
+                uint256 k = uint256(reserveA * reserveB); //1101968080474711952935030209443346410
 
-            uint256 denominator = k / uint256(reserveA) + alphaX;
-        
-            uint256 spotPrice = uint256(
-                ConveyorMath.divUI(
-                    uint256(numerator),
-                    denominator
-                )
+                uint256 denominator = k / uint256(reserveA) + alphaX;
+
+                uint256 spotPrice = uint256(
+                    ConveyorMath.divUI(denominator, uint256(numerator))
+                );
+                console.log("Simulated spot price");
+                console.log(spotPrice);
+                require(
+                    spotPrice <=
+                        0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
+                    "overflow"
+                );
+                newReserves[0] = numerator;
+                newReserves[1] = uint128(denominator);
+                uint128 amountOut = uint128(
+                    getAmountOut(alphaX, reserveA, reserveB)
+                );
+                return (spotPrice, newReserves[0], newReserves[1], amountOut);
+            }
+        } else {
+            //Sqrt token1/token0
+
+            (
+                uint128 sqrtSpotPrice64x64,
+                uint128 amountOut
+            ) = calculateNextSqrtPriceX96(isTokenToWeth, pool, alphaX);
+            newReserves[0] = 0;
+            newReserves[1] = 0;
+            console.log("sqrt thingy");
+            console.log(sqrtSpotPrice64x64);
+            return (
+                uint256(sqrtSpotPrice64x64),
+                newReserves[0],
+                newReserves[1],
+                amountOut
             );
-
-            require(
-                spotPrice <=
-                    0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
-                "overflow"
-            );
-            newReserves[0] = numerator;
-            newReserves[1] = uint128(denominator>>128);
-
-            return (spotPrice, newReserves[0], newReserves[1]);
         }
+    }
+
+    function calculateNextSqrtPriceX96(
+        bool isTokenToWeth,
+        address pool,
+        uint256 alphaX
+    ) internal returns (uint128 sqrtSpotPrice64x64, uint128 amountOut) {
+        (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(pool).slot0();
+
+        uint128 liquidity = IUniswapV3Pool(pool).liquidity();
+
+        address token0 = IUniswapV3Pool(pool).token0();
+        address token1 = IUniswapV3Pool(pool).token1();
+
+        bool wethIsToken0 = token0 == WETH ? true : false;
+        uint160 nextSqrtPriceX96;
+
+        uint24 fee = IUniswapV3Pool(pool).fee();
+
+        console.log("here");
+        console.log(alphaX);
+        if (isTokenToWeth) {
+            if (wethIsToken0) {
+                amountOut = uint128(
+                    IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6)
+                        .quoteExactInputSingle(token1, WETH, fee, alphaX, 0)
+                );
+                nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
+                    sqrtPriceX96,
+                    liquidity,
+                    alphaX,
+                    false
+                );
+            } else {
+                amountOut = uint128(
+                    IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6)
+                        .quoteExactInputSingle(token0, WETH, fee, alphaX, 0)
+                );
+                nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromOutput(
+                    sqrtPriceX96,
+                    liquidity,
+                    amountOut,
+                    true
+                );
+            }
+        } else {
+            console.log("here2");
+            console.log(alphaX);
+
+            console.log("here3");
+
+            if (wethIsToken0) {
+                amountOut = uint128(
+                    IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6)
+                        .quoteExactInputSingle(WETH, token1, fee, alphaX, 0)
+                );
+                console.log("here1");
+                nextSqrtPriceX96 = SqrtPriceMath
+                    .getNextSqrtPriceFromAmount1RoundingDown(
+                        sqrtPriceX96,
+                        liquidity,
+                        amountOut,
+                        false
+                    );
+            } else {
+                amountOut = uint128(
+                    IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6)
+                        .quoteExactInputSingle(WETH, token0, fee, alphaX, 0)
+                );
+                console.log("here2");
+                nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
+                    sqrtPriceX96,
+                    liquidity,
+                    alphaX,
+                    false
+                );
+            }
+        }
+
+        sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(nextSqrtPriceX96);
     }
 
     /// @notice Helper function to determine if order can execute based on the spot price of the lp, the determinig factor is the order.orderType
