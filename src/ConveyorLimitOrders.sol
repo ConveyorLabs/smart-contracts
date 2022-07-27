@@ -896,7 +896,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             memory executionPrices = _initializeTokenToTokenExecutionPrices(
                 orders
             );
-
+        
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
         TokenToTokenBatchOrder[]
             memory tokenToTokenBatchOrders = _batchTokenToTokenOrders(
@@ -1381,12 +1381,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         address batchOrderTokenIn = firstOrder.tokenIn;
         address batchOrderTokenOut = firstOrder.tokenOut;
-
+        
         uint256 currentBestPriceIndex = _findBestTokenToTokenExecutionPrice(
             executionPrices,
             buyOrder
         );
-
+        
         TokenToTokenBatchOrder
             memory currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
                 orders.length,
@@ -1395,6 +1395,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices[currentBestPriceIndex].lpAddressAToWeth,
                 executionPrices[currentBestPriceIndex].lpAddressWethToB
             );
+        
 
         uint256 currentTokenToTokenBatchOrdersIndex = 0;
         {
@@ -1462,7 +1463,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                         currentTokenToTokenBatchOrder
                             .amountOutMin += currentOrder.amountOutMin;
-
+                        
                         ///@notice add owner of the order to the batchOwners
                         currentTokenToTokenBatchOrder.batchOwners[
                                 batchLength
@@ -1488,6 +1489,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             uint128(currentTokenToTokenBatchOrder.amountIn),
                             executionPrices[bestPriceIndex]
                         );
+                        
                     } else {
                         ///@notice cancel the order due to insufficient slippage
                         cancelOrder(currentOrder.orderId);
@@ -1624,7 +1626,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 reserveAWeth = executionPrice.aToWethReserve1;
         uint128 reserveBWeth = executionPrice.wethToBReserve0;
         uint128 reserveBToken = executionPrice.wethToBReserve1;
-
+        
+        
         //TODO:^^
         //---------------------------------------------------
 
@@ -1634,21 +1637,23 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 uint128 newReserveAToken,
                 uint128 newReserveAWeth
             ) = simulateAToBPriceChange(alphaX, reserveAToken, reserveAWeth);
-
+            
             (
                 uint256 newSpotPriceB,
                 uint128 newReserveBWeth,
                 uint128 newReserveBToken
             ) = simulateAToBPriceChange(alphaX, reserveBWeth, reserveBToken);
-
+            console.logString("Spot Prices");
+            console.log(newSpotPriceA);
+            console.log(newSpotPriceB);
             //Signifying that it weth is token0
             uint256 newTokenToTokenSpotPrice = uint256(
                 ConveyorMath.mul64x64(
-                    uint128(newSpotPriceA >> 64),
-                    uint128(newSpotPriceB >> 64)
+                    uint128(newSpotPriceA),
+                    uint128(newSpotPriceB)
                 )
             ) << 64;
-
+            
             //TODO: update this to make sure weth is the right reserve position
             //TODO:^^
             //---------------------------------------------------
@@ -1689,7 +1694,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 reserveB
     )
         internal
-        view
+        pure
         returns (
             uint256,
             uint128,
@@ -1704,14 +1709,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128 numerator = reserveA + alphaX; //11068720173663754
             uint256 k = uint256(reserveA * reserveB); //1101968080474711952935030209443346410
 
-            uint256 denominator = ConveyorMath.divUI128x128(
-                k,
-                uint256(reserveA) + alphaX
-            );
+            uint256 denominator = k / uint256(reserveA) + alphaX;
         
             uint256 spotPrice = uint256(
-                ConveyorMath.div128x128(
-                    uint256(numerator) << 128,
+                ConveyorMath.divUI(
+                    uint256(numerator),
                     denominator
                 )
             );

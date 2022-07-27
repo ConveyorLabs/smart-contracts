@@ -370,7 +370,7 @@ contract OrderRouter {
 
         ///@notice get the balance before
         uint256 balanceBefore = IERC20(_tokenOut).balanceOf(_reciever);
-        
+
         /// @notice Swap tokens for wrapped native tokens (nato).
         try
             IUniswapV2Pair(_lp).swap(
@@ -471,14 +471,13 @@ contract OrderRouter {
                 0
             );
 
-        
         /// @notice Swap tokens for wrapped native tokens (nato).
         try swapRouter.exactInputSingle(params) returns (uint256 _amountOut) {
             if (_amountOut < _amountOutMin) {
                 return 0;
             }
             console.logString("Passed V3 Swap");
-            
+
             return _amountOut;
         } catch {
             console.logString("Failed V3 swap");
@@ -531,24 +530,34 @@ contract OrderRouter {
         (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pairAddress)
             .getReserves();
 
-        (_spRes.res0, _spRes.res1) = (reserve0, reserve1);
-
         //Set common based reserve values
         (
             uint256 commonReserve0,
             uint256 commonReserve1
         ) = _getReservesCommonDecimals(tok0, tok1, reserve0, reserve1);
 
-        unchecked {
+        
+
+        
             if (token0 == tok0) {
                 _spRes.spotPrice = ConveyorMath.div128x128(
                     commonReserve1 << 128,
                     commonReserve0 << 128
                 );
+                _spRes.token0IsReserve0 = true;
+                (_spRes.res0, _spRes.res1) = (
+                    uint128(commonReserve0),
+                    uint128(commonReserve1)
+                );
             } else {
                 _spRes.spotPrice = ConveyorMath.div128x128(
                     commonReserve0 << 128,
                     commonReserve1 << 128
+                );
+                _spRes.token0IsReserve0 = false;
+                (_spRes.res1, _spRes.res0) = (
+                    uint128(commonReserve0),
+                    uint128(commonReserve1)
                 );
             }
 
@@ -556,7 +565,7 @@ contract OrderRouter {
                 _spRes.spotPrice <=
                     0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
             );
-        }
+        
 
         // Left shift commonReserve0 9 digits i.e. commonReserve0 = commonReserve0 * 2 ** 9
         (spRes, poolAddress) = (_spRes, pairAddress);
@@ -587,9 +596,9 @@ contract OrderRouter {
     function _getReservesCommonDecimals(
         address tok0,
         address tok1,
-        uint112 reserve0,
-        uint112 reserve1
-    ) internal view returns (uint112 commonReserve0, uint112 commonReserve1) {
+        uint128 reserve0,
+        uint128 reserve1
+    ) internal view returns (uint128 commonReserve0, uint128 commonReserve1) {
         //Get target decimals for token0 & token1
         uint8 token0Decimals = _getTargetDecimals(tok0);
         uint8 token1Decimals = _getTargetDecimals(tok1);
@@ -606,15 +615,15 @@ contract OrderRouter {
     function _getReservesCommonDecimalsV3(
         address token0,
         address token1,
-        uint112 reserve0,
-        uint112 reserve1,
+        uint128 reserve0,
+        uint128 reserve1,
         address pool
     )
         internal
         view
         returns (
-            uint112 commonReserve0,
-            uint112 commonReserve1,
+            uint128, 
+            uint128, 
             bool token0IsReserve0
         )
     {
@@ -627,20 +636,22 @@ contract OrderRouter {
         token0IsReserve0 = TOKEN0 == token0 ? true : false;
         if (token0IsReserve0) {
             //Set common based reserve values
-            (commonReserve0, commonReserve1) = _convertToCommonBase(
+            (uint128 commonReserve0, uint128 commonReserve1) = _convertToCommonBase(
                 reserve0,
                 token0Decimals,
                 reserve1,
                 token1Decimals
             );
+            return (commonReserve0, commonReserve1, token0IsReserve0);
         } else {
             //Set common based reserve values
-            (commonReserve0, commonReserve1) = _convertToCommonBase(
+            (uint128 commonReserve0, uint128 commonReserve1) = _convertToCommonBase(
                 reserve0,
                 token1Decimals,
                 reserve1,
                 token0Decimals
             );
+            return (commonReserve1, commonReserve0, token0IsReserve0);
         }
     }
 
@@ -674,14 +685,20 @@ contract OrderRouter {
                 return (_spRes, address(0));
             }
 
-            unchecked {
-                _spRes.res0 = uint128(IERC20(token0).balanceOf(pool));
-                _spRes.res1 = uint128(IERC20(token1).balanceOf(pool));
+            uint128 reserve0 = uint128(IERC20(token0).balanceOf(pool));
+            uint128 reserve1 = uint128(IERC20(token1).balanceOf(pool));
 
-                require(_spRes.res0 <= type(uint128).max);
-                require(_spRes.res1 <= type(uint128).max);
-            }
-
+            (
+                _spRes.res0,
+                _spRes.res1,
+                _spRes.token0IsReserve0
+            ) = _getReservesCommonDecimalsV3(
+                token0,
+                token1,
+                reserve0,
+                reserve1,
+                pool
+            );
             {
                 // int56 / uint32 = int24
                 tick = _getTick(pool, tickSecond);
@@ -873,21 +890,21 @@ contract OrderRouter {
     /// @param reserve1 uint256 token2 value
     /// @param token1Decimals Decimals of token1
     function _convertToCommonBase(
-        uint112 reserve0,
+        uint128 reserve0,
         uint8 token0Decimals,
-        uint112 reserve1,
+        uint128 reserve1,
         uint8 token1Decimals
-    ) internal pure returns (uint112, uint112) {
+    ) internal pure returns (uint128, uint128) {
         /// @dev Conditionally change the decimal to target := max(decimal0, decimal1)
         /// return tuple of modified reserve values in matching decimals
         if (token0Decimals > token1Decimals) {
             return (
                 reserve0,
-                uint112(reserve1 * 10**(token0Decimals - token1Decimals))
+                uint128(reserve1 * 10**(token0Decimals - token1Decimals))
             );
         } else if (token0Decimals < token1Decimals) {
             return (
-                uint112(reserve0 * 10**(token1Decimals - token0Decimals)),
+                uint128(reserve0 * 10**(token1Decimals - token0Decimals)),
                 reserve1
             );
         } else {
