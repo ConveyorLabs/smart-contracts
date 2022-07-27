@@ -928,7 +928,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 orders,
                 executionPrices
             );
-
+        
         ///@notice execute the batch orders
         _executeTokenToTokenBatchTaxedOrders(tokenToTokenBatchOrders);
     }
@@ -1269,7 +1269,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         TokenToTokenExecutionPrice[]
             memory executionPrices = new TokenToTokenExecutionPrice[](
-                spotReserveAToWeth.length
+                spotReserveAToWeth.length*spotReserveWethToB.length
             );
 
         if (tokenIn == WETH) {
@@ -1285,19 +1285,18 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
             }
         } else {
-            {
+                uint256 index = 0; 
                 for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
                     for (uint256 j = 0; j < spotReserveWethToB.length; ++j) {
                         //TODO: update this comment: the first hop is skipped so only use the second spot price
-
                         uint256 spotPriceFinal = uint256(
                             _calculateTokenToWethToTokenSpotPrice(
                                 spotReserveAToWeth[i].spotPrice,
                                 spotReserveWethToB[j].spotPrice
                             )
                         ) << 64;
-
-                        executionPrices[i] = TokenToTokenExecutionPrice(
+                       
+                        executionPrices[index] = TokenToTokenExecutionPrice(
                             spotReserveAToWeth[i].res0,
                             spotReserveAToWeth[i].res1,
                             spotReserveWethToB[j].res0,
@@ -1306,8 +1305,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             lpAddressesAToWeth[i],
                             lpAddressWethToB[j]
                         );
+                        index++;
                     }
-                }
+                
             }
         }
         return executionPrices;
@@ -1382,7 +1382,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     {
         tokenToTokenBatchOrders = new TokenToTokenBatchOrder[](orders.length);
         Order memory firstOrder = orders[0];
-        
+
         bool buyOrder = _buyOrSell(firstOrder);
 
         address batchOrderTokenIn = firstOrder.tokenIn;
@@ -1392,6 +1392,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             executionPrices,
             buyOrder
         );
+
+       
 
         TokenToTokenBatchOrder
             memory currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
@@ -1437,7 +1439,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 }
 
                 Order memory currentOrder = orders[i];
-
+                
                 ///@notice if the order meets the execution price
                 if (
                     _orderMeetsExecutionPrice(
@@ -1515,13 +1517,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _findBestTokenToTokenExecutionPrice(
         TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
-    ) internal pure returns (uint256 bestPriceIndex) {
+    ) internal view returns (uint256 bestPriceIndex) {
         ///@notice if the order is a buy order, set the initial best price at 0, else set the initial best price at max uint256
 
         if (buyOrder) {
             uint256 bestPrice = 0;
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
+                
                 if (executionPrice > bestPrice) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
@@ -1531,6 +1534,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
+              
                 if (executionPrice < bestPrice && executionPrice != 0) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
