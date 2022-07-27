@@ -67,6 +67,7 @@ contract OrderBookTest is DSTest {
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
+            0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6,
             5,
             2592000,
             300000,

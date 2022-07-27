@@ -85,8 +85,8 @@ library ConveyorMath {
     function sub64UI(uint128 x, uint256 y) internal pure returns (uint128) {
         unchecked {
             uint128 x_low = x & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
-            uint256 result = x-(y<<64);
-          
+            uint256 result = x - (y << 64);
+
             require(result >= 0x0 && uint128(result) <= uint128(MAX_64x64));
             return uint128(result);
         }
@@ -237,7 +237,7 @@ library ConveyorMath {
             require(y != 0);
             uint128 answer = divUU(x, y);
             require(answer <= uint128(MAX_64x64), "overflow");
-            
+
             return answer;
         }
     }
@@ -279,7 +279,10 @@ library ConveyorMath {
                 if (xc >= 0x2) msb += 1; // No need to shift xc anymore
 
                 answer = (x << (255 - msb)) / (((y - 1) >> (msb - 191)) + 1);
-                require(answer <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF, "overflow in divuu");
+                require(
+                    answer <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
+                    "overflow in divuu"
+                );
 
                 uint256 hi = answer * (y >> 128);
                 uint256 lo = answer * (y & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
@@ -298,7 +301,10 @@ library ConveyorMath {
                 answer += xl / y;
             }
 
-            require(answer <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF, "overflow in divuu last");
+            require(
+                answer <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
+                "overflow in divuu last"
+            );
             return uint128(answer);
         }
     }
@@ -307,12 +313,16 @@ library ConveyorMath {
     /// @param x uint256 unsigned integer number
     /// @param y uint256 unsigned integer number
     /// @return unsigned uint128 64.64 unsigned integer
-    function divUI128x128(uint256 x, uint256 y) internal pure returns (uint256) {
+    function divUI128x128(uint256 x, uint256 y)
+        internal
+        pure
+        returns (uint256)
+    {
         unchecked {
             require(y != 0);
             uint256 answer = divUU128x128(x, y);
             require(answer <= MAX_128x128, "overflow divUI128x128");
-            
+
             return answer;
         }
     }
@@ -320,7 +330,11 @@ library ConveyorMath {
     /// @param x uint256 unsigned integer
     /// @param y uint256 unsigned integer
     /// @return unsigned 64.64 fixed point number
-    function divUU128x128(uint256 x, uint256 y) internal pure returns (uint256) {
+    function divUU128x128(uint256 x, uint256 y)
+        internal
+        pure
+        returns (uint256)
+    {
         unchecked {
             require(y != 0);
 
@@ -373,8 +387,8 @@ library ConveyorMath {
                 answer += xl / y;
             }
 
-            require(answer<<64 <= MAX_128x128, "overflow in divuu last");
-            return answer<<64;
+            require(answer << 64 <= MAX_128x128, "overflow in divuu last");
+            return answer << 64;
         }
     }
 
@@ -589,19 +603,17 @@ library ConveyorMath {
         }
     }
 
-    function sqrt128x128 (uint256 x) internal pure returns (uint256) {
+    function sqrt128x128(uint256 x) internal pure returns (uint256) {
         unchecked {
-        require (x >= 0);
-        return uint256(sqrtu(x))<<64;
+            require(x >= 0);
+            return uint256(sqrtu(x)) << 64;
         }
-  }
-
-  
-
-  function sqrt (int128 x) internal pure returns (int128) {
-    unchecked {
-      require (x >= 0);
-      return int128 (sqrtu (uint256 (int256 (x)) << 64));
     }
-  }
+
+    function sqrt(int128 x) internal pure returns (int128) {
+        unchecked {
+            require(x >= 0);
+            return int128(sqrtu(uint256(int256(x)) << 64));
+        }
+    }
 }

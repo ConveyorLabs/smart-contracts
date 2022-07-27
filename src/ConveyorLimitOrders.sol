@@ -48,12 +48,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     //Immutable execution cost of an order
     uint256 immutable executionCost;
 
+    IQuoter immutable iQuoter;
+
     // ========================================= Constructor =============================================
 
     constructor(
         address _gasOracle,
         address _weth,
         address _usdc,
+        address _quoterAddress,
         uint256 _refreshFee,
         uint256 _refreshInterval,
         uint256 _executionCost,
@@ -64,6 +67,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         OrderBook(_gasOracle)
         OrderRouter(_deploymentByteCodes, _dexFactories, _isUniV2)
     {
+        iQuoter = IQuoter(_quoterAddress);
         refreshFee = _refreshFee;
         WETH = _weth;
         USDC = _usdc;
@@ -1088,12 +1092,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ) internal returns (uint256 amountOutMinAToWeth) {
         if (!_lpIsNotUniV3(lpAddressAToWeth)) {
             Order memory order = getOrderById(orderId);
-            uint256 amountInBuffer = (amountInOrder * taxIn) / 10**4;
+            uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
             uint256 amountIn = amountInOrder - amountInBuffer;
 
-            amountOutMinAToWeth = IQuoter(
-                0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
-            ).quoteExactInputSingle(order.tokenIn, WETH, 3000, amountIn, 0);
+            amountOutMinAToWeth = iQuoter.quoteExactInputSingle(order.tokenIn, WETH, order.feeIn, amountIn, 0);
         } else {
             (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(
                 lpAddressAToWeth
@@ -1880,7 +1882,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 ///@notice If weth is token0 and swap is happening from tokenToWeth ==> token1 = token & alphaX is in token1
                 ///@notice Assign amountOut to hold output amount in Weth for subsequent simulation calls
                 amountOut = uint128(
-                    IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6)
+                    iQuoter
                         .quoteExactInputSingle(token1, WETH, fee, alphaX, 0)
                 );
 
@@ -1901,8 +1903,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                 ///@notice weth is token1 therefore tokenIn is token0, assign amountOut to wethOut value for subsequent simulations
                 amountOut = uint128(
-                    IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6)
-                        .quoteExactInputSingle(token0, WETH, fee, alphaX, 0)
+                    iQuoter.quoteExactInputSingle(token0, WETH, fee, alphaX, 0)
                 );
 
                 ///@notice calculate nextSqrtPriceX96 price change on wethOutAmount add false since we are removing the weth liquidity from the pool
@@ -1923,8 +1924,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             if (wethIsToken0) {
                 ///@notice since weth is token0 set amountOut to token quoted amount out on alphaX Weth into the pool
                 amountOut = uint128(
-                    IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6)
-                        .quoteExactInputSingle(WETH, token1, fee, alphaX, 0)
+                    iQuoter.quoteExactInputSingle(WETH, token1, fee, alphaX, 0)
                 );
                 ///@notice amountOut is in our out token, so set nextSqrtPriceX96 to change in price on amountOut value
                 ///@notice weth is token 0 so set add to false since we are removing token1 liquidity from the pool
@@ -1942,8 +1942,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             } else {
                 ///@notice weth == token1 so initialize amountOut on weth-token0
                 amountOut = uint128(
-                    IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6)
-                        .quoteExactInputSingle(WETH, token0, fee, alphaX, 0)
+                    iQuoter.quoteExactInputSingle(WETH, token0, fee, alphaX, 0)
                 );
                 
                 ///@notice set nextSqrtPriceX96 to change on Input alphaX which will be in Weth, since weth is token1 0To1=false
