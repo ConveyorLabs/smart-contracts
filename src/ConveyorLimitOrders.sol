@@ -946,86 +946,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    ///@notice I think we are going to retire this function
-    // function calculateAmountOutMinAToWethTaxed(
-    //     address lpAddressAToWeth,
-    //     address lpAddressWethToB,
-    //     uint256 amountInOrder,
-    //     uint256 amountOutMin,
-    //     bytes32 orderId,
-    //     uint16 taxIn
-    // ) internal returns (uint256 amountOutMinAToWethTaxed) {
-    //     uint256 spotPrice;
-    //     console.logAddress(lpAddressWethToB);
-
-    //     if (!_lpIsNotUniV3(lpAddressAToWeth)) {
-    //         Order memory order = getOrderById(orderId);
-    //         uint112 amountIn = _getGreatestTokenDecimalsAmountIn(
-    //             order.tokenOut,
-    //             WETH
-    //         );
-    //         (OrderRouter.SpotReserve memory spotReserve, ) = _calculateV3SpotPrice(
-    //             order.tokenOut,
-    //             WETH,
-    //             amountIn,
-    //             order.feeOut,
-    //             1,
-    //             ///TODO: Figure out where to index dexes for v3
-    //             dexes[1].factoryAddress
-    //         );
-
-    //         spotPrice = spotReserve.spotPrice;
-
-    //         uint256 amountOutMinAToWeth = ConveyorMath.mul128I(
-    //             spotPrice,
-    //             amountOutMin
-    //         );
-    //         uint256 amountOutMinAToWethTaxedBuffer = (taxIn *
-    //             amountOutMinAToWeth) / 10**5;
-
-    //         uint256 amountOutMinAToWethTaxedBufferRebased = amountOutMinAToWethTaxedBuffer /
-    //                 10**3;
-
-    //         amountOutMinAToWethTaxed =
-    //             amountOutMinAToWeth -
-    //             amountOutMinAToWethTaxedBufferRebased;
-    //     } else {
-    //         (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(
-    //             lpAddressAToWeth
-    //         ).getReserves();
-    //         if (WETH == IUniswapV2Pair(lpAddressAToWeth).token0()) {
-    //             uint256 amountOutMinAToWeth = getAmountOut(
-    //                 amountInOrder,
-    //                 uint256(reserve1),
-    //                 uint256(reserve0)
-    //             );
-    //             uint256 amountOutMinAToWethTaxedBuffer = (taxIn *
-    //                 amountOutMinAToWeth) / 10**5;
-
-    //             uint256 amountOutMinAToWethTaxedBufferRebased = amountOutMinAToWethTaxedBuffer /
-    //                     10**3;
-
-    //             amountOutMinAToWethTaxed =
-    //                 amountOutMinAToWeth -
-    //                 amountOutMinAToWethTaxedBufferRebased;
-    //         } else {
-    //             uint256 amountOutMinAToWeth = getAmountOut(
-    //                 amountInOrder,
-    //                 uint256(reserve0),
-    //                 uint256(reserve1)
-    //             );
-    //             uint256 amountOutMinAToWethTaxedBuffer = (taxIn *
-    //                 amountOutMinAToWeth) / 10**5;
-
-    //             uint256 amountOutMinAToWethTaxedBufferRebased = amountOutMinAToWethTaxedBuffer /
-    //                     10**3;
-
-    //             amountOutMinAToWethTaxed =
-    //                 amountOutMinAToWeth -
-    //                 amountOutMinAToWethTaxedBufferRebased;
-    //         }
-    //     }
-    // }
 
     ///@dev the amountOut is the amount out - protocol fees
     function _executeTokenToTokenTaxedOrder(
@@ -1174,8 +1094,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             
             amountOutMinAToWeth = IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6).quoteExactInputSingle(order.tokenIn, WETH, 3000, amountIn, 0);
             
-            console.logString("Uniswap v3");
-            console.log(amountOutMinAToWeth);
         } else {
             (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(
                 lpAddressAToWeth
@@ -1237,8 +1155,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     0
                 );
                 fee = _getUniV3Fee(batch.lpAddressAToWeth);
-                console.logString("Amount in");
-                console.log(batch.amountIn);
+                
                 ///@notice swap from A to weth
                 uint128 amountOutWeth = uint128(
                     _swap(
@@ -1779,9 +1696,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128
         )
     {
-        console.log(reserveA);
-        console.log(reserveB);
-        console.log(alphaX);
+        
 
         uint128[] memory newReserves = new uint128[](2);
 

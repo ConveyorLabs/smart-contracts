@@ -370,8 +370,7 @@ contract OrderRouter {
 
         ///@notice get the balance before
         uint256 balanceBefore = IERC20(_tokenOut).balanceOf(_reciever);
-        console.logString("AmountOutMin");
-        console.log(_amountOutMin);
+        
         /// @notice Swap tokens for wrapped native tokens (nato).
         try
             IUniswapV2Pair(_lp).swap(
@@ -479,7 +478,7 @@ contract OrderRouter {
                 return 0;
             }
             console.logString("Passed V3 Swap");
-            console.logUint(_amountOut);
+            
             return _amountOut;
         } catch {
             console.logString("Failed V3 swap");
