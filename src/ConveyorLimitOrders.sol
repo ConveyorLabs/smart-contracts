@@ -1706,13 +1706,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128 newReserveAWeth,
             uint128 amountOut
         ) = _simulateAToWethPriceChange(alphaX, executionPrice);
-        console.log(newSpotPriceA);
+       
         (
             uint256 newSpotPriceB,
             uint128 newReserveBToken,
             uint128 newReserveBWeth
         ) = _simulateWethToBPriceChange(amountOut, executionPrice);
-        console.log(newSpotPriceB);
+      
         {
             //Signifying that it weth is token0
             uint256 newTokenToTokenSpotPrice = uint256(
@@ -1819,8 +1819,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //If not uni v3 do constant product calculation
         if (_lpIsNotUniV3(pool)) {
             unchecked {
-                uint256 denominator = reserveA + alphaX; //11068720173663754
-                uint256 k = uint256(reserveA * reserveB); //1101968080474711952935030209443346410
+                uint256 denominator = reserveA + alphaX; 
 
                 uint256 numerator = FullMath.mulDiv(uint256(reserveA), uint256(reserveB), denominator);
 
@@ -1833,13 +1832,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
                     "overflow"
                 );
+
                 newReserves[0] = uint128(denominator);
                 newReserves[1] = uint128(denominator);
+
                 uint128 amountOut = uint128(
                     getAmountOut(alphaX, reserveA, reserveB)
                 );
-                console.log("v2 spot");
-                console.log(spotPrice);
+                
                 return (spotPrice, newReserves[0], newReserves[1], amountOut);
             }
         } else {
