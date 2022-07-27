@@ -857,31 +857,31 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    function testFailDepositGasCredits_InsufficientGasCreditBalanceForOrderExecution(
-        uint256 _amount
-    ) public {
-        //deal this address max eth
-        cheatCodes.deal(address(this), MAX_UINT);
+    // function testFailDepositGasCredits_InsufficientGasCreditBalanceForOrderExecution(
+    //     uint256 _amount
+    // ) public {
+    //     //deal this address max eth
+    //     cheatCodes.deal(address(this), MAX_UINT);
 
-        //for fuzzing make sure that the input amount is < the balance of the test contract
-        if (address(this).balance - _amount > _amount) {
-            //deposit gas credits
-            (bool depositSuccess, ) = address(conveyorLimitOrders).call{
-                value: _amount
-            }(abi.encodeWithSignature("depositGasCredits()"));
+    //     //for fuzzing make sure that the input amount is < the balance of the test contract
+    //     if (address(this).balance - _amount > _amount) {
+    //         //deposit gas credits
+    //         (bool depositSuccess, ) = address(conveyorLimitOrders).call{
+    //             value: _amount
+    //         }(abi.encodeWithSignature("depositGasCredits()"));
 
-            //require that the deposit was a success
-            require(depositSuccess, "testDepositGasCredits: deposit failed");
+    //         //require that the deposit was a success
+    //         require(depositSuccess, "testDepositGasCredits: deposit failed");
 
-            //get the updated gasCreditBalance for the address
-            uint256 gasCreditBalance = conveyorLimitOrders.gasCreditBalance(
-                address(this)
-            );
+    //         //get the updated gasCreditBalance for the address
+    //         uint256 gasCreditBalance = conveyorLimitOrders.gasCreditBalance(
+    //             address(this)
+    //         );
 
-            //check that the creditBalance map has been updated
-            require(gasCreditBalance == _amount);
-        }
-    }
+    //         //check that the creditBalance map has been updated
+    //         require(gasCreditBalance == _amount);
+    //     }
+    // }
 
     function testWithdrawGasCredits(uint256 _amount) public {
         cheatCodes.deal(address(this), MAX_UINT);

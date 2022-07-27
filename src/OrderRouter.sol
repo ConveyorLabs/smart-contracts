@@ -30,8 +30,10 @@ contract OrderRouter {
     struct TokenToTokenExecutionPrice {
         uint128 aToWethReserve0;
         uint128 aToWethReserve1;
+        uint8[] decimalsInDecimalsAToWeth;
         uint128 wethToBReserve0;
         uint128 wethToBReserve1;
+        uint8[] decimalsInDecimalsWethToB;
         uint256 price;
         address lpAddressAToWeth;
         address lpAddressWethToB;
@@ -40,6 +42,7 @@ contract OrderRouter {
     struct TokenToWethExecutionPrice {
         uint128 aToWethReserve0;
         uint128 aToWethReserve1;
+        uint8[] decimalsInDecimalsAToWeth;
         uint256 price;
         address lpAddressAToWeth;
     }
@@ -84,6 +87,7 @@ contract OrderRouter {
         uint128 res0;
         uint128 res1;
         bool token0IsReserve0;
+        uint8[] alphaXDecimalsDecimalsCommon;
     }
 
     //----------------------Constants------------------------------------//
@@ -507,6 +511,7 @@ contract OrderRouter {
         require(token0 != token1, "Invalid Token Pair, IDENTICAL Address's");
         address tok0;
         address tok1;
+        
         {
             (tok0, tok1) = _sortTokens(token0, token1);
         }
@@ -525,24 +530,33 @@ contract OrderRouter {
         if (!(IUniswapV2Factory(_factory).getPair(tok0, tok1) == pairAddress)) {
             return (_spRes, address(0));
         }
+        {
+            //Set reserve0, reserve1 to current LP reserves
+            (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pairAddress)
+                .getReserves();
+            
+            //Set common based reserve values
+            (
+                uint256 commonReserve0,
+                uint256 commonReserve1,
+                uint8[] memory alphaXDecimalsDecimalsCommon
+            ) = _getReservesCommonDecimals(
+                    token0,
+                    tok0,
+                    tok1,
+                    reserve0,
+                    reserve1
+                );
+           
+            _spRes.alphaXDecimalsDecimalsCommon = alphaXDecimalsDecimalsCommon;
 
-        //Set reserve0, reserve1 to current LP reserves
-        (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pairAddress)
-            .getReserves();
-        
-        //Set common based reserve values
-        (
-            uint256 commonReserve0,
-            uint256 commonReserve1
-        ) = _getReservesCommonDecimals(tok0, tok1, reserve0, reserve1);
-
-             
             if (token0 == tok0) {
                 _spRes.spotPrice = ConveyorMath.div128x128(
                     commonReserve1 << 128,
                     commonReserve0 << 128
                 );
                 _spRes.token0IsReserve0 = true;
+
                 (_spRes.res0, _spRes.res1) = (
                     uint128(commonReserve0),
                     uint128(commonReserve1)
@@ -553,6 +567,7 @@ contract OrderRouter {
                     commonReserve1 << 128
                 );
                 _spRes.token0IsReserve0 = false;
+
                 (_spRes.res1, _spRes.res0) = (
                     uint128(commonReserve0),
                     uint128(commonReserve1)
@@ -563,8 +578,8 @@ contract OrderRouter {
                 _spRes.spotPrice <=
                     0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
             );
+        }
         
-
         // Left shift commonReserve0 9 digits i.e. commonReserve0 = commonReserve0 * 2 ** 9
         (spRes, poolAddress) = (_spRes, pairAddress);
     }
@@ -592,22 +607,39 @@ contract OrderRouter {
     }
 
     function _getReservesCommonDecimals(
+        address token0,
         address tok0,
         address tok1,
         uint128 reserve0,
         uint128 reserve1
-    ) internal view returns (uint128 commonReserve0, uint128 commonReserve1) {
+    )
+        internal
+        view
+        returns (
+            uint128,
+            uint128,
+            uint8[] memory
+        )
+    {
         //Get target decimals for token0 & token1
         uint8 token0Decimals = _getTargetDecimals(tok0);
         uint8 token1Decimals = _getTargetDecimals(tok1);
+        uint8[] memory tokenInCommon = new uint8[](2);
+        tokenInCommon[0] = token0 == tok0 ? token0Decimals : token1Decimals;
 
         //Set common based reserve values
-        (commonReserve0, commonReserve1) = _convertToCommonBase(
+        (
+            uint128 commonReserve0,
+            uint128 commonReserve1,
+            uint8 commonDecimals
+        ) = _convertToCommonBase(
             reserve0,
             token0Decimals,
             reserve1,
             token1Decimals
         );
+        tokenInCommon[1]= commonDecimals;
+        return (commonReserve0, commonReserve1, tokenInCommon);
     }
 
     function _getReservesCommonDecimalsV3(
@@ -620,9 +652,10 @@ contract OrderRouter {
         internal
         view
         returns (
-            uint128, 
-            uint128, 
-            bool token0IsReserve0
+            uint128,
+            uint128,
+            bool token0IsReserve0,
+            uint8[] memory
         )
     {
         //Get target decimals for token0 & token1
@@ -634,22 +667,46 @@ contract OrderRouter {
         token0IsReserve0 = TOKEN0 == token0 ? true : false;
         if (token0IsReserve0) {
             //Set common based reserve values
-            (uint128 commonReserve0, uint128 commonReserve1) = _convertToCommonBase(
-                reserve0,
-                token0Decimals,
-                reserve1,
-                token1Decimals
+            (
+                uint128 commonReserve0,
+                uint128 commonReserve1,
+                uint8 commonDecimals
+            ) = _convertToCommonBase(
+                    reserve0,
+                    token0Decimals,
+                    reserve1,
+                    token1Decimals
+                );
+            uint8[] memory decimalsInDecimalsCommon = new uint8[](2);
+            decimalsInDecimalsCommon[0] = token0Decimals;
+            decimalsInDecimalsCommon[1] = commonDecimals;
+            return (
+                commonReserve0,
+                commonReserve1,
+                token0IsReserve0,
+                decimalsInDecimalsCommon
             );
-            return (commonReserve0, commonReserve1, token0IsReserve0);
         } else {
             //Set common based reserve values
-            (uint128 commonReserve0, uint128 commonReserve1) = _convertToCommonBase(
-                reserve0,
-                token1Decimals,
-                reserve1,
-                token0Decimals
+            (
+                uint128 commonReserve0,
+                uint128 commonReserve1,
+                uint8 commonDecimals
+            ) = _convertToCommonBase(
+                    reserve0,
+                    token1Decimals,
+                    reserve1,
+                    token0Decimals
+                );
+            uint8[] memory decimalsInDecimalsCommon = new uint8[](2);
+            decimalsInDecimalsCommon[0] = token1Decimals;
+            decimalsInDecimalsCommon[1] = commonDecimals;
+            return (
+                commonReserve1,
+                commonReserve0,
+                token0IsReserve0,
+                decimalsInDecimalsCommon
             );
-            return (commonReserve1, commonReserve0, token0IsReserve0);
         }
     }
 
@@ -689,7 +746,8 @@ contract OrderRouter {
             (
                 _spRes.res0,
                 _spRes.res1,
-                _spRes.token0IsReserve0
+                _spRes.token0IsReserve0,
+                _spRes.alphaXDecimalsDecimalsCommon
             ) = _getReservesCommonDecimalsV3(
                 token0,
                 token1,
@@ -892,21 +950,31 @@ contract OrderRouter {
         uint8 token0Decimals,
         uint128 reserve1,
         uint8 token1Decimals
-    ) internal pure returns (uint128, uint128) {
+    )
+        internal
+        pure
+        returns (
+            uint128,
+            uint128,
+            uint8
+        )
+    {
         /// @dev Conditionally change the decimal to target := max(decimal0, decimal1)
         /// return tuple of modified reserve values in matching decimals
         if (token0Decimals > token1Decimals) {
             return (
                 reserve0,
-                uint128(reserve1 * 10**(token0Decimals - token1Decimals))
+                uint128(reserve1 * 10**(token0Decimals - token1Decimals)),
+                token0Decimals
             );
         } else if (token0Decimals < token1Decimals) {
             return (
                 uint128(reserve0 * 10**(token1Decimals - token0Decimals)),
-                reserve1
+                reserve1,
+                token1Decimals
             );
         } else {
-            return (reserve0, reserve1);
+            return (reserve0, reserve1, token0Decimals);
         }
     }
 
