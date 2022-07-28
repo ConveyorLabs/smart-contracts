@@ -682,7 +682,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices[i] = TokenToWethExecutionPrice(
                     spotReserveAToWeth[i].res0,
                     spotReserveAToWeth[i].res1,
-                    spotReserveAToWeth[i].alphaXDecimalsDecimalsCommon,
+                    spotReserveAToWeth[i].tokenInTokenOutCommonDecimals,
                     spotReserveAToWeth[i].spotPrice,
                     lpAddressesAToWeth[i]
                 );
@@ -1282,7 +1282,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     zero,
                     spotReserveWethToB[i].res0,
                     spotReserveWethToB[i].res1,
-                    spotReserveWethToB[i].alphaXDecimalsDecimalsCommon,
+                    spotReserveWethToB[i].tokenInTokenOutCommonDecimals,
                     spotReserveWethToB[i].spotPrice,
                     address(0),
                     lpAddressWethToB[i]
@@ -1303,10 +1303,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     executionPrices[index] = TokenToTokenExecutionPrice(
                         spotReserveAToWeth[i].res0,
                         spotReserveAToWeth[i].res1,
-                        spotReserveAToWeth[i].alphaXDecimalsDecimalsCommon,
+                        spotReserveAToWeth[i].tokenInTokenOutCommonDecimals,
                         spotReserveWethToB[j].res0,
                         spotReserveWethToB[j].res1,
-                        spotReserveWethToB[j].alphaXDecimalsDecimalsCommon,
+                        spotReserveWethToB[j].tokenInTokenOutCommonDecimals,
                         spotPriceFinal,
                         lpAddressesAToWeth[i],
                         lpAddressWethToB[j]

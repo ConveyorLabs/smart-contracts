@@ -87,7 +87,7 @@ contract OrderRouter {
         uint128 res0;
         uint128 res1;
         bool token0IsReserve0;
-        uint8[] alphaXDecimalsDecimalsCommon;
+        uint8[] tokenInTokenOutCommonDecimals;
     }
 
     //----------------------Constants------------------------------------//
@@ -548,7 +548,7 @@ contract OrderRouter {
                     reserve1
                 );
            
-            _spRes.alphaXDecimalsDecimalsCommon = alphaXDecimalsDecimalsCommon;
+            _spRes.tokenInTokenOutCommonDecimals = alphaXDecimalsDecimalsCommon;
 
             if (token0 == tok0) {
                 _spRes.spotPrice = ConveyorMath.div128x128(
@@ -747,7 +747,7 @@ contract OrderRouter {
                 _spRes.res0,
                 _spRes.res1,
                 _spRes.token0IsReserve0,
-                _spRes.alphaXDecimalsDecimalsCommon
+                _spRes.tokenInTokenOutCommonDecimals
             ) = _getReservesCommonDecimalsV3(
                 token0,
                 token1,
