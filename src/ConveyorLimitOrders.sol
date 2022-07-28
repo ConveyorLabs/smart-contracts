@@ -513,7 +513,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
         // safeTransferETH(msg.sender, beaconReward);
-
         //Cache orderId
         bytes32 orderId = order.orderId;
 
@@ -1316,8 +1315,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         spotReserveAToWeth[i].res0,
                         spotReserveAToWeth[i].res1,
                         spotReserveAToWeth[i].tokenInTokenOutCommonDecimals,
-                        spotReserveWethToB[j].res0,
                         spotReserveWethToB[j].res1,
+                        spotReserveWethToB[j].res0,
                         spotReserveWethToB[j].tokenInTokenOutCommonDecimals,
                         spotPriceFinal,
                         lpAddressesAToWeth[i],
@@ -1754,7 +1753,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     uint128(newSpotPriceB >> 64)
                 )
             ) << 64;
-
+           
             //TODO: update this to make sure weth is the right reserve position
             //TODO:^^
             //---------------------------------------------------
@@ -1855,10 +1854,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         )
     {
         uint128[] memory newReserves = new uint128[](2);
+      
         //If not uni v3 do constant product calculation
         if (_lpIsNotUniV3(pool)) {
             unchecked {
-                if (isTokenToWeth) {
+                
                     uint256 denominator = reserveA + alphaX;
 
                     uint256 numerator = FullMath.mulDiv(
@@ -1876,55 +1876,23 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
                         "overflow"
                     );
-                    console.log("v2 spot price");
-                    console.log(spotPrice);
+                    
                     newReserves[0] = uint128(denominator);
                     newReserves[1] = uint128(numerator);
 
                     uint128 amountOut = uint128(
                         getAmountOut(alphaX, reserveA, reserveB)
                     );
-
+                    
                     return (
                         spotPrice,
                         newReserves[0],
                         newReserves[1],
                         amountOut
                     );
-                }else{
-                    uint256 denominator = reserveB + alphaX;
-
-                    uint256 numerator = FullMath.mulDiv(
-                        uint256(reserveA),
-                        uint256(reserveB),
-                        denominator
-                    );
-
-                    uint256 spotPrice = uint256(
-                        ConveyorMath.divUI(numerator, denominator)
-                    ) << 64;
-
-                    require(
-                        spotPrice <=
-                            0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
-                        "overflow"
-                    );
-                    console.log("v2 spot price");
-                    console.log(spotPrice);
-                    newReserves[0] = uint128(numerator);
-                    newReserves[1] = uint128(denominator);
-
-                    uint128 amountOut = uint128(
-                        getAmountOut(alphaX, reserveA, reserveB)
-                    );
-
-                    return (
-                        spotPrice,
-                        newReserves[0],
-                        newReserves[1],
-                        amountOut
-                    );
-                }
+               
+                    
+                
             }
         } else {
             (
@@ -1936,8 +1904,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             newReserves[1] = 1;
 
             uint256 spotPrice = uint256(spotPrice64x64) << 64;
-            console.log("v3 spot price");
-            console.log(spotPrice);
+           
             return (spotPrice, newReserves[0], newReserves[1], amountOut);
         }
     }
@@ -1994,10 +1961,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     nextSqrtPriceX96
                 );
 
-                ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
+               
                 spotPrice = ConveyorMath.mul64x64(
-                    sqrtSpotPrice64x64,
-                    sqrtSpotPrice64x64
+                    ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64),
+                    ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64)
                 );
             } else {
                 ///@notice weth is token1 therefore tokenIn is token0, assign amountOut to wethOut value for subsequent simulations
@@ -2019,9 +1986,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     nextSqrtPriceX96
                 );
 
+                 ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
                 spotPrice = ConveyorMath.mul64x64(
-                    ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64),
-                    ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64)
+                    sqrtSpotPrice64x64,
+                    sqrtSpotPrice64x64
                 );
             }
         } else {
