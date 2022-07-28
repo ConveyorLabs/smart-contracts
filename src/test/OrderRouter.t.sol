@@ -794,7 +794,7 @@ contract OrderRouterTest is DSTest {
 
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
         address reciever = address(this);
-        orderRouter.swapV2(
+        uint256 amountOut=orderRouter.swapV2(
             tokenIn,
             tokenOut,
             lp,
@@ -803,6 +803,7 @@ contract OrderRouterTest is DSTest {
             reciever,
             address(this)
         );
+        require(amountOut !=0, "InsufficientOutputAmount");
     }
 
     //Uniswap V3 SwapRouter Tests
@@ -911,7 +912,7 @@ contract OrderRouterTest is DSTest {
         uint256 amountOut = amountReceived;
         uint256 amountInMaximum = amountReceived - 1;
         address reciever = address(this);
-        orderRouter.swapV3(
+        uint256 amountOutSwap = orderRouter.swapV3(
             tokenIn,
             tokenOut,
             fee,
@@ -920,6 +921,8 @@ contract OrderRouterTest is DSTest {
             reciever,
             address(this)
         );
+
+        require(amountOutSwap !=0, "InsufficientOutputAmount");
     }
 
     function testSwap() public {
@@ -972,7 +975,7 @@ contract OrderRouterTest is DSTest {
         uint256 amountInMaximum = amountReceived;
         address reciever = address(this);
 
-        orderRouter.swap(
+        uint256 amountOut=orderRouter.swap(
             tokenIn,
             tokenOut,
             lp,
@@ -982,6 +985,8 @@ contract OrderRouterTest is DSTest {
             reciever,
             address(this)
         );
+
+        require(amountOut != 0, "InsufficientOutputAmount");
     }
 
     //================================================================================================
