@@ -2308,7 +2308,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
 
         ConveyorLimitOrders.Order[]
-            memory orderBatch = new ConveyorLimitOrders.Order[](7);
+            memory orderBatch = new ConveyorLimitOrders.Order[](6);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
