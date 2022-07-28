@@ -44,8 +44,8 @@ contract ConveyorLimitOrdersTest is DSTest {
     address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     //TODO: add taxed token
     address TAXED_TOKEN = 0xE7eaec9Bca79d537539C00C58Ae93117fB7280b9; //
-    address TAXED_TOKEN_1 = 0xe0a189C975e4928222978A74517442239a0b86ff; // 
-    address TAXED_TOKEN_2 =0xd99793A840cB0606456916d1CF5eA199ED93Bf97; //6% tax CHAOS token 27
+    address TAXED_TOKEN_1 = 0xe0a189C975e4928222978A74517442239a0b86ff; //
+    address TAXED_TOKEN_2 = 0xd99793A840cB0606456916d1CF5eA199ED93Bf97; //6% tax CHAOS token 27
     address TAXED_TOKEN_3 = 0xcFEB09C3c5F0f78aD72166D55f9e6E9A60e96eEC;
     //MAX_UINT for testing
     uint256 constant MAX_UINT = 2**256 - 1;
@@ -187,8 +187,6 @@ contract ConveyorLimitOrdersTest is DSTest {
     //================================================================
     //================= Batch Orders Tests ===========================
     //================================================================
-
-    
 
     //================================================================
     //==================== Execution Tests ===========================
@@ -377,7 +375,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         bytes32[] memory orderBatch = new bytes32[](1);
 
         orderBatch[0] = orderId;
-         for (uint256 i = 0; i < orderBatch.length; ++i) {
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);
 
@@ -429,7 +427,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     //weth to taxed token
     function testExecuteWethToTaxedTokenSingle() public {
-         cheatCodes.deal(address(this), MAX_UINT);
+        cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
@@ -497,10 +495,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         require(depositSuccess, "failure when depositing ether into weth");
 
         IERC20(WETH).approve(address(conveyorLimitOrders), MAX_UINT);
-        
-        bytes32[]
-            memory wethToTaxedOrderBatch = placeNewMockWethToTaxedBatch();
-            
+
+        bytes32[] memory wethToTaxedOrderBatch = placeNewMockWethToTaxedBatch();
+
         //check that the orders have been placed
         for (uint256 i = 0; i < wethToTaxedOrderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order = conveyorLimitOrders
@@ -508,10 +505,10 @@ contract ConveyorLimitOrdersTest is DSTest {
 
             assert(order.orderId != bytes32(0));
         }
-        
+
         cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(wethToTaxedOrderBatch);
-       
+
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < wethToTaxedOrderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order = conveyorLimitOrders
@@ -572,7 +569,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         IERC20(TAXED_TOKEN).approve(address(conveyorLimitOrders), MAX_UINT);
-        
+
         bytes32[]
             memory tokenToWethOrderBatch = placeNewMockTokenToWethTaxedBatch();
 
@@ -688,7 +685,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelperUniV2), MAX_UINT);
         swapHelperUniV2.swapEthForTokenWithUniV2(10000 ether, TAXED_TOKEN);
-       
+
         IERC20(TAXED_TOKEN).approve(address(conveyorLimitOrders), MAX_UINT);
 
         bytes32[] memory orderBatch = placeNewMockTaxedToTokenBatch();
@@ -699,7 +696,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
             assert(order0.orderId != bytes32(0));
         }
-        
+
         cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(orderBatch);
 
@@ -716,7 +713,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelperUniV2), MAX_UINT);
         swapHelperUniV2.swapEthForTokenWithUniV2(10000 ether, TAXED_TOKEN);
-       
+
         IERC20(TAXED_TOKEN).approve(address(conveyorLimitOrders), MAX_UINT);
 
         bytes32[] memory orderBatch = placeNewMockTaxedToTaxedTokenBatch();
@@ -727,7 +724,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
             assert(order0.orderId != bytes32(0));
         }
-        
+
         cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(orderBatch);
 
@@ -749,7 +746,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         IERC20(TAXED_TOKEN).approve(address(conveyorLimitOrders), MAX_UINT);
 
-         OrderBook.Order memory order = newMockOrder(
+        OrderBook.Order memory order = newMockOrder(
             TAXED_TOKEN,
             TAXED_TOKEN_1,
             1,
@@ -764,14 +761,13 @@ contract ConveyorLimitOrdersTest is DSTest {
             MAX_U32
         );
 
-    
         OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         orderGroup[0] = order;
 
         bytes32[] memory orderBatch = conveyorLimitOrders.placeOrder(
             orderGroup
         );
-    
+
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);
@@ -779,7 +775,6 @@ contract ConveyorLimitOrdersTest is DSTest {
             assert(order0.orderId != bytes32(0));
         }
 
-        
         cheatCodes.prank(tx.origin);
         conveyorLimitOrders.executeOrders(orderBatch);
 
@@ -789,13 +784,9 @@ contract ConveyorLimitOrdersTest is DSTest {
                 .getOrderById(orderBatch[i]);
             assert(order0.orderId == bytes32(0));
         }
-
-
-
     }
 
     //TODO:
-    
 
     //----------------------------Gas Credit Tests-----------------------------------------
     function testDepositGasCredits(uint256 _amount) public {
@@ -2306,7 +2297,6 @@ contract ConveyorLimitOrdersTest is DSTest {
             MAX_U32
         );
 
-
         ConveyorLimitOrders.Order[]
             memory orderBatch = new ConveyorLimitOrders.Order[](6);
         orderBatch[0] = order1;
@@ -2315,8 +2305,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         orderBatch[3] = order4;
         orderBatch[4] = order5;
         orderBatch[5] = order6;
-        
-        
+
         return placeMultipleMockOrder(orderBatch);
     }
 
@@ -2324,8 +2313,6 @@ contract ConveyorLimitOrdersTest is DSTest {
         internal
         returns (bytes32[] memory)
     {
-       
-
         OrderBook.Order memory order = newMockOrder(
             TAXED_TOKEN,
             DAI,
@@ -2356,20 +2343,20 @@ contract ConveyorLimitOrdersTest is DSTest {
             MAX_U32
         );
 
-    //    OrderBook.Order memory order2 = newMockOrder(
-    //         TAXED_TOKEN_3,
-    //         DAI,
-    //         1,
-    //         false,
-    //         true,
-    //         9000,
-    //         1,
-    //         2000000000000000000000000, //2,000,002
-    //         3000,
-    //         3000,
-    //         0,
-    //         MAX_U32
-    //     );
+        //    OrderBook.Order memory order2 = newMockOrder(
+        //         TAXED_TOKEN_3,
+        //         DAI,
+        //         1,
+        //         false,
+        //         true,
+        //         9000,
+        //         1,
+        //         2000000000000000000000000, //2,000,002
+        //         3000,
+        //         3000,
+        //         0,
+        //         MAX_U32
+        //     );
 
         ConveyorLimitOrders.Order[]
             memory orderBatch = new ConveyorLimitOrders.Order[](2);
@@ -2384,8 +2371,6 @@ contract ConveyorLimitOrdersTest is DSTest {
         internal
         returns (bytes32[] memory)
     {
-       
-
         OrderBook.Order memory order = newMockOrder(
             TAXED_TOKEN,
             TAXED_TOKEN_1,
@@ -2401,11 +2386,9 @@ contract ConveyorLimitOrdersTest is DSTest {
             MAX_U32
         );
 
-
         ConveyorLimitOrders.Order[]
             memory orderBatch = new ConveyorLimitOrders.Order[](1);
         orderBatch[0] = order;
-        
 
         return placeMultipleMockOrder(orderBatch);
     }
