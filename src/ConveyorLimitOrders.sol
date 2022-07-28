@@ -1699,21 +1699,28 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 reserveBToken = executionPrice.wethToBReserve1;
 
         address poolAddressWethToB = executionPrice.lpAddressWethToB;
-       
+        uint128 amountInWethToB = (_lpIsNotUniV3(poolAddressWethToB))
+        
+            ? uint128(
+                alphaX *
+                    (10 **
+                        (executionPrice.decimalsInDecimalsWethToB[1] -
+                            executionPrice.decimalsInDecimalsWethToB[1]))
+            )
+            : alphaX;
         (
             uint256 newSpotPriceB,
             uint128 newReserveBWeth,
             uint128 newReserveBToken,
 
         ) = simulateAToBPriceChange(
-                alphaX,
+                amountInWethToB,
                 reserveBWeth,
                 reserveBToken,
                 poolAddressWethToB,
                 false
             );
-        
-        
+
         executionPrice.price = newSpotPriceB;
         executionPrice.aToWethReserve0 = 0;
         executionPrice.aToWethReserve1 = 0;
@@ -1785,9 +1792,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             executionPrice.decimalsInDecimalsAToWeth[1]))
             )
             : alphaX;
-
-        console.log(amountInAToWeth);
-        console.log("amount in");
         (
             newSpotPriceA,
             newReserveAToken,
