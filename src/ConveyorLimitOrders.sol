@@ -1638,7 +1638,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrice.aToWethReserve0,
                 executionPrice.aToWethReserve1,
 
-            ) = simulateAToBPriceChange(
+            ) = _simulateAToBPriceChange(
                 alphaX,
                 executionPrice.aToWethReserve0,
                 executionPrice.aToWethReserve1,
@@ -1657,7 +1657,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrice.aToWethReserve0,
                 executionPrice.aToWethReserve1,
 
-            ) = simulateAToBPriceChange(
+            ) = _simulateAToBPriceChange(
                 amountIn,
                 executionPrice.aToWethReserve0,
                 executionPrice.aToWethReserve1,
@@ -1713,7 +1713,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128 newReserveBWeth,
             uint128 newReserveBToken,
 
-        ) = simulateAToBPriceChange(
+        ) = _simulateAToBPriceChange(
                 amountInWethToB,
                 reserveBWeth,
                 reserveBToken,
@@ -1797,7 +1797,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             newReserveAToken,
             newReserveAWeth,
             amountOut
-        ) = simulateAToBPriceChange(
+        ) = _simulateAToBPriceChange(
             amountInAToWeth,
             reserveAToken,
             reserveAWeth,
@@ -1826,7 +1826,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             newReserveBWeth,
             newReserveBToken,
 
-        ) = simulateAToBPriceChange(
+        ) = _simulateAToBPriceChange(
             alphaX,
             reserveBWeth,
             reserveBToken,
@@ -1840,7 +1840,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @param reserveA current lp reserves for tokenIn and tokenOut
     /// @param reserveB current lp reserves for tokenIn and tokenOut
     /// @return unsigned The amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
-    function simulateAToBPriceChange(
+    function _simulateAToBPriceChange(
         uint128 alphaX,
         uint128 reserveA,
         uint128 reserveB,
@@ -1877,7 +1877,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 console.log("v2 spot price");
                 console.log(spotPrice);
                 newReserves[0] = uint128(denominator);
-                newReserves[1] = uint128(denominator);
+                newReserves[1] = uint128(numerator);
 
                 uint128 amountOut = uint128(
                     getAmountOut(alphaX, reserveA, reserveB)
