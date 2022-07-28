@@ -2014,6 +2014,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     nextSqrtPriceX96
                 );
 
+                
+                
                 spotPrice = ConveyorMath.mul64x64(
                     sqrtSpotPrice64x64,
                     sqrtSpotPrice64x64
