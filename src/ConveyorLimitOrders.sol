@@ -839,11 +839,23 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         executionPrices[bestPriceIndex]
                     );
                 } else {
-                    ///@notice cancel the order due to insufficient slippage
-                    cancelOrder(currentOrder.orderId);
-                    bytes32[] memory canceledOrderIds = new bytes32[](1);
-                    canceledOrderIds[0] = currentOrder.orderId;
-                    emit OrderCancelled(canceledOrderIds);
+                    bytes32[] memory orderId = new bytes32[](1);
+                    orderId[0] = currentOrder.orderId;
+                    //Delete order from queue after swap execution
+                    delete orderIdToOrder[currentOrder.orderId];
+                    delete addressToOrderIds[currentOrder.owner][
+                        currentOrder.orderId
+                    ];
+                    //decrement from total orders per address
+                    --totalOrdersPerAddress[currentOrder.owner];
+
+                    //Decrement totalOrdersQuantity for order owner
+                    decrementTotalOrdersQuantity(
+                        currentOrder.tokenIn,
+                        currentOrder.owner,
+                        currentOrder.quantity
+                    );
+                    emit OrderCancelled(orderId);
                 }
             }
         }
@@ -1500,9 +1512,23 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             executionPrices[bestPriceIndex]
                         );
                     } else {
-                        ///@notice cancel the order due to insufficient slippage
-                        cancelOrder(currentOrder.orderId);
-                        //TODO: emit order cancellation
+                        bytes32[] memory orderId = new bytes32[](1);
+                        orderId[0] = currentOrder.orderId;
+                        //Delete order from queue after swap execution
+                        delete orderIdToOrder[currentOrder.orderId];
+                        delete addressToOrderIds[currentOrder.owner][
+                            currentOrder.orderId
+                        ];
+                        //decrement from total orders per address
+                        --totalOrdersPerAddress[currentOrder.owner];
+
+                        //Decrement totalOrdersQuantity for order owner
+                        decrementTotalOrdersQuantity(
+                            currentOrder.tokenIn,
+                            currentOrder.owner,
+                            currentOrder.quantity
+                        );
+                        emit OrderCancelled(orderId);
                     }
                 }
             }
@@ -1673,7 +1699,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 reserveBToken = executionPrice.wethToBReserve1;
 
         address poolAddressWethToB = executionPrice.lpAddressWethToB;
-        uint128 amountInWethToB = (_lpIsNotUniV3(poolAddressWethToB)) ? uint128(alphaX*(10**(executionPrice.decimalsInDecimalsWethToB[1]-executionPrice.decimalsInDecimalsWethToB[1]))) : alphaX;
+        uint128 amountInWethToB = (_lpIsNotUniV3(poolAddressWethToB))
+        
+            ? uint128(
+                alphaX *
+                    (10 **
+                        (executionPrice.decimalsInDecimalsWethToB[1] -
+                            executionPrice.decimalsInDecimalsWethToB[1]))
+            )
+            : alphaX;
         (
             uint256 newSpotPriceB,
             uint128 newReserveBWeth,
@@ -1706,13 +1740,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128 newReserveAWeth,
             uint128 amountOut
         ) = _simulateAToWethPriceChange(alphaX, executionPrice);
-       
+
         (
             uint256 newSpotPriceB,
             uint128 newReserveBToken,
             uint128 newReserveBWeth
         ) = _simulateWethToBPriceChange(amountOut, executionPrice);
-      
+
         {
             //Signifying that it weth is token0
             uint256 newTokenToTokenSpotPrice = uint256(
@@ -1721,7 +1755,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     uint128(newSpotPriceB >> 64)
                 )
             ) << 64;
-
 
             //TODO: update this to make sure weth is the right reserve position
             //TODO:^^
@@ -1751,7 +1784,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 reserveAToken = executionPrice.aToWethReserve0;
         uint128 reserveAWeth = executionPrice.aToWethReserve1;
         address poolAddressAToWeth = executionPrice.lpAddressAToWeth;
-        uint128 amountInAToWeth = (_lpIsNotUniV3(poolAddressAToWeth)) ? uint128(alphaX*(10**(executionPrice.decimalsInDecimalsAToWeth[1]-executionPrice.decimalsInDecimalsAToWeth[1]))) : alphaX;
+        uint128 amountInAToWeth = (_lpIsNotUniV3(poolAddressAToWeth))
+            ? uint128(
+                alphaX *
+                    (10 **
+                        (executionPrice.decimalsInDecimalsAToWeth[1] -
+                            executionPrice.decimalsInDecimalsAToWeth[1]))
+            )
+            : alphaX;
         (
             newSpotPriceA,
             newReserveAToken,
@@ -1780,7 +1820,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 reserveBWeth = executionPrice.wethToBReserve0;
         uint128 reserveBToken = executionPrice.wethToBReserve1;
         address poolAddressWethToB = executionPrice.lpAddressWethToB;
-        
+
         (
             newSpotPriceB,
             newReserveBWeth,
@@ -1819,27 +1859,30 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         //If not uni v3 do constant product calculation
         if (_lpIsNotUniV3(pool)) {
             unchecked {
-                uint256 denominator = reserveA + alphaX; 
+                uint256 denominator = reserveA + alphaX;
 
-                uint256 numerator = FullMath.mulDiv(uint256(reserveA), uint256(reserveB), denominator);
+                uint256 numerator = FullMath.mulDiv(
+                    uint256(reserveA),
+                    uint256(reserveB),
+                    denominator
+                );
 
-                uint256 spotPrice = 
-                    ConveyorMath.divUI(numerator, denominator)
-                ;
+                uint256 spotPrice = uint256(ConveyorMath.divUI(numerator, denominator))<<64;
 
                 require(
                     spotPrice <=
                         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
                     "overflow"
                 );
-
+                console.log("v2 spot price");
+                console.log(spotPrice);
                 newReserves[0] = uint128(denominator);
                 newReserves[1] = uint128(denominator);
 
                 uint128 amountOut = uint128(
                     getAmountOut(alphaX, reserveA, reserveB)
                 );
-                
+
                 return (spotPrice, newReserves[0], newReserves[1], amountOut);
             }
         } else {
@@ -1847,12 +1890,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 uint128 spotPrice64x64,
                 uint128 amountOut
             ) = calculateNextSqrtPriceX96(isTokenToWeth, pool, alphaX);
-            
-            newReserves[0] = 0;
-            newReserves[1] = 0;
+
+            newReserves[0] = 1;
+            newReserves[1] = 1;
 
             uint256 spotPrice = uint256(spotPrice64x64) << 64;
-
+            console.log("v3 spot price");
+            console.log(spotPrice);
             return (spotPrice, newReserves[0], newReserves[1], amountOut);
         }
     }
