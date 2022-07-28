@@ -1372,6 +1372,16 @@ contract ConveyorLimitOrdersTest is DSTest {
             }
         }
     }
+
+    //Block # 15233771
+    function testSimulateAToBPriceChangeV3() public {
+        address poolAddress = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
+        uint128 alphaX = 5000000000000000000000;
+
+        (uint256 spotPrice, , , uint128 amountOut)= conveyorLimitOrders.simulateAToBPriceChange(alphaX, 0, 0, poolAddress, true);
+        assertEq(spotPrice, 195185994537407119486875905535508480);
+        assertEq(amountOut, 2859640483990650224);
+    }   
     //Block # 15233771
     function testSimulateWethToBPriceChangeV3() public {
         uint8[] memory decimals = new uint8[](2);
@@ -1496,7 +1506,6 @@ contract ConveyorLimitOrdersTest is DSTest {
         return number;
     }
 
-    function testSimulateAToBPriceChangeV3(uint112 _amountIn) public {}
 
     //================================================================
     //======================= Helper functions =======================
