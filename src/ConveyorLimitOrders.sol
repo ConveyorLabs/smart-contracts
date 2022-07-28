@@ -1544,25 +1544,25 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _findBestTokenToTokenExecutionPrice(
         TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
-    ) internal view returns (uint256 bestPriceIndex) {
+    ) internal pure returns (uint256 bestPriceIndex) {
         ///@notice if the order is a buy order, set the initial best price at 0, else set the initial best price at max uint256
 
         if (buyOrder) {
-            uint256 bestPrice = 0;
+            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
 
-                if (executionPrice > bestPrice) {
+                if (executionPrice < bestPrice) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
                 }
             }
         } else {
-            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+            uint256 bestPrice =0;
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
 
-                if (executionPrice < bestPrice && executionPrice != 0) {
+                if (executionPrice > bestPrice && executionPrice != 0) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
                 }

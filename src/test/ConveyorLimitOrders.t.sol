@@ -1280,13 +1280,57 @@ contract ConveyorLimitOrdersTest is DSTest {
     //================================================================
     //======================= Order Simulation Unit Tests ============
     //================================================================
+    function testFindBestTokenToTokenExecutionPrice() public {
+        uint8[] memory decimals = new uint8[](2);
+        decimals[0] = 18;
+        decimals[1] = 18;
 
+        ConveyorLimitOrders.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice = OrderRouter
+                .TokenToTokenExecutionPrice({
+                    aToWethReserve0: 8014835235973799779324680,
+                    aToWethReserve1: 4595913824638810919416,
+                    decimalsInDecimalsAToWeth: decimals,
+                    wethToBReserve0: 1414776373420924126438282,
+                    wethToBReserve1: 7545889283955278550784,
+                    decimalsInDecimalsWethToB: decimals,
+                    price: 36584244663945024000000000000000000000,
+                    lpAddressAToWeth: 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11,
+                    lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
+                });
+
+        ConveyorLimitOrders.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice1 = OrderRouter
+                .TokenToTokenExecutionPrice({
+                    aToWethReserve0: 8014835235973799779324680,
+                    aToWethReserve1: 4595913824638810919416,
+                    decimalsInDecimalsAToWeth: decimals,
+                    wethToBReserve0: 1414776373420924126438282,
+                    wethToBReserve1: 7545889283955278550784,
+                    decimalsInDecimalsWethToB: decimals,
+                    price: 36584244663945024000000000000000000001,
+                    lpAddressAToWeth: 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11,
+                    lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
+                });
+
+        ConveyorLimitOrders.TokenToTokenExecutionPrice[] memory executionPrices = new OrderRouter.TokenToTokenExecutionPrice[](2);
+        executionPrices[0]= tokenToTokenExecutionPrice;
+        executionPrices[1]= tokenToTokenExecutionPrice1;
+
+        uint256 bestPriceIndexBuy = conveyorLimitOrders.findBestTokenToTokenExecutionPrice(executionPrices, true);
+        uint256 bestPriceIndexSell = conveyorLimitOrders.findBestTokenToTokenExecutionPrice(executionPrices, false);
+
+        assertEq(bestPriceIndexBuy, 0);
+        assertEq(bestPriceIndexSell,1);
+
+
+    }
     function testSimulateAToBPriceChangeV2ReserveOutputs(uint112 _amountIn)
         public
     {
         uint112 reserveAIn = 7957765096999155822679329;
         uint112 reserveBIn = 4628057647836077568601;
-        
+
         address pool = 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11;
         bool underflow;
         assembly {
@@ -1295,12 +1339,8 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         if (!underflow) {
             if (_amountIn != 0) {
-                (
-                    ,
-                    uint128 reserveA,
-                    uint128 reserveB,
-
-                ) = conveyorLimitOrders.simulateAToBPriceChange(
+                (, uint128 reserveA, uint128 reserveB, ) = conveyorLimitOrders
+                    .simulateAToBPriceChange(
                         _amountIn,
                         reserveAIn,
                         reserveBIn,
@@ -1321,18 +1361,16 @@ contract ConveyorLimitOrdersTest is DSTest {
                 uint256 expectedReserveA = reserveAIn + _amountIn;
 
                 assertEq(reserveA, expectedReserveA);
-                
-                assertEq(reserveB/10**9, expectedReserveB/10**9);
+
+                assertEq(reserveB / 10**9, expectedReserveB / 10**9);
             }
         }
     }
 
-    function testSimulateAToBPriceChangeV2SpotPrice(uint112 _amountIn)
-        public
-    {
+    function testSimulateAToBPriceChangeV2SpotPrice(uint112 _amountIn) public {
         uint112 reserveAIn = 7957765096999155822679329;
         uint112 reserveBIn = 4628057647836077568601;
-        
+
         address pool = 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11;
         bool underflow;
         assembly {
@@ -1341,12 +1379,8 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         if (!underflow) {
             if (_amountIn != 0) {
-                (
-                    uint256 spotPrice,
-                    ,
-                    ,
-
-                ) = conveyorLimitOrders.simulateAToBPriceChange(
+                (uint256 spotPrice, , , ) = conveyorLimitOrders
+                    .simulateAToBPriceChange(
                         _amountIn,
                         reserveAIn,
                         reserveBIn,
@@ -1358,17 +1392,10 @@ contract ConveyorLimitOrdersTest is DSTest {
                 args[0] = uint2str(_amountIn);
                 args[1] = uint2str(reserveAIn);
                 args[2] = uint2str(reserveBIn);
-                bytes memory spotOut = scriptRunner.runPythonScript(
-                    path,
-                    args
-                );
+                bytes memory spotOut = scriptRunner.runPythonScript(path, args);
                 uint256 spotPriceExpected = bytesToUint(spotOut);
 
-                
-
-                assertEq(spotPrice>>75, spotPriceExpected>>75);
-                
-            
+                assertEq(spotPrice >> 75, spotPriceExpected >> 75);
             }
         }
     }
@@ -1378,102 +1405,125 @@ contract ConveyorLimitOrdersTest is DSTest {
         address poolAddress = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
         uint128 alphaX = 5000000000000000000000;
 
-        (uint256 spotPrice, , , uint128 amountOut)= conveyorLimitOrders.simulateAToBPriceChange(alphaX, 0, 0, poolAddress, true);
+        (uint256 spotPrice, , , uint128 amountOut) = conveyorLimitOrders
+            .simulateAToBPriceChange(alphaX, 0, 0, poolAddress, true);
         assertEq(spotPrice, 195185994537407119486875905535508480);
         assertEq(amountOut, 2859640483990650224);
-    }   
+    }
+
     //Block # 15233771
     function testSimulateWethToBPriceChangeV3() public {
         uint8[] memory decimals = new uint8[](2);
-        decimals[0]=18;
-        decimals[1]=18;
+        decimals[0] = 18;
+        decimals[1] = 18;
         //Weth/Uni
-        ConveyorLimitOrders.TokenToTokenExecutionPrice memory tokenToTokenExecutionPrice = OrderRouter.TokenToTokenExecutionPrice({
-            aToWethReserve0:0,
-            aToWethReserve1:0,
-            decimalsInDecimalsAToWeth:decimals,
-            wethToBReserve0:0,
-            wethToBReserve1:0,
-            decimalsInDecimalsWethToB:decimals,
-            price:0,
-            lpAddressAToWeth:address(0),
-            lpAddressWethToB:0x1d42064Fc4Beb5F8aAF85F4617AE8b3b5B8Bd801
-        });
+        ConveyorLimitOrders.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice = OrderRouter
+                .TokenToTokenExecutionPrice({
+                    aToWethReserve0: 0,
+                    aToWethReserve1: 0,
+                    decimalsInDecimalsAToWeth: decimals,
+                    wethToBReserve0: 0,
+                    wethToBReserve1: 0,
+                    decimalsInDecimalsWethToB: decimals,
+                    price: 0,
+                    lpAddressAToWeth: address(0),
+                    lpAddressWethToB: 0x1d42064Fc4Beb5F8aAF85F4617AE8b3b5B8Bd801
+                });
 
-        (uint256 newSpotPriceB, , )= conveyorLimitOrders.simulateWethToBPriceChange(5000000000000000000000, tokenToTokenExecutionPrice);
+        (uint256 newSpotPriceB, , ) = conveyorLimitOrders
+            .simulateWethToBPriceChange(
+                5000000000000000000000,
+                tokenToTokenExecutionPrice
+            );
         assertEq(38416481291436668068511433527512398823424, newSpotPriceB);
     }
 
-    
     //Block # 15233771
     function testSimulateAToWethPriceChangeV3() public {
         uint8[] memory decimals = new uint8[](2);
-        decimals[0]=18;
-        decimals[1]=18;
+        decimals[0] = 18;
+        decimals[1] = 18;
         //Weth/Uni
-        ConveyorLimitOrders.TokenToTokenExecutionPrice memory tokenToTokenExecutionPrice = OrderRouter.TokenToTokenExecutionPrice({
-            aToWethReserve0:0,
-            aToWethReserve1:0,
-            decimalsInDecimalsAToWeth:decimals,
-            wethToBReserve0:0,
-            wethToBReserve1:0,
-            decimalsInDecimalsWethToB:decimals,
-            price:0,
-            lpAddressAToWeth:0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8,
-            lpAddressWethToB:address(0)
-        });
+        ConveyorLimitOrders.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice = OrderRouter
+                .TokenToTokenExecutionPrice({
+                    aToWethReserve0: 0,
+                    aToWethReserve1: 0,
+                    decimalsInDecimalsAToWeth: decimals,
+                    wethToBReserve0: 0,
+                    wethToBReserve1: 0,
+                    decimalsInDecimalsWethToB: decimals,
+                    price: 0,
+                    lpAddressAToWeth: 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8,
+                    lpAddressWethToB: address(0)
+                });
 
-        (uint256 newSpotPriceA, , , uint128 amountOut)= conveyorLimitOrders.simulateAToWethPriceChange(5000000000000000000000, tokenToTokenExecutionPrice);
+        (uint256 newSpotPriceA, , , uint128 amountOut) = conveyorLimitOrders
+            .simulateAToWethPriceChange(
+                5000000000000000000000,
+                tokenToTokenExecutionPrice
+            );
         assertEq(newSpotPriceA, 195185994537407119486875905535508480);
-        assertEq(amountOut,2859640483990650224);
+        assertEq(amountOut, 2859640483990650224);
     }
 
     //Block # 15233771
     function testSimulateWethToBPriceChangeV2() public {
         uint8[] memory decimals = new uint8[](2);
-        decimals[0]=18;
-        decimals[1]=18;
+        decimals[0] = 18;
+        decimals[1] = 18;
         //Weth/Uni
-        ConveyorLimitOrders.TokenToTokenExecutionPrice memory tokenToTokenExecutionPrice = OrderRouter.TokenToTokenExecutionPrice({
-            aToWethReserve0:8014835235973799779324680,
-            aToWethReserve1:4595913824638810919416,
-            decimalsInDecimalsAToWeth:decimals,
-            wethToBReserve0:1414776373420924126438282,
-            wethToBReserve1:7545889283955278550784,
-            decimalsInDecimalsWethToB:decimals,
-            price:0,
-            lpAddressAToWeth:0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11,
-            lpAddressWethToB:0xd3d2E2692501A5c9Ca623199D38826e513033a17
-        });
+        ConveyorLimitOrders.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice = OrderRouter
+                .TokenToTokenExecutionPrice({
+                    aToWethReserve0: 8014835235973799779324680,
+                    aToWethReserve1: 4595913824638810919416,
+                    decimalsInDecimalsAToWeth: decimals,
+                    wethToBReserve0: 1414776373420924126438282,
+                    wethToBReserve1: 7545889283955278550784,
+                    decimalsInDecimalsWethToB: decimals,
+                    price: 0,
+                    lpAddressAToWeth: 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11,
+                    lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
+                });
 
-        (uint256 newSpotPriceB, , )= conveyorLimitOrders.simulateWethToBPriceChange(5000000000000000000, tokenToTokenExecutionPrice);
+        (uint256 newSpotPriceB, , ) = conveyorLimitOrders
+            .simulateWethToBPriceChange(
+                5000000000000000000,
+                tokenToTokenExecutionPrice
+            );
         assertEq(newSpotPriceB, 63714967732803596813954797656252367241216);
     }
 
-    
     //Block # 15233771
     function testSimulateAToWethPriceChangeV2() public {
         uint8[] memory decimals = new uint8[](2);
-        decimals[0]=18;
-        decimals[1]=18;
+        decimals[0] = 18;
+        decimals[1] = 18;
         //Weth/Uni
-        ConveyorLimitOrders.TokenToTokenExecutionPrice memory tokenToTokenExecutionPrice = OrderRouter.TokenToTokenExecutionPrice({
-            aToWethReserve0:8014835235973799779324680,
-            aToWethReserve1:4595913824638810919416,
-            decimalsInDecimalsAToWeth:decimals,
-            wethToBReserve0:1414776373420924126438282,
-            wethToBReserve1:7545889283955278550784,
-            decimalsInDecimalsWethToB:decimals,
-            price:0,
-            lpAddressAToWeth:0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11,
-            lpAddressWethToB:0xd3d2E2692501A5c9Ca623199D38826e513033a17
-        });
+        ConveyorLimitOrders.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice = OrderRouter
+                .TokenToTokenExecutionPrice({
+                    aToWethReserve0: 8014835235973799779324680,
+                    aToWethReserve1: 4595913824638810919416,
+                    decimalsInDecimalsAToWeth: decimals,
+                    wethToBReserve0: 1414776373420924126438282,
+                    wethToBReserve1: 7545889283955278550784,
+                    decimalsInDecimalsWethToB: decimals,
+                    price: 0,
+                    lpAddressAToWeth: 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11,
+                    lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
+                });
 
-        (uint256 newSpotPriceA, , ,uint128 amountOut)= conveyorLimitOrders.simulateAToWethPriceChange(50000000000000000000000, tokenToTokenExecutionPrice);
+        (uint256 newSpotPriceA, , , uint128 amountOut) = conveyorLimitOrders
+            .simulateAToWethPriceChange(
+                50000000000000000000000,
+                tokenToTokenExecutionPrice
+            );
         assertEq(newSpotPriceA, 192714735056741134836410079523110912);
         assertEq(amountOut, 28408586008574759898);
     }
-
 
     function uint2str(uint256 _i) internal pure returns (string memory str) {
         if (_i == 0) {
@@ -1505,7 +1555,6 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
         return number;
     }
-
 
     //================================================================
     //======================= Helper functions =======================
@@ -2747,6 +2796,7 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
                 isTokenToWeth
             );
     }
+
     function simulateAToWethPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
@@ -2757,10 +2807,16 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
             uint128 newReserveAToken,
             uint128 newReserveAWeth,
             uint128 amountOut
-        ){
-            return _simulateAToWethPriceChange(alphaX, executionPrice);
-        }
-
+        )
+    {
+        return _simulateAToWethPriceChange(alphaX, executionPrice);
+    }
+    function findBestTokenToTokenExecutionPrice(
+        TokenToTokenExecutionPrice[] memory executionPrices,
+        bool buyOrder
+    ) public returns (uint256 bestPriceIndex) {
+        return _findBestTokenToTokenExecutionPrice(executionPrices, buyOrder);
+    }
     function simulateWethToBPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
@@ -2774,5 +2830,4 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
     {
         return _simulateWethToBPriceChange(alphaX, executionPrice);
     }
-
 }
