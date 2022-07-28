@@ -71,6 +71,14 @@ contract OrderRouter {
         bytes32[] orderIds;
     }
 
+    struct SpotReserve {
+        uint256 spotPrice;
+        uint128 res0;
+        uint128 res1;
+        bool token0IsReserve0;
+        uint8[] tokenInTokenOutCommonDecimals;
+    }
+
     //----------------------State Variables------------------------------------//
 
     address owner;
@@ -81,14 +89,6 @@ contract OrderRouter {
     Dex[] public dexes;
 
     mapping(address => uint256) dexToIndex;
-
-    struct SpotReserve {
-        uint256 spotPrice;
-        uint128 res0;
-        uint128 res1;
-        bool token0IsReserve0;
-        uint8[] tokenInTokenOutCommonDecimals;
-    }
 
     //----------------------Constants------------------------------------//
 
@@ -511,7 +511,7 @@ contract OrderRouter {
         require(token0 != token1, "Invalid Token Pair, IDENTICAL Address's");
         address tok0;
         address tok1;
-        
+
         {
             (tok0, tok1) = _sortTokens(token0, token1);
         }
@@ -534,7 +534,7 @@ contract OrderRouter {
             //Set reserve0, reserve1 to current LP reserves
             (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pairAddress)
                 .getReserves();
-            
+
             //Set common based reserve values
             (
                 uint256 commonReserve0,
@@ -547,7 +547,7 @@ contract OrderRouter {
                     reserve0,
                     reserve1
                 );
-           
+
             _spRes.tokenInTokenOutCommonDecimals = alphaXDecimalsDecimalsCommon;
 
             if (token0 == tok0) {
@@ -579,7 +579,7 @@ contract OrderRouter {
                     0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
             );
         }
-        
+
         // Left shift commonReserve0 9 digits i.e. commonReserve0 = commonReserve0 * 2 ** 9
         (spRes, poolAddress) = (_spRes, pairAddress);
     }
@@ -633,12 +633,12 @@ contract OrderRouter {
             uint128 commonReserve1,
             uint8 commonDecimals
         ) = _convertToCommonBase(
-            reserve0,
-            token0Decimals,
-            reserve1,
-            token1Decimals
-        );
-        tokenInCommon[1]= commonDecimals;
+                reserve0,
+                token0Decimals,
+                reserve1,
+                token1Decimals
+            );
+        tokenInCommon[1] = commonDecimals;
         return (commonReserve0, commonReserve1, tokenInCommon);
     }
 

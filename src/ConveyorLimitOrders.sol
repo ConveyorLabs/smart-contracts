@@ -29,6 +29,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         _;
     }
 
+    //TODO: reentrancy modifier
+
     // ========================================= State Variables =============================================
 
     //mapping to hold users gas credit balances
@@ -153,10 +155,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             revert OrderHasReachedExpiration();
         }
 
-        //Require credit balance is sufficient to cover refresh feee
-        if (gasCreditBalance[order.owner] < refreshFee) {
-            revert InsufficientGasCreditBalance();
-        }
+        //TODO: FIXME: check for underflow for  gasCreditBalance[order.owner] - refreshFee
 
         //Get current gas price from v3 Aggregator
         uint256 gasPrice = getGasPrice();
@@ -171,7 +170,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 )
             )
         ) {
-            revert InsufficientGasCreditBalanceForOrderExecution();
+            // TODO: FIXME: add order cancelation
         }
 
         //Transfer refresh fee to beacon
@@ -653,9 +652,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 delete orderIdToOrder[orderId];
             }
         }
-
-        //TODO: FIXME: this used to be uint256(amountOutWeth - protocolFee)
-        ///
 
         return (uint256(amountOutWeth - beaconReward), uint256(beaconReward));
     }
@@ -1545,7 +1541,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function _findBestTokenToTokenExecutionPrice(
         TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
-    ) internal view returns (uint256 bestPriceIndex) {
+    ) internal pure returns (uint256 bestPriceIndex) {
         ///@notice if the order is a buy order, set the initial best price at 0, else set the initial best price at max uint256
 
         if (buyOrder) {
@@ -1605,14 +1601,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    //TODO: currently not in use for architecture
-    function _sequenceOrdersByPriorityFee(Order[] calldata orders)
-        internal
-        returns (Order[] memory)
-    {
-        return orders;
-    }
-
     function _buyOrSell(Order memory order) internal pure returns (bool) {
         //Determine high bool from batched OrderType
         if (order.buy) {
@@ -1625,8 +1613,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     receive() external payable {}
 
     // fallback() external payable{}
-
-    //TODO: just import solmate safeTransferETh
 
     function simulateTokenToWethPriceChange(
         uint128 alphaX,
@@ -1700,7 +1686,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         address poolAddressWethToB = executionPrice.lpAddressWethToB;
         uint128 amountInWethToB = (_lpIsNotUniV3(poolAddressWethToB))
-        
             ? uint128(
                 alphaX *
                     (10 **
@@ -1756,10 +1741,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 )
             ) << 64;
 
-            //TODO: update this to make sure weth is the right reserve position
-            //TODO:^^
-            //---------------------------------------------------
-            ///FIXME: Don't forget about this before audit
             executionPrice.price = newTokenToTokenSpotPrice;
             executionPrice.aToWethReserve0 = newReserveAToken;
             executionPrice.aToWethReserve1 = newReserveAWeth;
@@ -1867,7 +1848,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     denominator
                 );
 
-                uint256 spotPrice = uint256(ConveyorMath.divUI(numerator, denominator))<<64;
+                uint256 spotPrice = uint256(
+                    ConveyorMath.divUI(numerator, denominator)
+                ) << 64;
 
                 require(
                     spotPrice <=
