@@ -202,33 +202,36 @@ contract OrderRouter {
     /// @return beaconReward beacon reward in wei
     function _calculateReward(uint128 percentFee, uint128 wethValue)
         internal
-        pure
+        view
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
         uint256 totalWethReward = ConveyorMath.mul64I(
             percentFee,
             uint256(wethValue)
         );
-
+        
         uint128 conveyorPercent;
+        
         if (percentFee <= 92233720368547760) {
+            int256 innerPartial = int256(92233720368547760)-int128(percentFee);
+            
             conveyorPercent =
                 (percentFee +
                     ConveyorMath.div64x64(
-                        92233720368547760 - percentFee,
+                        uint128(uint256(innerPartial)),
                         uint128(2) << 64
                     ) +
                     uint128(18446744073709550)) *
                 10**2;
         } else {
-            conveyorPercent = percentFee + uint128(18446744073709550) * 10**2;
+            conveyorPercent = 110680464442257300;
         }
 
         if (conveyorPercent < 7378697629483821000) {
             conveyorPercent = 7583661452525017000;
         }
-
-        conveyorReward = uint128(
+        
+        conveyorReward= uint128(
             ConveyorMath.mul64I(conveyorPercent, totalWethReward)
         );
 
