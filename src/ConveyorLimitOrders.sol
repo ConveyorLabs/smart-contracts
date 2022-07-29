@@ -512,7 +512,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
         // safeTransferETH(msg.sender, beaconReward);
-
         //Cache orderId
         bytes32 orderId = order.orderId;
 
@@ -1312,8 +1311,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         spotReserveAToWeth[i].res0,
                         spotReserveAToWeth[i].res1,
                         spotReserveAToWeth[i].tokenInTokenOutCommonDecimals,
-                        spotReserveWethToB[j].res0,
                         spotReserveWethToB[j].res1,
+                        spotReserveWethToB[j].res0,
                         spotReserveWethToB[j].tokenInTokenOutCommonDecimals,
                         spotPriceFinal,
                         lpAddressesAToWeth[i],
@@ -1545,21 +1544,21 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ///@notice if the order is a buy order, set the initial best price at 0, else set the initial best price at max uint256
 
         if (buyOrder) {
-            uint256 bestPrice = 0;
+            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
 
-                if (executionPrice > bestPrice) {
+                if (executionPrice < bestPrice) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
                 }
             }
         } else {
-            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+            uint256 bestPrice =0;
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
 
-                if (executionPrice < bestPrice && executionPrice != 0) {
+                if (executionPrice > bestPrice && executionPrice != 0) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
                 }
@@ -1624,7 +1623,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrice.aToWethReserve0,
                 executionPrice.aToWethReserve1,
 
-            ) = simulateAToBPriceChange(
+            ) = _simulateAToBPriceChange(
                 alphaX,
                 executionPrice.aToWethReserve0,
                 executionPrice.aToWethReserve1,
@@ -1643,7 +1642,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrice.aToWethReserve0,
                 executionPrice.aToWethReserve1,
 
-            ) = simulateAToBPriceChange(
+            ) = _simulateAToBPriceChange(
                 amountIn,
                 executionPrice.aToWethReserve0,
                 executionPrice.aToWethReserve1,
@@ -1698,7 +1697,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128 newReserveBWeth,
             uint128 newReserveBToken,
 
-        ) = simulateAToBPriceChange(
+        ) = _simulateAToBPriceChange(
                 amountInWethToB,
                 reserveBWeth,
                 reserveBToken,
@@ -1778,7 +1777,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             newReserveAToken,
             newReserveAWeth,
             amountOut
-        ) = simulateAToBPriceChange(
+        ) = _simulateAToBPriceChange(
             amountInAToWeth,
             reserveAToken,
             reserveAWeth,
@@ -1807,10 +1806,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             newReserveBWeth,
             newReserveBToken,
 
-        ) = simulateAToBPriceChange(
+        ) = _simulateAToBPriceChange(
             alphaX,
-            reserveBWeth,
             reserveBToken,
+            reserveBWeth,
             poolAddressWethToB,
             false
         );
@@ -1821,7 +1820,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @param reserveA current lp reserves for tokenIn and tokenOut
     /// @param reserveB current lp reserves for tokenIn and tokenOut
     /// @return unsigned The amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
-    function simulateAToBPriceChange(
+    function _simulateAToBPriceChange(
         uint128 alphaX,
         uint128 reserveA,
         uint128 reserveB,
@@ -1837,36 +1836,47 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         )
     {
         uint128[] memory newReserves = new uint128[](2);
+      
         //If not uni v3 do constant product calculation
         if (_lpIsNotUniV3(pool)) {
             unchecked {
-                uint256 denominator = reserveA + alphaX;
+                
+                    uint256 denominator = reserveA + alphaX;
 
-                uint256 numerator = FullMath.mulDiv(
-                    uint256(reserveA),
-                    uint256(reserveB),
-                    denominator
-                );
 
-                uint256 spotPrice = uint256(
-                    ConveyorMath.divUI(numerator, denominator)
-                ) << 64;
+                    uint256 numerator = FullMath.mulDiv(
+                        uint256(reserveA),
+                        uint256(reserveB),
+                        denominator
+                    );
 
-                require(
-                    spotPrice <=
-                        0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
-                    "overflow"
-                );
-                console.log("v2 spot price");
-                console.log(spotPrice);
-                newReserves[0] = uint128(denominator);
-                newReserves[1] = uint128(denominator);
 
-                uint128 amountOut = uint128(
-                    getAmountOut(alphaX, reserveA, reserveB)
-                );
+                    uint256 spotPrice = uint256(
+                        ConveyorMath.divUI(numerator, denominator)
+                    ) << 64;
 
-                return (spotPrice, newReserves[0], newReserves[1], amountOut);
+                    require(
+                        spotPrice <=
+                            0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
+                        "overflow"
+                    );
+                    
+                    newReserves[0] = uint128(denominator);
+                    newReserves[1] = uint128(numerator);
+
+                    uint128 amountOut = uint128(
+                        getAmountOut(alphaX, reserveA, reserveB)
+                    );
+                    
+                    return (
+                        spotPrice,
+                        newReserves[0],
+                        newReserves[1],
+                        amountOut
+                    );
+               
+                    
+                
             }
         } else {
             (
@@ -1878,8 +1888,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             newReserves[1] = 1;
 
             uint256 spotPrice = uint256(spotPrice64x64) << 64;
-            console.log("v3 spot price");
-            console.log(spotPrice);
+           
             return (spotPrice, newReserves[0], newReserves[1], amountOut);
         }
     }
@@ -1936,7 +1945,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     nextSqrtPriceX96
                 );
 
-                ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
+               
                 spotPrice = ConveyorMath.mul64x64(
                     ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64),
                     ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64)
@@ -1960,6 +1969,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
                     nextSqrtPriceX96
                 );
+
+                 ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
                 spotPrice = ConveyorMath.mul64x64(
                     sqrtSpotPrice64x64,
                     sqrtSpotPrice64x64
@@ -1986,6 +1997,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
                     nextSqrtPriceX96
                 );
+
+                
+                
                 spotPrice = ConveyorMath.mul64x64(
                     sqrtSpotPrice64x64,
                     sqrtSpotPrice64x64

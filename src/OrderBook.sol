@@ -160,7 +160,9 @@ contract OrderBook is GasOracle {
 
         Order memory oldOrder = orderIdToOrder[newOrder.orderId];
 
+
         ///TODO: make this more efficient and check if new order > old order, then increment the difference else decrement the difference
+
 
         //Decrement oldOrder Quantity from totalOrdersQuantity
         //Decrement totalOrdersQuantity on order.tokenIn for order owner
@@ -170,17 +172,6 @@ contract OrderBook is GasOracle {
             oldOrder.quantity
         );
         //TODO: get total order sum and make sure that the user has the balance for the new order
-
-        // if (newOrder.quantity > oldOrder.quantity) {
-        //     totalOrdersValue += newOrder.quantity - oldOrder.quantity;
-        // } else {
-        //     totalOrdersValue += oldOrder.quantity - newOrder.quantity;
-        // }
-
-        // //check if the wallet has a sufficient balance
-        // if (IERC20(newOrder.token).balanceOf(msg.sender) < totalOrdersValue) {
-        //     revert InsufficientWalletBalance();
-        // }
 
         //update the order
         orderIdToOrder[oldOrder.orderId] = newOrder;

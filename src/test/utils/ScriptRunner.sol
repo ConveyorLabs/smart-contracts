@@ -38,6 +38,21 @@ contract ScriptRunner {
         return bytecode;
     }
 
+    function runPythonScript(string memory path, string[] memory args)
+        public
+        returns (bytes memory)
+    {
+        string[] memory cmds = new string[](5);
+        cmds[0] = "python3";
+        cmds[1] = path;
+        cmds[2] = args[0];
+        cmds[3] = args[1];
+        cmds[4] = args[2];
+        bytes memory bytecode = cheatCodes.ffi(cmds);
+
+        return bytecode;
+    }
+
     function runGoScript(string memory fileName)
         public
         returns (bytes memory)

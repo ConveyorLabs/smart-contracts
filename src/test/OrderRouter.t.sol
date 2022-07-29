@@ -530,7 +530,7 @@ contract OrderRouterTest is DSTest {
             uint256 fee = orderRouter.calculateFee(_amount, usdc, weth);
 
             uint256 expected = bytesToUint(output);
-            assertEq(fee / 1000, expected / 1000);
+            assertEq(fee / 10000, expected / 10000);
         }
     }
 
@@ -546,13 +546,46 @@ contract OrderRouterTest is DSTest {
     }
 
     /// TODO: fuzz this
-    function testCalculateOrderReward() public {
-        //1.8446744073709550
-        (uint128 rewardConveyor, uint128 rewardBeacon) = orderRouter
-            .calculateReward(18446744073709550, 100000);
-        console.logString("Input 1 CalculateReward");
-        assertEq(rewardConveyor, 39);
-        assertEq(rewardBeacon, 60);
+    function testCalculateOrderRewardBeacon(uint64 wethValue) public {
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        if(!(wethValue<10**18)){
+            uint128 fee = orderRouter.calculateFee(wethValue, usdc, weth);
+            //1.8446744073709550
+            (, uint128 rewardBeacon) = orderRouter
+                .calculateReward(fee, wethValue);
+
+          
+            string memory path = "scripts/calculateRewardBeacon.py";
+            string[] memory args = new string[](3);
+            args[0] = uint2str(fee);
+            args[1] = uint2str(wethValue);
+            
+            bytes memory spotOut = scriptRunner.runPythonScript(path, args);
+            uint256 beaconRewardExpected = bytesToUint(spotOut);
+            assertEq(rewardBeacon/10**3,beaconRewardExpected/10**3);
+        }
+    }
+
+    function testCalculateOrderRewardConveyor(uint64 wethValue) public {
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        if(!(wethValue<10**18)){
+            uint128 fee = orderRouter.calculateFee(wethValue, usdc, weth);
+            //1.8446744073709550
+            (uint128 rewardConveyor, ) = orderRouter
+                .calculateReward(fee, wethValue);
+
+            
+            string memory path = "scripts/calculateRewardConveyor.py";
+            string[] memory args = new string[](3);
+            args[0] = uint2str(fee);
+            args[1] = uint2str(wethValue);
+            
+            bytes memory spotOut = scriptRunner.runPythonScript(path, args);
+            uint256 conveyorRewardExpected = bytesToUint(spotOut);
+            assertEq(rewardConveyor/10**3,conveyorRewardExpected/10**3);
+        }
     }
 
     function uint2str(uint256 _i) internal pure returns (string memory str) {
@@ -794,7 +827,7 @@ contract OrderRouterTest is DSTest {
 
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
         address reciever = address(this);
-        orderRouter.swapV2(
+        uint256 amountOut=orderRouter.swapV2(
             tokenIn,
             tokenOut,
             lp,
@@ -803,6 +836,7 @@ contract OrderRouterTest is DSTest {
             reciever,
             address(this)
         );
+        require(amountOut !=0, "InsufficientOutputAmount");
     }
 
     //Uniswap V3 SwapRouter Tests
@@ -911,7 +945,7 @@ contract OrderRouterTest is DSTest {
         uint256 amountOut = amountReceived;
         uint256 amountInMaximum = amountReceived - 1;
         address reciever = address(this);
-        orderRouter.swapV3(
+        uint256 amountOutSwap = orderRouter.swapV3(
             tokenIn,
             tokenOut,
             fee,
@@ -920,6 +954,8 @@ contract OrderRouterTest is DSTest {
             reciever,
             address(this)
         );
+
+        require(amountOutSwap !=0, "InsufficientOutputAmount");
     }
 
     function testSwap() public {
@@ -972,7 +1008,7 @@ contract OrderRouterTest is DSTest {
         uint256 amountInMaximum = amountReceived;
         address reciever = address(this);
 
-        orderRouter.swap(
+        uint256 amountOut=orderRouter.swap(
             tokenIn,
             tokenOut,
             lp,
@@ -982,6 +1018,8 @@ contract OrderRouterTest is DSTest {
             reciever,
             address(this)
         );
+
+        require(amountOut != 0, "InsufficientOutputAmount");
     }
 
     //================================================================================================
@@ -1019,7 +1057,7 @@ contract OrderRouterWrapper is OrderRouter {
 
     function calculateReward(uint128 percentFee, uint128 wethValue)
         public
-        pure
+        view
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
         return _calculateReward(percentFee, wethValue);
