@@ -788,7 +788,6 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    //TODO:
 
     //----------------------------Gas Credit Tests-----------------------------------------
     function testDepositGasCredits(uint256 _amount) public {
@@ -850,32 +849,6 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    // function testFailDepositGasCredits_InsufficientGasCreditBalanceForOrderExecution(
-    //     uint256 _amount
-    // ) public {
-    //     //deal this address max eth
-    //     cheatCodes.deal(address(this), MAX_UINT);
-
-    //     //for fuzzing make sure that the input amount is < the balance of the test contract
-    //     if (address(this).balance - _amount > _amount) {
-    //         //deposit gas credits
-    //         (bool depositSuccess, ) = address(conveyorLimitOrders).call{
-    //             value: _amount
-    //         }(abi.encodeWithSignature("depositGasCredits()"));
-
-    //         //require that the deposit was a success
-    //         require(depositSuccess, "testDepositGasCredits: deposit failed");
-
-    //         //get the updated gasCreditBalance for the address
-    //         uint256 gasCreditBalance = conveyorLimitOrders.gasCreditBalance(
-    //             address(this)
-    //         );
-
-    //         //check that the creditBalance map has been updated
-    //         require(gasCreditBalance == _amount);
-    //     }
-    // }
-
     function testWithdrawGasCredits(uint256 _amount) public {
         cheatCodes.deal(address(this), MAX_UINT);
 
@@ -916,7 +889,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    function testFailRemoveGasCredits_InsufficientGasCreditBalance(
+    function testFailWithdrawGasCredits_InsufficientGasCreditBalance(
         uint256 _amount
     ) public {
         cheatCodes.deal(address(this), MAX_UINT);
@@ -999,9 +972,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         require(refreshSuccess, "Order Refresh failed");
     }
 
-    function testFailRefreshOrder_CancelOrder_InsufficientGasCreditBalance()
-        public
-    {
+    function testRefreshOrderWithCancelOrder() public {
         //deal this address max eth
         cheatCodes.deal(address(this), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
@@ -1064,149 +1035,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         require(refreshSuccess == true, "Order Refresh failed");
     }
 
-    function testFailRefreshOrder_InsufficientGasCreditBalance() public {
-        //deal this address max eth
-        cheatCodes.deal(address(this), MAX_UINT);
-
-        swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
-
-        ConveyorLimitOrders.Order memory order = OrderBook.Order({
-            buy: true,
-            taxed: false,
-            lastRefreshTimestamp: 0,
-            expirationTimestamp: 0x0000000000000000000000000000000000000000000000000000000000c30102,
-            feeIn: 0,
-            feeOut: 0,
-            taxIn: 0,
-            price: 16602069666338596454400,
-            amountOutMin: 6900000000000000000,
-            quantity: 0,
-            owner: address(this),
-            tokenIn: swapToken,
-            tokenOut: WETH,
-            orderId: bytes32(0)
-        });
-
-        bytes32 orderId = placeMockOrder(order);
-
-        bool refreshSuccess = conveyorLimitOrders.refreshOrder(orderId);
-
-        require(refreshSuccess == true, "Order Refresh failed");
-    }
-
-    function testFail_InsufficientGasCreditBalanceForOrderExecution() public {
-        //deal this address max eth
-        cheatCodes.deal(address(this), MAX_UINT);
-
-        // cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        cheatCodes.prank(address(this));
-        (bool depositSuccess, ) = address(conveyorLimitOrders).call{value: 100}(
-            abi.encodeWithSignature("depositCredits()")
-        );
-
-        //require that the deposit was a success
-        require(depositSuccess, "testDepositGasCredits: deposit failed");
-
-        swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
-
-        ConveyorLimitOrders.Order memory order = OrderBook.Order({
-            buy: true,
-            taxed: false,
-            lastRefreshTimestamp: 0x0000000000000000000000000000000000000000000000000000000062c30102,
-            expirationTimestamp: 2419200,
-            feeIn: 3000,
-            feeOut: 0,
-            taxIn: 0,
-            price: 16602069666338596454400,
-            amountOutMin: 6900000000000000000,
-            quantity: 0,
-            owner: address(this),
-            tokenIn: swapToken,
-            tokenOut: WETH,
-            orderId: bytes32(0)
-        });
-
-        bytes32 orderId = placeMockOrder(order);
-
-        bool refreshSuccess = conveyorLimitOrders.refreshOrder(orderId);
-
-        require(refreshSuccess == true, "Order Refresh failed");
-    }
-
     receive() external payable {
         // console.log("receive invoked");
     }
-
-    // function testRefreshOrderFailOrderNotRefreshable(){
-    //     OrderBook.Order memory order = OrderBook.Order({
-    //         tokenIn: tokenIn,
-    //         tokenOut: tokenOut,
-    //         orderId: bytes32(0),
-    //         buy: buy,
-    //         taxed: taxed,
-    //         lastRefreshTimestamp: 0,
-    //         expirationTimestamp: 2419200,
-    //         price: price,
-    //         amountOutMin: amountOutMin,
-    //         quantity: quantity,
-    //         owner: msg.sender
-    //     });
-    // }
-
-    function testFailRemoveGasCredits_InsufficientGasCreditBalanceForOrderExecution(
-        uint256 _amount
-    ) public {}
-
-    // function testSimulatePriceChange() public {}
-
-    // function testSimulatePriceChange() public {
-    //     uint128[] memory reserves = new uint128[](2);
-    //     reserves[0]= 82965859*2**18;
-    //     reserves[1]=42918*2**18;
-    //     uint128 alphaX = 1000000*2**18;
-    //     console.logString("TEST SIMULATE PRICE CHANGE");
-    //     uint256 spot = conveyorLimitOrders.simulatePriceChange(alphaX, reserves);
-    //     assertEq(0x000000000000000000000000000007bc019f93509a129114c8df914ab5340000, spot);
-
-    // }
-
-    //----------------------------Single Swap Tests -----------------------------------------
-
-    // function testSwapTokenToTokenOnBestDex() public {
-    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-    //     address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    //     //get the token in
-    //     uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-    //         10000000000000000,
-    //         tokenIn
-    //     );
-
-    //     address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    //     address lp = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
-    //     uint256 amountOutMin = 10000000000;
-
-    //     IERC20(tokenIn).approve(address(conveyorLimitOrders), amountReceived);
-
-    //     conveyorLimitOrders.swapTokenToTokenOnBestDex(
-    //         tokenIn,
-    //         tokenOut,
-    //         amountReceived,
-    //         amountOutMin,
-    //         100,
-    //         address(this)
-    //     );
-    // }
-
-    // function testSwapETHToTokenOnBestDex() public {
-    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-    //     address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    //     address lp = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
-    //     uint256 amountOutMin = 10000000000;
-
-    //     IERC20(tokenIn).approve(address(conveyorLimitOrders), 10000);
 
     //Swap Token to Token on best Dex tests
     function testSwapTokenToTokenOnBestDex() public {

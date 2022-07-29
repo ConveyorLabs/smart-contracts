@@ -17,6 +17,9 @@ contract OrderBook is GasOracle {
     event OrderCancelled(bytes32[] indexed orderIds);
     event OrderUpdated(bytes32[] indexed orderIds);
 
+    //TODO: Order Filled event, emit this for all the order ids that are filled
+    event OrderFilled(bytes32[] indexed orderIds);
+
     //----------------------Structs------------------------------------//
 
     /// @notice Struct containing the token, orderId, OrderType enum type, price, and quantity for each order
@@ -130,8 +133,6 @@ contract OrderBook is GasOracle {
             ++orderIdIndex;
         }
 
-        //TODO: check for tokenIn/weth and tokenOut/weth else revert
-
         uint256 totalApprovedQuantity = IERC20(orderToken).allowance(
             msg.sender,
             address(this)
@@ -158,7 +159,10 @@ contract OrderBook is GasOracle {
         }
 
         Order memory oldOrder = orderIdToOrder[newOrder.orderId];
-        //Hash token and sender for key and accumulate totalOrdersQuantity
+
+
+        ///TODO: make this more efficient and check if new order > old order, then increment the difference else decrement the difference
+
 
         //Decrement oldOrder Quantity from totalOrdersQuantity
         //Decrement totalOrdersQuantity on order.tokenIn for order owner
@@ -198,9 +202,6 @@ contract OrderBook is GasOracle {
 
         Order memory order = orderIdToOrder[orderId];
 
-        bytes32 totalOrdersValueKey = keccak256(
-            abi.encode(msg.sender, orderIdToOrder[orderId].tokenIn)
-        );
         //Decrement totalOrdersQuantity on order.tokenIn for order owner
         //decrementTotalOrdersQuantity(order.tokenIn, order.owner, order.quantity);
         // Delete Order Orders[order.orderId] from ActiveOrders mapping
@@ -209,15 +210,13 @@ contract OrderBook is GasOracle {
         //decrement from total orders per address
         --totalOrdersPerAddress[msg.sender];
 
-        //Decrement total orders quantity
-        //Decrement totalOrdersQuantity on order.tokenIn for order owner
-        // decrementTotalOrdersQuantity(
-        //     order.tokenIn,
-        //     order.owner,
-        //     order.quantity
-        // );
-
-        totalOrdersQuantity[totalOrdersValueKey] -= order.quantity;
+        // Decrement total orders quantity
+        // Decrement totalOrdersQuantity on order.tokenIn for order owner
+        decrementTotalOrdersQuantity(
+            order.tokenIn,
+            order.owner,
+            order.quantity
+        );
 
         //emit a canceled order event
         //TODO: do this in assembly
@@ -233,21 +232,22 @@ contract OrderBook is GasOracle {
         //TODO: just call cancel order on loop?
         //check that there is one or more orders
         for (uint256 i = 0; i < orderIds.length; ++i) {
-            //Hash token and sender for key and accumulate totalOrdersQuantity
-            bytes32 totalOrdersValueKey = keccak256(
-                abi.encode(msg.sender, orderIdToOrder[orderIds[i]].tokenIn)
-            );
-
             bytes32 orderId = orderIds[i];
             bool orderExists = addressToOrderIds[msg.sender][orderId];
+
+            Order memory order = orderIdToOrder[orderId];
 
             if (!orderExists) {
                 revert OrderDoesNotExist(orderId);
             }
-            //Decrement total Orders quantity on token
-            totalOrdersQuantity[totalOrdersValueKey] -= orderIdToOrder[
-                orderIds[i]
-            ].quantity;
+
+            // Decrement total orders quantity
+            // Decrement totalOrdersQuantity on order.tokenIn for order owner
+            decrementTotalOrdersQuantity(
+                order.tokenIn,
+                order.owner,
+                order.quantity
+            );
 
             delete addressToOrderIds[msg.sender][orderId];
             delete orderIdToOrder[orderId];
