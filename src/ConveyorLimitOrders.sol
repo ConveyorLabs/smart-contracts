@@ -86,6 +86,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 amount
     );
 
+    event OrderRefreshed(
+        bytes32 indexed orderId,
+        uint32 lastRefreshTimestamp,
+        uint32 expirationTimestamp
+    );
+    
     // ========================================= FUNCTIONS =============================================
 
     //------------Gas Credit Functions------------------------
@@ -140,51 +146,64 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     //Todo add reentrancy guard
     /// @notice External helper function to allow beacon to refresh an oder after 30 days in unix time
-    /// @param orderId order to refresh timestamp
-    function refreshOrder(bytes32 orderId) external returns (bool) {
-        Order memory order = getOrderById(orderId);
+    /// @param orderIds orders to refresh timestamp
+    function refreshOrder(bytes32[] memory orderIds) external {
+        for(uint256 i=0; i< orderIds.length; ++i){
 
-        //Require 30 days has elapsed since last refresh
+            //Cache order in memory
+            Order memory order = getOrderById(orderIds[i]);
 
-        if (block.timestamp - order.lastRefreshTimestamp < refreshInterval) {
-            revert OrderNotRefreshable();
-        }
+            //Require 30 days has elapsed since last refresh
+            if (block.timestamp - order.lastRefreshTimestamp < refreshInterval) {
+                continue;
+            }
 
-        //Require current timestamp is not past order expiration
-        if (block.timestamp < order.expirationTimestamp) {
-            revert OrderHasReachedExpiration();
-        }
+            //Require current timestamp is not past order expiration
+            if (block.timestamp > order.expirationTimestamp) {
+                _cancelOrder(order.orderId);
+                continue;
+            }
 
-        //TODO: FIXME: check for underflow for  gasCreditBalance[order.owner] - refreshFee
+            //check for underflow gasCreditBalance[order.owner] - refreshFee
+            if(gasCreditBalance[order.owner]<refreshFee){
+                _cancelOrder(order.orderId);
+                continue;
+            }
 
-        //Get current gas price from v3 Aggregator
-        uint256 gasPrice = getGasPrice();
-        //Require gas credit withdrawal doesn't exceeed minimum gas credit requirements
-        if (
-            !(
-                _hasMinGasCredits(
-                    gasPrice,
-                    executionCost,
-                    order.owner,
-                    gasCreditBalance[order.owner] - refreshFee
+            //Get current gas price from v3 Aggregator
+            uint256 gasPrice = getGasPrice();
+
+            //Require gas credit withdrawal doesn't exceeed minimum gas credit requirements
+            if (
+                !(
+                    _hasMinGasCredits(
+                        gasPrice,
+                        executionCost,
+                        order.owner,
+                        gasCreditBalance[order.owner] - refreshFee
+                    )
                 )
-            )
-        ) {
-            // TODO: FIXME: add order cancelation
+            ) {
+                //If order does not have sufficient gas credit balance after decrementing the refresh fee cancel the order
+                _cancelOrder(order.orderId);
+                continue;
+            }
+
+            //Transfer refresh fee to beacon
+            safeTransferETH(msg.sender, refreshFee);
+
+            //Decrement order.owner credit balance
+            gasCreditBalance[order.owner] =
+                gasCreditBalance[order.owner] -
+                refreshFee;
+
+            //Change order.lastRefreshTimestamp to current block.timestamp
+            order.lastRefreshTimestamp = uint32(block.timestamp);
+
+            _updateOrder(order, order.owner);
+
+            emit OrderRefreshed(order.orderId, order.lastRefreshTimestamp, order.expirationTimestamp);
         }
-
-        //Transfer refresh fee to beacon
-        safeTransferETH(msg.sender, refreshFee);
-
-        //Decrement order.owner credit balance
-        gasCreditBalance[order.owner] =
-            gasCreditBalance[order.owner] -
-            refreshFee;
-
-        //Change order.lastRefreshTimestamp to current block.timestamp
-        order.lastRefreshTimestamp = uint32(block.timestamp);
-
-        return true;
     }
 
     //------------Order Cancellation Functions---------------------------------
@@ -253,12 +272,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     /// @notice Internal helper function to cancel order with implicit validation within refreshOrder
     /// @param orderId Id of the order to cancel
-    /// @param sender address of beacon caller to refreshOrder to be compensated for cancellation
     /// @return bool indicator whether order was successfully cancelled with compensation
-    function _cancelOrder(bytes32 orderId, address sender)
+    function _cancelOrder(bytes32 orderId)
         internal
         returns (bool)
     {
+        //Cache order into memory
         Order memory order = orderIdToOrder[orderId];
 
         /// Check if order exists in active orders. Revert if order does not exist
@@ -266,12 +285,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         if (!orderExists) {
             revert OrderDoesNotExist(orderId);
         }
+
         //Amount of order's owned by order owner
         uint256 totalOrders = totalOrdersPerAddress[order.owner];
 
         //Get current gas price from v3 Aggregator
         uint256 gasPrice = getGasPrice();
 
+        //Calculate minimum gas credits without multiplier for gas variability
         uint256 minimumGasCreditsForAllOrders = _calculateMinGasCredits(
             gasPrice,
             300000,
@@ -282,23 +303,28 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 minimumGasCreditsForSingleOrder = minimumGasCreditsForAllOrders /
                 totalOrders;
 
-        delete orderIdToOrder[orderId];
-        delete addressToOrderIds[order.owner][orderId];
+       //Delete order from queue after swap execution
+            delete orderIdToOrder[orderId];
+            delete addressToOrderIds[order.owner][orderId];
+            //decrement from total orders per address
+            --totalOrdersPerAddress[order.owner];
 
-        //Decrement totalOrdersQuantity for order
-        decrementTotalOrdersQuantity(order.tokenIn, msg.sender, order.quantity);
+            //Decrement totalOrdersQuantity for order owner
+            decrementTotalOrdersQuantity(
+                order.tokenIn,
+                order.owner,
+                order.quantity
+            );
 
-        //decrement from total orders per address
-        --totalOrdersPerAddress[order.owner];
 
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = order.orderId;
 
-        safeTransferETH(sender, minimumGasCreditsForSingleOrder);
+        safeTransferETH(msg.sender, minimumGasCreditsForSingleOrder);
 
         emit OrderCancelled(orderIds);
 
-        return false;
+        return true;
     }
 
     // ==================== Order Execution Functions =========================

@@ -187,10 +187,6 @@ contract ConveyorLimitOrdersTest is DSTest {
     }
 
     //================================================================
-    //================= Batch Orders Tests ===========================
-    //================================================================
-
-    //================================================================
     //==================== Execution Tests ===========================
     //================================================================
 
@@ -400,8 +396,6 @@ contract ConveyorLimitOrdersTest is DSTest {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        // swapHelper.swapEthForTokenWithUniV2(100000 ether, UNI);
 
         IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
 
@@ -738,7 +732,6 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    //TODO: FIXME:
     //weth to taxed token
     function testExecuteTaxedTokenToTaxedTokenSingle() public {
         cheatCodes.deal(address(this), MAX_UINT);
@@ -929,110 +922,199 @@ contract ConveyorLimitOrdersTest is DSTest {
     }
 
     function testRefreshOrder() public {
-        //deal this address max eth
         cheatCodes.deal(address(this), MAX_UINT);
-
-        // cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        cheatCodes.prank(address(this));
-        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
-            value: 90000000000000000000000000090000000
-        }(abi.encodeWithSignature("depositGasCredits()"));
-
-        uint256 gasCreditBalance = conveyorLimitOrders.gasCreditBalance(
-            address(this)
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
+        OrderBook.Order memory order = newMockOrder(
+            DAI,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            MAX_U32
         );
 
-        //require that the deposit was a success
-        require(depositSuccess, "testRefreshOrder: deposit failed");
-
-        swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
-
-        ConveyorLimitOrders.Order memory order = OrderBook.Order({
-            buy: true,
-            taxed: false,
-            lastRefreshTimestamp: 0,
-            expirationTimestamp: 2419200,
-            feeIn: 0,
-            feeOut: 0,
-            taxIn: 0,
-            price: 16602069666338596454400,
-            amountOutMin: 6900000000000000000,
-            quantity: 0,
-            owner: address(this),
-            tokenIn: swapToken,
-            tokenOut: WETH,
-            orderId: bytes32(0)
-        });
-
         bytes32 orderId = placeMockOrder(order);
 
-        bool refreshSuccess = conveyorLimitOrders.refreshOrder(orderId);
+        bytes32[] memory orderBatch = new bytes32[](1);
 
-        require(refreshSuccess, "Order Refresh failed");
+        orderBatch[0] = orderId;
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
+                .getOrderById(orderBatch[i]);
+
+            assert(order0.orderId != bytes32(0));
+        }
+
+        conveyorLimitOrders.refreshOrder(orderBatch);
+
+        // check that the orders have been fufilled and removed
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
+                .getOrderById(orderBatch[i]);
+            console.log(order0.lastRefreshTimestamp);
+            console.log(block.timestamp);
+            assert(order0.lastRefreshTimestamp == block.timestamp);
+        }
     }
 
-    function testRefreshOrderWithCancelOrder() public {
-        //deal this address max eth
+    function testRefreshOrderWithCancelOrderOrderExpired() public {
         cheatCodes.deal(address(this), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
-        ConveyorLimitOrders.Order memory order = OrderBook.Order({
-            buy: true,
-            taxed: false,
-            lastRefreshTimestamp: 0,
-            expirationTimestamp: 2419200,
-            feeIn: 0,
-            feeOut: 0,
-            taxIn: 0,
-            price: 16602069666338596454400,
-            amountOutMin: 6900000000000000000,
-            quantity: 0,
-            owner: address(this),
-            tokenIn: swapToken,
-            tokenOut: WETH,
-            orderId: bytes32(0)
-        });
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
+        OrderBook.Order memory order = newMockOrder(
+            DAI,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            0
+        );
+
         bytes32 orderId = placeMockOrder(order);
-        bool refreshSuccess = conveyorLimitOrders.refreshOrder(orderId);
-        require(refreshSuccess == true, "Order Refresh failed");
+
+        bytes32[] memory orderBatch = new bytes32[](1);
+
+        orderBatch[0] = orderId;
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
+                .getOrderById(orderBatch[i]);
+
+            assert(order0.orderId != bytes32(0));
+        }
+
+        conveyorLimitOrders.refreshOrder(orderBatch);
+
+        // check that the orders have been fufilled and removed
+        // check that the orders have been fufilled and removed
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
+                .getOrderById(orderBatch[i]);
+            assert(order0.orderId == bytes32(0));
+        }
     }
 
-    function testFailRefreshOrder_OrderNotRefreshable() public {
-        //deal this address max eth
+    function testRefreshOrderWithCancelOrderRefreshFeeExceedsGasCredits() public {
         cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(100000000000000000);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
+        OrderBook.Order memory order = newMockOrder(
+            DAI,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            0
+        );
 
-        cheatCodes.prank(address(this));
+        OrderBook.Order memory order1 = newMockOrder(
+            DAI,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            0
+        );
 
-        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
-            value: 90000000000000000000000000090000000
-        }(abi.encodeWithSignature("depositCredits()"));
+        OrderBook.Order[] memory orders = new OrderBook.Order[](2);
+        orders[0]= order;
+        orders[1]=order1;
 
-        //require that the deposit was a success
-        require(depositSuccess, "testDepositGasCredits: deposit failed");
+        bytes32[] memory orderBatch = placeMultipleMockOrder(orders);
 
-        swapHelper.swapEthForTokenWithUniV2(5 ether, swapToken);
-        ConveyorLimitOrders.Order memory order = OrderBook.Order({
-            buy: true,
-            taxed: false,
-            lastRefreshTimestamp: 0,
-            expirationTimestamp: 0x0000000000000000000000000000000000000000000000000000000000c30102,
-            feeIn: 0,
-            feeOut: 0,
-            taxIn: 0,
-            price: 16602069666338596454400,
-            amountOutMin: 6900000000000000000,
-            quantity: 0,
-            owner: address(this),
-            tokenIn: swapToken,
-            tokenOut: WETH,
-            orderId: bytes32(0)
-        });
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
+                .getOrderById(orderBatch[i]);
+
+            assert(order0.orderId != bytes32(0));
+        }
+
+        conveyorLimitOrders.refreshOrder(orderBatch);
+
+        // check that the orders have been fufilled and removed
+        // check that the orders have been fufilled and removed
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
+                .getOrderById(orderBatch[i]);
+            assert(order0.orderId == bytes32(0));
+        }
+    }
+    //block 15233771
+    function testRefreshOrderNotRefreshable() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
+        console.log(block.timestamp);
+        OrderBook.Order memory order = newMockOrder(
+            DAI,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
+            1659049037,
+            MAX_U32
+        );
 
         bytes32 orderId = placeMockOrder(order);
 
-        bool refreshSuccess = conveyorLimitOrders.refreshOrder(orderId);
+        bytes32[] memory orderBatch = new bytes32[](1);
 
-        require(refreshSuccess == true, "Order Refresh failed");
+        orderBatch[0] = orderId;
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
+                .getOrderById(orderBatch[i]);
+
+            assert(order0.orderId != bytes32(0));
+        }
+
+        conveyorLimitOrders.refreshOrder(orderBatch);
+
+        // check that the orders have been fufilled and removed
+        // check that the orders have been fufilled and removed
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
+                .getOrderById(orderBatch[i]);
+            assert(order0.orderId != bytes32(0));
+            assert(order.lastRefreshTimestamp == 1659049037);
+        }
+
     }
 
     receive() external payable {

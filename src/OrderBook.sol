@@ -190,6 +190,47 @@ contract OrderBook is GasOracle {
         emit OrderUpdated(orderIds);
     }
 
+    /// @notice Update mapping(uint256 => Order) in Order struct from identifier orderId to new 'order' value passed as @param
+    function _updateOrder(Order memory newOrder, address owner) internal {
+        //check if the old order exists
+
+        bool orderExists = addressToOrderIds[owner][newOrder.orderId];
+
+        if (!orderExists) {
+            revert OrderDoesNotExist(newOrder.orderId);
+        }
+
+        Order memory oldOrder = orderIdToOrder[newOrder.orderId];
+
+
+        ///TODO: make this more efficient and check if new order > old order, then increment the difference else decrement the difference
+
+        //Decrement oldOrder Quantity from totalOrdersQuantity
+        //Decrement totalOrdersQuantity on order.tokenIn for order owner
+        decrementTotalOrdersQuantity(
+            oldOrder.tokenIn,
+            owner,
+            oldOrder.quantity
+        );
+        //TODO: get total order sum and make sure that the user has the balance for the new order
+
+        //update the order
+        orderIdToOrder[oldOrder.orderId] = newOrder;
+
+        //Update totalOrdersQuantity to new order quantity
+        incrementTotalOrdersQuantity(
+            newOrder.tokenIn,
+            owner,
+            newOrder.quantity
+        );
+
+        //emit an updated order event
+        //TODO: do this in assembly
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = newOrder.orderId;
+        emit OrderUpdated(orderIds);
+    }
+
     /// @notice Remove Order order from OrderGroup mapping by identifier orderId conditionally if order exists already in ActiveOrders
     /// @param orderId the order to which the caller is removing from the OrderGroup struct
     function cancelOrder(bytes32 orderId) public {
