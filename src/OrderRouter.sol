@@ -8,6 +8,7 @@ import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../lib/libraries/ConveyorMath.sol";
+import "../lib/libraries/ConveyorTickMath.sol";
 import "./OrderBook.sol";
 import "./test/utils/Console.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
@@ -202,7 +203,7 @@ contract OrderRouter {
     /// @return beaconReward beacon reward in wei
     function _calculateReward(uint128 percentFee, uint128 wethValue)
         internal
-        view
+        pure
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
         uint256 totalWethReward = ConveyorMath.mul64I(
@@ -717,28 +718,26 @@ contract OrderRouter {
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
     /// @param token0 bytes32 address of token1
     /// @param token1 bytes32 address of token2
-    /// @param amountIn amountIn to get out amount spot
     /// @param fee lp fee
-    /// @param tickSecond the tick second range to get the lp spot price from
     /// @param _factory Uniswap v3 factory address
     function _calculateV3SpotPrice(
         address token0,
         address token1,
-        uint112 amountIn,
         uint24 fee,
-        uint32 tickSecond,
         address _factory
-    ) internal view returns (SpotReserve memory, address) {
+    ) internal returns (SpotReserve memory, address) {
         SpotReserve memory _spRes;
 
-        address pool;
         int24 tick;
+        console.log(fee);
+        //Pool address for token pair
+        address pool = IUniswapV3Factory(_factory).getPool(token0, token1, uint24(fee));
 
         //Scope to prevent stack too deep error
         {
-            //Pool address for token pair
-            pool = IUniswapV3Factory(_factory).getPool(token0, token1, fee);
-
+            
+            console.log(pool);
+            
             if (pool == address(0)) {
                 return (_spRes, address(0));
             }
@@ -758,14 +757,11 @@ contract OrderRouter {
                 reserve1,
                 pool
             );
-            {
-                // int56 / uint32 = int24
-                tick = _getTick(pool, tickSecond);
-            }
+           
         }
 
         //amountOut = tick range spot over specified tick interval
-        _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token0, token1);
+        _spRes.spotPrice = calculateV3PriceFromSqrtPriceX96(token0, pool);
 
         return (_spRes, pool);
     }
@@ -837,25 +833,16 @@ contract OrderRouter {
     /// @notice Helper to get all lps and prices across multiple dexes
     /// @param token0 address of token0
     /// @param token1 address of token1
-    /// @param tickSecond tick second range on univ3
     /// @param FEE uniV3 fee
     function _getAllPrices(
         address token0,
         address token1,
-        uint32 tickSecond,
         uint24 FEE
     )
         internal
-        view
         returns (SpotReserve[] memory prices, address[] memory lps)
     {
         if (token0 != token1) {
-            //Target base amount in value
-            // uint112 amountIn = _getTargetAmountIn(token0, token1);
-            uint112 amountIn = _getGreatestTokenDecimalsAmountIn(
-                token0,
-                token1
-            );
 
             SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
             address[] memory _lps = new address[](dexes.length);
@@ -889,9 +876,7 @@ contract OrderRouter {
                             ) = _calculateV3SpotPrice(
                                     token0,
                                     token1,
-                                    amountIn,
                                     FEE,
-                                    tickSecond,
                                     dexes[i].factoryAddress
                                 );
                             if (spotPrice.spotPrice != 0) {
@@ -1063,6 +1048,46 @@ contract OrderRouter {
                         ((targetDecimalsQuote - targetDecimalsBase) +
                             targetDecimalsQuote));
             }
+        }
+    }
+
+    ///@notice Helper function to calculate precise price change in a uni v3 pool after alphaX value is added to the liquidity on either token
+    ///@param tokenIn boolean indicating whether swap is happening from token->weth or weth->token respectively
+    ///@param pool quantity to be added to the liquidity of tokenIn
+    function calculateV3PriceFromSqrtPriceX96(
+        address tokenIn,
+        address pool
+    ) internal returns (uint256 spotPrice) {
+        ///@notice sqrtPrice Fixed point 64.96 form token1/token0 exchange rate
+        (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(pool).slot0();
+
+        ///@notice Get token0/token1 from the pool
+        address token0 = IUniswapV3Pool(pool).token0();
+
+        ///@notice Boolean indicating whether weth is token0 or token1
+        bool tokenInIsToken0 = token0 == tokenIn ? true : false;
+
+        if(tokenInIsToken0){
+                ///@notice Convert output to 64.64 fixed point representation
+                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
+                    sqrtPriceX96
+                );
+                //Token in is token0 hence sqrtPriceX96 == token1/token0 is the correct form, so just square
+                spotPrice = uint256(ConveyorMath.mul64x64(
+                    sqrtSpotPrice64x64,
+                    sqrtSpotPrice64x64
+                ))<<64;
+        }else{
+                ///@notice Convert output to 64.64 fixed point representation
+                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
+                    sqrtPriceX96
+                );
+
+                //Token in is token1 hence sqrtPriceX96 == token1/token0 is not the correct form, so just take inverse and square
+                 spotPrice = uint256(ConveyorMath.mul64x64(
+                    ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64),
+                    ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64)
+                ))<<64;
         }
     }
 }

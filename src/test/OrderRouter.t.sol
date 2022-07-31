@@ -296,9 +296,7 @@ contract OrderRouterTest is DSTest {
         ) = orderRouter.calculateV3SpotPrice(
                 dai,
                 weth,
-                1 * 10**18,
                 3000,
-                1,
                 _uniV3FactoryAddress
             );
 
@@ -330,9 +328,7 @@ contract OrderRouterTest is DSTest {
         ) = orderRouter.calculateV3SpotPrice(
                 dai,
                 usdc,
-                1 * 10**18,
                 3000,
-                1,
                 _uniV3FactoryAddress
             );
 
@@ -433,7 +429,7 @@ contract OrderRouterTest is DSTest {
         (
             OrderRouter.SpotReserve[] memory pricesUNWeth,
             address[] memory lps2
-        ) = orderRouter.getAllPrices(dai, weth, 1, 3000);
+        ) = orderRouter.getAllPrices(dai, weth, 3000);
 
         // (
         //     OrderRouter.SpotReserve[] memory pricesWethDai,
@@ -479,12 +475,12 @@ contract OrderRouterTest is DSTest {
         (
             OrderRouter.SpotReserve[] memory pricesWethUsdc,
             address[] memory lps
-        ) = orderRouter.getAllPrices(weth, usdc, 1, 3000);
+        ) = orderRouter.getAllPrices(weth, usdc, 3000);
 
         (
             OrderRouter.SpotReserve[] memory pricesUsdcWeth,
             address[] memory lps1
-        ) = orderRouter.getAllPrices(usdc, weth, 1, 3000);
+        ) = orderRouter.getAllPrices(usdc, weth, 3000);
 
         console.log("weth/usdc");
         console.log(pricesWethUsdc[0].spotPrice);
@@ -1031,11 +1027,13 @@ contract OrderRouterWrapper is OrderRouter {
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2
+       
         
     ) OrderRouter(
         _initBytecodes,
         _dexFactories,
         _isUniV2
+      
 
     ){}
 
@@ -1176,18 +1174,14 @@ contract OrderRouterWrapper is OrderRouter {
     function calculateV3SpotPrice(
         address token0,
         address token1,
-        uint112 amountIn,
         uint24 FEE,
-        uint32 tickSecond,
         address _factory
-    ) public view returns (SpotReserve memory, address) {
+    ) public returns (SpotReserve memory, address) {
         return
             _calculateV3SpotPrice(
                 token0,
                 token1,
-                amountIn,
                 FEE,
-                tickSecond,
                 _factory
             );
     }
@@ -1195,15 +1189,13 @@ contract OrderRouterWrapper is OrderRouter {
     /// @notice Helper to get all lps and prices across multiple dexes
     /// @param token0 address of token0
     /// @param token1 address of token1
-    /// @param tickSecond tick second range on univ3
     /// @param FEE uniV3 fee
     function getAllPrices(
         address token0,
         address token1,
-        uint32 tickSecond,
         uint24 FEE
-    ) public view returns (SpotReserve[] memory prices, address[] memory lps) {
-        return _getAllPrices(token0, token1, tickSecond, FEE);
+    ) public returns (SpotReserve[] memory prices, address[] memory lps) {
+        return _getAllPrices(token0, token1, FEE);
     }
 
     /// @notice Helper to get amountIn amount for token pair

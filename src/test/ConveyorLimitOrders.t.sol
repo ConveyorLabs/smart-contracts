@@ -956,7 +956,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         conveyorLimitOrders.refreshOrder(orderBatch);
 
-        // check that the orders have been fufilled and removed
+        //Ensure the order was not cancelled and lastRefresh timestamp is updated to block.timestamp
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);
@@ -972,6 +972,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
+
         OrderBook.Order memory order = newMockOrder(
             DAI,
             UNI,
@@ -992,17 +993,18 @@ contract ConveyorLimitOrdersTest is DSTest {
         bytes32[] memory orderBatch = new bytes32[](1);
 
         orderBatch[0] = orderId;
+        //Ensure order was not canceled
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);
 
             assert(order0.orderId != bytes32(0));
+            assert(order0.lastRefreshTimestamp ==0);
         }
 
         conveyorLimitOrders.refreshOrder(orderBatch);
 
-        // check that the orders have been fufilled and removed
-        // check that the orders have been fufilled and removed
+        //Ensure the orders are canceled
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);
@@ -1061,8 +1063,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         conveyorLimitOrders.refreshOrder(orderBatch);
 
-        // check that the orders have been fufilled and removed
-        // check that the orders have been fufilled and removed
+       //Ensure the order's are cancelled
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);
@@ -1106,8 +1107,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         conveyorLimitOrders.refreshOrder(orderBatch);
 
-        // check that the orders have been fufilled and removed
-        // check that the orders have been fufilled and removed
+        //Ensure order was not refreshed or cancelled
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);
@@ -1570,7 +1570,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             5000000000000000000001, //5001 DAI
             3000,
-            0,
+            3000,
             0,
             MAX_U32
         );
@@ -1584,7 +1584,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             5000000000000000000002, //5002 DAI
             3000,
-            0,
+            3000,
             0,
             MAX_U32
         );
@@ -1598,7 +1598,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             1,
             5000000000000000000003, //5003 DAI
             3000,
-            0,
+            3000,
             0,
             MAX_U32
         );

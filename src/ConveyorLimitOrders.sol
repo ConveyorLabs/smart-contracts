@@ -91,7 +91,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint32 lastRefreshTimestamp,
         uint32 expirationTimestamp
     );
-    
+
     // ========================================= FUNCTIONS =============================================
 
     //------------Gas Credit Functions------------------------
@@ -148,13 +148,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @notice External helper function to allow beacon to refresh an oder after 30 days in unix time
     /// @param orderIds orders to refresh timestamp
     function refreshOrder(bytes32[] memory orderIds) external {
-        for(uint256 i=0; i< orderIds.length; ++i){
-
+        for (uint256 i = 0; i < orderIds.length; ++i) {
             //Cache order in memory
             Order memory order = getOrderById(orderIds[i]);
 
             //Require 30 days has elapsed since last refresh
-            if (block.timestamp - order.lastRefreshTimestamp < refreshInterval) {
+            if (
+                block.timestamp - order.lastRefreshTimestamp < refreshInterval
+            ) {
                 continue;
             }
 
@@ -165,7 +166,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
 
             //check for underflow gasCreditBalance[order.owner] - refreshFee
-            if(gasCreditBalance[order.owner]<refreshFee){
+            if (gasCreditBalance[order.owner] < refreshFee) {
                 _cancelOrder(order.orderId);
                 continue;
             }
@@ -202,7 +203,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
             _updateOrder(order, order.owner);
 
-            emit OrderRefreshed(order.orderId, order.lastRefreshTimestamp, order.expirationTimestamp);
+            emit OrderRefreshed(
+                order.orderId,
+                order.lastRefreshTimestamp,
+                order.expirationTimestamp
+            );
         }
     }
 
@@ -273,10 +278,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @notice Internal helper function to cancel order with implicit validation within refreshOrder
     /// @param orderId Id of the order to cancel
     /// @return bool indicator whether order was successfully cancelled with compensation
-    function _cancelOrder(bytes32 orderId)
-        internal
-        returns (bool)
-    {
+    function _cancelOrder(bytes32 orderId) internal returns (bool) {
         //Cache order into memory
         Order memory order = orderIdToOrder[orderId];
 
@@ -303,19 +305,18 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 minimumGasCreditsForSingleOrder = minimumGasCreditsForAllOrders /
                 totalOrders;
 
-       //Delete order from queue after swap execution
-            delete orderIdToOrder[orderId];
-            delete addressToOrderIds[order.owner][orderId];
-            //decrement from total orders per address
-            --totalOrdersPerAddress[order.owner];
+        //Delete order from queue after swap execution
+        delete orderIdToOrder[orderId];
+        delete addressToOrderIds[order.owner][orderId];
+        //decrement from total orders per address
+        --totalOrdersPerAddress[order.owner];
 
-            //Decrement totalOrdersQuantity for order owner
-            decrementTotalOrdersQuantity(
-                order.tokenIn,
-                order.owner,
-                order.quantity
-            );
-
+        //Decrement totalOrdersQuantity for order owner
+        decrementTotalOrdersQuantity(
+            order.tokenIn,
+            order.owner,
+            order.quantity
+        );
 
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = order.orderId;
@@ -381,7 +382,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         (SpotReserve[] memory prices, address[] memory lps) = _getAllPrices(
             tokenIn,
             tokenOut,
-            tickSecond,
             FEE
         );
 
@@ -686,14 +686,17 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
     function _initializeTokenToWethExecutionPrices(Order[] memory orders)
         internal
-        view
         returns (TokenToWethExecutionPrice[] memory)
     {
+        console.log(orders[0].feeIn);
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = _getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn, 1);
-
+        ) = _getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn);
+        
+        console.log(spotReserveAToWeth[0].spotPrice);
+        console.log(spotReserveAToWeth[1].spotPrice);
+        require(false, "here");
         TokenToWethExecutionPrice[]
             memory executionPrices = new TokenToWethExecutionPrice[](
                 spotReserveAToWeth.length
@@ -1287,7 +1290,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
     function _initializeTokenToTokenExecutionPrices(Order[] memory orders)
         internal
-        view
         returns (TokenToTokenExecutionPrice[] memory)
     {
         address tokenIn = orders[0].tokenIn;
@@ -1295,12 +1297,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = _getAllPrices(tokenIn, WETH, 1, orders[0].feeIn);
+        ) = _getAllPrices(tokenIn, WETH, orders[0].feeIn);
 
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
-        ) = _getAllPrices(WETH, orders[0].tokenOut, 1, orders[0].feeOut);
+        ) = _getAllPrices(WETH, orders[0].tokenOut, orders[0].feeOut);
 
         TokenToTokenExecutionPrice[]
             memory executionPrices = new TokenToTokenExecutionPrice[](
@@ -1580,7 +1582,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 }
             }
         } else {
-            uint256 bestPrice =0;
+            uint256 bestPrice = 0;
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
 
@@ -1862,47 +1864,36 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         )
     {
         uint128[] memory newReserves = new uint128[](2);
-      
+
         //If not uni v3 do constant product calculation
         if (_lpIsNotUniV3(pool)) {
             unchecked {
-                
-                    uint256 denominator = reserveA + alphaX;
+                uint256 denominator = reserveA + alphaX;
 
+                uint256 numerator = FullMath.mulDiv(
+                    uint256(reserveA),
+                    uint256(reserveB),
+                    denominator
+                );
 
-                    uint256 numerator = FullMath.mulDiv(
-                        uint256(reserveA),
-                        uint256(reserveB),
-                        denominator
-                    );
+                uint256 spotPrice = uint256(
+                    ConveyorMath.divUI(numerator, denominator)
+                ) << 64;
 
+                require(
+                    spotPrice <=
+                        0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
+                    "overflow"
+                );
 
-                    uint256 spotPrice = uint256(
-                        ConveyorMath.divUI(numerator, denominator)
-                    ) << 64;
+                newReserves[0] = uint128(denominator);
+                newReserves[1] = uint128(numerator);
 
-                    require(
-                        spotPrice <=
-                            0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
-                        "overflow"
-                    );
-                    
-                    newReserves[0] = uint128(denominator);
-                    newReserves[1] = uint128(numerator);
+                uint128 amountOut = uint128(
+                    getAmountOut(alphaX, reserveA, reserveB)
+                );
 
-                    uint128 amountOut = uint128(
-                        getAmountOut(alphaX, reserveA, reserveB)
-                    );
-                    
-                    return (
-                        spotPrice,
-                        newReserves[0],
-                        newReserves[1],
-                        amountOut
-                    );
-               
-                    
-                
+                return (spotPrice, newReserves[0], newReserves[1], amountOut);
             }
         } else {
             (
@@ -1914,7 +1905,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             newReserves[1] = 1;
 
             uint256 spotPrice = uint256(spotPrice64x64) << 64;
-           
+
             return (spotPrice, newReserves[0], newReserves[1], amountOut);
         }
     }
@@ -1971,7 +1962,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     nextSqrtPriceX96
                 );
 
-               
                 spotPrice = ConveyorMath.mul64x64(
                     ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64),
                     ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64)
@@ -1996,7 +1986,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     nextSqrtPriceX96
                 );
 
-                 ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
+                ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
                 spotPrice = ConveyorMath.mul64x64(
                     sqrtSpotPrice64x64,
                     sqrtSpotPrice64x64
@@ -2024,8 +2014,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     nextSqrtPriceX96
                 );
 
-                
-                
                 spotPrice = ConveyorMath.mul64x64(
                     sqrtSpotPrice64x64,
                     sqrtSpotPrice64x64
