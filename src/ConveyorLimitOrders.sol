@@ -716,6 +716,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return executionPrices;
     }
 
+
     function _initializeNewTokenToWethBatchOrder(
         uint256 initArrayLength,
         address tokenIn,

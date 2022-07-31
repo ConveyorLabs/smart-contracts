@@ -239,15 +239,13 @@ contract OrderRouter {
     }
 
     /// @notice Helper function to calculate the max beacon reward for a group of order's
-    /// @param reserve0SnapShot uint256 snapShotSpot of the lowest execution spot price of the whole batch
-    /// @param reserve1SnapShot uint256 snapShotSpot of the lowest execution spot price of the whole batch
+    /// @param snapShotSpotPrice blah
     /// @param reserve0 uint256 reserve0 of lp at execution time
     /// @param reserve1 uint256 reserve1 of lp at execution time
     /// @param fee uint256 lp fee
     /// @return maxReward uint256 maximum safe beacon reward to protect against flash loan price manipulation in the lp
     function _calculateMaxBeaconReward(
-        uint128 reserve0SnapShot,
-        uint128 reserve1SnapShot,
+        uint256 snapShotSpotPrice,
         uint128 reserve0,
         uint128 reserve1,
         uint128 fee
@@ -256,8 +254,7 @@ contract OrderRouter {
             uint128 maxReward = ConveyorMath.mul64x64(
                 fee,
                 _calculateAlphaX(
-                    reserve0SnapShot,
-                    reserve1SnapShot,
+                    snapShotSpotPrice,
                     reserve0,
                     reserve1
                 )
@@ -270,54 +267,47 @@ contract OrderRouter {
     }
 
     /// @notice Helper function to calculate the input amount needed to manipulate the spot price of the pool from snapShot to executionPrice
-    /// @param reserve0SnapShot snapShot of reserve0 at snapShot time
-    /// @param reserve1SnapShot snapShot of reserve1 at snapShot time
+    /// @param snapShotSpotPrice blah
     /// @param reserve0Execution snapShot of reserve0 at snapShot time
     /// @param reserve1Execution snapShot of reserve1 at snapShot time
     /// @return alphaX alphaX amount to manipulate the spot price of the respective lp to execution trigger
     function _calculateAlphaX(
-        uint128 reserve0SnapShot,
-        uint128 reserve1SnapShot,
+        uint256 snapShotSpotPrice,
         uint128 reserve0Execution,
         uint128 reserve1Execution
     ) internal pure returns (uint128 alphaX) {
         //k = rx*ry
-        uint256 k = uint256(reserve0SnapShot) * reserve1SnapShot;
+        uint256 k = uint256(reserve0Execution) * reserve1Execution;
 
         //sqrt(k) 64.64 form
         uint256 sqrtK128x128 = ConveyorMath.sqrt128x128(k << 128);
 
         //sqrt(rx)
         uint256 sqrtReserve0SnapShot128x128 = ConveyorMath.sqrt128x128(
-            uint256(reserve0SnapShot) << 128
+            uint256(reserve0Execution) << 128
         );
 
         //Delta change in spot prices from snapshot-> execution
         uint256 delta;
         delta = ConveyorMath.div128x128(
-            ConveyorMath.div128x128(
-                uint256(reserve0SnapShot) << 128,
-                uint256(reserve1SnapShot) << 128
-            ),
+            snapShotSpotPrice,
             ConveyorMath.div128x128(
                 uint256(reserve0Execution) << 128,
                 uint256(reserve1Execution) << 128
             )
         );
 
-        if (delta > uint256(1) << 128) {
-            delta = delta - (uint256(1) << 128);
-        } else {
-            delta = (uint256(1) << 128) - delta;
-        }
+       
+        delta = (uint256(1) << 128) - delta;
+        
 
         uint256 numeratorPartial128x128 = ConveyorMath.sqrt128x128(
             ConveyorMath.add128x128(
                 ConveyorMath.mul128x64(
-                    uint256(reserve1SnapShot) << 128,
+                    uint256(reserve1Execution) << 128,
                     uint128(delta >> 64)
                 ),
-                uint256(reserve1SnapShot) << 128
+                uint256(reserve1Execution) << 128
             )
         );
 
@@ -334,7 +324,7 @@ contract OrderRouter {
 
         alphaX = ConveyorMath.div64x64(
             numerator128x128,
-            uint128(reserve1SnapShot) << 64
+            uint128(reserve1Execution) << 64
         );
     }
 

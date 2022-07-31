@@ -638,11 +638,10 @@ contract OrderRouterTest is DSTest {
                 uint128 reserve0Execution = _alphaX + _reserve0;
                 if (reserve0Execution <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF) {
                     uint128 reserve1Execution = k / reserve0Execution;
-
+                    uint256 snapShotSpotPrice = uint256(ConveyorMath.divUI(_reserve1, _reserve0)<<64);
                     uint128 maxBeaconReward = orderRouter
                         .calculateMaxBeaconReward(
-                            _reserve0,
-                            _reserve1,
+                            snapShotSpotPrice,
                             reserve0Execution,
                             reserve1Execution,
                             _fee
@@ -690,10 +689,9 @@ contract OrderRouterTest is DSTest {
                 uint128 reserve0Execution = _alphaX + _reserve0;
                 if (reserve0Execution <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF) {
                     uint128 reserve1Execution = k / reserve0Execution;
-
+                    uint256 snapShotSpotPrice = uint256(ConveyorMath.divUI(_reserve1, _reserve0)<<64);
                     uint256 alphaX = orderRouter.calculateAlphaX(
-                        _reserve0,
-                        _reserve1,
+                        snapShotSpotPrice,
                         reserve0Execution,
                         reserve1Execution
                     );
@@ -1062,16 +1060,14 @@ contract OrderRouterWrapper is OrderRouter {
     }
 
     function calculateMaxBeaconReward(
-        uint128 reserve0SnapShot,
-        uint128 reserve1SnapShot,
+        uint256 snapShotSpotPrice,
         uint128 reserve0,
         uint128 reserve1,
         uint128 fee
     ) public pure returns (uint128) {
         return
             _calculateMaxBeaconReward(
-                reserve0SnapShot,
-                reserve1SnapShot,
+                snapShotSpotPrice,
                 reserve0,
                 reserve1,
                 fee
@@ -1079,15 +1075,13 @@ contract OrderRouterWrapper is OrderRouter {
     }
 
     function calculateAlphaX(
-        uint128 reserve0SnapShot,
-        uint128 reserve1SnapShot,
+        uint256 snapShotSpotPrice,
         uint128 reserve0Execution,
         uint128 reserve1Execution
     ) public pure returns (uint256) {
         return
             _calculateAlphaX(
-                reserve0SnapShot,
-                reserve1SnapShot,
+                snapShotSpotPrice,
                 reserve0Execution,
                 reserve1Execution
             );
