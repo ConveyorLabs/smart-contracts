@@ -397,7 +397,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-        IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
+        IERC20(USDC).approve(address(conveyorLimitOrders), MAX_UINT);
 
         bytes32[]
             memory tokenToTokenOrderBatch = placeNewMockTokenToTokenBatch();
@@ -1203,10 +1203,8 @@ contract ConveyorLimitOrdersTest is DSTest {
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
-                    decimalsInDecimalsAToWeth: decimals,
                     wethToBReserve0: 1414776373420924126438282,
                     wethToBReserve1: 7545889283955278550784,
-                    decimalsInDecimalsWethToB: decimals,
                     price: 36584244663945024000000000000000000000,
                     lpAddressAToWeth: 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11,
                     lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
@@ -1217,10 +1215,8 @@ contract ConveyorLimitOrdersTest is DSTest {
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
-                    decimalsInDecimalsAToWeth: decimals,
                     wethToBReserve0: 1414776373420924126438282,
                     wethToBReserve1: 7545889283955278550784,
-                    decimalsInDecimalsWethToB: decimals,
                     price: 36584244663945024000000000000000000001,
                     lpAddressAToWeth: 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11,
                     lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
@@ -1335,10 +1331,8 @@ contract ConveyorLimitOrdersTest is DSTest {
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 0,
                     aToWethReserve1: 0,
-                    decimalsInDecimalsAToWeth: decimals,
                     wethToBReserve0: 0,
                     wethToBReserve1: 0,
-                    decimalsInDecimalsWethToB: decimals,
                     price: 0,
                     lpAddressAToWeth: address(0),
                     lpAddressWethToB: 0x1d42064Fc4Beb5F8aAF85F4617AE8b3b5B8Bd801
@@ -1363,10 +1357,8 @@ contract ConveyorLimitOrdersTest is DSTest {
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 0,
                     aToWethReserve1: 0,
-                    decimalsInDecimalsAToWeth: decimals,
                     wethToBReserve0: 0,
                     wethToBReserve1: 0,
-                    decimalsInDecimalsWethToB: decimals,
                     price: 0,
                     lpAddressAToWeth: 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8,
                     lpAddressWethToB: address(0)
@@ -1392,10 +1384,8 @@ contract ConveyorLimitOrdersTest is DSTest {
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
-                    decimalsInDecimalsAToWeth: decimals,
                     wethToBReserve0: 1414776373420924126438282,
                     wethToBReserve1: 7545889283955278550784,
-                    decimalsInDecimalsWethToB: decimals,
                     price: 0,
                     lpAddressAToWeth: 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11,
                     lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
@@ -1420,10 +1410,8 @@ contract ConveyorLimitOrdersTest is DSTest {
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
-                    decimalsInDecimalsAToWeth: decimals,
                     wethToBReserve0: 1414776373420924126438282,
                     wethToBReserve1: 7545889283955278550784,
-                    decimalsInDecimalsWethToB: decimals,
                     price: 0,
                     lpAddressAToWeth: 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11,
                     lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
@@ -1552,7 +1540,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             false,
             false,
             0,
-            1,
+            1000000000000000000,
             5000000000000000000000, //5000 DAI
             3000,
             0,
@@ -1567,7 +1555,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             false,
             false,
             0,
-            1,
+            1000000000000000000,
             5000000000000000000001, //5001 DAI
             3000,
             3000,
@@ -1581,7 +1569,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             false,
             false,
             0,
-            1,
+            1000000000000000000,
             5000000000000000000002, //5002 DAI
             3000,
             3000,
@@ -1595,7 +1583,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             false,
             false,
             0,
-            1,
+            1000000000000000000,
             5000000000000000000003, //5003 DAI
             3000,
             3000,
@@ -2399,17 +2387,17 @@ contract ConveyorLimitOrdersTest is DSTest {
         internal
         returns (bytes32[] memory)
     {
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, USDC);
 
         OrderBook.Order memory order1 = newMockOrder(
-            DAI,
+            USDC,
             UNI,
             1,
             false,
             false,
             0,
             1,
-            5000000000000000000000, //5000 DAI
+            5000000000, //5000 DAI
             3000,
             3000,
             0,
@@ -2417,14 +2405,14 @@ contract ConveyorLimitOrdersTest is DSTest {
         );
 
         OrderBook.Order memory order2 = newMockOrder(
-            DAI,
+            USDC,
             UNI,
             1,
             false,
             false,
             0,
             1,
-            5000000000000000000000, //5000 DAI
+            5000000000, //5000 DAI
             3000,
             3000,
             0,
@@ -2432,14 +2420,14 @@ contract ConveyorLimitOrdersTest is DSTest {
         );
 
         OrderBook.Order memory order3 = newMockOrder(
-            DAI,
+            USDC,
             UNI,
             1,
             false,
             false,
             0,
             1,
-            5000000000000000000000, //5000 DAI
+            5000000000, //5000 DAI
             3000,
             3000,
             0,
@@ -2447,14 +2435,14 @@ contract ConveyorLimitOrdersTest is DSTest {
         );
 
         OrderBook.Order memory order4 = newMockOrder(
-            DAI,
+            USDC,
             UNI,
             1,
             false,
             false,
             0,
             1,
-            5000000000000000000000, //5000 DAI
+            5000000000, //5000 DAI
             3000,
             3000,
             0,
@@ -2462,14 +2450,14 @@ contract ConveyorLimitOrdersTest is DSTest {
         );
 
         OrderBook.Order memory order5 = newMockOrder(
-            DAI,
+            USDC,
             UNI,
             1,
             false,
             false,
             0,
             1,
-            5000000000000000000000, //5000 DAI
+            5000000000, //5000 DAI
             3000,
             3000,
             0,
@@ -2477,14 +2465,14 @@ contract ConveyorLimitOrdersTest is DSTest {
         );
 
         OrderBook.Order memory order6 = newMockOrder(
-            DAI,
+            USDC,
             UNI,
             1,
             false,
             false,
             0,
             1,
-            5000000000000000000000, //5000 DAI
+            5000000000, //5000 DAI
             3000,
             3000,
             0,

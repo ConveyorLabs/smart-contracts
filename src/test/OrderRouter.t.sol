@@ -118,7 +118,7 @@ contract OrderRouterTest is DSTest {
         uint8 dec0 = 18;
         uint112 reserve1 = 131610640170334;
         uint8 dec1 = 9;
-        (uint256 r0_out, uint256 r1_out,) = orderRouter.convertToCommonBase(
+        (uint256 r0_out, uint256 r1_out) = orderRouter.convertToCommonBase(
             reserve0,
             dec0,
             reserve1,
@@ -131,7 +131,7 @@ contract OrderRouterTest is DSTest {
         uint112 reserve11 = 47925919677616776812811;
         uint8 dec11 = 18;
 
-        (uint256 r0_out1, uint256 r1_out1,) = orderRouter.convertToCommonBase(
+        (uint256 r0_out1, uint256 r1_out1) = orderRouter.convertToCommonBase(
             reserve01,
             dec01,
             reserve11,
@@ -1212,7 +1212,7 @@ contract OrderRouterWrapper is OrderRouter {
         uint8 token0Decimals,
         uint112 reserve1,
         uint8 token1Decimals
-    ) public view returns (uint128, uint128, uint8 ) {
+    ) public view returns (uint128, uint128) {
         return
             _convertToCommonBase(
                 reserve0,

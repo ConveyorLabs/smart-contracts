@@ -648,7 +648,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ///@notice take out fees
         uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
-        (, uint128 beaconReward) = _calculateReward(protocolFee, amountOutWeth);
+        (uint128 conveyorReward, uint128 beaconReward) = _calculateReward(
+            protocolFee,
+            amountOutWeth
+        );
 
         //Scope all this
         {
@@ -677,8 +680,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 delete orderIdToOrder[orderId];
             }
         }
-
-        return (uint256(amountOutWeth - beaconReward), uint256(beaconReward));
+        ///TODO: FIXME: safeTransfer(conveyorReward) to conveyor address
+        return (
+            uint256(amountOutWeth - (beaconReward + conveyorReward)),
+            uint256(beaconReward)
+        );
     }
 
     // ==================== Token to Weth Helper Functions =========================
@@ -688,15 +694,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         internal
         returns (TokenToWethExecutionPrice[] memory)
     {
-        console.log(orders[0].feeIn);
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
         ) = _getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn);
-        
-        console.log(spotReserveAToWeth[0].spotPrice);
-        console.log(spotReserveAToWeth[1].spotPrice);
-        require(false, "here");
+
         TokenToWethExecutionPrice[]
             memory executionPrices = new TokenToWethExecutionPrice[](
                 spotReserveAToWeth.length
@@ -706,7 +708,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices[i] = TokenToWethExecutionPrice(
                     spotReserveAToWeth[i].res0,
                     spotReserveAToWeth[i].res1,
-                    spotReserveAToWeth[i].tokenInTokenOutCommonDecimals,
                     spotReserveAToWeth[i].spotPrice,
                     lpAddressesAToWeth[i]
                 );
@@ -855,6 +856,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     ///@notice increment the batch length
                     ++currentTokenToWethBatchOrder.batchLength;
 
+                    // console.log(executionPrices[bestPriceIndex].price);
                     ///@notice update the best execution price
                     (
                         executionPrices[bestPriceIndex]
@@ -862,6 +864,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         uint128(currentOrder.quantity),
                         executionPrices[bestPriceIndex]
                     );
+                    // console.log(executionPrices[bestPriceIndex].price);
+                    
                 } else {
                     bytes32[] memory orderId = new bytes32[](1);
                     orderId[0] = currentOrder.orderId;
@@ -947,7 +951,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 orders,
                 executionPrices
             );
-
+        
         ///@notice execute the batch orders
         _executeTokenToTokenBatchOrders(tokenToTokenBatchOrders);
     }
@@ -1090,7 +1094,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 uint256 amountOut,
                 uint256 beaconReward
             ) = _executeTokenToTokenBatch(tokenToTokenBatchOrders[i]);
-
+           
             ///@notice add the beacon reward to the totalBeaconReward
             totalBeaconReward += beaconReward;
 
@@ -1197,6 +1201,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     batch.orderIds[0],
                     0
                 );
+                
                 fee = _getUniV3Fee(batch.lpAddressAToWeth);
 
                 ///@notice swap from A to weth
@@ -1212,6 +1217,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         address(this)
                     )
                 );
+                
 
                 ///@notice take out fees
                 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
@@ -1235,7 +1241,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
 
                 ///@notice get amount in for weth to B
-                amountInWethToB = batch.amountIn - protocolFee;
+                amountInWethToB = batch.amountIn - beaconReward;
             }
 
             fee = _getUniV3Fee(batch.lpAddressWethToB);
@@ -1303,21 +1309,19 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
         ) = _getAllPrices(WETH, orders[0].tokenOut, orders[0].feeOut);
-
+        
         TokenToTokenExecutionPrice[]
             memory executionPrices = new TokenToTokenExecutionPrice[](
                 spotReserveAToWeth.length * spotReserveWethToB.length
             );
-        uint8[] memory zero;
+      
         if (tokenIn == WETH) {
             for (uint256 i = 0; i < spotReserveWethToB.length; ++i) {
                 executionPrices[i] = TokenToTokenExecutionPrice(
                     0,
                     0,
-                    zero,
                     spotReserveWethToB[i].res0,
                     spotReserveWethToB[i].res1,
-                    spotReserveWethToB[i].tokenInTokenOutCommonDecimals,
                     spotReserveWethToB[i].spotPrice,
                     address(0),
                     lpAddressWethToB[i]
@@ -1338,10 +1342,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     executionPrices[index] = TokenToTokenExecutionPrice(
                         spotReserveAToWeth[i].res0,
                         spotReserveAToWeth[i].res1,
-                        spotReserveAToWeth[i].tokenInTokenOutCommonDecimals,
                         spotReserveWethToB[j].res1,
                         spotReserveWethToB[j].res0,
-                        spotReserveWethToB[j].tokenInTokenOutCommonDecimals,
                         spotPriceFinal,
                         lpAddressesAToWeth[i],
                         lpAddressWethToB[j]
@@ -1534,6 +1536,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             uint128(currentTokenToTokenBatchOrder.amountIn),
                             executionPrices[bestPriceIndex]
                         );
+                        
                     } else {
                         bytes32[] memory orderId = new bytes32[](1);
                         orderId[0] = currentOrder.orderId;
@@ -1555,6 +1558,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     }
                 }
             }
+            
         }
 
         ///@notice add the last batch to the tokenToWethBatchOrders array
@@ -1645,39 +1649,32 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 alphaX,
         TokenToWethExecutionPrice memory executionPrice
     ) internal returns (TokenToWethExecutionPrice memory) {
-        if (!_lpIsNotUniV3(executionPrice.lpAddressAToWeth)) {
-            (
-                executionPrice.price,
-                executionPrice.aToWethReserve0,
-                executionPrice.aToWethReserve1,
+        address pool = executionPrice.lpAddressAToWeth;
 
-            ) = _simulateAToBPriceChange(
-                alphaX,
-                executionPrice.aToWethReserve0,
-                executionPrice.aToWethReserve1,
-                executionPrice.lpAddressAToWeth,
-                true
-            );
-        } else {
-            uint128 amountIn = uint128(
-                alphaX *
-                    (10 **
-                        (executionPrice.decimalsInDecimalsAToWeth[1] -
-                            executionPrice.decimalsInDecimalsAToWeth[0]))
-            );
-            (
-                executionPrice.price,
-                executionPrice.aToWethReserve0,
-                executionPrice.aToWethReserve1,
+        address token0 = IUniswapV2Pair(pool).token0();
+        address token1 = IUniswapV2Pair(pool).token1();
 
-            ) = _simulateAToBPriceChange(
-                amountIn,
-                executionPrice.aToWethReserve0,
-                executionPrice.aToWethReserve1,
-                executionPrice.lpAddressAToWeth,
-                true
-            );
-        }
+        uint8 tokenInDecimals = token1 == WETH
+            ? IERC20(token0).decimals()
+            : IERC20(token1).decimals();
+
+        ///@notice Convert to 18 decimals to have correct price change on the reserve quantities in common 18 decimal form
+        uint128 amountIn = tokenInDecimals <= 18
+            ? uint128(alphaX * 10**(18 - tokenInDecimals))
+            : uint128(alphaX / (10**(tokenInDecimals - 18)));
+
+        (
+            executionPrice.price,
+            executionPrice.aToWethReserve0,
+            executionPrice.aToWethReserve1,
+
+        ) = _simulateAToBPriceChange(
+            amountIn,
+            executionPrice.aToWethReserve0,
+            executionPrice.aToWethReserve1,
+            pool,
+            true
+        );
 
         return executionPrice;
     }
@@ -1690,8 +1687,32 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             executionPrice.aToWethReserve0 != 0 &&
             executionPrice.aToWethReserve1 != 0
         ) {
+
+            address pool = executionPrice.lpAddressAToWeth;
+            address token0;
+            address token1;
+            bool _isUniV2 = _lpIsNotUniV3(pool);
+            {
+                if(_isUniV2){
+                    token0 = IUniswapV2Pair(pool).token0();
+                    token1 = IUniswapV2Pair(pool).token1();
+                }else{
+                    token0 = IUniswapV3Pool(pool).token0();
+                    token1 = IUniswapV3Pool(pool).token1();
+                }
+            }
+
+            uint8 tokenInDecimals = token1 == WETH
+                ? IERC20(token0).decimals()
+                : IERC20(token1).decimals();
+
+            ///@notice Convert to 18 decimals to have correct price change on the reserve quantities in common 18 decimal form
+            uint128 amountIn = tokenInDecimals <= 18
+                ? uint128(alphaX * 10**(18 - tokenInDecimals))
+                : uint128(alphaX / (10**(tokenInDecimals - 18)));
+           
             executionPrice = _simulateTokenToTokenPriceChange(
-                alphaX,
+                amountIn,
                 executionPrice
             );
         } else {
@@ -1712,21 +1733,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 reserveBToken = executionPrice.wethToBReserve1;
 
         address poolAddressWethToB = executionPrice.lpAddressWethToB;
-        uint128 amountInWethToB = (_lpIsNotUniV3(poolAddressWethToB))
-            ? uint128(
-                alphaX *
-                    (10 **
-                        (executionPrice.decimalsInDecimalsWethToB[1] -
-                            executionPrice.decimalsInDecimalsWethToB[1]))
-            )
-            : alphaX;
+
         (
             uint256 newSpotPriceB,
             uint128 newReserveBWeth,
             uint128 newReserveBToken,
 
         ) = _simulateAToBPriceChange(
-                amountInWethToB,
+                alphaX,
                 reserveBWeth,
                 reserveBToken,
                 poolAddressWethToB,
@@ -1792,21 +1806,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 reserveAToken = executionPrice.aToWethReserve0;
         uint128 reserveAWeth = executionPrice.aToWethReserve1;
         address poolAddressAToWeth = executionPrice.lpAddressAToWeth;
-        uint128 amountInAToWeth = (_lpIsNotUniV3(poolAddressAToWeth))
-            ? uint128(
-                alphaX *
-                    (10 **
-                        (executionPrice.decimalsInDecimalsAToWeth[1] -
-                            executionPrice.decimalsInDecimalsAToWeth[1]))
-            )
-            : alphaX;
+
         (
             newSpotPriceA,
             newReserveAToken,
             newReserveAWeth,
             amountOut
         ) = _simulateAToBPriceChange(
-            amountInAToWeth,
+            alphaX,
             reserveAToken,
             reserveAWeth,
             poolAddressAToWeth,
