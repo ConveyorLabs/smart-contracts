@@ -84,6 +84,8 @@ contract ConveyorLimitOrdersTest is DSTest {
         false
     ];
 
+    uint256 alphaXDivergenceThreshold = 1; //3402823669209385000000000000000000000
+
     function setUp() public {
         scriptRunner = new ScriptRunner();
         cheatCodes = CheatCodes(HEVM_ADDRESS);
@@ -99,7 +101,8 @@ contract ConveyorLimitOrdersTest is DSTest {
             3000000,
             _hexDems,
             _dexFactories,
-            _isUniV2
+            _isUniV2,
+            alphaXDivergenceThreshold
         );
     }
 
@@ -2647,7 +2650,8 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
         uint256 _executionCost,
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
-        bool[] memory _isUniV2
+        bool[] memory _isUniV2,
+        uint256 _alphaXDivergenceThreshold
     )
         ConveyorLimitOrders(
             _gasOracle,
@@ -2659,7 +2663,8 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
             _executionCost,
             _initBytecodes,
             _dexFactories,
-            _isUniV2
+            _isUniV2,
+            _alphaXDivergenceThreshold
         )
     {}
 

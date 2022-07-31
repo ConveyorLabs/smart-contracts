@@ -123,7 +123,7 @@ library ConveyorMath {
     function mul64x64(uint128 x, uint128 y) internal pure returns (uint128) {
         unchecked {
             uint256 answer = (uint256(x) * y) >> 64;
-            require(answer <= MAX_64x64);
+            require(answer <= MAX_64x64, "here you hit");
             return uint128(answer);
         }
     }
@@ -187,9 +187,9 @@ library ConveyorMath {
         }
     }
 
-    function abs(int128 x) internal pure returns (int128) {
+    function abs(int256 x) internal pure returns (int256) {
         unchecked {
-            require(x != MIN_64x64);
+            
             return x < 0 ? -x : x;
         }
     }
@@ -387,8 +387,8 @@ library ConveyorMath {
                 answer += xl / y;
             }
 
-            require(answer << 64 <= MAX_128x128, "overflow in divuu last");
-            return answer << 64;
+            require(answer << 128 <= MAX_128x128, "overflow in divuu last");
+            return answer << 128;
         }
     }
 
@@ -603,10 +603,10 @@ library ConveyorMath {
         }
     }
 
-    function sqrt128x128(uint256 x) internal pure returns (uint256) {
+    function sqrt128(uint256 x) internal pure returns (uint256) {
         unchecked {
             require(x >= 0);
-            return uint256(sqrtu(x)) << 64;
+            return uint256(sqrtu(x) << 64);
         }
     }
 
@@ -614,6 +614,13 @@ library ConveyorMath {
         unchecked {
             require(x >= 0);
             return int128(sqrtu(uint256(int256(x)) << 64));
+        }
+    }
+
+    function sqrtBig(uint256 x) internal pure returns (uint256) {
+        unchecked {
+            require(x >= 0);
+            return uint256(sqrtu(x)) << 128;
         }
     }
 }

@@ -684,6 +684,7 @@ contract OrderRouterTest is DSTest {
         }
 
         if (run == true) {
+           
             uint128 k = _reserve0 * _reserve1;
             unchecked {
                 uint128 reserve0Execution = _alphaX + _reserve0;
@@ -1060,14 +1061,14 @@ contract OrderRouterWrapper is OrderRouter {
     }
 
     function calculateMaxBeaconReward(
-        uint256 snapShotSpotPrice,
+        uint256 delta,
         uint128 reserve0,
         uint128 reserve1,
         uint128 fee
     ) public pure returns (uint128) {
         return
             _calculateMaxBeaconReward(
-                snapShotSpotPrice,
+                delta,
                 reserve0,
                 reserve1,
                 fee
@@ -1075,13 +1076,13 @@ contract OrderRouterWrapper is OrderRouter {
     }
 
     function calculateAlphaX(
-        uint256 snapShotSpotPrice,
+        uint256 delta,
         uint128 reserve0Execution,
         uint128 reserve1Execution
     ) public pure returns (uint256) {
         return
             _calculateAlphaX(
-                snapShotSpotPrice,
+                delta,
                 reserve0Execution,
                 reserve1Execution
             );
