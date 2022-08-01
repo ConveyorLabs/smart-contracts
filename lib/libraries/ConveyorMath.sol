@@ -84,7 +84,6 @@ library ConveyorMath {
 
     function sub64UI(uint128 x, uint256 y) internal pure returns (uint128) {
         unchecked {
-            uint128 x_low = x & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
             uint256 result = x - (y << 64);
 
             require(result >= 0x0 && uint128(result) <= uint128(MAX_64x64));

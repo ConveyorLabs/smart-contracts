@@ -1692,8 +1692,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     receive() external payable {}
 
-    // fallback() external payable{}
-
     function simulateTokenToWethPriceChange(
         uint128 alphaX,
         TokenToWethExecutionPrice memory executionPrice

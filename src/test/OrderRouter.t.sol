@@ -753,7 +753,7 @@ contract OrderRouterTest is DSTest {
         uint64 _alphaX,
         uint128 _reserve0,
         uint128 _reserve1,
-        uint128 _fee
+        uint256 _fee
     ) public {
         bool run = false;
 
@@ -761,23 +761,20 @@ contract OrderRouterTest is DSTest {
             _alphaX > 0 &&
             _alphaX % 10 == 0 &&
             _reserve0 > 100 &&
-            _reserve0 % 10 == 0 &&
-            _reserve1 % 10 == 0 &&
             _reserve1 > 100 &&
             _alphaX < _reserve0 &&
-            _alphaX < _reserve1 &&
             uint128(553402322211286500) <= _fee &&
             _fee <= uint128(922337203685477600)
         ) {
-            if (
-                !(_reserve0 * _reserve1 >
-                    0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
-            ) {
+           
                 run = true;
-            }
+            
         }
 
+        uint128 _fee = 553402322211286500;
+
         if (run == true) {
+           
             uint128 k = _reserve0 * _reserve1;
             unchecked {
                 uint128 reserve0Execution = _alphaX + _reserve0;
@@ -813,9 +810,9 @@ contract OrderRouterTest is DSTest {
         bool run = false;
 
         if (
-            _alphaX > 150000000000000 &&
-            _reserve0 > 1000000000000000000 &&
-            _reserve1 > 10000000000000000000 &&
+            _alphaX > 1500 && _alphaX %10==0 &&
+            _reserve0 > 10000000000000000000 &&
+            _reserve1 > 100000000000000000010 &&
             _reserve0 != _reserve1 &&
             _alphaX < _reserve0
         ) {
@@ -827,42 +824,43 @@ contract OrderRouterTest is DSTest {
                 uint128 reserve0Snapshot = _reserve0 - _alphaX;
                 if (0 < reserve0Snapshot) {
                     uint128 reserve1Snapshot = uint128(
-                        FullMath.mulDiv(
+                        FullMath.mulDivRoundingUp(
                             uint256(_reserve0),
                             uint256(_reserve1),
                             reserve0Snapshot
                         )
                     );
-                    console.log("reserve0 reserve1 execution");
-                    console.log(reserve0Snapshot);
-                    console.log(reserve1Snapshot);
-                    uint256 snapShotSpotPrice = ConveyorMath.div128x128(
-                        uint256(_reserve1) << 128,
-                        uint256(_reserve0) << 128
+                   
+                    uint128 snapShotSpotPrice = ConveyorMath.divUI(
+                        uint256(reserve1Snapshot),
+                        uint256(reserve0Snapshot)
                     );
-                    console.log(snapShotSpotPrice);
-                    uint256 executionSpotPrice = ConveyorMath.div128x128(
-                        uint256(reserve1Snapshot) << 128,
-                        uint256(reserve0Snapshot) << 128
+                    
+                    uint128 executionSpotPrice = ConveyorMath.divUI(
+                        uint256(_reserve1),
+                        uint256(_reserve0)
                     );
-                    console.log(executionSpotPrice);
+                    
                     uint256 delta_temp = ConveyorMath.div128x128(
-                        executionSpotPrice,
-                        snapShotSpotPrice
+                        uint256(executionSpotPrice)<<64,
+                        uint256(snapShotSpotPrice)<<64
                     );
                     console.log(delta_temp);
-                    uint256 delta = delta_temp - (uint256(1) << 128);
+                    uint256 delta = uint256(ConveyorMath.abs((int256(delta_temp)- (int256(1) << 128))));
 
-                    console.log(delta);
-                    if (delta < 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF) {
-                        uint256 alphaX = orderRouter.calculateAlphaX(
+                   
+                  
+                    uint256 alphaX = orderRouter.calculateAlphaX(
                             delta,
                             uint128(_reserve0),
                             uint128(_reserve1)
                         );
 
-                        assertEq(alphaX / 10000, _alphaX / 10000);
-                    }
+                    uint8 sigHigh = ConveyorBitMath.mostSignificantBit(alphaX);
+                    uint8 sigLow = ConveyorBitMath.leastSignificantBit(alphaX);
+
+                    assertEq(uint256(alphaX)/100, uint256(_alphaX)/100);
+                    
                 }
             }
         }

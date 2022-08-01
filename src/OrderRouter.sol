@@ -104,6 +104,7 @@ contract OrderRouter {
         _;
     }
     //----------------------Immutables------------------------------------//
+
     //Immutable variable used to prevent front running by subsidizing the execution reward if a v2 price is proportionally beyond the threshold distance from the v3 price
     uint256 immutable alphaXDivergenceThreshold;
 
@@ -452,19 +453,15 @@ contract OrderRouter {
         uint128 reserve0,
         uint128 reserve1,
         uint128 fee
-    ) public returns (uint128) {
-        unchecked {
-            uint128 maxReward = uint128(
-                ConveyorMath.mul64I(
-                    fee,
-                    _calculateAlphaX(delta, reserve0, reserve1)
-                )
-            );
+    ) public view returns (uint128) {
+        uint128 maxReward = uint128(
+            ConveyorMath.mul64I(
+                fee,
+                _calculateAlphaX(delta, reserve0, reserve1)
+            )
+        );
 
-            //TODO: do we need this?
-            require(maxReward <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
-            return maxReward;
-        }
+        return maxReward;
     }
 
     /// @notice Helper function to calculate the input amount needed to manipulate the spot price of the pool from snapShot to executionPrice
@@ -476,7 +473,7 @@ contract OrderRouter {
         uint128 reserve0Execution,
         uint128 reserve1Execution
     ) internal view returns (uint256) {
-        //k = rx*ry
+        //k = r'x*r'y
         uint256 _k = uint256(reserve0Execution) * reserve1Execution;
         bytes16 k = QuadruplePrecision.fromInt(int256(_k));
         bytes16 sqrtK = QuadruplePrecision.sqrt(k);
@@ -503,7 +500,7 @@ contract OrderRouter {
                 QuadruplePrecision.div(numerator, reserve1Quad)
             )
         );
-
+        
         return alphaX;
     }
 
@@ -713,13 +710,7 @@ contract OrderRouter {
             (
                 uint256 commonReserve0,
                 uint256 commonReserve1
-            ) = _getReservesCommonDecimals(
-                    token0,
-                    tok0,
-                    tok1,
-                    reserve0,
-                    reserve1
-                );
+            ) = _getReservesCommonDecimals(tok0, tok1, reserve0, reserve1);
 
             if (token0 == tok0) {
                 _spRes.spotPrice = ConveyorMath.div128x128(
@@ -744,11 +735,6 @@ contract OrderRouter {
                     uint128(commonReserve1)
                 );
             }
-
-            require(
-                _spRes.spotPrice <=
-                    0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-            );
         }
 
         // Left shift commonReserve0 9 digits i.e. commonReserve0 = commonReserve0 * 2 ** 9
@@ -778,7 +764,6 @@ contract OrderRouter {
     }
 
     function _getReservesCommonDecimals(
-        address token0,
         address tok0,
         address tok1,
         uint128 reserve0,

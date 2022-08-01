@@ -29,8 +29,8 @@ contract OrderBook is GasOracle {
         bool taxed;
         uint32 lastRefreshTimestamp;
         uint32 expirationTimestamp;
-        uint16 feeIn;
-        uint16 feeOut;
+        uint24 feeIn;
+        uint24 feeOut;
         uint16 taxIn;
         uint128 price;
         uint128 amountOutMin;
@@ -160,9 +160,7 @@ contract OrderBook is GasOracle {
 
         Order memory oldOrder = orderIdToOrder[newOrder.orderId];
 
-
         ///TODO: make this more efficient and check if new order > old order, then increment the difference else decrement the difference
-
 
         //Decrement oldOrder Quantity from totalOrdersQuantity
         //Decrement totalOrdersQuantity on order.tokenIn for order owner

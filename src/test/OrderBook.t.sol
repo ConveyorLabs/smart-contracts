@@ -528,7 +528,6 @@ contract OrderBookTest is DSTest {
                             _amount <
                         MAX_UINT
                     ) {
-                        // require(false, "Got here :[");
                         uint256 minGasCredits = orderBook
                             .calculateMinGasCredits(
                                 _amount,
