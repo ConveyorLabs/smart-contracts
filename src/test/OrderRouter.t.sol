@@ -655,14 +655,16 @@ contract OrderRouterTest is DSTest {
         );
 
         OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
-        orderBatch[0]=order1;
-        orderBatch[1]=order2;
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
 
-        uint128 maxReward = orderRouter.calculateMaxBeaconRewardTop(pricesUsdcWeth, orderBatch);
+        uint128 maxReward = orderRouter.calculateMaxBeaconRewardTop(
+            pricesUsdcWeth,
+            orderBatch
+        );
 
         assertLt(maxReward, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
         assertEq(maxReward, 3829877604957868988);
-
     }
 
     function testCalculatePriceDivergenceFromBatchMin() public {
@@ -671,7 +673,7 @@ contract OrderRouterTest is DSTest {
         OrderBook.Order memory order1 = newMockOrder(
             usdc,
             weth,
-            195241231237093697621340806139528790, 
+            195241231237093697621340806139528790,
             false,
             false,
             0,
@@ -686,7 +688,7 @@ contract OrderRouterTest is DSTest {
         OrderBook.Order memory order2 = newMockOrder(
             usdc,
             weth,
-            195241231237093697621340806139528790,//<- min
+            195241231237093697621340806139528790, //<- min
             false,
             false,
             0,
@@ -697,29 +699,54 @@ contract OrderRouterTest is DSTest {
             0,
             0
         );
-    
+
         uint256 v2Outlier = 195241231237093697621340806139528792;
         uint256 targetSpotExpected = order2.price;
 
-
-        
         OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
-        orderBatch[0]=order1;
-        orderBatch[1]=order2;
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
         bool buy = false;
 
-        (uint256 priceDivergence, uint256 targetSpot) = orderRouter.calculatePriceDivergenceFromBatchMin(v2Outlier, orderBatch, buy);
+        (uint256 priceDivergence, uint256 targetSpot) = orderRouter
+            .calculatePriceDivergenceFromBatchMin(v2Outlier, orderBatch, buy);
 
         uint256 proportionalSpotChangeExpected = ConveyorMath.div128x128(
-                targetSpot,
-                v2Outlier
-            );
-        uint256 priceDivergenceExpected = (uint256(1) << 128) - proportionalSpotChangeExpected;
+            targetSpot,
+            v2Outlier
+        );
+        uint256 priceDivergenceExpected = (uint256(1) << 128) -
+            proportionalSpotChangeExpected;
         assertEq(priceDivergence, priceDivergenceExpected);
         assertEq(targetSpot, targetSpotExpected);
-
     }
 
+    function testCalculatePriceDivergence(uint128 _v3Spot, uint128 _v2Outlier)
+        public
+    {
+        if (_v3Spot != 0 && _v2Outlier != 0  && _v2Outlier != _v3Spot) {
+            string memory path = "scripts/calculatePriceDivergence.py";
+            string[] memory args = new string[](3);
+            uint256 _v3Base128 = ConveyorMath.fromUInt128(_v3Spot);
+            uint256 _v2Base128 = ConveyorMath.fromUInt128(_v2Outlier);
+            args[0] = uint2str(_v3Base128);
+            args[1] = uint2str(_v2Base128);
+
+            bytes memory priceDivergenceExpected = scriptRunner.runPythonScript(
+                path,
+                args
+            );
+            uint256 priceDivergenceExpectedInt = bytesToUint(
+                priceDivergenceExpected
+            );
+            
+            uint256 priceDivergence = orderRouter.calculatePriceDivergence(_v2Base128, _v2Base128);
+
+
+            assertEq(priceDivergence,priceDivergenceExpectedInt);
+         
+        }
+    }
 
     function testCalculateMaxBeaconReward(
         uint64 _alphaX,
@@ -1213,9 +1240,10 @@ contract OrderRouterWrapper is OrderRouter {
     function calculateMaxBeaconRewardTop(
         SpotReserve[] memory spotReserves,
         OrderBook.Order[] memory orders
-    ) public view returns (uint128) {
+    ) public returns (uint128) {
         return calculateMaxBeaconReward(spotReserves, orders);
     }
+
     function calculateFee(
         uint128 amountIn,
         address usdc,
@@ -1234,7 +1262,7 @@ contract OrderRouterWrapper is OrderRouter {
 
     function calculateReward(uint128 percentFee, uint128 wethValue)
         public
-        view
+
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
         return _calculateReward(percentFee, wethValue);
@@ -1250,8 +1278,8 @@ contract OrderRouterWrapper is OrderRouter {
     }
 
     function calculatePriceDivergence(uint256 v3Spot, uint256 v2Outlier)
-        public 
-        pure
+        public
+    
         returns (uint256)
     {
         return _calculatePriceDivergence(v3Spot, v2Outlier);
@@ -1341,6 +1369,7 @@ contract OrderRouterWrapper is OrderRouter {
     ) public pure returns (uint256, uint256) {
         return _calculatePriceDivergenceFromBatchMin(v2Outlier, orders, buy);
     }
+
     function calculateV2SpotPrice(
         address token0,
         address token1,

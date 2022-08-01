@@ -247,7 +247,7 @@ contract OrderRouter {
     function calculateMaxBeaconReward(
         SpotReserve[] memory spotReserves,
         OrderBook.Order[] memory orders
-    ) internal view returns (uint128) {
+    ) internal returns (uint128) {
         bool buy = orders[0].buy;
 
         uint256 v2Outlier = buy
@@ -377,18 +377,26 @@ contract OrderRouter {
 
     function _calculatePriceDivergence(uint256 v3Spot, uint256 v2Outlier)
         internal
-        pure
         returns (uint256)
     {
         uint256 proportionalSpotChange;
         uint256 priceDivergence;
         if (v3Spot > v2Outlier) {
             proportionalSpotChange = ConveyorMath.div128x128(v2Outlier, v3Spot);
+            console.log(proportionalSpotChange);
+            
             priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
-        } else {
+        } 
+        else if (v3Spot==v2Outlier){
+            return 340282366920938463463374607431768211456;
+        }
+        else {
             proportionalSpotChange = ConveyorMath.div128x128(v3Spot, v2Outlier);
+           
+            console.log(proportionalSpotChange);
             priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
         }
+
         return priceDivergence;
     }
 
@@ -402,7 +410,7 @@ contract OrderRouter {
         uint128 reserve0,
         uint128 reserve1,
         uint128 fee
-    ) public view returns (uint128) {
+    ) public returns (uint128) {
         unchecked {
             uint128 maxReward = uint128(ConveyorMath.mul64I(
                 fee,
