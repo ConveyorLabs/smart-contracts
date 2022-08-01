@@ -1,8 +1,7 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.0;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.15;
 
 import "../lib/interfaces/token/IERC20.sol";
-// import "../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
@@ -10,26 +9,37 @@ import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../lib/libraries/ConveyorMath.sol";
 import "../lib/libraries/ConveyorTickMath.sol";
 import "./OrderBook.sol";
-import "./test/utils/Console.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/libraries/Uniswap/TickMath.sol";
 import "../lib/interfaces/uniswap-v3/ISwapRouter.sol";
-import "./test/utils/Console.sol";
 import "../lib/interfaces/token/IWETH.sol";
-import "./test/utils/Console.sol";
 import "../lib/libraries/Uniswap/LowGasSafeMath.sol";
 import "../lib/libraries/QuadruplePrecision.sol";
 
+/// @title OrderRouter
+/// @author 0xKitsune, LeytonTaylor
+/// @notice TODO:
 contract OrderRouter {
     //----------------------Structs------------------------------------//
 
-    /// @notice Struct to store important Dex specifications
+    ///@notice Struct to store DEX details
+    ///@param factoryAddress - The factory address for the DEX
+    ///@param initBytecode - The bytecode sequence needed derrive pair addresses from the factory.
+    ///@param isUniV2 - Boolean to distinguish if the DEX is UniV2 compatible.
     struct Dex {
         address factoryAddress;
         bytes32 initBytecode;
         bool isUniV2;
     }
 
+    ///@notice Struct to store price information between the tokenIn/Weth and tokenOut/Weth pairings during order batching.
+    ///@param aToWethReserve0 - tokenIn reserves on the tokenIn/Weth pairing.
+    ///@param aToWethReserve1 - Weth reserves on the tokenIn/Weth pairing.
+    ///@param wethToBReserve0 - Weth reserves on the Weth/tokenOut pairing.
+    ///@param wethToBReserve1 - tokenOut reserves on the Weth/tokenOut pairing.
+    ///@param price - Price of tokenIn per tokenOut based on the exchange rate of both pairs, represented as a 128x128 fixed point.
+    ///@param lpAddressAToWeth - LP address of the tokenIn/Weth pairing.
+    ///@param lpAddressWethToB -  LP address of the Weth/tokenOut pairing.
     struct TokenToTokenExecutionPrice {
         uint128 aToWethReserve0;
         uint128 aToWethReserve1;
@@ -40,6 +50,11 @@ contract OrderRouter {
         address lpAddressWethToB;
     }
 
+    ///@notice Struct to store price information for a tokenIn/Weth pairing.
+    ///@param aToWethReserve0 - tokenIn reserves on the tokenIn/Weth pairing.
+    ///@param aToWethReserve1 - Weth reserves on the tokenIn/Weth pairing.
+    ///@param price - Price of tokenIn per Weth, represented as a 128x128 fixed point.
+    ///@param lpAddressAToWeth - LP address of the tokenIn/Weth pairing.
     struct TokenToWethExecutionPrice {
         uint128 aToWethReserve0;
         uint128 aToWethReserve1;
@@ -47,6 +62,16 @@ contract OrderRouter {
         address lpAddressAToWeth;
     }
 
+    ///@notice Struct to represent a batch order from tokenIn/Weth
+    ///@dev A batch order takes many elligible orders and combines the amountIn to execute one swap instead of many.
+    ///@param batchLength - Amount of orders that were combined into the batch.
+    ///@param amountIn - The aggregated amountIn quantity from all orders in the batch.
+    ///@param amountOutMin - The aggregated amountOut quantity from all orders in the batch.
+    ///@param tokenIn - The tokenIn for the batch order.
+    ///@param lpAddress - The LP address that the batch order will be executed on.
+    ///@param batchOwners - Array of account addresses representing the owners of the orders that were aggregated into the batch.
+    ///@param ownerShares - Array of values representing the individual order's amountIn. Each index corresponds to the owner at index in orderOwners.
+    ///@param orderIds - Array of values representing the individual order's orderIds. Each index corresponds to the owner at index in orderOwners.
     struct TokenToWethBatchOrder {
         uint256 batchLength;
         uint256 amountIn;
@@ -58,6 +83,18 @@ contract OrderRouter {
         bytes32[] orderIds;
     }
 
+    ///@notice Struct to represent a batch order from tokenIn/tokenOut
+    ///@dev A batch order takes many elligible orders and combines the amountIn to execute one swap instead of many.
+    ///@param batchLength - Amount of orders that were combined into the batch.
+    ///@param amountIn - The aggregated amountIn quantity from all orders in the batch.
+    ///@param amountOutMin - The aggregated amountOut quantity from all orders in the batch.
+    ///@param tokenIn - The tokenIn for the batch order.
+    ///@param tokenIn - The tokenOut for the batch order.
+    ///@param lpAddressAToWeth - The LP address that the first hop of the batch order will be executed on.
+    ///@param lpAddressWethToB - The LP address that the second hop of the batch order will be executed on.
+    ///@param batchOwners - Array of account addresses representing the owners of the orders that were aggregated into the batch.
+    ///@param ownerShares - Array of values representing the individual order's amountIn. Each index corresponds to the owner at index in orderOwners.
+    ///@param orderIds - Array of values representing the individual order's orderIds. Each index corresponds to the owner at index in orderOwners.
     struct TokenToTokenBatchOrder {
         uint256 batchLength;
         uint256 amountIn;
@@ -71,6 +108,11 @@ contract OrderRouter {
         bytes32[] orderIds;
     }
 
+    ///@notice Struct to represent the spot price and reserve values on a given LP address
+    ///@param spotPrice - Spot price of the LP address represented as a 128x128 fixed point number.
+    ///@param res0 - The amount of reserves for the tokenIn.
+    ///@param res1 - The amount of reserves for the tokenOut.
+    ///@param token0IsReserve0 - Boolean to indicate if the tokenIn corresponds to reserve 0.
     struct SpotReserve {
         uint256 spotPrice;
         uint128 res0;
@@ -428,7 +470,6 @@ contract OrderRouter {
         uint256 priceDivergence;
         if (v3Spot > v2Outlier) {
             proportionalSpotChange = ConveyorMath.div128x128(v2Outlier, v3Spot);
-            console.log(proportionalSpotChange);
 
             priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
         } else if (v3Spot == v2Outlier) {
@@ -436,7 +477,6 @@ contract OrderRouter {
         } else {
             proportionalSpotChange = ConveyorMath.div128x128(v3Spot, v2Outlier);
 
-            console.log(proportionalSpotChange);
             priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
         }
 
@@ -500,7 +540,7 @@ contract OrderRouter {
                 QuadruplePrecision.div(numerator, reserve1Quad)
             )
         );
-        
+
         return alphaX;
     }
 
@@ -554,10 +594,7 @@ contract OrderRouter {
                 _reciever,
                 new bytes(0)
             )
-        {
-            console.logString("Passed v2 swap");
-        } catch {
-            console.log("Failed v2");
+        {} catch {
             //TODO: emit an event for the error that happened
             return 0;
         }
@@ -651,11 +688,9 @@ contract OrderRouter {
             if (_amountOut < _amountOutMin) {
                 return 0;
             }
-            console.logString("Passed V3 Swap");
 
             return _amountOut;
         } catch {
-            console.logString("Failed V3 swap");
             return 0;
         }
 
