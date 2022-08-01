@@ -53,8 +53,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     IQuoter immutable iQuoter;
 
-    //Immutable variable used to prevent front running by subsidizing the execution reward if a v2 price is proportionally beyond the threshold distance from the v3 price
-    uint256 immutable alphaXDivergenceThreshold;
 
     // ========================================= Constructor =============================================
 
@@ -72,7 +70,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 _alphaXDivergenceThreshold
     )
         OrderBook(_gasOracle)
-        OrderRouter(_deploymentByteCodes, _dexFactories, _isUniV2)
+        OrderRouter(_deploymentByteCodes, _dexFactories, _isUniV2, _alphaXDivergenceThreshold)
     {
         iQuoter = IQuoter(_quoterAddress);
         refreshFee = _refreshFee;
@@ -80,7 +78,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         USDC = _usdc;
         refreshInterval = _refreshInterval;
         executionCost = _executionCost;
-        alphaXDivergenceThreshold = _alphaXDivergenceThreshold;
+        
     }
 
     // ========================================= Events  =============================================
@@ -731,143 +729,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             spotReserveAToWeth,
             orders
         );
+
+        console.log("max beacon reward");
+        console.log(maxBeaconReward);
         return (executionPrices, maxBeaconReward);
     }
 
-    function calculateMaxBeaconReward(
-        SpotReserve[] memory spotReserves,
-        Order[] memory orders
-    ) internal view returns (uint128) {
-        bool buy = orders[0].buy;
-        uint256 v2Outlier = buy
-            ? 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-            : 0;
-        uint256 v3Spot;
-        bool v3PairExists;
-        uint256 v2OutlierIndex;
-
-        {
-            for (uint256 i = 0; i < spotReserves.length; ++i) {
-                ///@notice dexes indexed identical to SpotReserve[]
-                if (!dexes[i].isUniV2) {
-                    v3Spot = spotReserves[i].spotPrice;
-                    if (v3Spot == 0) {
-                        v3PairExists = false;
-                    } else {
-                        v3PairExists = true;
-                    }
-                } else {
-                    if (buy) {
-                        if (spotReserves[i].spotPrice < v2Outlier) {
-                            v2OutlierIndex = i;
-                            v2Outlier = spotReserves[i].spotPrice;
-                        }
-                    } else {
-                        if (spotReserves[i].spotPrice > v2Outlier) {
-                            v2OutlierIndex = i;
-                            v2Outlier = spotReserves[i].spotPrice;
-                        }
-                    }
-                }
-            }
-        }
-
-        uint256 priceDivergence;
-        uint256 snapShotSpot;
-        uint128 maxBeaconReward = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
-
-        {
-            if (v3PairExists) {
-                priceDivergence = _calculatePriceDivergence(v3Spot, v2Outlier);
-
-                if (priceDivergence > alphaXDivergenceThreshold) {
-                    maxBeaconReward = _calculateMaxBeaconReward(
-                        priceDivergence,
-                        spotReserves[v2OutlierIndex].res0,
-                        spotReserves[v2OutlierIndex].res1,
-                        uint128(5534023222112865000)
-                    );
-                }
-            } else {
-                (
-                    priceDivergence,
-                    snapShotSpot
-                ) = _calculatePriceDivergenceFromBatchMin(
-                    v2Outlier,
-                    orders,
-                    buy
-                );
-                if (priceDivergence > alphaXDivergenceThreshold) {
-                    maxBeaconReward = _calculateMaxBeaconReward(
-                        snapShotSpot,
-                        spotReserves[v2OutlierIndex].res0,
-                        spotReserves[v2OutlierIndex].res1,
-                        uint128(5534023222112865000)
-                    );
-                }
-            }
-        }
-        console.log(maxBeaconReward);
-        return maxBeaconReward;
-    }
-
-    function _calculatePriceDivergenceFromBatchMin(
-        uint256 v2Outlier,
-        Order[] memory orders,
-        bool buy
-    ) internal pure returns (uint256, uint256) {
-        uint256 targetSpot = buy
-            ? 0
-            : 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-        for (uint256 i = 0; i < orders.length; ++i) {
-            uint256 orderPrice = orders[i].price;
-            if (buy) {
-                if (orderPrice > targetSpot) {
-                    targetSpot = orderPrice;
-                }
-            } else {
-                if (orderPrice > targetSpot) {
-                    targetSpot = orderPrice;
-                }
-            }
-        }
-
-        uint256 proportionalSpotChange;
-        uint256 priceDivergence;
-
-        if (targetSpot > v2Outlier) {
-            proportionalSpotChange = ConveyorMath.div128x128(
-                v2Outlier,
-                targetSpot
-            );
-            priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
-        } else {
-            proportionalSpotChange = ConveyorMath.div128x128(
-                targetSpot,
-                v2Outlier
-            );
-            priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
-        }
-
-        return (priceDivergence, targetSpot);
-    }
-
-    function _calculatePriceDivergence(uint256 v3Spot, uint256 v2Outlier)
-        internal
-        pure
-        returns (uint256)
-    {
-        uint256 proportionalSpotChange;
-        uint256 priceDivergence;
-        if (v3Spot > v2Outlier) {
-            proportionalSpotChange = ConveyorMath.div128x128(v2Outlier, v3Spot);
-            priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
-        } else {
-            proportionalSpotChange = ConveyorMath.div128x128(v3Spot, v2Outlier);
-            priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
-        }
-        return priceDivergence;
-    }
 
     function _initializeNewTokenToWethBatchOrder(
         uint256 initArrayLength,
@@ -1070,7 +937,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint256 bestPrice = 0;
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
-                if (executionPrice > bestPrice && executionPrice != 0) {
+                if (executionPrice < bestPrice && executionPrice != 0) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
                 }
@@ -1079,7 +946,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
-                if (executionPrice < bestPrice && executionPrice != 0) {
+                if (executionPrice > bestPrice && executionPrice != 0) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
                 }
@@ -1092,8 +959,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice execute an array of orders from token to token
     function _executeTokenToTokenOrders(Order[] memory orders) internal {
         ///@notice get all execution price possibilities
-        TokenToTokenExecutionPrice[]
-            memory executionPrices = _initializeTokenToTokenExecutionPrices(
+        (TokenToTokenExecutionPrice[]
+            memory executionPrices, uint128 maxBeaconReward) = _initializeTokenToTokenExecutionPrices(
                 orders
             );
 
@@ -1105,14 +972,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
 
         ///@notice execute the batch orders
-        _executeTokenToTokenBatchOrders(tokenToTokenBatchOrders);
+        _executeTokenToTokenBatchOrders(tokenToTokenBatchOrders, maxBeaconReward);
     }
 
     ///@notice execute an array of orders from token to token
     function _executeTokenToTokenTaxedOrders(Order[] memory orders) internal {
         ///@notice get all execution price possibilities
-        TokenToTokenExecutionPrice[]
-            memory executionPrices = _initializeTokenToTokenExecutionPrices(
+        (TokenToTokenExecutionPrice[]
+            memory executionPrices, uint128 maxBeaconReward) = _initializeTokenToTokenExecutionPrices(
                 orders
             );
 
@@ -1235,7 +1102,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     function _executeTokenToTokenBatchOrders(
-        TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders
+        TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders, 
+        uint128 maxBeaconReward
     ) internal {
         uint256 totalBeaconReward;
 
@@ -1271,7 +1139,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 safeTransferETH(batch.batchOwners[j], orderPayout);
             }
         }
-
+        console.log(totalBeaconReward);
+        totalBeaconReward = totalBeaconReward<maxBeaconReward ? totalBeaconReward : maxBeaconReward;
+        console.log("total beacon reward");
+        console.log(totalBeaconReward);
         ///@notice calculate the beacon runner profit and pay the beacon
         safeTransferETH(msg.sender, totalBeaconReward);
     }
@@ -1447,7 +1318,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
     function _initializeTokenToTokenExecutionPrices(Order[] memory orders)
         internal
-        returns (TokenToTokenExecutionPrice[] memory)
+        returns (TokenToTokenExecutionPrice[] memory, uint128)
     {
         address tokenIn = orders[0].tokenIn;
 
@@ -1503,7 +1374,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 }
             }
         }
-        return executionPrices;
+
+        //Used as a protective hard cap on the beacon reward to prevent flashloaning the orders in the queue
+        uint128 maxBeaconReward = calculateMaxBeaconReward(
+            spotReserveAToWeth,
+            orders
+        );
+
+        return (executionPrices, maxBeaconReward);
     }
 
     ///@notice Helper to calculate the multiplicative spot price over both router hops
@@ -1729,7 +1607,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
 
-                if (executionPrice < bestPrice) {
+                if (executionPrice < bestPrice && executionPrice !=0) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
                 }

@@ -84,7 +84,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         false
     ];
 
-    uint256 alphaXDivergenceThreshold = 1; //3402823669209385000000000000000000000
+    uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000; //3402823669209385000000000000000000000
 
     function setUp() public {
         scriptRunner = new ScriptRunner();

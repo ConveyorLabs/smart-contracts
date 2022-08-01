@@ -18,6 +18,8 @@ import "./test/utils/Console.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "./test/utils/Console.sol";
 import "../lib/libraries/Uniswap/LowGasSafeMath.sol";
+import "../lib/libraries/QuadruplePrecision.sol";
+
 contract OrderRouter {
     //----------------------Structs------------------------------------//
 
@@ -87,6 +89,7 @@ contract OrderRouter {
 
     mapping(address => uint256) dexToIndex;
 
+
     //----------------------Constants------------------------------------//
 
     ISwapRouter public constant swapRouter =
@@ -101,13 +104,16 @@ contract OrderRouter {
 
         _;
     }
-
+    //----------------------Immutables------------------------------------//
+    //Immutable variable used to prevent front running by subsidizing the execution reward if a v2 price is proportionally beyond the threshold distance from the v3 price
+    uint256 immutable alphaXDivergenceThreshold;
     //----------------------Constructor------------------------------------//
 
     constructor(
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
-        bool[] memory _isUniV2
+        bool[] memory _isUniV2,
+        uint256 _alphaXDivergenceThreshold
     ) {
         for (uint256 i = 0; i < _deploymentByteCodes.length; ++i) {
             dexes.push(
@@ -118,7 +124,7 @@ contract OrderRouter {
                 })
             );
         }
-
+        alphaXDivergenceThreshold=_alphaXDivergenceThreshold;
         owner = msg.sender;
     }
 
@@ -238,6 +244,154 @@ contract OrderRouter {
         return (conveyorReward, beaconReward);
     }
 
+    function calculateMaxBeaconReward(
+        SpotReserve[] memory spotReserves,
+        OrderBook.Order[] memory orders
+    ) internal view returns (uint128) {
+        bool buy = orders[0].buy;
+
+        uint256 v2Outlier = buy
+            ? 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+            : 0;
+
+        uint256 v3Spot;
+        bool v3PairExists;
+        uint256 v2OutlierIndex;
+
+        {
+            for (uint256 i = 0; i < spotReserves.length; ++i) {
+                ///@notice dexes indexed identical to SpotReserve[]
+                if (!dexes[i].isUniV2) {
+                    v3Spot = spotReserves[i].spotPrice;
+                    if (v3Spot == 0) {
+                        v3PairExists = false;
+                    } else {
+                        v3PairExists = true;
+                    }
+                } else {
+                    if (buy) {
+                        if (spotReserves[i].spotPrice < v2Outlier) {
+                            v2OutlierIndex = i;
+                            v2Outlier = spotReserves[i].spotPrice;
+                        }
+                    } else {
+                        if (spotReserves[i].spotPrice > v2Outlier) {
+                            v2OutlierIndex = i;
+                            v2Outlier = spotReserves[i].spotPrice;
+                        }
+                    }
+                }
+            }
+        }
+
+        if(buy && v2Outlier > v3Spot){
+            return 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+        }else if (!(buy) && v2Outlier< v3Spot){
+            return 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+        }
+
+        uint256 priceDivergence;
+        uint256 snapShotSpot;
+        uint128 maxBeaconReward = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+       
+        {
+            if (v3PairExists) {
+                priceDivergence = _calculatePriceDivergence(v3Spot, v2Outlier);
+               
+                if (priceDivergence > alphaXDivergenceThreshold) {
+                    maxBeaconReward = _calculateMaxBeaconReward(
+                        priceDivergence,
+                        spotReserves[v2OutlierIndex].res0,
+                        spotReserves[v2OutlierIndex].res1,
+                        uint128(5534023222112865000)
+                    );
+                }
+            } else {
+                (
+                    priceDivergence,
+                    snapShotSpot
+                ) = _calculatePriceDivergenceFromBatchMin(
+                    v2Outlier,
+                    orders,
+                    buy
+                );
+                if (priceDivergence > alphaXDivergenceThreshold) {
+                    maxBeaconReward = _calculateMaxBeaconReward(
+                        snapShotSpot,
+                        spotReserves[v2OutlierIndex].res0,
+                        spotReserves[v2OutlierIndex].res1,
+                        uint128(5534023222112865000)
+                    );
+                }
+            }
+        }
+        
+        ///Convert the alphaX*fee quantity into the out token i.e weth
+        maxBeaconReward = uint128(ConveyorMath.mul128I(v2Outlier, maxBeaconReward));
+        console.log("max beacon reward");
+        console.log(maxBeaconReward);
+        console.log(v2Outlier);
+        return maxBeaconReward;
+    }
+
+    function _calculatePriceDivergenceFromBatchMin(
+        uint256 v2Outlier,
+        OrderBook.Order[] memory orders,
+        bool buy
+    ) internal pure returns (uint256, uint256) {
+        uint256 targetSpot = buy
+            ? 0
+            : 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+        for (uint256 i = 0; i < orders.length; ++i) {
+            uint256 orderPrice = orders[i].price;
+            if (buy) {
+                if (orderPrice > targetSpot) {
+                    targetSpot = orderPrice;
+                }
+            } else {
+                if (orderPrice < targetSpot) {
+                    targetSpot = orderPrice;
+                }
+            }
+        }
+
+        uint256 proportionalSpotChange;
+        uint256 priceDivergence;
+
+        if (targetSpot > v2Outlier) {
+            proportionalSpotChange = ConveyorMath.div128x128(
+                v2Outlier,
+                targetSpot
+            );
+            priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
+        } else {
+            proportionalSpotChange = ConveyorMath.div128x128(
+                targetSpot,
+                v2Outlier
+            );
+            priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
+        }
+
+        return (priceDivergence, targetSpot);
+    }
+
+    function _calculatePriceDivergence(uint256 v3Spot, uint256 v2Outlier)
+        internal
+        pure
+        returns (uint256)
+    {
+        uint256 proportionalSpotChange;
+        uint256 priceDivergence;
+        if (v3Spot > v2Outlier) {
+            proportionalSpotChange = ConveyorMath.div128x128(v2Outlier, v3Spot);
+            priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
+        } else {
+            proportionalSpotChange = ConveyorMath.div128x128(v3Spot, v2Outlier);
+            priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
+        }
+        return priceDivergence;
+    }
+
     /// @notice Helper function to calculate the max beacon reward for a group of order's
     /// @param reserve0 uint256 reserve0 of lp at execution time
     /// @param reserve1 uint256 reserve1 of lp at execution time
@@ -248,7 +402,7 @@ contract OrderRouter {
         uint128 reserve0,
         uint128 reserve1,
         uint128 fee
-    ) public pure returns (uint128) {
+    ) public view returns (uint128) {
         unchecked {
             uint128 maxReward = uint128(ConveyorMath.mul64I(
                 fee,
@@ -269,18 +423,22 @@ contract OrderRouter {
         uint256 delta,
         uint128 reserve0Execution,
         uint128 reserve1Execution
-    ) internal pure returns (uint256 alphaX) {
+    ) internal view returns (uint256) {
         //k = rx*ry
-        uint256 k = uint256(reserve0Execution) * reserve1Execution;
+        uint256 _k = uint256(reserve0Execution) * reserve1Execution;
+        bytes16 k = QuadruplePrecision.fromInt(int256(_k));
+        bytes16 sqrtK = QuadruplePrecision.sqrt(k);
+        bytes16 deltaQuad = QuadruplePrecision.from128x128(int256(delta));
+        bytes16 reserve1Quad = QuadruplePrecision.fromUInt(reserve1Execution);
+        bytes16 reserve0Quad = QuadruplePrecision.fromUInt(reserve0Execution);
+        bytes16 numeratorPartial = QuadruplePrecision.add(QuadruplePrecision.mul(deltaQuad,reserve1Quad), reserve1Quad);
+        bytes16 sqrtNumPartial = QuadruplePrecision.sqrt(numeratorPartial);
+        bytes16 sqrtReserve0 = QuadruplePrecision.sqrt(reserve0Quad);
+        bytes16 numerator = QuadruplePrecision.abs(QuadruplePrecision.sub(k,QuadruplePrecision.mul(sqrtReserve0,QuadruplePrecision.mul(sqrtNumPartial, sqrtK))));
+        uint256 alphaX = uint256(QuadruplePrecision.toUInt(QuadruplePrecision.div(numerator, reserve1Quad)));
+        console.log("AlphaX");
+        console.log(alphaX);
 
-        uint128 sqrtK = ConveyorMath.sqrtu(k);
-        
-        uint256 numeratorPartial = LowGasSafeMath.add(ConveyorMath.mul128I(delta,reserve1Execution), uint256(reserve1Execution));
-
-        uint128 sqrtNumPartial = uint128(ConveyorMath.sqrtu(numeratorPartial));
-        uint128 sqrtReserve0 = uint128(ConveyorMath.sqrtu(uint256(reserve0Execution)));
-        uint256 numerator = uint256(ConveyorMath.abs(LowGasSafeMath.sub(int256(k),int256(LowGasSafeMath.mul(sqrtReserve0,LowGasSafeMath.mul(sqrtNumPartial, sqrtK))))));
-        alphaX = FullMath.mulDiv(1, numerator, reserve1Execution);
         return alphaX;
     }
 
