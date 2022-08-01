@@ -145,6 +145,12 @@ contract OrderRouter {
 
         _;
     }
+
+    //======================Constants==================================
+    uint128 constant MIN_FEE_64x64 = 18446744073709552;
+    uint128 constant MAX_UINT_128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+    uint128 constant UNI_V2_FEE = 5534023222112865000;
+
     //----------------------Immutables------------------------------------//
 
     ///@notice Variable used to prevent front running by subsidizing the execution reward if a v2 price is proportionally beyond the threshold distance from the v3 price
@@ -157,16 +163,18 @@ contract OrderRouter {
 
     //----------------------Constructor------------------------------------//
 
+    /**@dev It is important to note that a univ2 compatible DEX must be initialized in the 0th index.
+     The _calculateFee function relies on a uniV2 DEX to be in the 0th index.*/
     ///@param _deploymentByteCodes - Array of DEX creation init bytecodes.
     ///@param _dexFactories - Array of DEX factory addresses.
     ///@param _isUniV2 - Array of booleans indicating if the DEX is UniV2 compatible.
-    ///@param swapRouterAddress - The UniV3 swap router address for the network.
+    ///@param _swapRouterAddress - The UniV3 swap router address for the network.
     ///@param _alphaXDivergenceThreshold - Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     constructor(
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
-        address swapRouterAddress,
+        address _swapRouterAddress,
         uint256 _alphaXDivergenceThreshold
     ) {
         ///@notice Initialize DEXs and other variables
@@ -180,7 +188,7 @@ contract OrderRouter {
             );
         }
         alphaXDivergenceThreshold = _alphaXDivergenceThreshold;
-        swapRouter = ISwapRouter(swapRouterAddress);
+        swapRouter = ISwapRouter(_swapRouterAddress);
         owner = msg.sender;
     }
 
@@ -196,19 +204,27 @@ contract OrderRouter {
             // Transfer the ETH and store if it succeeded or not.
             success := call(gas(), to, amount, 0, 0, 0, 0)
         }
-        require(success, "ETH_TRANSFER_FAILED");
+
+        if (!success) {
+            revert ETHTransferFailed();
+        }
     }
 
     /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation
-    /// @dev calculation assumes 64x64 fixed point in128 representation for all values
-    /// @param amountIn uint128 USDC amount in 64x64 fixed point to calculate the fee % of
-    /// @return Out64x64 int128 Fee percent
+    /// @dev This calculation assumes that all values are in a 64x64 fixed point uint128 representation.
+    /** @param amountIn - Amount of Weth represented as a 64x64 fixed point value to calculate the fee that will be applied 
+    to the amountOut of an executed order. */
+    ///@param usdc - Address of USDC
+    ///@param weth - Address of Weth
+    /// @return calculated_fee_64x64 -  Returns the fee percent that is applied to the amountOut realized from an executed.
+
+    //TODO: FIXME: update all constant values to constant variables
     function _calculateFee(
         uint128 amountIn,
         address usdc,
         address weth
     ) internal view returns (uint128) {
-        uint128 Out64x64;
+        uint128 calculated_fee_64x64;
 
         ///@notice Initialize spot reserve structure to retrive the spot price from uni v2
         (SpotReserve memory _spRes, ) = _calculateV2SpotPrice(
@@ -218,19 +234,18 @@ contract OrderRouter {
             dexes[0].initBytecode
         );
 
-        //Cache the spot price
+        ///@notice Cache the spot price
         uint256 spotPrice = _spRes.spotPrice;
 
-        //spotPrice is fixed 128.128 form, so multiply spotPrice*amountIn and adjust to base 10
-        uint256 amountInUsdcDollarValue = ConveyorMath.mul128I(
+        ///@notice The SpotPrice is represented as a 128x128 fixed point value. To derive the amount in USDC, multiply spotPrice*amountIn and adjust to base 10
+        uint256 amountInUSDCDollarValue = ConveyorMath.mul128I(
             spotPrice,
             amountIn
         ) / uint256(10**18);
 
-        ///@notice if usdc value of trade is >= 1000000 set static fee of 0.001
-        if (amountInUsdcDollarValue >= 1000000) {
-            Out64x64 = 18446744073709552;
-            return Out64x64;
+        ///@notice if usdc value of trade is >= 1,000,000 set static fee of 0.001
+        if (amountInUSDCDollarValue >= 1000000) {
+            return MIN_FEE_64x64;
         }
 
         ///@notice 0.9 represented as 128.128 fixed point
@@ -238,13 +253,12 @@ contract OrderRouter {
 
         ///@notice Exponent= usdAmount/750000
         uint128 exponent = uint128(
-            ConveyorMath.divUI(amountInUsdcDollarValue, 75000)
+            ConveyorMath.divUI(amountInUSDCDollarValue, 75000)
         );
 
         ///@notice This is to prevent overflow, and order is of sufficient size to recieve 0.001 fee
         if (exponent >= 0x400000000000000000) {
-            Out64x64 = 18446744073709552;
-            return Out64x64;
+            return MIN_FEE_64x64;
         }
 
         ///@notice denominator = (2.5 + e^(exponent))
@@ -260,7 +274,7 @@ contract OrderRouter {
         );
 
         ///@notice add 0.1 buffer and divide by 100 to adjust fee to correct % value in range [0.001-0.005]
-        Out64x64 = ConveyorMath.div64x64(
+        calculated_fee_64x64 = ConveyorMath.div64x64(
             ConveyorMath.add64x64(
                 uint128(rationalFraction >> 64),
                 1844674407370955300
@@ -268,14 +282,17 @@ contract OrderRouter {
             uint128(100 << 64)
         );
 
-        return Out64x64;
+        return calculated_fee_64x64;
     }
 
-    /// @notice Helper function to calculate beacon and conveyor reward on transaction execution
-    /// @param percentFee uint8 percentage of order size to be taken from user order size
-    /// @param wethValue uint256 total order value in wei at execution price
-    /// @return conveyorReward conveyor reward in terms of wei
-    /// @return beaconReward beacon reward in wei
+    /// @notice Helper function to calculate beacon and conveyor reward on transaction execution.
+    /// @param percentFee - Percentage of order size to be taken from user order size.
+    /// @param wethValue - Total order value at execution price, represented in wei.
+    /// @return conveyorReward - Conveyor reward, represented in wei.
+    /// @return beaconReward - Beacon reward, represented in wei.
+
+    //TODO: FIXME: update all constant values to constant variables
+
     function _calculateReward(uint128 percentFee, uint128 wethValue)
         internal
         pure
@@ -287,7 +304,7 @@ contract OrderRouter {
             uint256(wethValue)
         );
 
-        ///@notice initialize conveyorPercent to hold conveyors portion of the reward
+        ///@notice Initialize conveyorPercent to hold conveyors portion of the reward
         uint128 conveyorPercent;
 
         ///@notice This is to prevent over flow initialize the fee to fee+ (0.005-fee)/2+0.001*10**2
@@ -321,37 +338,39 @@ contract OrderRouter {
         return (conveyorReward, beaconReward);
     }
 
-    ///@notice Top level maxBeaconReward helper to check if a max beacon reward should be put on the batch to combat flash loan attacks
-    ///@notice We use a fairly wide uni v3 tick range, so we determine if a max reward should be put on the batch if a uni v2 pool is beyond the immutable variable
-    ///@notice alphaXPriceDivergence threshold in the direction that's advantageous to be able to execute the orders. If a uni v2 pool is beyond our threshold
-    ///@notice we simply cap the beaconReward at execution time to be the total fee's paid on flashloaning the uni v2 pool.
-    ///@param spotReserves SpotReserve structure holding the spot prices and liquidity for all dexes tracked
-    ///@param orders all the current orders being initialized for execution
-    ///@param wethIsToken0 bool used to determine whether the alphaX*fee value should be converted to weth or not
+    ///@notice Function that determines if the max beacon reward should be applied to a batch.
+    /**@dev The max beacon reward is determined by the alpha x calculation in order to prevent profit derrived 
+    from price manipulation. This function determines if the max beacon reward must be used.*/
+    ///@param spotReserves - Holds the spot prices and reserve values for the batch.
+    ///@param orders - All orders being prepared for execution within the batch.
+    ///@param wethIsToken0 - Boolean that indicates if the token0 is Weth which determines how the max beacon reward is evaluated.
+    ///@return maxBeaconReward - Returns the maxBeaconReward calculated for the batch if the maxBeaconReward should be applied.
+    ///@dev If the maxBeaconReward should not be applied, MAX_UINT_128 is returned.
     function calculateMaxBeaconReward(
         SpotReserve[] memory spotReserves,
         OrderBook.Order[] memory orders,
         bool wethIsToken0
-    ) internal returns (uint128) {
-        //Cache the first orders buy status
+    ) internal returns (uint128 maxBeaconReward) {
+        ///@notice Cache the first order buy status.
         bool buy = orders[0].buy;
 
-        //Initialize v2Outlier to the max/min depending on order status
+        ///@notice Initialize v2Outlier to the max/min depending on order status.
         uint256 v2Outlier = buy
             ? 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
             : 0;
 
-        //Initialize relevant memory
+        ///@notice Initialize variables involved in conditional logic.
         uint256 v3Spot;
         bool v3PairExists;
         uint256 v2OutlierIndex;
 
-        //Scope
+        ///@dev Scoping to avoid stack too deep errors.
         {
-            for (uint256 i = 0; i < spotReserves.length; ++i) {
-                ///@notice dexes indexed identical to SpotReserve[]
+            ///@notice For each spot reserve in the spotReserves array
+            for (uint256 i = 0; i < spotReserves.length; ) {
+                ///@notice If the dex is not uniV2 compatible
                 if (!dexes[i].isUniV2) {
-                    //If pair exists on v3 cache the spot price
+                    ///@notice Update the v3Spot price
                     v3Spot = spotReserves[i].spotPrice;
                     if (v3Spot == 0) {
                         v3PairExists = false;
@@ -359,49 +378,63 @@ contract OrderRouter {
                         v3PairExists = true;
                     }
                 } else {
-                    //If it's a buy order the lowest spotPrice will be the one v2Outlier otherwise the highest
+                    ///@notice if the order is a buy order
                     if (buy) {
+                        ///@notice if the spotPrice is less than the v2Outlier, assign the spotPrice to the v2Outlier.
                         if (spotReserves[i].spotPrice < v2Outlier) {
                             v2OutlierIndex = i;
                             v2Outlier = spotReserves[i].spotPrice;
                         }
                     } else {
+                        ///@notice if the order is a sell order and the spot price is greater than the v2Outlier, assign the spotPrice to the v2Outlier.
                         if (spotReserves[i].spotPrice > v2Outlier) {
                             v2OutlierIndex = i;
                             v2Outlier = spotReserves[i].spotPrice;
                         }
                     }
                 }
+
+                unchecked {
+                    ++i;
+                }
             }
         }
 
-        ///@notice if the order batch status is buy and the v2 pool is not beyond the price point of v2 then don't set a beacon cap
+        ///@notice if the order is a buy order and the v2Outlier is greater than the v3Spot price
         if (buy && v2Outlier > v3Spot) {
-            return 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+            ///@notice return the max uint128 value as the max beacon reward.
+            return MAX_UINT_128;
         } else if (!(buy) && v2Outlier < v3Spot) {
-            return 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+            /**@notice if the order is a sell order and the v2Outlier is less than the v3Spot price
+           return the max uint128 value as the max beacon reward.*/
+            return MAX_UINT_128;
         }
 
+        ///@notice Initialize variables involved in conditional logic.
+        ///@dev This is separate from the previous logic to keep the stack lean and avoid stack overflows.
         uint256 priceDivergence;
         uint256 snapShotSpot;
-        uint128 maxBeaconReward = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+        maxBeaconReward = MAX_UINT_128;
 
+        ///@dev Scoping to avoid stack too deep errors.
         {
+            ///@notice If a v3Pair exists for the order
             if (v3PairExists) {
-                ///@notice calculate proportional difference between the v3 and v2Outlier price
+                ///@notice Calculate proportional difference between the v3 and v2Outlier price
                 priceDivergence = _calculatePriceDivergence(v3Spot, v2Outlier);
 
-                ///@notice if the difference crosses the alphaXDivergenceThreshold immutable variable then set a beaconCap to prevent flash loan attacks across the board
+                ///@notice If the difference crosses the alphaXDivergenceThreshold, then calulate the max beacon fee.
                 if (priceDivergence > alphaXDivergenceThreshold) {
                     maxBeaconReward = _calculateMaxBeaconReward(
                         priceDivergence,
                         spotReserves[v2OutlierIndex].res0,
                         spotReserves[v2OutlierIndex].res1,
-                        uint128(5534023222112865000)
+                        UNI_V2_FEE
                     );
                 }
-                //If v3 pair does not exist then calculate the divergence threshold from the smallest order in the batch
             } else {
+                ///@notice If v3 pair does not exist then calculate the alphaXDivergenceThreshold
+                ///@dev The alphaXDivergenceThreshold is calculated from the price that is the maximum distance from the v2Outlier.
                 (
                     priceDivergence,
                     snapShotSpot
@@ -410,18 +443,20 @@ contract OrderRouter {
                     orders,
                     buy
                 );
-                //If the threshold crosses alphaXDivergenceThreshold cap the reward on the batch
+
+                ///@notice If the difference crosses the alphaXDivergenceThreshold, then calulate the max beacon fee.
                 if (priceDivergence > alphaXDivergenceThreshold) {
                     maxBeaconReward = _calculateMaxBeaconReward(
                         snapShotSpot,
                         spotReserves[v2OutlierIndex].res0,
                         spotReserves[v2OutlierIndex].res1,
-                        uint128(5534023222112865000)
+                        UNI_V2_FEE
                     );
                 }
             }
         }
-        //If weth is not token0 then convert the maxBeaconValue into weth
+
+        ///@notice If weth is not token0, then convert the maxBeaconValue into Weth.
         if (!wethIsToken0) {
             ///Convert the alphaX*fee quantity into the out token i.e weth
             maxBeaconReward = uint128(
