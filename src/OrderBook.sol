@@ -29,8 +29,8 @@ contract OrderBook is GasOracle {
         bool taxed;
         uint32 lastRefreshTimestamp;
         uint32 expirationTimestamp;
-        uint16 feeIn;
-        uint16 feeOut;
+        uint24 feeIn;
+        uint24 feeOut;
         uint16 taxIn;
         uint128 price;
         uint128 amountOutMin;
@@ -160,9 +160,7 @@ contract OrderBook is GasOracle {
 
         Order memory oldOrder = orderIdToOrder[newOrder.orderId];
 
-
         ///TODO: make this more efficient and check if new order > old order, then increment the difference else decrement the difference
-
 
         //Decrement oldOrder Quantity from totalOrdersQuantity
         //Decrement totalOrdersQuantity on order.tokenIn for order owner
@@ -180,6 +178,47 @@ contract OrderBook is GasOracle {
         incrementTotalOrdersQuantity(
             newOrder.tokenIn,
             msg.sender,
+            newOrder.quantity
+        );
+
+        //emit an updated order event
+        //TODO: do this in assembly
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = newOrder.orderId;
+        emit OrderUpdated(orderIds);
+    }
+
+    /// @notice Update mapping(uint256 => Order) in Order struct from identifier orderId to new 'order' value passed as @param
+    function _updateOrder(Order memory newOrder, address owner) internal {
+        //check if the old order exists
+
+        bool orderExists = addressToOrderIds[owner][newOrder.orderId];
+
+        if (!orderExists) {
+            revert OrderDoesNotExist(newOrder.orderId);
+        }
+
+        Order memory oldOrder = orderIdToOrder[newOrder.orderId];
+
+
+        ///TODO: make this more efficient and check if new order > old order, then increment the difference else decrement the difference
+
+        //Decrement oldOrder Quantity from totalOrdersQuantity
+        //Decrement totalOrdersQuantity on order.tokenIn for order owner
+        decrementTotalOrdersQuantity(
+            oldOrder.tokenIn,
+            owner,
+            oldOrder.quantity
+        );
+        //TODO: get total order sum and make sure that the user has the balance for the new order
+
+        //update the order
+        orderIdToOrder[oldOrder.orderId] = newOrder;
+
+        //Update totalOrdersQuantity to new order quantity
+        incrementTotalOrdersQuantity(
+            newOrder.tokenIn,
+            owner,
             newOrder.quantity
         );
 

@@ -60,7 +60,7 @@ contract OrderBookTest is DSTest {
     bytes32[] _hexDems = [_uniswapV2HexDem, _uniswapV2HexDem];
     address[] _dexFactories = [_uniV2FactoryAddress, _uniV3FactoryAddress];
     bool[] _isUniV2 = [true, false];
-
+    uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000000;
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         conveyorLimitOrders = new ConveyorLimitOrders(
@@ -73,7 +73,8 @@ contract OrderBookTest is DSTest {
             300000,
             _hexDems,
             _dexFactories,
-            _isUniV2
+            _isUniV2,
+            alphaXDivergenceThreshold
         );
         swapHelper = new Swap(_sushiSwapRouterAddress, wnato);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
@@ -527,7 +528,6 @@ contract OrderBookTest is DSTest {
                             _amount <
                         MAX_UINT
                     ) {
-                        // require(false, "Got here :[");
                         uint256 minGasCredits = orderBook
                             .calculateMinGasCredits(
                                 _amount,

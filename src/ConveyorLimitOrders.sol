@@ -65,10 +65,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 _executionCost,
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
-        bool[] memory _isUniV2
+        bool[] memory _isUniV2,
+        uint256 _alphaXDivergenceThreshold
     )
         OrderBook(_gasOracle)
-        OrderRouter(_deploymentByteCodes, _dexFactories, _isUniV2)
+        OrderRouter(
+            _deploymentByteCodes,
+            _dexFactories,
+            _isUniV2,
+            _alphaXDivergenceThreshold
+        )
     {
         iQuoter = IQuoter(_quoterAddress);
         refreshFee = _refreshFee;
@@ -84,6 +90,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         bool indexed deposit,
         address indexed sender,
         uint256 amount
+    );
+
+    event OrderRefreshed(
+        bytes32 indexed orderId,
+        uint32 lastRefreshTimestamp,
+        uint32 expirationTimestamp
     );
 
     // ========================================= FUNCTIONS =============================================
@@ -140,51 +152,69 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     //Todo add reentrancy guard
     /// @notice External helper function to allow beacon to refresh an oder after 30 days in unix time
-    /// @param orderId order to refresh timestamp
-    function refreshOrder(bytes32 orderId) external returns (bool) {
-        Order memory order = getOrderById(orderId);
+    /// @param orderIds orders to refresh timestamp
+    function refreshOrder(bytes32[] memory orderIds) external {
+        for (uint256 i = 0; i < orderIds.length; ++i) {
+            //Cache order in memory
+            Order memory order = getOrderById(orderIds[i]);
 
-        //Require 30 days has elapsed since last refresh
+            //Require 30 days has elapsed since last refresh
+            if (
+                block.timestamp - order.lastRefreshTimestamp < refreshInterval
+            ) {
+                continue;
+            }
 
-        if (block.timestamp - order.lastRefreshTimestamp < refreshInterval) {
-            revert OrderNotRefreshable();
-        }
+            //Require current timestamp is not past order expiration
+            if (block.timestamp > order.expirationTimestamp) {
+                _cancelOrder(order.orderId);
+                continue;
+            }
 
-        //Require current timestamp is not past order expiration
-        if (block.timestamp < order.expirationTimestamp) {
-            revert OrderHasReachedExpiration();
-        }
+            //check for underflow gasCreditBalance[order.owner] - refreshFee
+            if (gasCreditBalance[order.owner] < refreshFee) {
+                _cancelOrder(order.orderId);
+                continue;
+            }
 
-        //TODO: FIXME: check for underflow for  gasCreditBalance[order.owner] - refreshFee
+            //Get current gas price from v3 Aggregator
+            uint256 gasPrice = getGasPrice();
 
-        //Get current gas price from v3 Aggregator
-        uint256 gasPrice = getGasPrice();
-        //Require gas credit withdrawal doesn't exceeed minimum gas credit requirements
-        if (
-            !(
-                _hasMinGasCredits(
-                    gasPrice,
-                    executionCost,
-                    order.owner,
-                    gasCreditBalance[order.owner] - refreshFee
+            //Require gas credit withdrawal doesn't exceeed minimum gas credit requirements
+            if (
+                !(
+                    _hasMinGasCredits(
+                        gasPrice,
+                        executionCost,
+                        order.owner,
+                        gasCreditBalance[order.owner] - refreshFee
+                    )
                 )
-            )
-        ) {
-            // TODO: FIXME: add order cancelation
+            ) {
+                //If order does not have sufficient gas credit balance after decrementing the refresh fee cancel the order
+                _cancelOrder(order.orderId);
+                continue;
+            }
+
+            //Transfer refresh fee to beacon
+            safeTransferETH(msg.sender, refreshFee);
+
+            //Decrement order.owner credit balance
+            gasCreditBalance[order.owner] =
+                gasCreditBalance[order.owner] -
+                refreshFee;
+
+            //Change order.lastRefreshTimestamp to current block.timestamp
+            order.lastRefreshTimestamp = uint32(block.timestamp);
+
+            _updateOrder(order, order.owner);
+
+            emit OrderRefreshed(
+                order.orderId,
+                order.lastRefreshTimestamp,
+                order.expirationTimestamp
+            );
         }
-
-        //Transfer refresh fee to beacon
-        safeTransferETH(msg.sender, refreshFee);
-
-        //Decrement order.owner credit balance
-        gasCreditBalance[order.owner] =
-            gasCreditBalance[order.owner] -
-            refreshFee;
-
-        //Change order.lastRefreshTimestamp to current block.timestamp
-        order.lastRefreshTimestamp = uint32(block.timestamp);
-
-        return true;
     }
 
     //------------Order Cancellation Functions---------------------------------
@@ -253,12 +283,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     /// @notice Internal helper function to cancel order with implicit validation within refreshOrder
     /// @param orderId Id of the order to cancel
-    /// @param sender address of beacon caller to refreshOrder to be compensated for cancellation
     /// @return bool indicator whether order was successfully cancelled with compensation
-    function _cancelOrder(bytes32 orderId, address sender)
-        internal
-        returns (bool)
-    {
+    function _cancelOrder(bytes32 orderId) internal returns (bool) {
+        //Cache order into memory
         Order memory order = orderIdToOrder[orderId];
 
         /// Check if order exists in active orders. Revert if order does not exist
@@ -266,12 +293,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         if (!orderExists) {
             revert OrderDoesNotExist(orderId);
         }
+
         //Amount of order's owned by order owner
         uint256 totalOrders = totalOrdersPerAddress[order.owner];
 
         //Get current gas price from v3 Aggregator
         uint256 gasPrice = getGasPrice();
 
+        //Calculate minimum gas credits without multiplier for gas variability
         uint256 minimumGasCreditsForAllOrders = _calculateMinGasCredits(
             gasPrice,
             300000,
@@ -282,23 +311,27 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 minimumGasCreditsForSingleOrder = minimumGasCreditsForAllOrders /
                 totalOrders;
 
+        //Delete order from queue after swap execution
         delete orderIdToOrder[orderId];
         delete addressToOrderIds[order.owner][orderId];
-
-        //Decrement totalOrdersQuantity for order
-        decrementTotalOrdersQuantity(order.tokenIn, msg.sender, order.quantity);
-
         //decrement from total orders per address
         --totalOrdersPerAddress[order.owner];
+
+        //Decrement totalOrdersQuantity for order owner
+        decrementTotalOrdersQuantity(
+            order.tokenIn,
+            order.owner,
+            order.quantity
+        );
 
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = order.orderId;
 
-        safeTransferETH(sender, minimumGasCreditsForSingleOrder);
+        safeTransferETH(msg.sender, minimumGasCreditsForSingleOrder);
 
         emit OrderCancelled(orderIds);
 
-        return false;
+        return true;
     }
 
     // ==================== Order Execution Functions =========================
@@ -349,13 +382,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address reciever,
         address sender
     ) public returns (uint256 amountOut) {
-        //Initialize tick second to smallest range
-        uint32 tickSecond = 1;
-
         (SpotReserve[] memory prices, address[] memory lps) = _getAllPrices(
             tokenIn,
             tokenOut,
-            tickSecond,
             FEE
         );
 
@@ -455,10 +484,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice execute an array of orders from token to weth
     function _executeTokenToWethTaxedOrders(Order[] memory orders) internal {
         ///@notice get all execution price possibilities
-        TokenToWethExecutionPrice[]
-            memory executionPrices = _initializeTokenToWethExecutionPrices(
-                orders
-            );
+        (
+            TokenToWethExecutionPrice[] memory executionPrices,
+            uint128 maxBeaconReward
+        ) = _initializeTokenToWethExecutionPrices(orders);
 
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
         TokenToWethBatchOrder[]
@@ -468,11 +497,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
 
         ///@notice execute the batch orders
-        _executeTokenToWethBatchTaxedOrders(tokenToWethBatchOrders);
+        _executeTokenToWethBatchTaxedOrders(
+            tokenToWethBatchOrders,
+            maxBeaconReward
+        );
     }
 
     function _executeTokenToWethBatchTaxedOrders(
-        TokenToWethBatchOrder[] memory tokenToWethBatchOrders
+        TokenToWethBatchOrder[] memory tokenToWethBatchOrders,
+        uint128 maxBeaconReward
     ) internal {
         uint128 totalBeaconReward;
         for (uint256 i = 0; i < tokenToWethBatchOrders.length; i++) {
@@ -485,6 +518,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
             }
         }
+
+        totalBeaconReward = maxBeaconReward > totalBeaconReward
+            ? totalBeaconReward
+            : maxBeaconReward;
 
         safeTransferETH(msg.sender, totalBeaconReward);
     }
@@ -537,10 +574,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice execute an array of orders from token to weth
     function _executeTokenToWethOrders(Order[] memory orders) internal {
         ///@notice get all execution price possibilities
-        TokenToWethExecutionPrice[]
-            memory executionPrices = _initializeTokenToWethExecutionPrices(
-                orders
-            );
+        (
+            TokenToWethExecutionPrice[] memory executionPrices,
+            uint128 maxBeaconReward
+        ) = _initializeTokenToWethExecutionPrices(orders);
 
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
         TokenToWethBatchOrder[]
@@ -550,11 +587,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
 
         ///@notice execute the batch orders
-        _executeTokenToWethBatchOrders(tokenToWethBatchOrders);
+        _executeTokenToWethBatchOrders(tokenToWethBatchOrders, maxBeaconReward);
     }
 
     function _executeTokenToWethBatchOrders(
-        TokenToWethBatchOrder[] memory tokenToWethBatchOrders
+        TokenToWethBatchOrder[] memory tokenToWethBatchOrders,
+        uint128 maxBeaconReward
     ) internal {
         uint256 totalBeaconReward;
 
@@ -593,7 +631,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 }
             }
         }
-
+        totalBeaconReward = maxBeaconReward > totalBeaconReward
+            ? totalBeaconReward
+            : maxBeaconReward;
         ///@notice calculate the beacon runner profit and pay the beacon
         safeTransferETH(msg.sender, totalBeaconReward);
     }
@@ -622,7 +662,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ///@notice take out fees
         uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
-        (, uint128 beaconReward) = _calculateReward(protocolFee, amountOutWeth);
+        (uint128 conveyorReward, uint128 beaconReward) = _calculateReward(
+            protocolFee,
+            amountOutWeth
+        );
 
         //Scope all this
         {
@@ -651,8 +694,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 delete orderIdToOrder[orderId];
             }
         }
-
-        return (uint256(amountOutWeth - beaconReward), uint256(beaconReward));
+        ///TODO: FIXME: safeTransfer(conveyorReward) to conveyor address
+        return (
+            uint256(amountOutWeth - (beaconReward + conveyorReward)),
+            uint256(beaconReward)
+        );
     }
 
     // ==================== Token to Weth Helper Functions =========================
@@ -660,13 +706,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
     function _initializeTokenToWethExecutionPrices(Order[] memory orders)
         internal
-        view
-        returns (TokenToWethExecutionPrice[] memory)
+        returns (TokenToWethExecutionPrice[] memory, uint128)
     {
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = _getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn, 1);
+        ) = _getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn);
 
         TokenToWethExecutionPrice[]
             memory executionPrices = new TokenToWethExecutionPrice[](
@@ -677,13 +722,21 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices[i] = TokenToWethExecutionPrice(
                     spotReserveAToWeth[i].res0,
                     spotReserveAToWeth[i].res1,
-                    spotReserveAToWeth[i].tokenInTokenOutCommonDecimals,
                     spotReserveAToWeth[i].spotPrice,
                     lpAddressesAToWeth[i]
                 );
             }
         }
-        return executionPrices;
+
+        uint128 maxBeaconReward = calculateMaxBeaconReward(
+            spotReserveAToWeth,
+            orders,
+            false
+        );
+
+        console.log("max beacon reward");
+        console.log(maxBeaconReward);
+        return (executionPrices, maxBeaconReward);
     }
 
     function _initializeNewTokenToWethBatchOrder(
@@ -826,6 +879,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     ///@notice increment the batch length
                     ++currentTokenToWethBatchOrder.batchLength;
 
+                    // console.log(executionPrices[bestPriceIndex].price);
                     ///@notice update the best execution price
                     (
                         executionPrices[bestPriceIndex]
@@ -833,6 +887,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         uint128(currentOrder.quantity),
                         executionPrices[bestPriceIndex]
                     );
+                    // console.log(executionPrices[bestPriceIndex].price);
                 } else {
                     bytes32[] memory orderId = new bytes32[](1);
                     orderId[0] = currentOrder.orderId;
@@ -885,7 +940,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint256 bestPrice = 0;
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
-                if (executionPrice > bestPrice && executionPrice != 0) {
+                if (executionPrice < bestPrice && executionPrice != 0) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
                 }
@@ -894,7 +949,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
-                if (executionPrice < bestPrice && executionPrice != 0) {
+                if (executionPrice > bestPrice && executionPrice != 0) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
                 }
@@ -907,10 +962,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice execute an array of orders from token to token
     function _executeTokenToTokenOrders(Order[] memory orders) internal {
         ///@notice get all execution price possibilities
-        TokenToTokenExecutionPrice[]
-            memory executionPrices = _initializeTokenToTokenExecutionPrices(
-                orders
-            );
+        (
+            TokenToTokenExecutionPrice[] memory executionPrices,
+            uint128 maxBeaconReward
+        ) = _initializeTokenToTokenExecutionPrices(orders);
 
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
         TokenToTokenBatchOrder[]
@@ -920,16 +975,19 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
 
         ///@notice execute the batch orders
-        _executeTokenToTokenBatchOrders(tokenToTokenBatchOrders);
+        _executeTokenToTokenBatchOrders(
+            tokenToTokenBatchOrders,
+            maxBeaconReward
+        );
     }
 
     ///@notice execute an array of orders from token to token
     function _executeTokenToTokenTaxedOrders(Order[] memory orders) internal {
         ///@notice get all execution price possibilities
-        TokenToTokenExecutionPrice[]
-            memory executionPrices = _initializeTokenToTokenExecutionPrices(
-                orders
-            );
+        (
+            TokenToTokenExecutionPrice[] memory executionPrices,
+            uint128 maxBeaconReward
+        ) = _initializeTokenToTokenExecutionPrices(orders);
 
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
         TokenToTokenBatchOrder[]
@@ -1050,7 +1108,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     function _executeTokenToTokenBatchOrders(
-        TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders
+        TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders,
+        uint128 maxBeaconReward
     ) internal {
         uint256 totalBeaconReward;
 
@@ -1087,11 +1146,20 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
         }
 
+        totalBeaconReward = totalBeaconReward < maxBeaconReward
+            ? totalBeaconReward
+            : maxBeaconReward;
+
         ///@notice calculate the beacon runner profit and pay the beacon
         safeTransferETH(msg.sender, totalBeaconReward);
     }
 
     ///TODO: Account for v3 fee on amountOut conversion
+    ///@notice Helper function to calculate amountOutMin value agnostically across dexes on the first hop from tokenA to WETH
+    ///@param lpAddressAToWeth lp address of A to weth pair
+    ///@param amountInOrder the order.quantity
+    ///@param orderId bytes32 identifier of the order
+    ///@param taxIn tax of tokenA if any
     function calculateAmountOutMinAToWeth(
         address lpAddressAToWeth,
         uint256 amountInOrder,
@@ -1100,6 +1168,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ) internal returns (uint256 amountOutMinAToWeth) {
         if (!_lpIsNotUniV3(lpAddressAToWeth)) {
             Order memory order = getOrderById(orderId);
+
+            ///@notice 1000==100% so divide amountInOrder *taxIn by 10**5 to adjust to correct base
             uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
             uint256 amountIn = amountInOrder - amountInBuffer;
 
@@ -1158,8 +1228,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     {
         uint128 protocolFee;
         uint128 beaconReward;
+        uint128 conveyorReward;
         uint256 amountInWethToB;
         uint24 fee;
+
         if (!(batch.batchLength == 0)) {
             if (batch.tokenIn != WETH) {
                 uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWeth(
@@ -1168,6 +1240,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     batch.orderIds[0],
                     0
                 );
+
                 fee = _getUniV3Fee(batch.lpAddressAToWeth);
 
                 ///@notice swap from A to weth
@@ -1187,10 +1260,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 ///@notice take out fees
                 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
-                (, beaconReward) = _calculateReward(protocolFee, amountOutWeth);
+                (conveyorReward, beaconReward) = _calculateReward(
+                    protocolFee,
+                    amountOutWeth
+                );
 
                 ///@notice get amount in for weth to B
-                amountInWethToB = amountOutWeth - beaconReward;
+                amountInWethToB =
+                    amountOutWeth -
+                    (beaconReward + conveyorReward);
             } else {
                 ///@notice take out fees from the batch amountIn since token0 is weth
                 protocolFee = _calculateFee(
@@ -1200,13 +1278,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
 
                 //Take out beacon/conveyor reward
-                (, beaconReward) = _calculateReward(
+                (conveyorReward, beaconReward) = _calculateReward(
                     protocolFee,
                     uint128(batch.amountIn)
                 );
 
                 ///@notice get amount in for weth to B
-                amountInWethToB = batch.amountIn - protocolFee;
+                amountInWethToB =
+                    batch.amountIn -
+                    (beaconReward + conveyorReward);
             }
 
             fee = _getUniV3Fee(batch.lpAddressWethToB);
@@ -1261,35 +1341,32 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
     function _initializeTokenToTokenExecutionPrices(Order[] memory orders)
         internal
-        view
-        returns (TokenToTokenExecutionPrice[] memory)
+        returns (TokenToTokenExecutionPrice[] memory, uint128)
     {
         address tokenIn = orders[0].tokenIn;
 
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = _getAllPrices(tokenIn, WETH, 1, orders[0].feeIn);
+        ) = _getAllPrices(tokenIn, WETH, orders[0].feeIn);
 
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
-        ) = _getAllPrices(WETH, orders[0].tokenOut, 1, orders[0].feeOut);
+        ) = _getAllPrices(WETH, orders[0].tokenOut, orders[0].feeOut);
 
         TokenToTokenExecutionPrice[]
             memory executionPrices = new TokenToTokenExecutionPrice[](
                 spotReserveAToWeth.length * spotReserveWethToB.length
             );
-        uint8[] memory zero;
+
         if (tokenIn == WETH) {
             for (uint256 i = 0; i < spotReserveWethToB.length; ++i) {
                 executionPrices[i] = TokenToTokenExecutionPrice(
                     0,
                     0,
-                    zero,
                     spotReserveWethToB[i].res0,
                     spotReserveWethToB[i].res1,
-                    spotReserveWethToB[i].tokenInTokenOutCommonDecimals,
                     spotReserveWethToB[i].spotPrice,
                     address(0),
                     lpAddressWethToB[i]
@@ -1310,10 +1387,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     executionPrices[index] = TokenToTokenExecutionPrice(
                         spotReserveAToWeth[i].res0,
                         spotReserveAToWeth[i].res1,
-                        spotReserveAToWeth[i].tokenInTokenOutCommonDecimals,
                         spotReserveWethToB[j].res1,
                         spotReserveWethToB[j].res0,
-                        spotReserveWethToB[j].tokenInTokenOutCommonDecimals,
                         spotPriceFinal,
                         lpAddressesAToWeth[i],
                         lpAddressWethToB[j]
@@ -1322,7 +1397,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 }
             }
         }
-        return executionPrices;
+
+        //Used as a protective hard cap on the beacon reward to prevent flashloaning the orders in the queue
+        uint128 maxBeaconReward = WETH != tokenIn
+            ? calculateMaxBeaconReward(spotReserveAToWeth, orders, false)
+            : calculateMaxBeaconReward(spotReserveWethToB, orders, true);
+
+        return (executionPrices, maxBeaconReward);
     }
 
     ///@notice Helper to calculate the multiplicative spot price over both router hops
@@ -1548,13 +1629,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
 
-                if (executionPrice < bestPrice) {
+                if (executionPrice < bestPrice && executionPrice != 0) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
                 }
             }
         } else {
-            uint256 bestPrice =0;
+            uint256 bestPrice = 0;
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
 
@@ -1611,45 +1692,36 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     receive() external payable {}
 
-    // fallback() external payable{}
-
     function simulateTokenToWethPriceChange(
         uint128 alphaX,
         TokenToWethExecutionPrice memory executionPrice
     ) internal returns (TokenToWethExecutionPrice memory) {
-        if (!_lpIsNotUniV3(executionPrice.lpAddressAToWeth)) {
-            (
-                executionPrice.price,
-                executionPrice.aToWethReserve0,
-                executionPrice.aToWethReserve1,
+        address pool = executionPrice.lpAddressAToWeth;
 
-            ) = _simulateAToBPriceChange(
-                alphaX,
-                executionPrice.aToWethReserve0,
-                executionPrice.aToWethReserve1,
-                executionPrice.lpAddressAToWeth,
-                true
-            );
-        } else {
-            uint128 amountIn = uint128(
-                alphaX *
-                    (10 **
-                        (executionPrice.decimalsInDecimalsAToWeth[1] -
-                            executionPrice.decimalsInDecimalsAToWeth[0]))
-            );
-            (
-                executionPrice.price,
-                executionPrice.aToWethReserve0,
-                executionPrice.aToWethReserve1,
+        address token0 = IUniswapV2Pair(pool).token0();
+        address token1 = IUniswapV2Pair(pool).token1();
 
-            ) = _simulateAToBPriceChange(
-                amountIn,
-                executionPrice.aToWethReserve0,
-                executionPrice.aToWethReserve1,
-                executionPrice.lpAddressAToWeth,
-                true
-            );
-        }
+        uint8 tokenInDecimals = token1 == WETH
+            ? IERC20(token0).decimals()
+            : IERC20(token1).decimals();
+
+        ///@notice Convert to 18 decimals to have correct price change on the reserve quantities in common 18 decimal form
+        uint128 amountIn = tokenInDecimals <= 18
+            ? uint128(alphaX * 10**(18 - tokenInDecimals))
+            : uint128(alphaX / (10**(tokenInDecimals - 18)));
+
+        (
+            executionPrice.price,
+            executionPrice.aToWethReserve0,
+            executionPrice.aToWethReserve1,
+
+        ) = _simulateAToBPriceChange(
+            amountIn,
+            executionPrice.aToWethReserve0,
+            executionPrice.aToWethReserve1,
+            pool,
+            true
+        );
 
         return executionPrice;
     }
@@ -1662,8 +1734,31 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             executionPrice.aToWethReserve0 != 0 &&
             executionPrice.aToWethReserve1 != 0
         ) {
+            address pool = executionPrice.lpAddressAToWeth;
+            address token0;
+            address token1;
+            bool _isUniV2 = _lpIsNotUniV3(pool);
+            {
+                if (_isUniV2) {
+                    token0 = IUniswapV2Pair(pool).token0();
+                    token1 = IUniswapV2Pair(pool).token1();
+                } else {
+                    token0 = IUniswapV3Pool(pool).token0();
+                    token1 = IUniswapV3Pool(pool).token1();
+                }
+            }
+
+            uint8 tokenInDecimals = token1 == WETH
+                ? IERC20(token0).decimals()
+                : IERC20(token1).decimals();
+
+            ///@notice Convert to 18 decimals to have correct price change on the reserve quantities in common 18 decimal form
+            uint128 amountIn = tokenInDecimals <= 18
+                ? uint128(alphaX * 10**(18 - tokenInDecimals))
+                : uint128(alphaX / (10**(tokenInDecimals - 18)));
+
             executionPrice = _simulateTokenToTokenPriceChange(
-                alphaX,
+                amountIn,
                 executionPrice
             );
         } else {
@@ -1684,21 +1779,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 reserveBToken = executionPrice.wethToBReserve1;
 
         address poolAddressWethToB = executionPrice.lpAddressWethToB;
-        uint128 amountInWethToB = (_lpIsNotUniV3(poolAddressWethToB))
-            ? uint128(
-                alphaX *
-                    (10 **
-                        (executionPrice.decimalsInDecimalsWethToB[1] -
-                            executionPrice.decimalsInDecimalsWethToB[1]))
-            )
-            : alphaX;
+
         (
             uint256 newSpotPriceB,
             uint128 newReserveBWeth,
             uint128 newReserveBToken,
 
         ) = _simulateAToBPriceChange(
-                amountInWethToB,
+                alphaX,
                 reserveBWeth,
                 reserveBToken,
                 poolAddressWethToB,
@@ -1764,21 +1852,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 reserveAToken = executionPrice.aToWethReserve0;
         uint128 reserveAWeth = executionPrice.aToWethReserve1;
         address poolAddressAToWeth = executionPrice.lpAddressAToWeth;
-        uint128 amountInAToWeth = (_lpIsNotUniV3(poolAddressAToWeth))
-            ? uint128(
-                alphaX *
-                    (10 **
-                        (executionPrice.decimalsInDecimalsAToWeth[1] -
-                            executionPrice.decimalsInDecimalsAToWeth[1]))
-            )
-            : alphaX;
+
         (
             newSpotPriceA,
             newReserveAToken,
             newReserveAWeth,
             amountOut
         ) = _simulateAToBPriceChange(
-            amountInAToWeth,
+            alphaX,
             reserveAToken,
             reserveAWeth,
             poolAddressAToWeth,
@@ -1836,47 +1917,36 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         )
     {
         uint128[] memory newReserves = new uint128[](2);
-      
+
         //If not uni v3 do constant product calculation
         if (_lpIsNotUniV3(pool)) {
             unchecked {
-                
-                    uint256 denominator = reserveA + alphaX;
+                uint256 denominator = reserveA + alphaX;
 
+                uint256 numerator = FullMath.mulDiv(
+                    uint256(reserveA),
+                    uint256(reserveB),
+                    denominator
+                );
 
-                    uint256 numerator = FullMath.mulDiv(
-                        uint256(reserveA),
-                        uint256(reserveB),
-                        denominator
-                    );
+                uint256 spotPrice = uint256(
+                    ConveyorMath.divUI(numerator, denominator)
+                ) << 64;
 
+                require(
+                    spotPrice <=
+                        0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
+                    "overflow"
+                );
 
-                    uint256 spotPrice = uint256(
-                        ConveyorMath.divUI(numerator, denominator)
-                    ) << 64;
+                newReserves[0] = uint128(denominator);
+                newReserves[1] = uint128(numerator);
 
-                    require(
-                        spotPrice <=
-                            0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
-                        "overflow"
-                    );
-                    
-                    newReserves[0] = uint128(denominator);
-                    newReserves[1] = uint128(numerator);
+                uint128 amountOut = uint128(
+                    getAmountOut(alphaX, reserveA, reserveB)
+                );
 
-                    uint128 amountOut = uint128(
-                        getAmountOut(alphaX, reserveA, reserveB)
-                    );
-                    
-                    return (
-                        spotPrice,
-                        newReserves[0],
-                        newReserves[1],
-                        amountOut
-                    );
-               
-                    
-                
+                return (spotPrice, newReserves[0], newReserves[1], amountOut);
             }
         } else {
             (
@@ -1888,7 +1958,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             newReserves[1] = 1;
 
             uint256 spotPrice = uint256(spotPrice64x64) << 64;
-           
+
             return (spotPrice, newReserves[0], newReserves[1], amountOut);
         }
     }
@@ -1945,7 +2015,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     nextSqrtPriceX96
                 );
 
-               
                 spotPrice = ConveyorMath.mul64x64(
                     ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64),
                     ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64)
@@ -1970,7 +2039,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     nextSqrtPriceX96
                 );
 
-                 ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
+                ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
                 spotPrice = ConveyorMath.mul64x64(
                     sqrtSpotPrice64x64,
                     sqrtSpotPrice64x64
@@ -1998,8 +2067,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     nextSqrtPriceX96
                 );
 
-                
-                
                 spotPrice = ConveyorMath.mul64x64(
                     sqrtSpotPrice64x64,
                     sqrtSpotPrice64x64

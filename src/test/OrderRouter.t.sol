@@ -12,6 +12,8 @@ import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
 import "../OrderRouter.sol";
 import "./utils/ScriptRunner.sol";
+import "../../lib/libraries/Uniswap/LowGasSafeMath.sol";
+import "../../lib/libraries/Uniswap/FullMath.sol";
 
 // import "../../scripts/logistic_curve.py";
 
@@ -64,15 +66,19 @@ contract OrderRouterTest is DSTest {
         _uniV3FactoryAddress
     ];
     bool[] _isUniV2 = [true, true, false];
-    
+    uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000; //3402823669209385000000000000000000000
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         scriptRunner = new ScriptRunner();
 
-        
         //Initialize swap router in constructor
-        orderRouter = new OrderRouterWrapper(_hexDems,_dexFactories,_isUniV2);
+        orderRouter = new OrderRouterWrapper(
+            _hexDems,
+            _dexFactories,
+            _isUniV2,
+            alphaXDivergenceThreshold
+        );
 
         uniV2Router = IUniswapV2Router02(_uniV2Address);
         uniV2Factory = IUniswapV2Factory(_uniV2FactoryAddress);
@@ -118,7 +124,7 @@ contract OrderRouterTest is DSTest {
         uint8 dec0 = 18;
         uint112 reserve1 = 131610640170334;
         uint8 dec1 = 9;
-        (uint256 r0_out, uint256 r1_out,) = orderRouter.convertToCommonBase(
+        (uint256 r0_out, uint256 r1_out) = orderRouter.convertToCommonBase(
             reserve0,
             dec0,
             reserve1,
@@ -131,7 +137,7 @@ contract OrderRouterTest is DSTest {
         uint112 reserve11 = 47925919677616776812811;
         uint8 dec11 = 18;
 
-        (uint256 r0_out1, uint256 r1_out1,) = orderRouter.convertToCommonBase(
+        (uint256 r0_out1, uint256 r1_out1) = orderRouter.convertToCommonBase(
             reserve01,
             dec01,
             reserve11,
@@ -296,9 +302,7 @@ contract OrderRouterTest is DSTest {
         ) = orderRouter.calculateV3SpotPrice(
                 dai,
                 weth,
-                1 * 10**18,
                 3000,
-                1,
                 _uniV3FactoryAddress
             );
 
@@ -330,9 +334,7 @@ contract OrderRouterTest is DSTest {
         ) = orderRouter.calculateV3SpotPrice(
                 dai,
                 usdc,
-                1 * 10**18,
                 3000,
-                1,
                 _uniV3FactoryAddress
             );
 
@@ -433,7 +435,7 @@ contract OrderRouterTest is DSTest {
         (
             OrderRouter.SpotReserve[] memory pricesUNWeth,
             address[] memory lps2
-        ) = orderRouter.getAllPrices(dai, weth, 1, 3000);
+        ) = orderRouter.getAllPrices(dai, weth, 3000);
 
         // (
         //     OrderRouter.SpotReserve[] memory pricesWethDai,
@@ -479,12 +481,12 @@ contract OrderRouterTest is DSTest {
         (
             OrderRouter.SpotReserve[] memory pricesWethUsdc,
             address[] memory lps
-        ) = orderRouter.getAllPrices(weth, usdc, 1, 3000);
+        ) = orderRouter.getAllPrices(weth, usdc, 3000);
 
         (
             OrderRouter.SpotReserve[] memory pricesUsdcWeth,
             address[] memory lps1
-        ) = orderRouter.getAllPrices(usdc, weth, 1, 3000);
+        ) = orderRouter.getAllPrices(usdc, weth, 3000);
 
         console.log("weth/usdc");
         console.log(pricesWethUsdc[0].spotPrice);
@@ -549,42 +551,44 @@ contract OrderRouterTest is DSTest {
     function testCalculateOrderRewardBeacon(uint64 wethValue) public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        if(!(wethValue<10**18)){
+        if (!(wethValue < 10**18)) {
             uint128 fee = orderRouter.calculateFee(wethValue, usdc, weth);
             //1.8446744073709550
-            (, uint128 rewardBeacon) = orderRouter
-                .calculateReward(fee, wethValue);
+            (, uint128 rewardBeacon) = orderRouter.calculateReward(
+                fee,
+                wethValue
+            );
 
-          
             string memory path = "scripts/calculateRewardBeacon.py";
             string[] memory args = new string[](3);
             args[0] = uint2str(fee);
             args[1] = uint2str(wethValue);
-            
+
             bytes memory spotOut = scriptRunner.runPythonScript(path, args);
             uint256 beaconRewardExpected = bytesToUint(spotOut);
-            assertEq(rewardBeacon/10**3,beaconRewardExpected/10**3);
+            assertEq(rewardBeacon / 10**3, beaconRewardExpected / 10**3);
         }
     }
 
     function testCalculateOrderRewardConveyor(uint64 wethValue) public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        if(!(wethValue<10**18)){
+        if (!(wethValue < 10**18)) {
             uint128 fee = orderRouter.calculateFee(wethValue, usdc, weth);
             //1.8446744073709550
-            (uint128 rewardConveyor, ) = orderRouter
-                .calculateReward(fee, wethValue);
+            (uint128 rewardConveyor, ) = orderRouter.calculateReward(
+                fee,
+                wethValue
+            );
 
-            
             string memory path = "scripts/calculateRewardConveyor.py";
             string[] memory args = new string[](3);
             args[0] = uint2str(fee);
             args[1] = uint2str(wethValue);
-            
+
             bytes memory spotOut = scriptRunner.runPythonScript(path, args);
             uint256 conveyorRewardExpected = bytesToUint(spotOut);
-            assertEq(rewardConveyor/10**3,conveyorRewardExpected/10**3);
+            assertEq(rewardConveyor / 10**3, conveyorRewardExpected / 10**3);
         }
     }
 
@@ -608,11 +612,148 @@ contract OrderRouterTest is DSTest {
         str = string(bstr);
     }
 
+    //15233771
+    function testCalculateMaxBeaconRewardTopLevel() public {
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        (
+            OrderRouter.SpotReserve[] memory pricesUsdcWeth,
+            address[] memory lps1
+        ) = orderRouter.getAllPrices(usdc, weth, 3000);
+        // 195241231237093697621340806139528792 //v2 <<
+        // 195091863414413907915398063986948786 //sushi
+        // 195097921519758036482852264177188530 //v3 <<
+        //Sell order ==> High price more advantagous
+        OrderBook.Order memory order1 = newMockOrder(
+            usdc,
+            weth,
+            1,
+            false,
+            false,
+            0,
+            1,
+            10000000,
+            3000,
+            0,
+            0,
+            0
+        );
+
+        OrderBook.Order memory order2 = newMockOrder(
+            usdc,
+            weth,
+            1,
+            false,
+            false,
+            0,
+            1,
+            10000000,
+            3000,
+            0,
+            0,
+            0
+        );
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
+
+        uint128 maxReward = orderRouter.calculateMaxBeaconRewardTop(
+            pricesUsdcWeth,
+            orderBatch,
+            false
+        );
+
+        assertLt(maxReward, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
+        assertEq(maxReward, 3829877604957868988);
+    }
+
+    function testCalculatePriceDivergenceFromBatchMin() public {
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        OrderBook.Order memory order1 = newMockOrder(
+            usdc,
+            weth,
+            195241231237093697621340806139528790,
+            false,
+            false,
+            0,
+            1,
+            10000000,
+            3000,
+            0,
+            0,
+            0
+        );
+
+        OrderBook.Order memory order2 = newMockOrder(
+            usdc,
+            weth,
+            195241231237093697621340806139528790, //<- min
+            false,
+            false,
+            0,
+            1,
+            10000000,
+            3000,
+            0,
+            0,
+            0
+        );
+
+        uint256 v2Outlier = 195241231237093697621340806139528792;
+        uint256 targetSpotExpected = order2.price;
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
+        bool buy = false;
+
+        (uint256 priceDivergence, uint256 targetSpot) = orderRouter
+            .calculatePriceDivergenceFromBatchMin(v2Outlier, orderBatch, buy);
+
+        uint256 proportionalSpotChangeExpected = ConveyorMath.div128x128(
+            targetSpot,
+            v2Outlier
+        );
+        uint256 priceDivergenceExpected = (uint256(1) << 128) -
+            proportionalSpotChangeExpected;
+        assertEq(priceDivergence, priceDivergenceExpected);
+        assertEq(targetSpot, targetSpotExpected);
+    }
+
+    function testCalculatePriceDivergence(uint128 _v3Spot, uint128 _v2Outlier)
+        public
+    {
+        if (_v3Spot != 0 && _v2Outlier != 0  && _v2Outlier != _v3Spot) {
+            string memory path = "scripts/calculatePriceDivergence.py";
+            string[] memory args = new string[](3);
+            uint256 _v3Base128 = ConveyorMath.fromUInt128(_v3Spot);
+            uint256 _v2Base128 = ConveyorMath.fromUInt128(_v2Outlier);
+            args[0] = uint2str(_v3Base128);
+            args[1] = uint2str(_v2Base128);
+
+            bytes memory priceDivergenceExpected = scriptRunner.runPythonScript(
+                path,
+                args
+            );
+            uint256 priceDivergenceExpectedInt = bytesToUint(
+                priceDivergenceExpected
+            );
+            
+            uint256 priceDivergence = orderRouter.calculatePriceDivergence(_v2Base128, _v2Base128);
+
+
+            assertEq(priceDivergence,priceDivergenceExpectedInt);
+         
+        }
+    }
+
     function testCalculateMaxBeaconReward(
         uint64 _alphaX,
         uint128 _reserve0,
         uint128 _reserve1,
-        uint128 _fee
+        uint256 _fee
     ) public {
         bool run = false;
 
@@ -620,33 +761,31 @@ contract OrderRouterTest is DSTest {
             _alphaX > 0 &&
             _alphaX % 10 == 0 &&
             _reserve0 > 100 &&
-            _reserve0 % 10 == 0 &&
-            _reserve1 % 10 == 0 &&
             _reserve1 > 100 &&
             _alphaX < _reserve0 &&
-            _alphaX < _reserve1 &&
             uint128(553402322211286500) <= _fee &&
             _fee <= uint128(922337203685477600)
         ) {
-            if (
-                !(_reserve0 * _reserve1 >
-                    0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
-            ) {
+           
                 run = true;
-            }
+            
         }
 
+        uint128 _fee = 553402322211286500;
+
         if (run == true) {
+           
             uint128 k = _reserve0 * _reserve1;
             unchecked {
                 uint128 reserve0Execution = _alphaX + _reserve0;
                 if (reserve0Execution <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF) {
                     uint128 reserve1Execution = k / reserve0Execution;
-
+                    uint256 snapShotSpotPrice = uint256(
+                        ConveyorMath.divUI(_reserve1, _reserve0) << 64
+                    );
                     uint128 maxBeaconReward = orderRouter
-                        .calculateMaxBeaconReward(
-                            _reserve0,
-                            _reserve1,
+                        .__calculateMaxBeaconReward(
+                            snapShotSpotPrice,
                             reserve0Execution,
                             reserve1Execution,
                             _fee
@@ -664,48 +803,104 @@ contract OrderRouterTest is DSTest {
     }
 
     function testCalculateAlphaX(
-        uint64 _alphaX,
-        uint128 _reserve0,
-        uint128 _reserve1
+        uint32 _alphaX,
+        uint112 _reserve0,
+        uint112 _reserve1
     ) public {
         bool run = false;
 
         if (
-            _alphaX > 0 &&
-            _alphaX % 10 == 0 &&
-            _reserve0 > 100 &&
-            _reserve0 % 10 == 0 &&
-            _reserve1 % 10 == 0 &&
-            _reserve1 > 100 &&
-            _alphaX < _reserve0 &&
-            _alphaX < _reserve1
+            _alphaX > 1500 && _alphaX %10==0 &&
+            _reserve0 > 10000000000000000000 &&
+            _reserve1 > 100000000000000000010 &&
+            _reserve0 != _reserve1 &&
+            _alphaX < _reserve0
         ) {
-            if (
-                !(_reserve0 * _reserve1 >
-                    0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
-            ) {
-                run = true;
-            }
+            run = true;
         }
 
         if (run == true) {
-            uint128 k = _reserve0 * _reserve1;
             unchecked {
-                uint128 reserve0Execution = _alphaX + _reserve0;
-                if (reserve0Execution <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF) {
-                    uint128 reserve1Execution = k / reserve0Execution;
-
-                    uint256 alphaX = orderRouter.calculateAlphaX(
-                        _reserve0,
-                        _reserve1,
-                        reserve0Execution,
-                        reserve1Execution
+                uint128 reserve0Snapshot = _reserve0 - _alphaX;
+                if (0 < reserve0Snapshot) {
+                    uint128 reserve1Snapshot = uint128(
+                        FullMath.mulDivRoundingUp(
+                            uint256(_reserve0),
+                            uint256(_reserve1),
+                            reserve0Snapshot
+                        )
                     );
+                   
+                    uint128 snapShotSpotPrice = ConveyorMath.divUI(
+                        uint256(reserve1Snapshot),
+                        uint256(reserve0Snapshot)
+                    );
+                    
+                    uint128 executionSpotPrice = ConveyorMath.divUI(
+                        uint256(_reserve1),
+                        uint256(_reserve0)
+                    );
+                    
+                    uint256 delta_temp = ConveyorMath.div128x128(
+                        uint256(executionSpotPrice)<<64,
+                        uint256(snapShotSpotPrice)<<64
+                    );
+                    console.log(delta_temp);
+                    uint256 delta = uint256(ConveyorMath.abs((int256(delta_temp)- (int256(1) << 128))));
 
-                    assertEq(alphaX, uint128(_alphaX) << 64);
+                   
+                  
+                    uint256 alphaX = orderRouter.calculateAlphaX(
+                            delta,
+                            uint128(_reserve0),
+                            uint128(_reserve1)
+                        );
+
+                    uint8 sigHigh = ConveyorBitMath.mostSignificantBit(alphaX);
+                    uint8 sigLow = ConveyorBitMath.leastSignificantBit(alphaX);
+
+                    assertEq(uint256(alphaX)/100, uint256(_alphaX)/100);
+                    
                 }
             }
         }
+    }
+
+    //================================================================
+    //======================= Helper functions =======================
+    //================================================================
+
+    function newMockOrder(
+        address tokenIn,
+        address tokenOut,
+        uint128 price,
+        bool buy,
+        bool taxed,
+        uint16 taxIn,
+        uint112 amountOutMin,
+        uint112 quantity,
+        uint16 feeIn,
+        uint16 feeOut,
+        uint32 lastRefreshTimestamp,
+        uint32 expirationTimestamp
+    ) internal view returns (ConveyorLimitOrders.Order memory order) {
+        //Initialize mock order
+        order = OrderBook.Order({
+            buy: buy,
+            taxed: taxed,
+            lastRefreshTimestamp: lastRefreshTimestamp,
+            expirationTimestamp: expirationTimestamp,
+            feeIn: feeIn,
+            feeOut: feeOut,
+            taxIn: taxIn,
+            price: price,
+            amountOutMin: amountOutMin,
+            quantity: quantity,
+            owner: msg.sender,
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            orderId: bytes32(0)
+        });
     }
 
     //================================================================================================
@@ -827,7 +1022,7 @@ contract OrderRouterTest is DSTest {
 
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
         address reciever = address(this);
-        uint256 amountOut=orderRouter.swapV2(
+        uint256 amountOut = orderRouter.swapV2(
             tokenIn,
             tokenOut,
             lp,
@@ -836,7 +1031,7 @@ contract OrderRouterTest is DSTest {
             reciever,
             address(this)
         );
-        require(amountOut !=0, "InsufficientOutputAmount");
+        require(amountOut != 0, "InsufficientOutputAmount");
     }
 
     //Uniswap V3 SwapRouter Tests
@@ -955,7 +1150,7 @@ contract OrderRouterTest is DSTest {
             address(this)
         );
 
-        require(amountOutSwap !=0, "InsufficientOutputAmount");
+        require(amountOutSwap != 0, "InsufficientOutputAmount");
     }
 
     function testSwap() public {
@@ -1008,7 +1203,7 @@ contract OrderRouterTest is DSTest {
         uint256 amountInMaximum = amountReceived;
         address reciever = address(this);
 
-        uint256 amountOut=orderRouter.swap(
+        uint256 amountOut = orderRouter.swap(
             tokenIn,
             tokenOut,
             lp,
@@ -1030,14 +1225,24 @@ contract OrderRouterWrapper is OrderRouter {
     constructor(
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
-        bool[] memory _isUniV2
-        
-    ) OrderRouter(
-        _initBytecodes,
-        _dexFactories,
-        _isUniV2
+        bool[] memory _isUniV2,
+        uint256 _alphaXDivergenceThreshold
+    )
+        OrderRouter(
+            _initBytecodes,
+            _dexFactories,
+            _isUniV2,
+            _alphaXDivergenceThreshold
+        )
+    {}
 
-    ){}
+    function calculateMaxBeaconRewardTop(
+        SpotReserve[] memory spotReserves,
+        OrderBook.Order[] memory orders,
+        bool wethIsToken0
+    ) public returns (uint128) {
+        return calculateMaxBeaconReward(spotReserves, orders, wethIsToken0);
+    }
 
     function calculateFee(
         uint128 amountIn,
@@ -1057,42 +1262,35 @@ contract OrderRouterWrapper is OrderRouter {
 
     function calculateReward(uint128 percentFee, uint128 wethValue)
         public
-        view
+
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
         return _calculateReward(percentFee, wethValue);
     }
 
-    function calculateMaxBeaconReward(
-        uint128 reserve0SnapShot,
-        uint128 reserve1SnapShot,
+    function __calculateMaxBeaconReward(
+        uint256 delta,
         uint128 reserve0,
         uint128 reserve1,
         uint128 fee
-    ) public pure returns (uint128) {
-        return
-            _calculateMaxBeaconReward(
-                reserve0SnapShot,
-                reserve1SnapShot,
-                reserve0,
-                reserve1,
-                fee
-            );
+    ) public returns (uint128) {
+        return _calculateMaxBeaconReward(delta, reserve0, reserve1, fee);
+    }
+
+    function calculatePriceDivergence(uint256 v3Spot, uint256 v2Outlier)
+        public
+    
+        returns (uint256)
+    {
+        return _calculatePriceDivergence(v3Spot, v2Outlier);
     }
 
     function calculateAlphaX(
-        uint128 reserve0SnapShot,
-        uint128 reserve1SnapShot,
+        uint256 delta,
         uint128 reserve0Execution,
         uint128 reserve1Execution
-    ) public pure returns (uint256) {
-        return
-            _calculateAlphaX(
-                reserve0SnapShot,
-                reserve1SnapShot,
-                reserve0Execution,
-                reserve1Execution
-            );
+    ) public returns (uint256) {
+        return _calculateAlphaX(delta, reserve0Execution, reserve1Execution);
     }
 
     function lpIsNotUniV3(address lp) public returns (bool) {
@@ -1164,6 +1362,14 @@ contract OrderRouterWrapper is OrderRouter {
             );
     }
 
+    function calculatePriceDivergenceFromBatchMin(
+        uint256 v2Outlier,
+        OrderBook.Order[] memory orders,
+        bool buy
+    ) public pure returns (uint256, uint256) {
+        return _calculatePriceDivergenceFromBatchMin(v2Outlier, orders, buy);
+    }
+
     function calculateV2SpotPrice(
         address token0,
         address token1,
@@ -1176,34 +1382,22 @@ contract OrderRouterWrapper is OrderRouter {
     function calculateV3SpotPrice(
         address token0,
         address token1,
-        uint112 amountIn,
         uint24 FEE,
-        uint32 tickSecond,
         address _factory
-    ) public view returns (SpotReserve memory, address) {
-        return
-            _calculateV3SpotPrice(
-                token0,
-                token1,
-                amountIn,
-                FEE,
-                tickSecond,
-                _factory
-            );
+    ) public returns (SpotReserve memory, address) {
+        return _calculateV3SpotPrice(token0, token1, FEE, _factory);
     }
 
     /// @notice Helper to get all lps and prices across multiple dexes
     /// @param token0 address of token0
     /// @param token1 address of token1
-    /// @param tickSecond tick second range on univ3
     /// @param FEE uniV3 fee
     function getAllPrices(
         address token0,
         address token1,
-        uint32 tickSecond,
         uint24 FEE
-    ) public view returns (SpotReserve[] memory prices, address[] memory lps) {
-        return _getAllPrices(token0, token1, tickSecond, FEE);
+    ) public returns (SpotReserve[] memory prices, address[] memory lps) {
+        return _getAllPrices(token0, token1, FEE);
     }
 
     /// @notice Helper to get amountIn amount for token pair
@@ -1220,7 +1414,7 @@ contract OrderRouterWrapper is OrderRouter {
         uint8 token0Decimals,
         uint112 reserve1,
         uint8 token1Decimals
-    ) public view returns (uint128, uint128, uint8 ) {
+    ) public view returns (uint128, uint128) {
         return
             _convertToCommonBase(
                 reserve0,
