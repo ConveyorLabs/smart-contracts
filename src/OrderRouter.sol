@@ -122,22 +122,22 @@ contract OrderRouter {
 
     //----------------------State Variables------------------------------------//
 
+    ///@notice The owner of the Order Router contract
+    ///@dev TODO: say what the owner can do
     address owner;
 
     //----------------------State Structures------------------------------------//
 
-    /// @notice Array of dex structures to be used throughout the contract for pair spot price calculations
+    ///@notice Array of Dex that is used to calculate spot prices for a given order.
     Dex[] public dexes;
 
+    ///@notice Mapping from DEX factory address to the index of the DEX in the dexes array
     mapping(address => uint256) dexToIndex;
-
-    //----------------------Constants------------------------------------//
-
-    ISwapRouter public constant swapRouter =
-        ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
 
     //----------------------Modifiers------------------------------------//
 
+    ///@notice Modifier function to only allow the owner of the contract to call specific functions
+    ///@dev TODO: list functions with only owner modifier
     modifier onlyOwner() {
         if (msg.sender != owner) {
             revert MsgSenderIsNotOwner();
@@ -147,17 +147,29 @@ contract OrderRouter {
     }
     //----------------------Immutables------------------------------------//
 
-    //Immutable variable used to prevent front running by subsidizing the execution reward if a v2 price is proportionally beyond the threshold distance from the v3 price
+    ///@notice Variable used to prevent front running by subsidizing the execution reward if a v2 price is proportionally beyond the threshold distance from the v3 price
+
+    ///@notice Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     uint256 immutable alphaXDivergenceThreshold;
+
+    ///@notice Instance of the UniV3 swap router.
+    ISwapRouter public immutable swapRouter;
 
     //----------------------Constructor------------------------------------//
 
+    ///@param _deploymentByteCodes - Array of DEX creation init bytecodes.
+    ///@param _dexFactories - Array of DEX factory addresses.
+    ///@param _isUniV2 - Array of booleans indicating if the DEX is UniV2 compatible.
+    ///@param swapRouterAddress - The UniV3 swap router address for the network.
+    ///@param _alphaXDivergenceThreshold - Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     constructor(
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
+        address swapRouterAddress,
         uint256 _alphaXDivergenceThreshold
     ) {
+        ///@notice Initialize DEXs and other variables
         for (uint256 i = 0; i < _deploymentByteCodes.length; ++i) {
             dexes.push(
                 Dex({
@@ -168,11 +180,15 @@ contract OrderRouter {
             );
         }
         alphaXDivergenceThreshold = _alphaXDivergenceThreshold;
+        swapRouter = ISwapRouter(swapRouterAddress);
         owner = msg.sender;
     }
 
     //----------------------Functions------------------------------------//
 
+    ///@notice Transfer ETH to a specific address and require that the call was successful.
+    ///@param to - The address that should be sent Ether.
+    ///@param amount - The amount of Ether that should be sent.
     function safeTransferETH(address to, uint256 amount) public {
         bool success;
 
