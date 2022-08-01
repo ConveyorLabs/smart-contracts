@@ -727,7 +727,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         uint128 maxBeaconReward = calculateMaxBeaconReward(
             spotReserveAToWeth,
-            orders
+            orders,
+            false
         );
 
         console.log("max beacon reward");
@@ -1376,9 +1377,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
 
         //Used as a protective hard cap on the beacon reward to prevent flashloaning the orders in the queue
-        uint128 maxBeaconReward = calculateMaxBeaconReward(
+        uint128 maxBeaconReward = WETH != tokenIn ? calculateMaxBeaconReward(
             spotReserveAToWeth,
-            orders
+            orders,
+            false
+        ) : calculateMaxBeaconReward(
+            spotReserveWethToB,
+            orders,
+            true
         );
 
         return (executionPrices, maxBeaconReward);

@@ -246,7 +246,8 @@ contract OrderRouter {
 
     function calculateMaxBeaconReward(
         SpotReserve[] memory spotReserves,
-        OrderBook.Order[] memory orders
+        OrderBook.Order[] memory orders,
+        bool wethIsToken0
     ) internal returns (uint128) {
         bool buy = orders[0].buy;
 
@@ -325,12 +326,12 @@ contract OrderRouter {
                 }
             }
         }
+        if(!wethIsToken0){
+            ///Convert the alphaX*fee quantity into the out token i.e weth
+            maxBeaconReward = uint128(ConveyorMath.mul128I(v2Outlier, maxBeaconReward));
+        }
         
-        ///Convert the alphaX*fee quantity into the out token i.e weth
-        maxBeaconReward = uint128(ConveyorMath.mul128I(v2Outlier, maxBeaconReward));
-        console.log("max beacon reward");
-        console.log(maxBeaconReward);
-        console.log(v2Outlier);
+        
         return maxBeaconReward;
     }
 

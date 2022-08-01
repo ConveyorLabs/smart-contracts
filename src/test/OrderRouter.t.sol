@@ -660,7 +660,8 @@ contract OrderRouterTest is DSTest {
 
         uint128 maxReward = orderRouter.calculateMaxBeaconRewardTop(
             pricesUsdcWeth,
-            orderBatch
+            orderBatch,
+            false
         );
 
         assertLt(maxReward, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
@@ -1239,9 +1240,10 @@ contract OrderRouterWrapper is OrderRouter {
 
     function calculateMaxBeaconRewardTop(
         SpotReserve[] memory spotReserves,
-        OrderBook.Order[] memory orders
+        OrderBook.Order[] memory orders,
+        bool wethIsToken0
     ) public returns (uint128) {
-        return calculateMaxBeaconReward(spotReserves, orders);
+        return calculateMaxBeaconReward(spotReserves, orders, wethIsToken0);
     }
 
     function calculateFee(
