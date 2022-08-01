@@ -189,7 +189,6 @@ library ConveyorMath {
 
     function abs(int256 x) internal pure returns (int256) {
         unchecked {
-            
             return x < 0 ? -x : x;
         }
     }

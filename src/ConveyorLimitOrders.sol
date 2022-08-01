@@ -53,7 +53,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     IQuoter immutable iQuoter;
 
-
     // ========================================= Constructor =============================================
 
     constructor(
@@ -70,7 +69,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint256 _alphaXDivergenceThreshold
     )
         OrderBook(_gasOracle)
-        OrderRouter(_deploymentByteCodes, _dexFactories, _isUniV2, _alphaXDivergenceThreshold)
+        OrderRouter(
+            _deploymentByteCodes,
+            _dexFactories,
+            _isUniV2,
+            _alphaXDivergenceThreshold
+        )
     {
         iQuoter = IQuoter(_quoterAddress);
         refreshFee = _refreshFee;
@@ -78,7 +82,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         USDC = _usdc;
         refreshInterval = _refreshInterval;
         executionCost = _executionCost;
-        
     }
 
     // ========================================= Events  =============================================
@@ -736,7 +739,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return (executionPrices, maxBeaconReward);
     }
 
-
     function _initializeNewTokenToWethBatchOrder(
         uint256 initArrayLength,
         address tokenIn,
@@ -960,10 +962,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice execute an array of orders from token to token
     function _executeTokenToTokenOrders(Order[] memory orders) internal {
         ///@notice get all execution price possibilities
-        (TokenToTokenExecutionPrice[]
-            memory executionPrices, uint128 maxBeaconReward) = _initializeTokenToTokenExecutionPrices(
-                orders
-            );
+        (
+            TokenToTokenExecutionPrice[] memory executionPrices,
+            uint128 maxBeaconReward
+        ) = _initializeTokenToTokenExecutionPrices(orders);
 
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
         TokenToTokenBatchOrder[]
@@ -973,16 +975,19 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
 
         ///@notice execute the batch orders
-        _executeTokenToTokenBatchOrders(tokenToTokenBatchOrders, maxBeaconReward);
+        _executeTokenToTokenBatchOrders(
+            tokenToTokenBatchOrders,
+            maxBeaconReward
+        );
     }
 
     ///@notice execute an array of orders from token to token
     function _executeTokenToTokenTaxedOrders(Order[] memory orders) internal {
         ///@notice get all execution price possibilities
-        (TokenToTokenExecutionPrice[]
-            memory executionPrices, uint128 maxBeaconReward) = _initializeTokenToTokenExecutionPrices(
-                orders
-            );
+        (
+            TokenToTokenExecutionPrice[] memory executionPrices,
+            uint128 maxBeaconReward
+        ) = _initializeTokenToTokenExecutionPrices(orders);
 
         ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
         TokenToTokenBatchOrder[]
@@ -1103,7 +1108,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     function _executeTokenToTokenBatchOrders(
-        TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders, 
+        TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders,
         uint128 maxBeaconReward
     ) internal {
         uint256 totalBeaconReward;
@@ -1140,15 +1145,21 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 safeTransferETH(batch.batchOwners[j], orderPayout);
             }
         }
-        console.log(totalBeaconReward);
-        totalBeaconReward = totalBeaconReward<maxBeaconReward ? totalBeaconReward : maxBeaconReward;
-        console.log("total beacon reward");
-        console.log(totalBeaconReward);
+
+        totalBeaconReward = totalBeaconReward < maxBeaconReward
+            ? totalBeaconReward
+            : maxBeaconReward;
+
         ///@notice calculate the beacon runner profit and pay the beacon
         safeTransferETH(msg.sender, totalBeaconReward);
     }
 
     ///TODO: Account for v3 fee on amountOut conversion
+    ///@notice Helper function to calculate amountOutMin value agnostically across dexes on the first hop from tokenA to WETH
+    ///@param lpAddressAToWeth lp address of A to weth pair
+    ///@param amountInOrder the order.quantity
+    ///@param orderId bytes32 identifier of the order
+    ///@param taxIn tax of tokenA if any
     function calculateAmountOutMinAToWeth(
         address lpAddressAToWeth,
         uint256 amountInOrder,
@@ -1157,6 +1168,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ) internal returns (uint256 amountOutMinAToWeth) {
         if (!_lpIsNotUniV3(lpAddressAToWeth)) {
             Order memory order = getOrderById(orderId);
+
+            ///@notice 1000==100% so divide amountInOrder *taxIn by 10**5 to adjust to correct base
             uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
             uint256 amountIn = amountInOrder - amountInBuffer;
 
@@ -1215,8 +1228,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     {
         uint128 protocolFee;
         uint128 beaconReward;
+        uint128 conveyorReward;
         uint256 amountInWethToB;
         uint24 fee;
+
         if (!(batch.batchLength == 0)) {
             if (batch.tokenIn != WETH) {
                 uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWeth(
@@ -1245,10 +1260,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 ///@notice take out fees
                 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
-                (, beaconReward) = _calculateReward(protocolFee, amountOutWeth);
+                (conveyorReward, beaconReward) = _calculateReward(
+                    protocolFee,
+                    amountOutWeth
+                );
 
                 ///@notice get amount in for weth to B
-                amountInWethToB = amountOutWeth - beaconReward;
+                amountInWethToB =
+                    amountOutWeth -
+                    (beaconReward + conveyorReward);
             } else {
                 ///@notice take out fees from the batch amountIn since token0 is weth
                 protocolFee = _calculateFee(
@@ -1258,13 +1278,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
 
                 //Take out beacon/conveyor reward
-                (, beaconReward) = _calculateReward(
+                (conveyorReward, beaconReward) = _calculateReward(
                     protocolFee,
                     uint128(batch.amountIn)
                 );
 
                 ///@notice get amount in for weth to B
-                amountInWethToB = batch.amountIn - beaconReward;
+                amountInWethToB =
+                    batch.amountIn -
+                    (beaconReward + conveyorReward);
             }
 
             fee = _getUniV3Fee(batch.lpAddressWethToB);
@@ -1377,15 +1399,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
 
         //Used as a protective hard cap on the beacon reward to prevent flashloaning the orders in the queue
-        uint128 maxBeaconReward = WETH != tokenIn ? calculateMaxBeaconReward(
-            spotReserveAToWeth,
-            orders,
-            false
-        ) : calculateMaxBeaconReward(
-            spotReserveWethToB,
-            orders,
-            true
-        );
+        uint128 maxBeaconReward = WETH != tokenIn
+            ? calculateMaxBeaconReward(spotReserveAToWeth, orders, false)
+            : calculateMaxBeaconReward(spotReserveWethToB, orders, true);
 
         return (executionPrices, maxBeaconReward);
     }
@@ -1613,7 +1629,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
 
-                if (executionPrice < bestPrice && executionPrice !=0) {
+                if (executionPrice < bestPrice && executionPrice != 0) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
                 }

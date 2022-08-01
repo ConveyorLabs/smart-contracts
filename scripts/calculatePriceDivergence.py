@@ -8,10 +8,14 @@ def main(args):
     if(v3Spot> v2Outlier):
         proportionalChange = v2Outlier/v3Spot
         priceDivergence = (1*2**128)- proportionalChange
-    else:
+    elif(v3Spot<v2Outlier):
         proportionalChange = v3Spot/v2Outlier
         priceDivergence = (1*2**128)- proportionalChange
+    else:
+        priceDivergence=0
 
+    if(priceDivergence==340282366920938463463374607431768211456):
+        priceDivergence=0
     
     enc = encode_single('uint256', int(priceDivergence))
     print("0x" + enc.hex())

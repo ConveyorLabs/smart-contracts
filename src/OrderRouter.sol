@@ -89,7 +89,6 @@ contract OrderRouter {
 
     mapping(address => uint256) dexToIndex;
 
-
     //----------------------Constants------------------------------------//
 
     ISwapRouter public constant swapRouter =
@@ -107,6 +106,7 @@ contract OrderRouter {
     //----------------------Immutables------------------------------------//
     //Immutable variable used to prevent front running by subsidizing the execution reward if a v2 price is proportionally beyond the threshold distance from the v3 price
     uint256 immutable alphaXDivergenceThreshold;
+
     //----------------------Constructor------------------------------------//
 
     constructor(
@@ -124,7 +124,7 @@ contract OrderRouter {
                 })
             );
         }
-        alphaXDivergenceThreshold=_alphaXDivergenceThreshold;
+        alphaXDivergenceThreshold = _alphaXDivergenceThreshold;
         owner = msg.sender;
     }
 
@@ -151,42 +151,56 @@ contract OrderRouter {
     ) internal view returns (uint128) {
         uint128 Out64x64;
 
+        ///@notice Initialize spot reserve structure to retrive the spot price from uni v2
         (SpotReserve memory _spRes, ) = _calculateV2SpotPrice(
             weth,
             usdc,
             dexes[0].factoryAddress,
             dexes[0].initBytecode
         );
+
+        //Cache the spot price
         uint256 spotPrice = _spRes.spotPrice;
 
+        //spotPrice is fixed 128.128 form, so multiply spotPrice*amountIn and adjust to base 10
         uint256 amountInUsdcDollarValue = ConveyorMath.mul128I(
             spotPrice,
             amountIn
         ) / uint256(10**18);
+
+        ///@notice if usdc value of trade is >= 1000000 set static fee of 0.001
         if (amountInUsdcDollarValue >= 1000000) {
             Out64x64 = 18446744073709552;
             return Out64x64;
         }
 
-        uint256 numerator = 16602069666338597000 << 64; // 128x128 fixed representation
+        ///@notice 0.9 represented as 128.128 fixed point
+        uint256 numerator = 16602069666338597000 << 64;
 
+        ///@notice Exponent= usdAmount/750000
         uint128 exponent = uint128(
             ConveyorMath.divUI(amountInUsdcDollarValue, 75000)
         );
 
+        ///@notice This is to prevent overflow, and order is of sufficient size to recieve 0.001 fee
         if (exponent >= 0x400000000000000000) {
             Out64x64 = 18446744073709552;
             return Out64x64;
         }
+
+        ///@notice denominator = (2.5 + e^(exponent))
         uint256 denominator = ConveyorMath.add128x128(
             23058430092136940000 << 64,
             uint256(ConveyorMath.exp(exponent)) << 64
         );
+
+        ///@notice divide numerator by denominator
         uint256 rationalFraction = ConveyorMath.div128x128(
             numerator,
             denominator
         );
 
+        ///@notice add 0.1 buffer and divide by 100 to adjust fee to correct % value in range [0.001-0.005]
         Out64x64 = ConveyorMath.div64x64(
             ConveyorMath.add64x64(
                 uint128(rationalFraction >> 64),
@@ -208,13 +222,16 @@ contract OrderRouter {
         pure
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
+        ///@notice Compute wethValue * percentFee
         uint256 totalWethReward = ConveyorMath.mul64I(
             percentFee,
             uint256(wethValue)
         );
 
+        ///@notice initialize conveyorPercent to hold conveyors portion of the reward
         uint128 conveyorPercent;
 
+        ///@notice This is to prevent over flow initialize the fee to fee+ (0.005-fee)/2+0.001*10**2
         if (percentFee <= 92233720368547760) {
             int256 innerPartial = int256(92233720368547760) -
                 int128(percentFee);
@@ -235,6 +252,7 @@ contract OrderRouter {
             conveyorPercent = 7583661452525017000;
         }
 
+        ///@notice Multiply conveyorPercent by total reward to retrive conveyorReward
         conveyorReward = uint128(
             ConveyorMath.mul64I(conveyorPercent, totalWethReward)
         );
@@ -244,25 +262,37 @@ contract OrderRouter {
         return (conveyorReward, beaconReward);
     }
 
+    ///@notice Top level maxBeaconReward helper to check if a max beacon reward should be put on the batch to combat flash loan attacks
+    ///@notice We use a fairly wide uni v3 tick range, so we determine if a max reward should be put on the batch if a uni v2 pool is beyond the immutable variable
+    ///@notice alphaXPriceDivergence threshold in the direction that's advantageous to be able to execute the orders. If a uni v2 pool is beyond our threshold
+    ///@notice we simply cap the beaconReward at execution time to be the total fee's paid on flashloaning the uni v2 pool.
+    ///@param spotReserves SpotReserve structure holding the spot prices and liquidity for all dexes tracked
+    ///@param orders all the current orders being initialized for execution
+    ///@param wethIsToken0 bool used to determine whether the alphaX*fee value should be converted to weth or not
     function calculateMaxBeaconReward(
         SpotReserve[] memory spotReserves,
         OrderBook.Order[] memory orders,
         bool wethIsToken0
     ) internal returns (uint128) {
+        //Cache the first orders buy status
         bool buy = orders[0].buy;
 
+        //Initialize v2Outlier to the max/min depending on order status
         uint256 v2Outlier = buy
             ? 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
             : 0;
 
+        //Initialize relevant memory
         uint256 v3Spot;
         bool v3PairExists;
         uint256 v2OutlierIndex;
 
+        //Scope
         {
             for (uint256 i = 0; i < spotReserves.length; ++i) {
                 ///@notice dexes indexed identical to SpotReserve[]
                 if (!dexes[i].isUniV2) {
+                    //If pair exists on v3 cache the spot price
                     v3Spot = spotReserves[i].spotPrice;
                     if (v3Spot == 0) {
                         v3PairExists = false;
@@ -270,6 +300,7 @@ contract OrderRouter {
                         v3PairExists = true;
                     }
                 } else {
+                    //If it's a buy order the lowest spotPrice will be the one v2Outlier otherwise the highest
                     if (buy) {
                         if (spotReserves[i].spotPrice < v2Outlier) {
                             v2OutlierIndex = i;
@@ -285,20 +316,23 @@ contract OrderRouter {
             }
         }
 
-        if(buy && v2Outlier > v3Spot){
+        ///@notice if the order batch status is buy and the v2 pool is not beyond the price point of v2 then don't set a beacon cap
+        if (buy && v2Outlier > v3Spot) {
             return 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
-        }else if (!(buy) && v2Outlier< v3Spot){
+        } else if (!(buy) && v2Outlier < v3Spot) {
             return 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
         }
 
         uint256 priceDivergence;
         uint256 snapShotSpot;
         uint128 maxBeaconReward = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
-       
+
         {
             if (v3PairExists) {
+                ///@notice calculate proportional difference between the v3 and v2Outlier price
                 priceDivergence = _calculatePriceDivergence(v3Spot, v2Outlier);
-               
+
+                ///@notice if the difference crosses the alphaXDivergenceThreshold immutable variable then set a beaconCap to prevent flash loan attacks across the board
                 if (priceDivergence > alphaXDivergenceThreshold) {
                     maxBeaconReward = _calculateMaxBeaconReward(
                         priceDivergence,
@@ -307,6 +341,7 @@ contract OrderRouter {
                         uint128(5534023222112865000)
                     );
                 }
+                //If v3 pair does not exist then calculate the divergence threshold from the smallest order in the batch
             } else {
                 (
                     priceDivergence,
@@ -316,6 +351,7 @@ contract OrderRouter {
                     orders,
                     buy
                 );
+                //If the threshold crosses alphaXDivergenceThreshold cap the reward on the batch
                 if (priceDivergence > alphaXDivergenceThreshold) {
                     maxBeaconReward = _calculateMaxBeaconReward(
                         snapShotSpot,
@@ -326,15 +362,21 @@ contract OrderRouter {
                 }
             }
         }
-        if(!wethIsToken0){
+        //If weth is not token0 then convert the maxBeaconValue into weth
+        if (!wethIsToken0) {
             ///Convert the alphaX*fee quantity into the out token i.e weth
-            maxBeaconReward = uint128(ConveyorMath.mul128I(v2Outlier, maxBeaconReward));
+            maxBeaconReward = uint128(
+                ConveyorMath.mul128I(v2Outlier, maxBeaconReward)
+            );
         }
-        
-        
+
         return maxBeaconReward;
     }
 
+    ///@notice Helper function to calculate the proportional difference between the *minimum* priced order in the batch relative to the buy sell status of the batch
+    ///@param v2Outlier spotPrice of the v2Outlier used to cross reference agains alphaXDivergenceThreshold
+    ///@param orders array of order's to compare the spot price against
+    ///@param buy boolean indicating buy/sell status of the batch
     function _calculatePriceDivergenceFromBatchMin(
         uint256 v2Outlier,
         OrderBook.Order[] memory orders,
@@ -376,6 +418,7 @@ contract OrderRouter {
         return (priceDivergence, targetSpot);
     }
 
+    ///@notice Helper function to determine the proportional difference between two spot prices
     function _calculatePriceDivergence(uint256 v3Spot, uint256 v2Outlier)
         internal
         returns (uint256)
@@ -385,15 +428,13 @@ contract OrderRouter {
         if (v3Spot > v2Outlier) {
             proportionalSpotChange = ConveyorMath.div128x128(v2Outlier, v3Spot);
             console.log(proportionalSpotChange);
-            
+
             priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
-        } 
-        else if (v3Spot==v2Outlier){
-            return 340282366920938463463374607431768211456;
-        }
-        else {
+        } else if (v3Spot == v2Outlier) {
+            return 0;
+        } else {
             proportionalSpotChange = ConveyorMath.div128x128(v3Spot, v2Outlier);
-           
+
             console.log(proportionalSpotChange);
             priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
         }
@@ -413,10 +454,12 @@ contract OrderRouter {
         uint128 fee
     ) public returns (uint128) {
         unchecked {
-            uint128 maxReward = uint128(ConveyorMath.mul64I(
-                fee,
-                _calculateAlphaX(delta,reserve0, reserve1)
-            ));
+            uint128 maxReward = uint128(
+                ConveyorMath.mul64I(
+                    fee,
+                    _calculateAlphaX(delta, reserve0, reserve1)
+                )
+            );
 
             //TODO: do we need this?
             require(maxReward <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
@@ -440,13 +483,26 @@ contract OrderRouter {
         bytes16 deltaQuad = QuadruplePrecision.from128x128(int256(delta));
         bytes16 reserve1Quad = QuadruplePrecision.fromUInt(reserve1Execution);
         bytes16 reserve0Quad = QuadruplePrecision.fromUInt(reserve0Execution);
-        bytes16 numeratorPartial = QuadruplePrecision.add(QuadruplePrecision.mul(deltaQuad,reserve1Quad), reserve1Quad);
+        bytes16 numeratorPartial = QuadruplePrecision.add(
+            QuadruplePrecision.mul(deltaQuad, reserve1Quad),
+            reserve1Quad
+        );
         bytes16 sqrtNumPartial = QuadruplePrecision.sqrt(numeratorPartial);
         bytes16 sqrtReserve0 = QuadruplePrecision.sqrt(reserve0Quad);
-        bytes16 numerator = QuadruplePrecision.abs(QuadruplePrecision.sub(k,QuadruplePrecision.mul(sqrtReserve0,QuadruplePrecision.mul(sqrtNumPartial, sqrtK))));
-        uint256 alphaX = uint256(QuadruplePrecision.toUInt(QuadruplePrecision.div(numerator, reserve1Quad)));
-        console.log("AlphaX");
-        console.log(alphaX);
+        bytes16 numerator = QuadruplePrecision.abs(
+            QuadruplePrecision.sub(
+                k,
+                QuadruplePrecision.mul(
+                    sqrtReserve0,
+                    QuadruplePrecision.mul(sqrtNumPartial, sqrtK)
+                )
+            )
+        );
+        uint256 alphaX = uint256(
+            QuadruplePrecision.toUInt(
+                QuadruplePrecision.div(numerator, reserve1Quad)
+            )
+        );
 
         return alphaX;
     }
@@ -810,7 +866,9 @@ contract OrderRouter {
 
         address pool;
         int24 tick;
-        uint32 tickSecond = 1;
+        ///FIXME: change this to 600
+        uint32 tickSecond = 1; //10 minute time weighted average price to use as baseline for maxBeaconReward analysis
+        ///FIXME: don't forget this is important
         uint112 amountIn = _getGreatestTokenDecimalsAmountIn(token0, token1);
         //Scope to prevent stack too deep error
         {
@@ -896,7 +954,6 @@ contract OrderRouter {
                 tickSeconds
             );
 
-            //Scope to prevent deep stack error
             //Spot price of tickSeconds ago - spot price of current block
             tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
 
