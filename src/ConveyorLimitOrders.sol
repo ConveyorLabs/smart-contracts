@@ -155,8 +155,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     /// @param orderIds orders to refresh timestamp
     function refreshOrder(bytes32[] memory orderIds) external {
         for (uint256 i = 0; i < orderIds.length; ++i) {
+            bytes32 orderId = orderIds[i];
+
             //Cache order in memory
-            Order memory order = getOrderById(orderIds[i]);
+            Order memory order = getOrderById(orderId);
 
             //Require 30 days has elapsed since last refresh
             if (
@@ -167,13 +169,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
             //Require current timestamp is not past order expiration
             if (block.timestamp > order.expirationTimestamp) {
-                _cancelOrder(order.orderId);
+                _cancelOrder(orderId);
                 continue;
             }
 
             //check for underflow gasCreditBalance[order.owner] - refreshFee
             if (gasCreditBalance[order.owner] < refreshFee) {
-                _cancelOrder(order.orderId);
+                _cancelOrder(orderId);
                 continue;
             }
 
@@ -192,7 +194,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 )
             ) {
                 //If order does not have sufficient gas credit balance after decrementing the refresh fee cancel the order
-                _cancelOrder(order.orderId);
+                _cancelOrder(orderId);
                 continue;
             }
 
@@ -204,13 +206,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 gasCreditBalance[order.owner] -
                 refreshFee;
 
-            //Change order.lastRefreshTimestamp to current block.timestamp
-            order.lastRefreshTimestamp = uint32(block.timestamp);
-
-            _updateOrder(order, order.owner);
+            orderIdToOrder[orderId].lastRefreshTimestamp = uint32(
+                block.timestamp
+            );
 
             emit OrderRefreshed(
-                order.orderId,
+                orderId,
                 order.lastRefreshTimestamp,
                 order.expirationTimestamp
             );

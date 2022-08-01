@@ -5,6 +5,9 @@ import "../lib/interfaces/token/IERC20.sol";
 import "./GasOracle.sol";
 import "./ConveyorErrors.sol";
 
+/// @title OrderBook
+/// @author 0xKitsune, LeytonTaylor
+/// @notice TODO:
 contract OrderBook is GasOracle {
     //----------------------Constructor------------------------------------//
 
@@ -111,8 +114,7 @@ contract OrderBook is GasOracle {
         ///@notice Initialize the orderToken for the newly placed orders.
         /**@dev When placing a new group of orders, the tokenIn and tokenOut must be the same on each order. New orders are placed
         this way to securely validate if the msg.sender has the tokens required when placing a new order as well as enough gas credits
-        to cover order execution cost.
-        */
+        to cover order execution cost.*/
         address orderToken = orderGroup[0].tokenIn;
 
         ///@notice Get the value of all orders on the orderToken that are currently placed for the msg.sender.
@@ -200,116 +202,84 @@ contract OrderBook is GasOracle {
         return orderIds;
     }
 
-    /// @notice Update mapping(uint256 => Order) in Order struct from identifier orderId to new 'order' value passed as @param
+    /**@notice Updates an existing order. If the order exists and all order criteria is met, the order at the specified orderId will
+    be updated to the newOrder's parameters. */
+    /**@param newOrder - Order struct containing the updated order parameters desired. 
+    The newOrder should have the orderId that corresponds to the existing order that it should replace. */
     function updateOrder(Order calldata newOrder) public {
-        //check if the old order exists
-
+        ///@notice Check if the order exists
         bool orderExists = addressToOrderIds[msg.sender][newOrder.orderId];
 
+        ///@notice If the order does not exist, revert.
         if (!orderExists) {
             revert OrderDoesNotExist(newOrder.orderId);
         }
 
+        ///@notice Get the existing order that will be replaced with the new order
         Order memory oldOrder = orderIdToOrder[newOrder.orderId];
 
-        ///TODO: make this more efficient and check if new order > old order, then increment the difference else decrement the difference
+        ///@notice Get the total orders value for the msg.sender on the tokenIn
+        uint256 totalOrdersValue = _getTotalOrdersValue(oldOrder.tokenIn);
 
-        //Decrement oldOrder Quantity from totalOrdersQuantity
-        //Decrement totalOrdersQuantity on order.tokenIn for order owner
-        decrementTotalOrdersQuantity(
-            oldOrder.tokenIn,
-            msg.sender,
-            oldOrder.quantity
-        );
-        //TODO: get total order sum and make sure that the user has the balance for the new order
+        ///@notice Update the total orders value
+        if (newOrder.quantity > oldOrder.quantity) {
+            totalOrdersValue += newOrder.quantity - oldOrder.quantity;
+        } else {
+            totalOrdersValue += oldOrder.quantity - newOrder.quantity;
+        }
 
-        //update the order
-        orderIdToOrder[oldOrder.orderId] = newOrder;
+        ///@notice If the wallet does not have a sufficient balance for the updated total orders value, revert.
+        if (IERC20(newOrder.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
+            revert InsufficientWalletBalance();
+        }
 
-        //Update totalOrdersQuantity to new order quantity
-        incrementTotalOrdersQuantity(
+        ///@notice Update the total orders quantity
+        updateTotalOrdersQuantity(
             newOrder.tokenIn,
             msg.sender,
-            newOrder.quantity
+            totalOrdersValue
         );
 
-        //emit an updated order event
-        //TODO: do this in assembly
+        ///@notice Update the order details stored in the system.
+        orderIdToOrder[oldOrder.orderId] = newOrder;
+
+        ///@notice Emit an updated order event with the orderId that was updated
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = newOrder.orderId;
         emit OrderUpdated(orderIds);
     }
 
-    /// @notice Update mapping(uint256 => Order) in Order struct from identifier orderId to new 'order' value passed as @param
-    function _updateOrder(Order memory newOrder, address owner) internal {
-        //check if the old order exists
-
-        bool orderExists = addressToOrderIds[owner][newOrder.orderId];
-
-        if (!orderExists) {
-            revert OrderDoesNotExist(newOrder.orderId);
-        }
-
-        Order memory oldOrder = orderIdToOrder[newOrder.orderId];
-
-        ///TODO: make this more efficient and check if new order > old order, then increment the difference else decrement the difference
-
-        //Decrement oldOrder Quantity from totalOrdersQuantity
-        //Decrement totalOrdersQuantity on order.tokenIn for order owner
-        decrementTotalOrdersQuantity(
-            oldOrder.tokenIn,
-            owner,
-            oldOrder.quantity
-        );
-        //TODO: get total order sum and make sure that the user has the balance for the new order
-
-        //update the order
-        orderIdToOrder[oldOrder.orderId] = newOrder;
-
-        //Update totalOrdersQuantity to new order quantity
-        incrementTotalOrdersQuantity(
-            newOrder.tokenIn,
-            owner,
-            newOrder.quantity
-        );
-
-        //emit an updated order event
-        //TODO: do this in assembly
-        bytes32[] memory orderIds = new bytes32[](1);
-        orderIds[0] = newOrder.orderId;
-        emit OrderUpdated(orderIds);
-    }
-
-    /// @notice Remove Order order from OrderGroup mapping by identifier orderId conditionally if order exists already in ActiveOrders
-    /// @param orderId the order to which the caller is removing from the OrderGroup struct
+    ///@notice Remove an order from the system if the order exists.
+    /// @param orderId - The orderId that corresponds to the order that should be cancelled.
     function cancelOrder(bytes32 orderId) public {
-        /// Check if order exists in active orders. Revert if order does not exist
+        ///@notice Check if the orderId exists.
         bool orderExists = addressToOrderIds[msg.sender][orderId];
 
+        ///@notice If the orderId does not exist, revert.
         if (!orderExists) {
             revert OrderDoesNotExist(orderId);
         }
 
+        ///@notice Get the order details
         Order memory order = orderIdToOrder[orderId];
 
-        //Decrement totalOrdersQuantity on order.tokenIn for order owner
-        //decrementTotalOrdersQuantity(order.tokenIn, order.owner, order.quantity);
-        // Delete Order Orders[order.orderId] from ActiveOrders mapping
+        ///@notice Delete the order from orderIdToOrder mapping
         delete orderIdToOrder[orderId];
+
+        ///@notice Delete the orderId from addressToOrderIds mapping
         delete addressToOrderIds[msg.sender][orderId];
-        //decrement from total orders per address
+
+        ///@notice Decrement the total orders for the msg.sender
         --totalOrdersPerAddress[msg.sender];
 
-        // Decrement total orders quantity
-        // Decrement totalOrdersQuantity on order.tokenIn for order owner
+        ///@notice Decrement the order quantity from the total orders quantity
         decrementTotalOrdersQuantity(
             order.tokenIn,
             order.owner,
             order.quantity
         );
 
-        //emit a canceled order event
-        //TODO: do this in assembly
+        ///@notice Emit an event to notify the off-chain executors that the order has been cancelled.
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = order.orderId;
         emit OrderCancelled(orderIds);
@@ -319,49 +289,60 @@ contract OrderBook is GasOracle {
     function cancelOrders(bytes32[] memory orderIds) public {
         bytes32[] memory canceledOrderIds = new bytes32[](orderIds.length);
 
-        //TODO: just call cancel order on loop?
         //check that there is one or more orders
         for (uint256 i = 0; i < orderIds.length; ++i) {
             bytes32 orderId = orderIds[i];
+
+            ///@notice Check if the orderId exists.
             bool orderExists = addressToOrderIds[msg.sender][orderId];
 
-            Order memory order = orderIdToOrder[orderId];
-
+            ///@notice If the orderId does not exist, revert.
             if (!orderExists) {
                 revert OrderDoesNotExist(orderId);
             }
 
-            // Decrement total orders quantity
-            // Decrement totalOrdersQuantity on order.tokenIn for order owner
+            ///@notice Get the order details
+            Order memory order = orderIdToOrder[orderId];
+
+            ///@notice Delete the order from orderIdToOrder mapping
+            delete orderIdToOrder[orderId];
+
+            ///@notice Delete the orderId from addressToOrderIds mapping
+            delete addressToOrderIds[msg.sender][orderId];
+
+            ///@notice Decrement the total orders for the msg.sender
+            --totalOrdersPerAddress[msg.sender];
+
+            ///@notice Decrement the order quantity from the total orders quantity
             decrementTotalOrdersQuantity(
                 order.tokenIn,
                 order.owner,
                 order.quantity
             );
 
-            delete addressToOrderIds[msg.sender][orderId];
-            delete orderIdToOrder[orderId];
             canceledOrderIds[i] = orderId;
         }
-        //emit an updated order event
-        //TODO: do this in assembly
+
+        ///@notice Emit an event to notify the off-chain executors that the orders have been cancelled.
         emit OrderCancelled(canceledOrderIds);
     }
 
-    /// @notice Helper function to get the total order's value on a specific token for the sender
-    /// @param token token address to get total order's value on
-    /// @return unsigned total order's value on token
+    /// @notice Helper function to get the total order value on a specific token for the msg.sender.
+    /// @param token - Token address to get total order value on.
+    /// @return totalOrderValue - The total value of orders that exist for the msg.sender on the specified token.
     function _getTotalOrdersValue(address token)
         internal
         view
-        returns (uint256)
+        returns (uint256 totalOrderValue)
     {
-        //Hash token and sender for key and accumulate totalOrdersQuantity
         bytes32 totalOrdersValueKey = keccak256(abi.encode(msg.sender, token));
-
         return totalOrdersQuantity[totalOrdersValueKey];
     }
 
+    ///@notice Decrement an owner's total order value on a specific token.
+    ///@param token - Token address to decrement the total order value on.
+    ///@param owner - Account address to decrement the total order value from.
+    ///@param quantity - Amount to decrement the total order value by.
     function decrementTotalOrdersQuantity(
         address token,
         address owner,
@@ -371,16 +352,23 @@ contract OrderBook is GasOracle {
         totalOrdersQuantity[totalOrdersValueKey] -= quantity;
     }
 
+    ///@notice Increment an owner's total order value on a specific token.
+    ///@param token - Token address to increment the total order value on.
+    ///@param owner - Account address to increment the total order value from.
+    ///@param quantity - Amount to increment the total order value by.
     function incrementTotalOrdersQuantity(
         address token,
         address owner,
         uint256 quantity
     ) internal {
         bytes32 totalOrdersValueKey = keccak256(abi.encode(owner, token));
-
         totalOrdersQuantity[totalOrdersValueKey] += quantity;
     }
 
+    ///@notice Update an owner's total order value on a specific token.
+    ///@param token - Token address to update the total order value on.
+    ///@param owner - Account address to update the total order value from.
+    ///@param newQuantity - Amount set the the new total order value to.
     function updateTotalOrdersQuantity(
         address token,
         address owner,
@@ -390,41 +378,38 @@ contract OrderBook is GasOracle {
         totalOrdersQuantity[totalOrdersValueKey] = newQuantity;
     }
 
-    /// @notice Internal helper function to approximate the minimum gas credits for a user assuming all Order's are standard erc20 compliant
-    /// @param gasPrice uint256 current gas price in gwei
-    /// @param executionCost uint256 total internal contract execution cost
-    /// @param userAddress bytes32 address of the user to which calculation will be made
-    /// @param multiplier uint256 margin multiplier to account for gas volatility
-    /// @return unsigned uint256 total ETH required to cover execution
+    /// @notice Internal helper function to approximate the minimum gas credits needed for order execution.
+    /// @param gasPrice - The Current gas price in gwei
+    /// @param executionCost - The total execution cost for each order.
+    /// @param userAddress - The account address that will be checked for minimum gas credits.
+    /// @param multiplier - Margin multiplier to account for gas volatility.
+    /// @return minGasCredits - Total ETH required to cover the minimum gas credits for order execution.
     function _calculateMinGasCredits(
         uint256 gasPrice,
         uint256 executionCost,
         address userAddress,
         uint256 multiplier
-    ) internal view returns (uint256) {
+    ) internal view returns (uint256 minGasCredits) {
+        ///@notice Get the total amount of active orders for the userAddress
         uint256 totalOrderCount = totalOrdersPerAddress[userAddress];
 
         unchecked {
+            ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
             uint256 minimumGasCredits = totalOrderCount *
                 gasPrice *
                 executionCost *
                 multiplier;
-            if (
-                minimumGasCredits <
-                0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-            ) {
-                return minimumGasCredits;
-            }
+
+            return minimumGasCredits;
         }
-        return 0;
     }
 
-    /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders
-    /// @param gasPrice uint256 current gas price in gwei
-    /// @param executionCost static execution cost for contract execution call
-    /// @param userAddress bytes32 address of the user to be checked
-    /// @param gasCreditBalance uint256 current gas credit balance of the user
-    /// @return bool indicator whether user does have minimum gas credit requirements
+    /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders.
+    /// @param gasPrice - The current gas price in gwei.
+    /// @param executionCost - The cost of gas to exececute an order.
+    /// @param userAddress - The account address that will be checked for minimum gas credits.
+    /// @param gasCreditBalance - The current gas credit balance of the userAddress.
+    /// @return bool - Indicates whether the user has the minimum gas credit requirements.
     function _hasMinGasCredits(
         uint256 gasPrice,
         uint256 executionCost,
