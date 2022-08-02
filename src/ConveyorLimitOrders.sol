@@ -494,9 +494,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         ///@notice Remove the order from the limit order system
         _removeOrderFromSystem(order);
-
+        uint128 conveyorReward;
         ///@notice calculate the reward payable to the off-chain executor
-        (, beaconReward) = _calculateReward(protocolFee, amountOutWeth);
+        (conveyorReward, beaconReward) = _calculateReward(protocolFee, amountOutWeth);
+        amountOutWeth = amountOutWeth - (conveyorReward+beaconReward);
+        safeTransferETH(order.owner,amountOutWeth);
     }
 
     ///@notice execute an array of orders from token to weth
