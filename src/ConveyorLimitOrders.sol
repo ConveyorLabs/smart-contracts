@@ -236,9 +236,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             safeTransferETH(msg.sender, REFRESH_FEE);
 
             ///@notice Decrement the order.owner's gas credit balance
-            gasCreditBalance[order.owner] =
-                gasCreditBalance[order.owner] -
-                REFRESH_FEE;
+            gasCreditBalance[order.owner] -= REFRESH_FEE;
 
             ///@notice update the order's last refresh timestamp
             ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
