@@ -22,6 +22,8 @@ import "../lib/libraries/ConveyorTickMath.sol";
 ///@notice for all order fulfuillment logic, see OrderRouter
 contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ========================================= Modifiers =============================================
+
+    ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlyEOA() {
         if (msg.sender != tx.origin) {
             revert MsgSenderIsNotTxOrigin();
@@ -29,32 +31,57 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         _;
     }
 
-    //TODO: reentrancy modifier
+    ///@notice Modifier to restrict reentrancy into a function.
+    modifier nonReentrant() {
+        if (reentrancyStatus == true) {
+            revert Reentrancy();
+        }
+        reentrancyStatus = true;
+        _;
+        reentrancyStatus = false;
+    }
 
     // ========================================= Constants  =============================================
+
+    ///@notice Interval that determines when an order is eligible for refresh. The interval is set to 30 days represented in Unix time.
     uint256 constant refreshInterval = 2592000;
 
     // ========================================= State Variables =============================================
 
-    //mapping to hold users gas credit balances
+    ///@notice Boolean responsible for indicating if a function has been entered when the nonReentrant modifier is used.
+    bool reentrancyStatus = false;
+
+    ///@notice Mapping to hold gas credit balances for accounts.
     mapping(address => uint256) public gasCreditBalance;
 
-    //Immutable weth address
+    ///@notice The wrapped native token address for the chain.
     address immutable WETH;
 
-    //Immutable usdc address
+    ///@notice The USD pegged token address for the chain.
     address immutable USDC;
 
-    //Immutable refresh fee paid monthly by an order to stay in the Conveyor queue
+    ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
     uint256 immutable refreshFee;
 
-    //Immutable execution cost of an order
+    ///@notice The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
     uint256 immutable executionCost;
 
+    ///@notice IQuoter instance to quote the amountOut for a given amountIn on a UniV3 pool.
     IQuoter immutable iQuoter;
 
     // ========================================= Constructor =============================================
 
+    ///@param _gasOracle - Address of the ChainLink fast gas oracle.
+    ///@param _weth - Address of the wrapped native token for the chain.
+    ///@param _usdc - Address of the USD pegged token for the chain.
+    ///@param _quoterAddress - Address for the IQuoter instance.
+    ///@param _refreshFee - The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
+    ///@param _executionCost - The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
+    ///@param _initByteCodes - Array of initBytecodes required to calculate pair addresses for each DEX.
+    ///@param _dexFactories - Array of DEX factory addresses to be added to the system.
+    ///@param _isUniV2 - Array indicating if a DEX factory passed in during initialization is a UniV2 compatiable DEX.
+    ///@param _swapRouter - Address of the UniV3 SwapRouter for the chain.
+    ///@param _alphaXDivergenceThreshold - Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     constructor(
         address _gasOracle,
         address _weth,
@@ -62,15 +89,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address _quoterAddress,
         uint256 _refreshFee,
         uint256 _executionCost,
-        bytes32[] memory _deploymentByteCodes,
+        bytes32[] memory _initByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
-        address _swapRouter, 
+        address _swapRouter,
         uint256 _alphaXDivergenceThreshold
     )
         OrderBook(_gasOracle)
         OrderRouter(
-            _deploymentByteCodes,
+            _initByteCodes,
             _dexFactories,
             _isUniV2,
             _swapRouter,
@@ -86,12 +113,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     // ========================================= Events  =============================================
 
+    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
     event GasCreditEvent(
         bool indexed deposit,
         address indexed sender,
         uint256 amount
     );
 
+    ///@notice Event that notifies off-chain executors when an order has been refreshed.
     event OrderRefreshed(
         bytes32 indexed orderId,
         uint32 lastRefreshTimestamp,
@@ -102,72 +131,78 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     //------------Gas Credit Functions------------------------
 
-    /// @notice deposit gas credits publicly callable function
-    /// @return bool boolean indicator whether deposit was successfully transferred into user's gas credit balance
-    function depositGasCredits() public payable returns (bool) {
-        //Add amount deposited to creditBalance of the user
+    /// @notice Function to deposit gas credits.
+    /// @return success - Boolean that indicates if the deposit completed successfully.
+    function depositGasCredits() public payable returns (bool success) {
+        ///@notice Increment the gas credit balance for the user by the msg.value
         gasCreditBalance[msg.sender] += msg.value;
 
-        //Emit credit deposit event for beacon
+        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
         emit GasCreditEvent(true, msg.sender, msg.value);
 
-        //return bool success
         return true;
     }
 
-    ///TODO: make nonReentrant
-    /// @notice Public helper to withdraw user gas credit balance
-    /// @param _value uint256 value which the user would like to withdraw
-    /// @return bool boolean indicator whether withdrawal was successful
-    function withdrawGasCredits(uint256 _value) public returns (bool) {
-        //Require user's credit balance is larger than value
-        if (gasCreditBalance[msg.sender] < _value) {
+    /**@notice Function to withdraw gas credits from an account's balance. If the withdraw results in the account's gas credit
+    balance required to execute existing orders, those orders must be canceled before the gas credits can be withdrawn.
+    */
+    /// @param value - The amount to withdraw from the gas credit balance.
+    /// @return success - Boolean that indicates if the withdraw completed successfully.
+    function withdrawGasCredits(uint256 value)
+        public
+        nonReentrant
+        returns (bool success)
+    {
+        ///@notice Require that account's credit balance is larger than withdraw amount
+        if (gasCreditBalance[msg.sender] < value) {
             revert InsufficientGasCreditBalance();
         }
 
-        //Get current gas price from v3 Aggregator
+        ///@notice Get the current gas price from the v3 Aggregator.
         uint256 gasPrice = getGasPrice();
 
-        //Require gas credit withdrawal doesn't exceeed minimum gas credit requirements
+        ///@notice Require that account has enough gas for order execution after the gas credit withdrawal.
         if (
             !(
                 _hasMinGasCredits(
                     gasPrice,
                     executionCost,
                     msg.sender,
-                    gasCreditBalance[msg.sender] - _value
+                    gasCreditBalance[msg.sender] - value
                 )
             )
         ) {
             revert InsufficientGasCreditBalanceForOrderExecution();
         }
 
-        //Decrease user creditBalance
-        gasCreditBalance[msg.sender] = gasCreditBalance[msg.sender] - _value;
+        ///@notice Decrease the account's gas credit balance
+        gasCreditBalance[msg.sender] = gasCreditBalance[msg.sender] - value;
 
-        safeTransferETH(msg.sender, _value);
+        ///@notice Transfer the withdraw amount to the account.
+        safeTransferETH(msg.sender, value);
 
         return true;
     }
 
-    //Todo add reentrancy guard
-    /// @notice External helper function to allow beacon to refresh an oder after 30 days in unix time
-    /// @param orderIds orders to refresh timestamp
-    function refreshOrder(bytes32[] memory orderIds) external {
-        for (uint256 i = 0; i < orderIds.length; ++i) {
+    /// @notice Function to refresh an order for another 30 days.
+    /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
+    function refreshOrder(bytes32[] memory orderIds) external nonReentrant {
+        ///@notice For each order in the orderIds array.
+        for (uint256 i = 0; i < orderIds.length; ) {
+            ///@notice Get the current orderId.
             bytes32 orderId = orderIds[i];
 
-            //Cache order in memory
+            ///@notice Cache the order in memory.
             Order memory order = getOrderById(orderId);
 
-            //Require 30 days has elapsed since last refresh
+            ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
             if (
                 block.timestamp - order.lastRefreshTimestamp < refreshInterval
             ) {
                 continue;
             }
 
-            //Require current timestamp is not past order expiration
+            ///@notice Require current timestamp is not past order expiration
             if (block.timestamp > order.expirationTimestamp) {
                 _cancelOrder(orderId);
                 continue;
@@ -215,6 +250,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 order.lastRefreshTimestamp,
                 order.expirationTimestamp
             );
+
+            unchecked {
+                ++i;
+            }
         }
     }
 

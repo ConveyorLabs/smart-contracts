@@ -160,6 +160,11 @@ contract OrderBook is GasOracle {
             ///@notice update the newOrder's Id to the orderId generated from the orderNonce
             newOrder.orderId = orderId;
 
+            ///@notice update the newOrder's last refresh timestamp
+            newOrder.lastRefreshTimestamp = uint32(
+                block.timestamp % (2**32 - 1)
+            );
+
             ///@notice Add the newly created order to the orderIdToOrder mapping
             orderIdToOrder[orderId] = newOrder;
 
