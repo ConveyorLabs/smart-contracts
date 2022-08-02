@@ -161,6 +161,7 @@ contract OrderBook is GasOracle {
             newOrder.orderId = orderId;
 
             ///@notice update the newOrder's last refresh timestamp
+            ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
             newOrder.lastRefreshTimestamp = uint32(
                 block.timestamp % (2**32 - 1)
             );

@@ -45,7 +45,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     ///@notice Interval that determines when an order is eligible for refresh. The interval is set to 30 days represented in Unix time.
     uint256 constant refreshInterval = 2592000;
-
     // ========================================= State Variables =============================================
 
     ///@notice Boolean responsible for indicating if a function has been entered when the nonReentrant modifier is used.
@@ -61,10 +60,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     address immutable USDC;
 
     ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
-    uint256 immutable refreshFee;
+    uint256 immutable REFRESH_FEE;
 
     ///@notice The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
-    uint256 immutable executionCost;
+    uint256 immutable ORDER_EXECUTION_GAS_COST;
 
     ///@notice IQuoter instance to quote the amountOut for a given amountIn on a UniV3 pool.
     IQuoter immutable iQuoter;
@@ -105,10 +104,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         )
     {
         iQuoter = IQuoter(_quoterAddress);
-        refreshFee = _refreshFee;
+        REFRESH_FEE = _refreshFee;
         WETH = _weth;
         USDC = _usdc;
-        executionCost = _executionCost;
+        ORDER_EXECUTION_GAS_COST = _executionCost;
     }
 
     // ========================================= Events  =============================================
@@ -166,7 +165,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             !(
                 _hasMinGasCredits(
                     gasPrice,
-                    executionCost,
+                    ORDER_EXECUTION_GAS_COST,
                     msg.sender,
                     gasCreditBalance[msg.sender] - value
                 )
@@ -202,49 +201,51 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 continue;
             }
 
-            ///@notice Require current timestamp is not past order expiration
+            ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
             if (block.timestamp > order.expirationTimestamp) {
                 _cancelOrder(orderId);
                 continue;
             }
 
-            //check for underflow gasCreditBalance[order.owner] - refreshFee
-            if (gasCreditBalance[order.owner] < refreshFee) {
+            ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
+            if (gasCreditBalance[order.owner] < REFRESH_FEE) {
                 _cancelOrder(orderId);
                 continue;
             }
 
-            //Get current gas price from v3 Aggregator
+            ///@notice Get the current gas price from the v3 Aggregator.
             uint256 gasPrice = getGasPrice();
 
-            //Require gas credit withdrawal doesn't exceeed minimum gas credit requirements
+            ///@notice Require that account has enough gas for order execution after the refresh, otherwise, cancel the order and continue the loop.
             if (
                 !(
                     _hasMinGasCredits(
                         gasPrice,
-                        executionCost,
+                        ORDER_EXECUTION_GAS_COST,
                         order.owner,
-                        gasCreditBalance[order.owner] - refreshFee
+                        gasCreditBalance[order.owner] - REFRESH_FEE
                     )
                 )
             ) {
-                //If order does not have sufficient gas credit balance after decrementing the refresh fee cancel the order
                 _cancelOrder(orderId);
                 continue;
             }
 
-            //Transfer refresh fee to beacon
-            safeTransferETH(msg.sender, refreshFee);
+            ///@notice Transfer the refresh fee to off-chain executor who called the function.
+            safeTransferETH(msg.sender, REFRESH_FEE);
 
-            //Decrement order.owner credit balance
+            ///@notice Decrement the order.owner's gas credit balance
             gasCreditBalance[order.owner] =
                 gasCreditBalance[order.owner] -
-                refreshFee;
+                REFRESH_FEE;
 
+            ///@notice update the order's last refresh timestamp
+            ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
             orderIdToOrder[orderId].lastRefreshTimestamp = uint32(
-                block.timestamp
+                block.timestamp % (2**32 - 1)
             );
 
+            ///@notice Emit an event to notify the off-chain executors that the order has been refreshed.
             emit OrderRefreshed(
                 orderId,
                 order.lastRefreshTimestamp,
@@ -258,39 +259,38 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     //------------Order Cancellation Functions---------------------------------
-    /// Todo Add reentrancy guard
-    /// @notice Helper function for beacon to externally cancel an Order with below minimum gas credit balance for execution
-    /// @param orderId Id of the order to cancel
-    /// @return bool indicator whether order was successfully cancelled with compensation
-    function validateAndCancelOrder(bytes32 orderId) external returns (bool) {
-        //Order to be validated for cancellation
+    /// @notice Function for off-chain executors to cancel an Order that does not have the minimum gas credit balance for order execution.
+    /// @param orderId - Order Id of the order to cancel.
+    /// @return success - Boolean to indicate if the order was successfully cancelled and compensation was sent to the off-chain executor.
+    function validateAndCancelOrder(bytes32 orderId)
+        external
+        nonReentrant
+        returns (bool success)
+    {
+        ///@notice Cache the order to run validation checks before cancellation.
         Order memory order = orderIdToOrder[orderId];
-        /// Check if order exists in active orders. Revert if order does not exist
-        bool orderExists = addressToOrderIds[order.owner][orderId];
-        if (!orderExists) {
+
+        ///@notice Check if order exists, otherwise revert.
+        if (order.owner == address(0)) {
             revert OrderDoesNotExist(orderId);
         }
-        //Amount of order's owned by order owner
+
+        ///@notice Get the amount of active orders for the order owner.
         uint256 totalOrders = totalOrdersPerAddress[order.owner];
 
-        //Get current gas price from v3 Aggregator
+        ///@notice Get the current gas price from the v3 Aggregator.
         uint256 gasPrice = getGasPrice();
 
-        uint256 minimumGasCreditsForAllOrders = _calculateMinGasCredits(
-            gasPrice,
-            300000,
-            order.owner,
-            1
-        );
+        ///@notice Get the minimum gas credits needed for a single order
+        uint256 minimumGasCreditsForSingleOrder = gasPrice *
+            ORDER_EXECUTION_GAS_COST;
 
-        uint256 minimumGasCreditsForSingleOrder = minimumGasCreditsForAllOrders /
-                totalOrders;
-
+        ///@notice Check if the account has the minimum gas credits for
         if (
             !(
                 _hasMinGasCredits(
                     gasPrice,
-                    executionCost,
+                    ORDER_EXECUTION_GAS_COST,
                     order.owner,
                     gasCreditBalance[order.owner]
                 )
