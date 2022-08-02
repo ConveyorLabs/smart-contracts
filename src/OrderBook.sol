@@ -333,6 +333,22 @@ contract OrderBook is GasOracle {
         emit OrderCancelled(canceledOrderIds);
     }
 
+    function _removeOrderFromSystem(Order memory order) internal {
+        ///@notice Remove the order from the system
+        delete orderIdToOrder[order.orderId];
+        delete addressToOrderIds[order.owner][order.orderId];
+
+        ///@notice Decrement from total orders per address
+        --totalOrdersPerAddress[order.owner];
+
+        ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
+        decrementTotalOrdersQuantity(
+            order.tokenIn,
+            order.owner,
+            order.quantity
+        );
+    }
+
     /// @notice Helper function to get the total order value on a specific token for the msg.sender.
     /// @param token - Token address to get total order value on.
     /// @return totalOrderValue - The total value of orders that exist for the msg.sender on the specified token.

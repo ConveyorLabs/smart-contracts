@@ -157,17 +157,18 @@ contract OrderRouter {
     uint256 constant MAX_UINT_256 =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     uint256 constant ONE_128x128 = uint256(1) << 128;
-    uint24 constant ZERO_UINT24= 0;
+    uint24 constant ZERO_UINT24 = 0;
 
     //----------------------Immutables------------------------------------//
-
-    ///@notice Variable used to prevent front running by subsidizing the execution reward if a v2 price is proportionally beyond the threshold distance from the v3 price
 
     ///@notice Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     uint256 immutable alphaXDivergenceThreshold;
 
     ///@notice Instance of the UniV3 swap router.
     ISwapRouter public immutable swapRouter;
+
+    ///@notice The wrapped native token address for the chain.
+    address immutable _WETH;
 
     //----------------------Constructor------------------------------------//
 
@@ -178,12 +179,14 @@ contract OrderRouter {
     ///@param _isUniV2 - Array of booleans indicating if the DEX is UniV2 compatible.
     ///@param _swapRouterAddress - The UniV3 swap router address for the network.
     ///@param _alphaXDivergenceThreshold - Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
+    ///@param _weth - The wrapped native token address for the chain.
     constructor(
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
         address _swapRouterAddress,
-        uint256 _alphaXDivergenceThreshold
+        uint256 _alphaXDivergenceThreshold,
+        address _weth
     ) {
         ///@notice Initialize DEXs and other variables
         for (uint256 i = 0; i < _deploymentByteCodes.length; ++i) {
@@ -198,6 +201,7 @@ contract OrderRouter {
         alphaXDivergenceThreshold = _alphaXDivergenceThreshold;
         swapRouter = ISwapRouter(_swapRouterAddress);
         owner = msg.sender;
+        _WETH = _weth;
     }
 
     //----------------------Functions------------------------------------//
@@ -909,10 +913,10 @@ contract OrderRouter {
         );
     }
 
-    ///@notice Helper function to convert reserve values to common 18 decimal base. 
+    ///@notice Helper function to convert reserve values to common 18 decimal base.
     ///@param tok0 - Address of token0.
     ///@param tok1 - Address of token1.
-    ///@param reserve0 - Reserve0 liquidity. 
+    ///@param reserve0 - Reserve0 liquidity.
     ///@param reserve1 - Reserve1 liquidity.
     function _getReservesCommonDecimals(
         address tok0,
@@ -924,7 +928,7 @@ contract OrderRouter {
         uint8 token0Decimals = _getTargetDecimals(tok0);
         uint8 token1Decimals = _getTargetDecimals(tok1);
 
-        ///@notice Retrieve the common 18 decimal reserve values. 
+        ///@notice Retrieve the common 18 decimal reserve values.
         (uint128 commonReserve0, uint128 commonReserve1) = _convertToCommonBase(
             reserve0,
             token0Decimals,
@@ -935,13 +939,12 @@ contract OrderRouter {
         return (commonReserve0, commonReserve1);
     }
 
-    
     /// @notice Helper function to get Uniswap V3 spot price of pair token0/token1
     /// @param token0 - Address of token0.
     /// @param token1 - Address of token1.
-    /// @param fee - The fee in the pool. 
+    /// @param fee - The fee in the pool.
     /// @param _factory - Uniswap v3 factory address.
-    /// @return  _spRes SpotReserve struct to hold reserve0, reserve1, and the spot price of the token pair. 
+    /// @return  _spRes SpotReserve struct to hold reserve0, reserve1, and the spot price of the token pair.
     /// @return pool Address of the Uniswap V3 pool.
     function _calculateV3SpotPrice(
         address token0,
@@ -949,7 +952,7 @@ contract OrderRouter {
         uint24 fee,
         address _factory
     ) internal view returns (SpotReserve memory _spRes, address pool) {
-        ///@notice Initialize variables to prevent stack too deep. 
+        ///@notice Initialize variables to prevent stack too deep.
         address pool;
         int24 tick;
 
@@ -970,9 +973,8 @@ contract OrderRouter {
                 return (_spRes, address(0));
             }
 
-            ///@notice Notice current tick on the pool. 
+            ///@notice Notice current tick on the pool.
             {
-            
                 tick = _getTick(pool, tickSecond);
             }
         }
@@ -980,17 +982,17 @@ contract OrderRouter {
         ///@notice Set token0InPool to token0 in pool.
         address token0InPool = IUniswapV3Pool(pool).token0();
 
-        _spRes.token0IsReserve0 = token0InPool == token0 ? true : false; 
+        _spRes.token0IsReserve0 = token0InPool == token0 ? true : false;
 
-        ///@notice Get the current spot price of the pool. 
+        ///@notice Get the current spot price of the pool.
         _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token0, token1);
 
         return (_spRes, pool);
     }
 
     ///@notice Helper function to determine if a pool address is Uni V2 compatible.
-    ///@param lp - Pair address. 
-    ///@return bool Idicator whether the pool is not Uni V3 compatible. 
+    ///@param lp - Pair address.
+    ///@return bool Idicator whether the pool is not Uni V3 compatible.
     function _lpIsNotUniV3(address lp) internal returns (bool) {
         bool success;
         assembly {
@@ -1015,9 +1017,9 @@ contract OrderRouter {
         return !success;
     }
 
-    ///@notice Helper function to get Uniswap V3 fee from a pool address. 
-    ///@param lpAddress - Address of the lp. 
-    ///@return fee The fee on the lp. 
+    ///@notice Helper function to get Uniswap V3 fee from a pool address.
+    ///@param lpAddress - Address of the lp.
+    ///@return fee The fee on the lp.
     function _getUniV3Fee(address lpAddress) internal returns (uint24 fee) {
         if (!_lpIsNotUniV3(lpAddress)) {
             return IUniswapV3Pool(lpAddress).fee();
@@ -1029,7 +1031,7 @@ contract OrderRouter {
     ///@notice Helper function to get arithmetic mean tick from Uniswap V3 Pool.
     ///@param pool - Address of the pool.
     ///@param tickSecond - The tick range.
-    ///@return tick Arithmetic mean tick over the range tickSeconds. 
+    ///@return tick Arithmetic mean tick over the range tickSeconds.
     function _getTick(address pool, uint32 tickSecond)
         internal
         view
@@ -1037,7 +1039,7 @@ contract OrderRouter {
     {
         int56 tickCumulativesDelta;
 
-        ///@notice Initialize tickSeconds range. 
+        ///@notice Initialize tickSeconds range.
         uint32[] memory tickSeconds = new uint32[](2);
         tickSeconds[0] = tickSecond;
         tickSeconds[1] = 0;
@@ -1048,7 +1050,7 @@ contract OrderRouter {
                 tickSeconds
             );
 
-            ///@notice Set tickCumulativesDelta to the difference in spot prices from tickCumulatives[1] to the current block. 
+            ///@notice Set tickCumulativesDelta to the difference in spot prices from tickCumulatives[1] to the current block.
             tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
             tick = int24(tickCumulativesDelta / int32(tickSecond));
 
@@ -1056,26 +1058,28 @@ contract OrderRouter {
                 tickCumulativesDelta < 0 &&
                 (tickCumulativesDelta % int32(tickSecond) != 0)
             ) tick--;
-
         }
-       
+
         return tick;
     }
 
     /// @notice Helper function to get all v2/v3 spot prices on a token pair.
     /// @param token0 - Address of token0.
     /// @param token1 - Address of token1.
-    /// @param FEE - The Uniswap V3 pool fee on the token pair. 
-    /// @return prices - SpotReserve array holding the reserves and spot prices across all dexes. 
-    /// @return lps - Pool address's on the token pair across all dexes. 
+    /// @param FEE - The Uniswap V3 pool fee on the token pair.
+    /// @return prices - SpotReserve array holding the reserves and spot prices across all dexes.
+    /// @return lps - Pool address's on the token pair across all dexes.
     function _getAllPrices(
         address token0,
         address token1,
         uint24 FEE
-    ) internal view returns (SpotReserve[] memory prices, address[] memory lps) {
-        ///@notice Check if the token address' are identical. 
+    )
+        internal
+        view
+        returns (SpotReserve[] memory prices, address[] memory lps)
+    {
+        ///@notice Check if the token address' are identical.
         if (token0 != token1) {
-
             ///@notice Initialize SpotReserve and lp arrays of lenth dexes.length
             SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
             address[] memory _lps = new address[](dexes.length);
@@ -1084,7 +1088,7 @@ contract OrderRouter {
             for (uint256 i = 0; i < dexes.length; ++i) {
                 if (dexes[i].isUniV2) {
                     {
-                        ///@notice Get the Uniswap v2 spot price and lp address. 
+                        ///@notice Get the Uniswap v2 spot price and lp address.
                         (
                             SpotReserve memory spotPrice,
                             address poolAddress
@@ -1094,7 +1098,7 @@ contract OrderRouter {
                                 dexes[i].factoryAddress,
                                 dexes[i].initBytecode
                             );
-                        ///@notice Set SpotReserve and lp values if the returned values are not null. 
+                        ///@notice Set SpotReserve and lp values if the returned values are not null.
                         if (spotPrice.spotPrice != 0) {
                             _spotPrices[i] = spotPrice;
                             _lps[i] = poolAddress;
@@ -1103,7 +1107,7 @@ contract OrderRouter {
                 } else {
                     {
                         {
-                            ///@notice Get the Uniswap v2 spot price and lp address. 
+                            ///@notice Get the Uniswap v2 spot price and lp address.
                             (
                                 SpotReserve memory spotPrice,
                                 address poolAddress
@@ -1114,7 +1118,7 @@ contract OrderRouter {
                                     dexes[i].factoryAddress
                                 );
 
-                            ///@notice Set SpotReserve and lp values if the returned values are not null. 
+                            ///@notice Set SpotReserve and lp values if the returned values are not null.
                             if (spotPrice.spotPrice != 0) {
                                 _lps[i] = poolAddress;
                                 _spotPrices[i] = spotPrice;
@@ -1125,7 +1129,6 @@ contract OrderRouter {
             }
 
             return (_spotPrices, _lps);
-
         } else {
             SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
             address[] memory _lps = new address[](dexes.length);
@@ -1133,9 +1136,9 @@ contract OrderRouter {
         }
     }
 
-    /// @notice Helper to get amountIn value in the base of max decimals between token0 and token1. 
+    /// @notice Helper to get amountIn value in the base of max decimals between token0 and token1.
     /// @param token0 - Address of token0.
-    /// @param token1 - Address of token1. 
+    /// @param token1 - Address of token1.
     ///@return amountIn - AmountIn value in the decimals of max decimals of token0/token1.
     function _getGreatestTokenDecimalsAmountIn(address token0, address token1)
         internal
@@ -1143,15 +1146,15 @@ contract OrderRouter {
         returns (uint112 amountIn)
     {
         ///@notice Get target decimals for token0, token1.
-        uint8 token0Target = _getTargetDecimals(token0); 
-        uint8 token1Target = _getTargetDecimals(token1); 
+        uint8 token0Target = _getTargetDecimals(token0);
+        uint8 token1Target = _getTargetDecimals(token1);
 
-        ///@notice Set targetDec to max decimals of token0 and token1. 
+        ///@notice Set targetDec to max decimals of token0 and token1.
         uint8 targetDec = (token0Target < token1Target)
             ? (token1Target)
             : (token0Target);
 
-        ///@notice Return 1 of amountIn in the max decimals of token0/token1. 
+        ///@notice Return 1 of amountIn in the max decimals of token0/token1.
         amountIn = uint112(10**targetDec);
     }
 
@@ -1204,8 +1207,8 @@ contract OrderRouter {
     /// @notice Helper function to calculate the the quote amount recieved for the base amount of the base token at a certain tick.
     /// @param tick - Tick value used to calculate the quote.
     /// @param baseAmount - Amount of tokenIn to be converted.
-    /// @param baseToken - Address of the tokenIn to be quoted. 
-    /// @param quoteToken - Address of the token used to quote the base amount of tokenIn. 
+    /// @param baseToken - Address of the tokenIn to be quoted.
+    /// @param quoteToken - Address of the token used to quote the base amount of tokenIn.
     /// @return quoteAmount - Amount of quoteToken received for baseAmount of baseToken.
     function _getQuoteAtTick(
         int24 tick,
@@ -1216,25 +1219,24 @@ contract OrderRouter {
         ///@notice Get sqrtRatio at tick represented as 64.96 fixed point.
         uint160 sqrtRatioX96 = TickMath.getSqrtRatioAtTick(tick);
 
-        ///@notice Get the target decimals of the quote and base token. 
+        ///@notice Get the target decimals of the quote and base token.
         uint8 targetDecimalsQuote = _getTargetDecimals(quoteToken);
         uint8 targetDecimalsBase = _getTargetDecimals(baseToken);
 
-        ///@notice Initialize Adjusted quote amount to hold the quote amount represented as a 128.128 fixed point number. 
+        ///@notice Initialize Adjusted quote amount to hold the quote amount represented as a 128.128 fixed point number.
         uint256 adjustedFixed128x128Quote;
         uint256 quoteAmount;
 
         ///@notice Calculate quoteAmount with better precision if it doesn't overflow when multiplied by itself.
         if (sqrtRatioX96 <= type(uint128).max) {
-
-            ///@notice Square the sqrt price to get the 64.96 representation of the spot price. 
+            ///@notice Square the sqrt price to get the 64.96 representation of the spot price.
             uint256 ratioX192 = uint256(sqrtRatioX96) * sqrtRatioX96;
             quoteAmount = baseToken < quoteToken
                 ? FullMath.mulDiv(ratioX192, baseAmount, 1 << 192)
                 : FullMath.mulDiv(1 << 192, baseAmount, ratioX192);
-            
+
             adjustedFixed128x128Quote = uint256(quoteAmount) << 128;
- 
+
             if (targetDecimalsQuote < targetDecimalsBase) {
                 return adjustedFixed128x128Quote / 10**targetDecimalsQuote;
             } else {
@@ -1245,7 +1247,6 @@ contract OrderRouter {
                             targetDecimalsQuote));
             }
         } else {
-
             uint256 ratioX128 = FullMath.mulDiv(
                 sqrtRatioX96,
                 sqrtRatioX96,
@@ -1266,5 +1267,112 @@ contract OrderRouter {
                             targetDecimalsQuote));
             }
         }
+    }
+
+    //------------Single Swap Best Dex price Aggregation---------------------------------
+
+    function swapTokenToTokenOnBestDex(
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        uint24 FEE,
+        address reciever,
+        address sender
+    ) public returns (uint256 amountOut) {
+        (SpotReserve[] memory prices, address[] memory lps) = _getAllPrices(
+            tokenIn,
+            tokenOut,
+            FEE
+        );
+
+        uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+        address bestLp;
+
+        //Iterate through all dex's and get best price and corresponding lp
+        for (uint256 i = 0; i < prices.length; ++i) {
+            if (prices[i].spotPrice != 0) {
+                if (prices[i].spotPrice < bestPrice) {
+                    bestPrice = prices[i].spotPrice;
+                    bestLp = lps[i];
+                }
+            }
+        }
+
+        if (_lpIsNotUniV3(bestLp)) {
+            //Call swap univ2
+            amountOut = _swapV2(
+                tokenIn,
+                tokenOut,
+                bestLp,
+                amountIn,
+                amountOutMin,
+                reciever,
+                sender
+            );
+        } else {
+            amountOut = _swapV3(
+                tokenIn,
+                tokenOut,
+                FEE,
+                amountIn,
+                amountOutMin,
+                reciever,
+                sender
+            );
+        }
+    }
+
+    function swapETHToTokenOnBestDex(
+        address tokenOut,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        uint24 FEE
+    ) external payable returns (uint256 amountOut) {
+        if (msg.value != amountIn) {
+            revert InsufficientDepositAmount();
+        }
+
+        (bool success, ) = _WETH.call{value: amountIn}(
+            abi.encodeWithSignature("deposit()")
+        );
+        if (success) {
+            amountOut = swapTokenToTokenOnBestDex(
+                _WETH,
+                tokenOut,
+                amountIn,
+                amountOutMin,
+                FEE,
+                msg.sender,
+                address(this)
+            );
+        }
+    }
+
+    function swapTokenToETHOnBestDex(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        uint24 FEE
+    ) external returns (uint256) {
+        // IERC20(tokenIn).approve(address(this), amountIn);
+        uint256 amountOutWeth = swapTokenToTokenOnBestDex(
+            tokenIn,
+            _WETH,
+            amountIn,
+            amountOutMin,
+            FEE,
+            address(this),
+            msg.sender
+        );
+        uint256 balanceBefore = address(this).balance;
+        IWETH(_WETH).withdraw(amountOutWeth);
+        if ((address(this).balance - balanceBefore != amountOutWeth)) {
+            revert WethWithdrawUnsuccessful();
+        }
+
+        safeTransferETH(msg.sender, amountOutWeth);
+
+        return amountOutWeth;
     }
 }

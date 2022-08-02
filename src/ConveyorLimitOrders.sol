@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.14;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.15;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
@@ -18,8 +18,9 @@ import "../lib/interfaces/token/IWETH.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/ConveyorTickMath.sol";
 
-///@notice for all order placement, order updates and order cancelation logic, see OrderBook
-///@notice for all order fulfuillment logic, see OrderRouter
+/// @title OrderRouter
+/// @author LeytonTaylor, 0xKitsune
+/// @notice TODO:
 contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ========================================= Modifiers =============================================
 
@@ -44,7 +45,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     // ========================================= Constants  =============================================
 
     ///@notice Interval that determines when an order is eligible for refresh. The interval is set to 30 days represented in Unix time.
-    uint256 constant refreshInterval = 2592000;
+    uint256 constant REFRESH_INTERVAL = 2592000;
+
+    ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
+    //TODO: FIXME: we need to set the refresh fee
+    uint256 immutable REFRESH_FEE = 5;
     // ========================================= State Variables =============================================
 
     ///@notice Boolean responsible for indicating if a function has been entered when the nonReentrant modifier is used.
@@ -59,9 +64,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice The USD pegged token address for the chain.
     address immutable USDC;
 
-    ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
-    uint256 immutable REFRESH_FEE;
-
     ///@notice The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
     uint256 immutable ORDER_EXECUTION_GAS_COST;
 
@@ -74,7 +76,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@param _weth - Address of the wrapped native token for the chain.
     ///@param _usdc - Address of the USD pegged token for the chain.
     ///@param _quoterAddress - Address for the IQuoter instance.
-    ///@param _refreshFee - The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
     ///@param _executionCost - The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
     ///@param _initByteCodes - Array of initBytecodes required to calculate pair addresses for each DEX.
     ///@param _dexFactories - Array of DEX factory addresses to be added to the system.
@@ -86,7 +87,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address _weth,
         address _usdc,
         address _quoterAddress,
-        uint256 _refreshFee,
         uint256 _executionCost,
         bytes32[] memory _initByteCodes,
         address[] memory _dexFactories,
@@ -100,11 +100,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             _dexFactories,
             _isUniV2,
             _swapRouter,
-            _alphaXDivergenceThreshold
+            _alphaXDivergenceThreshold,
+            _weth
         )
     {
         iQuoter = IQuoter(_quoterAddress);
-        REFRESH_FEE = _refreshFee;
+        REFRESH_FEE;
         WETH = _weth;
         USDC = _usdc;
         ORDER_EXECUTION_GAS_COST = _executionCost;
@@ -196,7 +197,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
             ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
             if (
-                block.timestamp - order.lastRefreshTimestamp < refreshInterval
+                block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL
             ) {
                 continue;
             }
@@ -275,9 +276,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             revert OrderDoesNotExist(orderId);
         }
 
-        ///@notice Get the amount of active orders for the order owner.
-        uint256 totalOrders = totalOrdersPerAddress[order.owner];
-
         ///@notice Get the current gas price from the v3 Aggregator.
         uint256 gasPrice = getGasPrice();
 
@@ -296,24 +294,18 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 )
             )
         ) {
+            ///@notice Remove the order from the limit order system.
+            _removeOrderFromSystem(order);
+
+            ///@notice Decrement from the order owner's gas credit balance.
+            gasCreditBalance[order.owner] -= minimumGasCreditsForSingleOrder;
+
+            ///@notice Send the off-chain executor the reward for cancelling the order.
             safeTransferETH(msg.sender, minimumGasCreditsForSingleOrder);
 
-            delete orderIdToOrder[orderId];
-            delete addressToOrderIds[order.owner][orderId];
-
-            //decrement from total orders per address
-            --totalOrdersPerAddress[order.owner];
-
-            //Decrement totalOrdersQuantity on order.tokenIn for order owner
-            decrementTotalOrdersQuantity(
-                order.tokenIn,
-                order.owner,
-                order.quantity
-            );
-
+            ///@notice Emit an order cancelled event to notify the off-chain exectors.
             bytes32[] memory orderIds = new bytes32[](1);
             orderIds[0] = order.orderId;
-
             emit OrderCancelled(orderIds);
 
             return true;
@@ -321,54 +313,37 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return false;
     }
 
-    /// @notice Internal helper function to cancel order with implicit validation within refreshOrder
-    /// @param orderId Id of the order to cancel
-    /// @return bool indicator whether order was successfully cancelled with compensation
-    function _cancelOrder(bytes32 orderId) internal returns (bool) {
-        //Cache order into memory
+    /// @notice Internal helper function to cancel an order. This function is only called after cancel order validation.
+    /// @param orderId - Order Id of the order to cancel.
+    /// @return success - Boolean to indicate if the order was successfully cancelled.
+    function _cancelOrder(bytes32 orderId) internal returns (bool success) {
+        ///@notice Cache order into memory
         Order memory order = orderIdToOrder[orderId];
 
-        /// Check if order exists in active orders. Revert if order does not exist
-        bool orderExists = addressToOrderIds[order.owner][orderId];
-        if (!orderExists) {
+        ///@notice Check if order exists, otherwise revert.
+        if (order.owner == address(0)) {
             revert OrderDoesNotExist(orderId);
         }
 
-        //Amount of order's owned by order owner
-        uint256 totalOrders = totalOrdersPerAddress[order.owner];
-
-        //Get current gas price from v3 Aggregator
+        ///@notice Get the current gas price from the v3 Aggregator.
         uint256 gasPrice = getGasPrice();
 
-        //Calculate minimum gas credits without multiplier for gas variability
-        uint256 minimumGasCreditsForAllOrders = _calculateMinGasCredits(
-            gasPrice,
-            300000,
-            order.owner,
-            1
-        );
+        ///@notice Get the minimum gas credits needed for a single order
+        uint256 minimumGasCreditsForSingleOrder = gasPrice *
+            ORDER_EXECUTION_GAS_COST;
 
-        uint256 minimumGasCreditsForSingleOrder = minimumGasCreditsForAllOrders /
-                totalOrders;
+        ///@notice Remove the order from the limit order system.
+        _removeOrderFromSystem(order);
 
-        //Delete order from queue after swap execution
-        delete orderIdToOrder[orderId];
-        delete addressToOrderIds[order.owner][orderId];
-        //decrement from total orders per address
-        --totalOrdersPerAddress[order.owner];
+        ///@notice Decrement from the order owner's gas credit balance.
+        gasCreditBalance[order.owner] -= minimumGasCreditsForSingleOrder;
 
-        //Decrement totalOrdersQuantity for order owner
-        decrementTotalOrdersQuantity(
-            order.tokenIn,
-            order.owner,
-            order.quantity
-        );
-
-        bytes32[] memory orderIds = new bytes32[](1);
-        orderIds[0] = order.orderId;
-
+        ///@notice Send the off-chain executor the reward for cancelling the order.
         safeTransferETH(msg.sender, minimumGasCreditsForSingleOrder);
 
+        ///@notice Emit an order cancelled event to notify the off-chain exectors.
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = order.orderId;
         emit OrderCancelled(orderIds);
 
         return true;
@@ -376,146 +351,40 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     // ==================== Order Execution Functions =========================
 
-    ///@notice This function takes in an array of orders,
-    /// @param orderIds array of orders to be executed within the mapping
+    ///@notice This function is called by off-chain executors, passing in an array of orderIds to execute a specific batch of orders.
+    /// @param orderIds - Array of orderIds to indicate which orders should be executed.
     function executeOrders(bytes32[] calldata orderIds) external onlyEOA {
-        ///@notice validate that the order array is in ascending order by quantity
+        ///@notice Get all of the orders by orderId and add them to a temporary orders array
         Order[] memory orders = new Order[](orderIds.length);
-
-        for (uint256 i = 0; i < orderIds.length; i++) {
+        for (uint256 i = 0; i < orderIds.length; ) {
             orders[i] = getOrderById(orderIds[i]);
+
+            unchecked {
+                ++i;
+            }
         }
 
+        ///@notice Validate that the orders in the batch are passed in with increasing quantity.
         _validateOrderSequencing(orders);
 
-        ///@notice Sequence the orders by priority fee
-        // Order[] memory sequencedOrders = _sequenceOrdersByPriorityFee(orders);
-
-        ///@notice check if the token out is weth to determine what type of order execution to use
+        ///@notice Check if the order contains any taxed tokens.
         if (orders[0].taxed == true) {
+            ///@notice If the tokenOut on the order is Weth
             if (orders[0].tokenOut == WETH) {
                 _executeTokenToWethTaxedOrders(orders);
             } else {
-                //If second token is taxed and first token is weth
-                //Then don't do first swap, and out amount of second swap directly to the eoa of the swap
-                //Take out fee's from amount in
+                ///@notice Otherwise, if the tokenOut is not Weth and the order is a taxed order.
                 _executeTokenToTokenTaxedOrders(orders);
             }
         } else {
+            ///@notice If the order is not taxed and the tokenOut on the order is Weth
             if (orders[0].tokenOut == WETH) {
                 _executeTokenToWethOrders(orders);
             } else {
-                //If first token is weth, don't do the first swap, and take out the fee's from the amountIn
+                ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
                 _executeTokenToTokenOrders(orders);
             }
         }
-    }
-
-    //------------Single Swap Best Dex price Aggregation---------------------------------
-
-    function swapTokenToTokenOnBestDex(
-        address tokenIn,
-        address tokenOut,
-        uint256 amountIn,
-        uint256 amountOutMin,
-        uint24 FEE,
-        address reciever,
-        address sender
-    ) public returns (uint256 amountOut) {
-        (SpotReserve[] memory prices, address[] memory lps) = _getAllPrices(
-            tokenIn,
-            tokenOut,
-            FEE
-        );
-
-        uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-        address bestLp;
-
-        //Iterate through all dex's and get best price and corresponding lp
-        for (uint256 i = 0; i < prices.length; ++i) {
-            if (prices[i].spotPrice != 0) {
-                if (prices[i].spotPrice < bestPrice) {
-                    bestPrice = prices[i].spotPrice;
-                    bestLp = lps[i];
-                }
-            }
-        }
-
-        if (_lpIsNotUniV3(bestLp)) {
-            //Call swap univ2
-            amountOut = _swapV2(
-                tokenIn,
-                tokenOut,
-                bestLp,
-                amountIn,
-                amountOutMin,
-                reciever,
-                sender
-            );
-        } else {
-            amountOut = _swapV3(
-                tokenIn,
-                tokenOut,
-                FEE,
-                amountIn,
-                amountOutMin,
-                reciever,
-                sender
-            );
-        }
-    }
-
-    function swapETHToTokenOnBestDex(
-        address tokenOut,
-        uint256 amountIn,
-        uint256 amountOutMin,
-        uint24 FEE
-    ) external payable returns (uint256 amountOut) {
-        if (msg.value != amountIn) {
-            revert InsufficientDepositAmount();
-        }
-
-        (bool success, ) = address(IWETH(WETH)).call{value: amountIn}(
-            abi.encodeWithSignature("deposit()")
-        );
-        if (success) {
-            amountOut = swapTokenToTokenOnBestDex(
-                WETH,
-                tokenOut,
-                amountIn,
-                amountOutMin,
-                FEE,
-                msg.sender,
-                address(this)
-            );
-        }
-    }
-
-    function swapTokenToETHOnBestDex(
-        address tokenIn,
-        uint256 amountIn,
-        uint256 amountOutMin,
-        uint24 FEE
-    ) external returns (uint256) {
-        // IERC20(tokenIn).approve(address(this), amountIn);
-        uint256 amountOutWeth = swapTokenToTokenOnBestDex(
-            tokenIn,
-            WETH,
-            amountIn,
-            amountOutMin,
-            FEE,
-            address(this),
-            msg.sender
-        );
-        uint256 balanceBefore = address(this).balance;
-        IWETH(WETH).withdraw(amountOutWeth);
-        if ((address(this).balance - balanceBefore != amountOutWeth)) {
-            revert WethWithdrawUnsuccessful();
-        }
-
-        safeTransferETH(msg.sender, amountOutWeth);
-
-        return amountOutWeth;
     }
 
     // ==================== Order Execution Functions =========================
@@ -556,6 +425,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     batch,
                     order
                 );
+
+                //TODO: FIXME:
+                //add functionality to decrement from the gas credit balance depending on the execution cost
             }
         }
 

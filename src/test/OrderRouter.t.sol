@@ -81,7 +81,8 @@ contract OrderRouterTest is DSTest {
             _dexFactories,
             _isUniV2,
             swapRouter,
-            alphaXDivergenceThreshold
+            alphaXDivergenceThreshold,
+            WETH
         );
 
         uniV2Router = IUniswapV2Router02(_uniV2Address);
@@ -1221,6 +1222,75 @@ contract OrderRouterTest is DSTest {
         require(amountOut != 0, "InsufficientOutputAmount");
     }
 
+    //Swap Token to Token on best Dex tests
+    function testSwapTokenToTokenOnBestDex() public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        //get the token in
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+            10000000000000000,
+            tokenIn
+        );
+
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+        uint256 amountOutMin = amountReceived - 1;
+
+        IERC20(tokenIn).approve(address(orderRouter), amountReceived);
+        address reciever = address(this);
+        orderRouter.swapTokenToTokenOnBestDex(
+            tokenIn,
+            tokenOut,
+            amountReceived,
+            amountOutMin,
+            500,
+            reciever,
+            address(this)
+        );
+    }
+
+    function testSwapTokenToEthOnBestDex() public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        //get the token in
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+            10000000000000000,
+            tokenIn
+        );
+
+        uint256 amountOutMin = amountReceived - 1;
+
+        IERC20(tokenIn).approve(address(orderRouter), amountReceived);
+        console.logUint(address(this).balance);
+        orderRouter.swapTokenToETHOnBestDex(
+            tokenIn,
+            amountReceived,
+            amountOutMin,
+            500
+        );
+        console.logUint(address(this).balance);
+    }
+
+    function testSwapEthToTokenOnBestDex() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+
+        address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+        (bool depositSuccess, ) = address(orderRouter).call{
+            value: 1000000000000000000
+        }(
+            abi.encodeWithSignature(
+                "swapETHToTokenOnBestDex(address,uint256,uint256,uint24)",
+                tokenOut,
+                1000000000000000000,
+                10000,
+                500
+            )
+        );
+    }
+
     //================================================================================================
 }
 
@@ -1231,14 +1301,16 @@ contract OrderRouterWrapper is OrderRouter {
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
         address _swapRouter,
-        uint256 _alphaXDivergenceThreshold
+        uint256 _alphaXDivergenceThreshold,
+        address _weth
     )
         OrderRouter(
             _initBytecodes,
             _dexFactories,
             _isUniV2,
             _swapRouter,
-            _alphaXDivergenceThreshold
+            _alphaXDivergenceThreshold,
+            _weth
         )
     {}
 
@@ -1427,7 +1499,6 @@ contract OrderRouterWrapper is OrderRouter {
                 token1Decimals
             );
     }
-
 
     function getTargetDecimals(address token)
         public

@@ -86,6 +86,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000; //3402823669209385000000000000000000000
     address swapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+
     function setUp() public {
         scriptRunner = new ScriptRunner();
         cheatCodes = CheatCodes(HEVM_ADDRESS);
@@ -96,7 +97,6 @@ contract ConveyorLimitOrdersTest is DSTest {
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6,
-            5,
             3000000,
             _hexDems,
             _dexFactories,
@@ -784,7 +784,6 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-
     //----------------------------Gas Credit Tests-----------------------------------------
     function testDepositGasCredits(uint256 _amount) public {
         //deal this address max eth
@@ -1002,7 +1001,7 @@ contract ConveyorLimitOrdersTest is DSTest {
                 .getOrderById(orderBatch[i]);
 
             assert(order0.orderId != bytes32(0));
-            assert(order0.lastRefreshTimestamp ==0);
+            assert(order0.lastRefreshTimestamp == 0);
         }
 
         conveyorLimitOrders.refreshOrder(orderBatch);
@@ -1015,7 +1014,9 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    function testRefreshOrderWithCancelOrderRefreshFeeExceedsGasCredits() public {
+    function testRefreshOrderWithCancelOrderRefreshFeeExceedsGasCredits()
+        public
+    {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(100000000000000000);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
@@ -1052,8 +1053,8 @@ contract ConveyorLimitOrdersTest is DSTest {
         );
 
         OrderBook.Order[] memory orders = new OrderBook.Order[](2);
-        orders[0]= order;
-        orders[1]=order1;
+        orders[0] = order;
+        orders[1] = order1;
 
         bytes32[] memory orderBatch = placeMultipleMockOrder(orders);
 
@@ -1066,13 +1067,14 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         conveyorLimitOrders.refreshOrder(orderBatch);
 
-       //Ensure the order's are cancelled
+        //Ensure the order's are cancelled
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);
             assert(order0.orderId == bytes32(0));
         }
     }
+
     //block 15233771
     function testRefreshOrderNotRefreshable() public {
         cheatCodes.deal(address(this), MAX_UINT);
@@ -1117,80 +1119,10 @@ contract ConveyorLimitOrdersTest is DSTest {
             assert(order0.orderId != bytes32(0));
             assert(order.lastRefreshTimestamp == 1659049037);
         }
-
     }
 
     receive() external payable {
         // console.log("receive invoked");
-    }
-
-    //Swap Token to Token on best Dex tests
-    function testSwapTokenToTokenOnBestDex() public {
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            10000000000000000,
-            tokenIn
-        );
-
-        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
-        uint256 amountOutMin = amountReceived - 1;
-
-        IERC20(tokenIn).approve(address(conveyorLimitOrders), amountReceived);
-        address reciever = address(this);
-        conveyorLimitOrders.swapTokenToTokenOnBestDex(
-            tokenIn,
-            tokenOut,
-            amountReceived,
-            amountOutMin,
-            500,
-            reciever,
-            address(this)
-        );
-    }
-
-    function testSwapTokenToEthOnBestDex() public {
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            10000000000000000,
-            tokenIn
-        );
-
-        uint256 amountOutMin = amountReceived - 1;
-
-        IERC20(tokenIn).approve(address(conveyorLimitOrders), amountReceived);
-        console.logUint(address(this).balance);
-        conveyorLimitOrders.swapTokenToETHOnBestDex(
-            tokenIn,
-            amountReceived,
-            amountOutMin,
-            500
-        );
-        console.logUint(address(this).balance);
-    }
-
-    function testSwapEthToTokenOnBestDex() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-
-        address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-
-        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
-            value: 1000000000000000000
-        }(
-            abi.encodeWithSignature(
-                "swapETHToTokenOnBestDex(address,uint256,uint256,uint24)",
-                tokenOut,
-                1000000000000000000,
-                10000,
-                500
-            )
-        );
     }
 
     //================================================================
@@ -1225,18 +1157,22 @@ contract ConveyorLimitOrdersTest is DSTest {
                     lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
                 });
 
-        ConveyorLimitOrders.TokenToTokenExecutionPrice[] memory executionPrices = new OrderRouter.TokenToTokenExecutionPrice[](2);
-        executionPrices[0]= tokenToTokenExecutionPrice;
-        executionPrices[1]= tokenToTokenExecutionPrice1;
+        ConveyorLimitOrders.TokenToTokenExecutionPrice[]
+            memory executionPrices = new OrderRouter.TokenToTokenExecutionPrice[](
+                2
+            );
+        executionPrices[0] = tokenToTokenExecutionPrice;
+        executionPrices[1] = tokenToTokenExecutionPrice1;
 
-        uint256 bestPriceIndexBuy = conveyorLimitOrders.findBestTokenToTokenExecutionPrice(executionPrices, true);
-        uint256 bestPriceIndexSell = conveyorLimitOrders.findBestTokenToTokenExecutionPrice(executionPrices, false);
+        uint256 bestPriceIndexBuy = conveyorLimitOrders
+            .findBestTokenToTokenExecutionPrice(executionPrices, true);
+        uint256 bestPriceIndexSell = conveyorLimitOrders
+            .findBestTokenToTokenExecutionPrice(executionPrices, false);
 
         assertEq(bestPriceIndexBuy, 0);
-        assertEq(bestPriceIndexSell,1);
-
-
+        assertEq(bestPriceIndexSell, 1);
     }
+
     function testSimulateAToBPriceChangeV2ReserveOutputs(uint112 _amountIn)
         public
     {
@@ -2645,7 +2581,6 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
         address _weth,
         address _usdc,
         address _quoterAddress,
-        uint256 _refreshFee,
         uint256 _executionCost,
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
@@ -2658,7 +2593,6 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
             _weth,
             _usdc,
             _quoterAddress,
-            _refreshFee,
             _executionCost,
             _initBytecodes,
             _dexFactories,
@@ -2717,12 +2651,14 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
     {
         return _simulateAToWethPriceChange(alphaX, executionPrice);
     }
+
     function findBestTokenToTokenExecutionPrice(
         TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) public returns (uint256 bestPriceIndex) {
         return _findBestTokenToTokenExecutionPrice(executionPrices, buyOrder);
     }
+
     function simulateWethToBPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
