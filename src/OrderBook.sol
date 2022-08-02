@@ -419,6 +419,7 @@ contract OrderBook is GasOracle {
             ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
             uint256 minimumGasCredits = totalOrderCount *
                 gasPrice *
+                ///TODO: Change this to the immutable
                 executionCost *
                 multiplier;
 
