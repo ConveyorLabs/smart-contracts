@@ -925,7 +925,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     function testRefreshOrder() public {
         cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
+        depositGasCreditsForMockOrders(100);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
