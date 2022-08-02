@@ -199,18 +199,32 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             if (
                 block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL
             ) {
+                unchecked {
+                    ++i;
+                }
+
                 continue;
             }
 
             ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
             if (block.timestamp > order.expirationTimestamp) {
                 _cancelOrder(orderId);
+
+                unchecked {
+                    ++i;
+                }
+
                 continue;
             }
 
             ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
             if (gasCreditBalance[order.owner] < REFRESH_FEE) {
                 _cancelOrder(orderId);
+
+                unchecked {
+                    ++i;
+                }
+
                 continue;
             }
 
@@ -229,6 +243,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 )
             ) {
                 _cancelOrder(orderId);
+
+                unchecked {
+                    ++i;
+                }
+
                 continue;
             }
 
@@ -257,7 +276,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    //------------Order Cancellation Functions---------------------------------
     /// @notice Function for off-chain executors to cancel an Order that does not have the minimum gas credit balance for order execution.
     /// @param orderId - Order Id of the order to cancel.
     /// @return success - Boolean to indicate if the order was successfully cancelled and compensation was sent to the off-chain executor.
@@ -385,47 +403,54 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    // ==================== Order Execution Functions =========================
-
-    // ==================== Token To Weth Order Execution Logic =========================
-    ///@notice execute an array of orders from token to weth
+    ///@notice Function to execute orders from a taxed token to Weth.
+    ///@param orders - Array of orders to be evaluated and executed.
     function _executeTokenToWethTaxedOrders(Order[] memory orders) internal {
-        ///@notice get all execution price possibilities
+        ///@notice Get all possible execution prices across all of the available DEXs.s
         (
             TokenToWethExecutionPrice[] memory executionPrices,
             uint128 maxBeaconReward
         ) = _initializeTokenToWethExecutionPrices(orders);
 
-        ///@notice optimize the execution into batch orders, ensuring the best price for the least amount of gas possible
+        ///@notice Batch the orders into optimized quantities to result in the best execution price and gas cost for each order.
         TokenToWethBatchOrder[]
             memory tokenToWethBatchOrders = _batchTokenToWethOrders(
                 orders,
                 executionPrices
             );
 
-        ///@notice execute the batch orders
+        ///@notice Execute the batched orders
         _executeTokenToWethBatchTaxedOrders(
             tokenToWethBatchOrders,
             maxBeaconReward
         );
     }
 
+    ///@notice Function to execute batch orders from a taxed token to Weth.
     function _executeTokenToWethBatchTaxedOrders(
         TokenToWethBatchOrder[] memory tokenToWethBatchOrders,
         uint128 maxBeaconReward
     ) internal {
         uint128 totalBeaconReward;
-        for (uint256 i = 0; i < tokenToWethBatchOrders.length; i++) {
+        for (uint256 i = 0; i < tokenToWethBatchOrders.length; ) {
             TokenToWethBatchOrder memory batch = tokenToWethBatchOrders[i];
-            for (uint256 j = 0; j < batch.batchLength; j++) {
+            for (uint256 j = 0; j < batch.batchLength; ) {
                 Order memory order = getOrderById(batch.orderIds[j]);
                 totalBeaconReward += _executeTokenToWethTaxedOrder(
                     batch,
                     order
                 );
 
+                unchecked {
+                    ++j;
+                }
+
                 //TODO: FIXME:
                 //add functionality to decrement from the gas credit balance depending on the execution cost
+            }
+
+            unchecked {
+                ++i;
             }
         }
 
