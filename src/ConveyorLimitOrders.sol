@@ -208,14 +208,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
             ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
             if (gasCreditBalance[order.owner] < REFRESH_FEE) {
-                _cancelOrder(orderId);
-
                 unchecked {
                     ++i;
                 }
 
                 continue;
             }
+
             ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
             if (
                 block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL
