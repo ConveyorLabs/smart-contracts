@@ -596,7 +596,7 @@ contract OrderRouterTest is DSTest {
             assertEq(rewardConveyor / 10**3, conveyorRewardExpected / 10**3);
         }
     }
-
+    
     function uint2str(uint256 _i) internal pure returns (string memory str) {
         if (_i == 0) {
             return "0";
@@ -1251,12 +1251,14 @@ contract OrderRouterTest is DSTest {
     }
 
     function testSwapTokenToEthOnBestDex() public {
+        cheatCodes.deal(address(this), MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        cheatCodes.deal(address(orderRouter), MAX_UINT);
         //get the token in
         uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            10000000000000000,
+            10000000000000000000,
             tokenIn
         );
 
@@ -1267,15 +1269,17 @@ contract OrderRouterTest is DSTest {
         orderRouter.swapTokenToETHOnBestDex(
             tokenIn,
             amountReceived,
-            amountOutMin,
-            500
+            1,
+            3000
         );
         console.logUint(address(this).balance);
     }
 
+    receive() external payable {}
+
     function testSwapEthToTokenOnBestDex() public {
         cheatCodes.deal(address(this), MAX_UINT);
-
+        
         address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
         (bool depositSuccess, ) = address(orderRouter).call{
@@ -1290,7 +1294,7 @@ contract OrderRouterTest is DSTest {
             )
         );
     }
-
+    
     //================================================================================================
 }
 
@@ -1314,6 +1318,7 @@ contract OrderRouterWrapper is OrderRouter {
         )
     {}
 
+    
     function calculateMaxBeaconRewardTop(
         SpotReserve[] memory spotReserves,
         OrderBook.Order[] memory orders,
@@ -1372,6 +1377,8 @@ contract OrderRouterWrapper is OrderRouter {
     function lpIsNotUniV3(address lp) public returns (bool) {
         return _lpIsNotUniV3(lp);
     }
+
+    
 
     function swap(
         address tokenIn,
