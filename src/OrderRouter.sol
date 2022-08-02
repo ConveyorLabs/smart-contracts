@@ -146,10 +146,17 @@ contract OrderRouter {
         _;
     }
 
+    //======================Events==================================
+    event UniV2SwapError(string indexed reason);
+    event UniV3SwapError(string indexed reason);
+
     //======================Constants==================================
     uint128 constant MIN_FEE_64x64 = 18446744073709552;
     uint128 constant MAX_UINT_128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
     uint128 constant UNI_V2_FEE = 5534023222112865000;
+    uint256 constant MAX_UINT_256 =
+        0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+    uint256 constant ONE_128x128 = uint256(1) << 128;
 
     //----------------------Immutables------------------------------------//
 
@@ -458,7 +465,7 @@ contract OrderRouter {
 
         ///@notice If weth is not token0, then convert the maxBeaconValue into Weth.
         if (!wethIsToken0) {
-            ///Convert the alphaX*fee quantity into the out token i.e weth
+            ///@notice Convert the alphaX*fee quantity into Weth
             maxBeaconReward = uint128(
                 ConveyorMath.mul128I(v2Outlier, maxBeaconReward)
             );
@@ -467,78 +474,99 @@ contract OrderRouter {
         return maxBeaconReward;
     }
 
-    ///@notice Helper function to calculate the proportional difference between the *minimum* priced order in the batch relative to the buy sell status of the batch
-    ///@param v2Outlier spotPrice of the v2Outlier used to cross reference agains alphaXDivergenceThreshold
-    ///@param orders array of order's to compare the spot price against
-    ///@param buy boolean indicating buy/sell status of the batch
+    ///@notice Helper function to calculate the alphaXDivergenceThreshold using the price that is the maximum distance from the v2Outlier.
+    ///@param v2Outlier - SpotPrice of the v2Outlier used to cross reference against the alphaXDivergenceThreshold.
+    ///@param orders - Array of orders used compare spot prices against.
+    ///@param buy - Boolean indicating the buy/sell status of the batch.
+    ///@return priceDivergence - Proportional difference between the target spot price and the v2Outlier.
+    ///@return targetSpot - The price with the maximum distance from the v2Outlier.
     function _calculatePriceDivergenceFromBatchMin(
         uint256 v2Outlier,
         OrderBook.Order[] memory orders,
         bool buy
-    ) internal pure returns (uint256, uint256) {
-        uint256 targetSpot = buy
-            ? 0
-            : 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-        for (uint256 i = 0; i < orders.length; ++i) {
+    ) internal pure returns (uint256 priceDivergence, uint256 targetSpot) {
+        ///@notice If the order is a buy, set the initial targetSpot to 0, else set it to MAX_UINT_256.
+        targetSpot = buy ? 0 : MAX_UINT_256;
+
+        ///@notice For each order in the orders array
+        for (uint256 i = 0; i < orders.length; ) {
+            ///@notice Initialize the orderPrice
             uint256 orderPrice = orders[i].price;
+
+            ///@notice If the order is a buy order, and the orderPrice is greater than the targetSpot, set the targetSpot to the orderPrice
             if (buy) {
                 if (orderPrice > targetSpot) {
                     targetSpot = orderPrice;
                 }
             } else {
+                ///@notice If the order is a sell order, and the orderPrice is greater than the targetSpot, set the targetSpot to the orderPrice
                 if (orderPrice < targetSpot) {
                     targetSpot = orderPrice;
                 }
             }
+
+            unchecked {
+                ++i;
+            }
         }
 
-        uint256 proportionalSpotChange;
-        uint256 priceDivergence;
-
+        ///@notice Calculate the proportionalSpotChange and priceDivergence, returning the priceDivergence and targetSpot
         if (targetSpot > v2Outlier) {
-            proportionalSpotChange = ConveyorMath.div128x128(
+            uint256 proportionalSpotChange = ConveyorMath.div128x128(
                 v2Outlier,
                 targetSpot
             );
-            priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
+
+            priceDivergence = ONE_128x128 - proportionalSpotChange;
+
+            return (priceDivergence, targetSpot);
         } else {
-            proportionalSpotChange = ConveyorMath.div128x128(
+            uint256 proportionalSpotChange = ConveyorMath.div128x128(
                 targetSpot,
                 v2Outlier
             );
-            priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
-        }
 
-        return (priceDivergence, targetSpot);
+            priceDivergence = ONE_128x128 - proportionalSpotChange;
+
+            return (priceDivergence, targetSpot);
+        }
     }
 
     ///@notice Helper function to determine the proportional difference between two spot prices
+    ///@param v3Spot - spotPrice from UniV3.
+    ///@param v2Outlier - SpotPrice of the v2Outlier used to cross reference against the alphaXDivergenceThreshold.
+    ///@return priceDivergence - Porportional difference between the v3Spot and v2Outlier
     function _calculatePriceDivergence(uint256 v3Spot, uint256 v2Outlier)
         internal
-        returns (uint256)
+        pure
+        returns (uint256 priceDivergence)
     {
-        uint256 proportionalSpotChange;
-        uint256 priceDivergence;
-        if (v3Spot > v2Outlier) {
-            proportionalSpotChange = ConveyorMath.div128x128(v2Outlier, v3Spot);
-
-            priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
-        } else if (v3Spot == v2Outlier) {
+        ///@notice If the v3Spot equals the v2Outlier, there is no price divergence, so return 0.
+        if (v3Spot == v2Outlier) {
             return 0;
-        } else {
-            proportionalSpotChange = ConveyorMath.div128x128(v3Spot, v2Outlier);
+        }
 
-            priceDivergence = (uint256(1) << 128) - proportionalSpotChange;
+        uint256 proportionalSpotChange;
+
+        ///@notice if the v3Spot is greater than the v2Outlier
+        if (v3Spot > v2Outlier) {
+            ///@notice Divide the v2Outlier by the v3Spot and subtract the result from 1.
+            proportionalSpotChange = ConveyorMath.div128x128(v2Outlier, v3Spot);
+            priceDivergence = ONE_128x128 - proportionalSpotChange;
+        } else {
+            ///@notice Divide the v3Spot by the v2Outlier and subtract the result from 1.
+            proportionalSpotChange = ConveyorMath.div128x128(v3Spot, v2Outlier);
+            priceDivergence = ONE_128x128 - proportionalSpotChange;
         }
 
         return priceDivergence;
     }
 
-    /// @notice Helper function to calculate the max beacon reward for a group of order's
-    /// @param reserve0 uint256 reserve0 of lp at execution time
-    /// @param reserve1 uint256 reserve1 of lp at execution time
-    /// @param fee uint256 lp fee
-    /// @return maxReward uint256 maximum safe beacon reward to protect against flash loan price manipulation in the lp
+    /// @notice Helper function to calculate the max beacon reward for a group of orders
+    /// @param reserve0 - Reserve0 of lp at execution time
+    /// @param reserve1 - Reserve1 of lp at execution time
+    /// @param fee - The fee to swap on the lp.
+    /// @return maxReward - Maximum safe beacon reward to protect against flash loan price manipulation on the lp
     function _calculateMaxBeaconReward(
         uint256 delta,
         uint128 reserve0,
@@ -551,20 +579,19 @@ contract OrderRouter {
                 _calculateAlphaX(delta, reserve0, reserve1)
             )
         );
-
         return maxReward;
     }
 
     /// @notice Helper function to calculate the input amount needed to manipulate the spot price of the pool from snapShot to executionPrice
-    /// @param reserve0Execution snapShot of reserve0 at snapShot time
-    /// @param reserve1Execution snapShot of reserve1 at snapShot time
-    /// @return alphaX alphaX amount to manipulate the spot price of the respective lp to execution trigger
+    /// @param reserve0Execution - snapShot of reserve0 at execution time
+    /// @param reserve1Execution - snapShot of reserve1 at execution time
+    /// @return alphaX - The input amount needed to manipulate the spot price of the respective lp to the amount delta.
     function _calculateAlphaX(
         uint256 delta,
         uint128 reserve0Execution,
         uint128 reserve1Execution
-    ) internal view returns (uint256) {
-        //k = r'x*r'y
+    ) internal pure returns (uint256) {
+        ///@notice alphaX = (r1 * r0 - sqrtK * sqrtr0 * sqrt(delta * r1 + r1)) / r1
         uint256 _k = uint256(reserve0Execution) * reserve1Execution;
         bytes16 k = QuadruplePrecision.fromInt(int256(_k));
         bytes16 sqrtK = QuadruplePrecision.sqrt(k);
@@ -597,19 +624,28 @@ contract OrderRouter {
 
     //------------------------Admin Functions----------------------------
 
-    /// @notice Add Dex struct to dexes array from arr _factory, and arr _hexDem
-    /// @param _factory address[] dex factory address's to add
-    /// @param _hexDem Factory address create2 deployment bytecode array
-    /// @param isUniV2 Array of bool's indicating uniV2 status
+    /// @notice OnlyOwner function that adds a new Dex to the dexes array.
+    /// @param _factory - Factory address to add to the Dex struct.
+    /// @param _initBytecode - Initialization bytecode to add to the Dex struct.
+    /// @param _isUniV2 - Boolean that indicates if the new Dex is UniV2 compatible.
     function addDex(
         address _factory,
-        bytes32 _hexDem,
-        bool isUniV2
+        bytes32 _initBytecode,
+        bool _isUniV2
     ) public onlyOwner {
-        Dex memory _dex = Dex(_factory, _hexDem, isUniV2);
+        Dex memory _dex = Dex(_factory, _initBytecode, _isUniV2);
         dexes.push(_dex);
     }
 
+    ///@notice Helper function to execute a swap on a UniV2 LP
+    ///@param _tokenIn - Address of the tokenIn.
+    ///@param _tokenOut - Address of the tokenOut.
+    ///@param _lp - Address of the lp.
+    ///@param _amountIn - AmountIn for the swap.
+    ///@param _amountOutMin - AmountOutMin for the swap.
+    ///@param _reciever - Address to receive the amountOut.
+    ///@param _sender - Address to send the tokenIn.
+    ///@return amountRecieved - Amount received from the swap.
     function _swapV2(
         address _tokenIn,
         address _tokenOut,
@@ -617,27 +653,30 @@ contract OrderRouter {
         uint256 _amountIn,
         uint256 _amountOutMin,
         address _reciever,
-        address sender
-    ) internal returns (uint256) {
-        if (sender != address(this)) {
-            /// transfer the tokens to the lp
-            IERC20(_tokenIn).transferFrom(sender, _lp, _amountIn);
+        address _sender
+    ) internal returns (uint256 amountRecieved) {
+        ///@notice If the sender is not the current context
+        ///@dev This can happen when swapping taxed tokens to avoid being double taxed by sending the tokens to the contract instead of directly to the lp
+        if (_sender != address(this)) {
+            ///@notice Transfer the tokens to the lp from the sender.
+            IERC20(_tokenIn).transferFrom(_sender, _lp, _amountIn);
         } else {
+            ///@notice Transfer the tokens to the lp from the current context.
             IERC20(_tokenIn).transfer(_lp, _amountIn);
         }
 
-        //Sort the tokens
+        ///@notice Get token0 from the pairing.
         (address token0, ) = _sortTokens(_tokenIn, _tokenOut);
 
-        //Initialize the amount out depending on the token order
+        ///@notice Intialize the amountOutMin value
         (uint256 amount0Out, uint256 amount1Out) = _tokenIn == token0
             ? (uint256(0), _amountOutMin)
             : (_amountOutMin, uint256(0));
 
-        ///@notice get the balance before
+        ///@notice Get the balance before the swap to know how much was received from swapping.
         uint256 balanceBefore = IERC20(_tokenOut).balanceOf(_reciever);
 
-        /// @notice Swap tokens for wrapped native tokens (nato).
+        ///@notice Execute the swap on the lp for the amounts specified.
         try
             IUniswapV2Pair(_lp).swap(
                 amount0Out,
@@ -645,14 +684,14 @@ contract OrderRouter {
                 _reciever,
                 new bytes(0)
             )
-        {} catch {
-            //TODO: emit an event for the error that happened
+        {} catch Error(string memory reason) {
+            ///@notice If there was an error during the swap, emit an event.
+            emit UniV2SwapError(reason);
             return 0;
         }
 
         ///@notice calculate the amount recieved
-        uint256 amountRecieved = IERC20(_tokenOut).balanceOf(_reciever) -
-            balanceBefore;
+        amountRecieved = IERC20(_tokenOut).balanceOf(_reciever) - balanceBefore;
 
         ///@notice if the amount recieved is less than the amount out min, revert
         if (amountRecieved < _amountOutMin) {

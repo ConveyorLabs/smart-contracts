@@ -46,6 +46,9 @@ contract OrderRouterTest is DSTest {
     //Chainlink ERC20 address
     address swapToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
 
+    //uniV3 swap router
+    address swapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+
     //weth
     address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
@@ -77,6 +80,7 @@ contract OrderRouterTest is DSTest {
             _hexDems,
             _dexFactories,
             _isUniV2,
+            swapRouter,
             alphaXDivergenceThreshold
         );
 
@@ -725,7 +729,7 @@ contract OrderRouterTest is DSTest {
     function testCalculatePriceDivergence(uint128 _v3Spot, uint128 _v2Outlier)
         public
     {
-        if (_v3Spot != 0 && _v2Outlier != 0  && _v2Outlier != _v3Spot) {
+        if (_v3Spot != 0 && _v2Outlier != 0 && _v2Outlier != _v3Spot) {
             string memory path = "scripts/calculatePriceDivergence.py";
             string[] memory args = new string[](3);
             uint256 _v3Base128 = ConveyorMath.fromUInt128(_v3Spot);
@@ -740,12 +744,13 @@ contract OrderRouterTest is DSTest {
             uint256 priceDivergenceExpectedInt = bytesToUint(
                 priceDivergenceExpected
             );
-            
-            uint256 priceDivergence = orderRouter.calculatePriceDivergence(_v2Base128, _v2Base128);
 
+            uint256 priceDivergence = orderRouter.calculatePriceDivergence(
+                _v2Base128,
+                _v2Base128
+            );
 
-            assertEq(priceDivergence,priceDivergenceExpectedInt);
-         
+            assertEq(priceDivergence, priceDivergenceExpectedInt);
         }
     }
 
@@ -766,15 +771,12 @@ contract OrderRouterTest is DSTest {
             uint128(553402322211286500) <= _fee &&
             _fee <= uint128(922337203685477600)
         ) {
-           
-                run = true;
-            
+            run = true;
         }
 
         uint128 _fee = 553402322211286500;
 
         if (run == true) {
-           
             uint128 k = _reserve0 * _reserve1;
             unchecked {
                 uint128 reserve0Execution = _alphaX + _reserve0;
@@ -810,7 +812,8 @@ contract OrderRouterTest is DSTest {
         bool run = false;
 
         if (
-            _alphaX > 1500 && _alphaX %10==0 &&
+            _alphaX > 1500 &&
+            _alphaX % 10 == 0 &&
             _reserve0 > 10000000000000000000 &&
             _reserve1 > 100000000000000000010 &&
             _reserve0 != _reserve1 &&
@@ -830,37 +833,38 @@ contract OrderRouterTest is DSTest {
                             reserve0Snapshot
                         )
                     );
-                   
+
                     uint128 snapShotSpotPrice = ConveyorMath.divUI(
                         uint256(reserve1Snapshot),
                         uint256(reserve0Snapshot)
                     );
-                    
+
                     uint128 executionSpotPrice = ConveyorMath.divUI(
                         uint256(_reserve1),
                         uint256(_reserve0)
                     );
-                    
+
                     uint256 delta_temp = ConveyorMath.div128x128(
-                        uint256(executionSpotPrice)<<64,
-                        uint256(snapShotSpotPrice)<<64
+                        uint256(executionSpotPrice) << 64,
+                        uint256(snapShotSpotPrice) << 64
                     );
                     console.log(delta_temp);
-                    uint256 delta = uint256(ConveyorMath.abs((int256(delta_temp)- (int256(1) << 128))));
+                    uint256 delta = uint256(
+                        ConveyorMath.abs(
+                            (int256(delta_temp) - (int256(1) << 128))
+                        )
+                    );
 
-                   
-                  
                     uint256 alphaX = orderRouter.calculateAlphaX(
-                            delta,
-                            uint128(_reserve0),
-                            uint128(_reserve1)
-                        );
+                        delta,
+                        uint128(_reserve0),
+                        uint128(_reserve1)
+                    );
 
                     uint8 sigHigh = ConveyorBitMath.mostSignificantBit(alphaX);
                     uint8 sigLow = ConveyorBitMath.leastSignificantBit(alphaX);
 
-                    assertEq(uint256(alphaX)/100, uint256(_alphaX)/100);
-                    
+                    assertEq(uint256(alphaX) / 100, uint256(_alphaX) / 100);
                 }
             }
         }
@@ -1226,12 +1230,14 @@ contract OrderRouterWrapper is OrderRouter {
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
+        address _swapRouter,
         uint256 _alphaXDivergenceThreshold
     )
         OrderRouter(
             _initBytecodes,
             _dexFactories,
             _isUniV2,
+            _swapRouter,
             _alphaXDivergenceThreshold
         )
     {}
@@ -1262,7 +1268,6 @@ contract OrderRouterWrapper is OrderRouter {
 
     function calculateReward(uint128 percentFee, uint128 wethValue)
         public
-
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
         return _calculateReward(percentFee, wethValue);
@@ -1279,7 +1284,6 @@ contract OrderRouterWrapper is OrderRouter {
 
     function calculatePriceDivergence(uint256 v3Spot, uint256 v2Outlier)
         public
-    
         returns (uint256)
     {
         return _calculatePriceDivergence(v3Spot, v2Outlier);
