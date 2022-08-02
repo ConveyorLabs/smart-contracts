@@ -1001,73 +1001,11 @@ contract ConveyorLimitOrdersTest is DSTest {
                 .getOrderById(orderBatch[i]);
 
             assert(order0.orderId != bytes32(0));
-            assert(order0.lastRefreshTimestamp == 0);
         }
 
         conveyorLimitOrders.refreshOrder(orderBatch);
 
         //Ensure the orders are canceled
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
-                .getOrderById(orderBatch[i]);
-            assert(order0.orderId == bytes32(0));
-        }
-    }
-
-    function testRefreshOrderWithCancelOrderRefreshFeeExceedsGasCredits()
-        public
-    {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(100000000000000000);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-        IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
-        OrderBook.Order memory order = newMockOrder(
-            DAI,
-            UNI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 DAI
-            3000,
-            3000,
-            0,
-            0
-        );
-
-        OrderBook.Order memory order1 = newMockOrder(
-            DAI,
-            UNI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 DAI
-            3000,
-            3000,
-            0,
-            0
-        );
-
-        OrderBook.Order[] memory orders = new OrderBook.Order[](2);
-        orders[0] = order;
-        orders[1] = order1;
-
-        bytes32[] memory orderBatch = placeMultipleMockOrder(orders);
-
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
-                .getOrderById(orderBatch[i]);
-
-            assert(order0.orderId != bytes32(0));
-        }
-
-        conveyorLimitOrders.refreshOrder(orderBatch);
-
-        //Ensure the order's are cancelled
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);

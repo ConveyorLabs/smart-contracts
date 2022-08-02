@@ -195,17 +195,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ///@notice Cache the order in memory.
             Order memory order = getOrderById(orderId);
 
-            ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
-            if (
-                block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL
-            ) {
-                unchecked {
-                    ++i;
-                }
-
-                continue;
-            }
-
             ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
             if (block.timestamp > order.expirationTimestamp) {
                 _cancelOrder(orderId);
@@ -221,6 +210,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             if (gasCreditBalance[order.owner] < REFRESH_FEE) {
                 _cancelOrder(orderId);
 
+                unchecked {
+                    ++i;
+                }
+
+                continue;
+            }
+            ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
+            if (
+                block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL
+            ) {
                 unchecked {
                     ++i;
                 }
