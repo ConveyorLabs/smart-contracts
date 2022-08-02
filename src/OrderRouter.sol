@@ -701,63 +701,73 @@ contract OrderRouter {
         return amountRecieved;
     }
 
-    ///@notice agnostic swap function that determines whether or not to swap on univ2 or univ3
-    /// @param tokenIn address of the token being swapped out
-    /// @param tokenOut address of the output token on the swap
-    /// @param lpAddress lpAddress to be swapped on for uni v3
-    /// @param amountIn amount of tokenIn to be swapped
-    /// @param amountOutMin minimum amount out on the swap
-    /// @return amountOut amount recieved post swap in tokenOut
+    ///@notice Agnostic swap function that determines whether or not to swap on univ2 or univ3
+    ///@param _tokenIn - Address of the tokenIn.
+    ///@param _tokenOut - Address of the tokenOut.
+    ///@param _lp - Address of the lp.
+    ///@param _fee - Fee for the lp address.
+    ///@param _amountIn - AmountIn for the swap.
+    ///@param _amountOutMin - AmountOutMin for the swap.
+    ///@param _reciever - Address to receive the amountOut.
+    ///@param _sender - Address to send the tokenIn.
+    ///@return amountRecieved - Amount received from the swap.
     function _swap(
-        address tokenIn,
-        address tokenOut,
-        address lpAddress,
-        uint24 fee,
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address reciever,
-        address sender
-    ) internal returns (uint256 amountOut) {
-        if (_lpIsNotUniV3(lpAddress)) {
-            amountOut = _swapV2(
-                tokenIn,
-                tokenOut,
-                lpAddress,
-                amountIn,
-                amountOutMin,
-                reciever,
-                sender
+        address _tokenIn,
+        address _tokenOut,
+        address _lp,
+        uint24 _fee,
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        address _reciever,
+        address _sender
+    ) internal returns (uint256 amountRecieved) {
+        if (_lpIsNotUniV3(_lp)) {
+            amountRecieved = _swapV2(
+                _tokenIn,
+                _tokenOut,
+                _lp,
+                _amountIn,
+                _amountOutMin,
+                _reciever,
+                _sender
             );
         } else {
-            amountOut = _swapV3(
-                tokenIn,
-                tokenOut,
-                fee,
-                amountIn,
-                amountOutMin,
-                reciever,
-                sender
+            amountRecieved = _swapV3(
+                _tokenIn,
+                _tokenOut,
+                _fee,
+                _amountIn,
+                _amountOutMin,
+                _reciever,
+                _sender
             );
         }
     }
 
-    //TODO: swap with v3 lp not the router
-    /// @notice Helper function to perform a swapExactInputSingle on Uniswap V3
+    /// @notice Helper function to perform a swapExactInputSingle on Uniswap V3.
+    ///@param _tokenIn - Address of the tokenIn.
+    ///@param _tokenOut - Address of the tokenOut.
+    ///@param _fee - Fee for the lp address.
+    ///@param _amountIn - AmountIn for the swap.
+    ///@param _amountOutMin - AmountOutMin for the swap.
+    ///@param _reciever - Address to receive the amountOut.
+    ///@param _sender - Address to send the tokenIn.
+    ///@return amountRecieved - Amount received from the swap.
     function _swapV3(
         address _tokenIn,
         address _tokenOut,
         uint24 _fee,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address reciever,
-        address sender
-    ) internal returns (uint256) {
-        /// transfer the tokens to the contract
-        if (sender != address(this)) {
-            IERC20(_tokenIn).transferFrom(sender, address(this), _amountIn);
+        address _reciever,
+        address _sender
+    ) internal returns (uint256 amountRecieved) {
+        ///@notice Transfer the tokens to the contract
+        if (_sender != address(this)) {
+            IERC20(_tokenIn).transferFrom(_sender, address(this), _amountIn);
         }
 
-        //Aprove the tokens on the swap router
+        ///@notice Aprove the tokens on the swap router.
         IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
 
         //Initialize swap parameters for the swap router
@@ -766,26 +776,23 @@ contract OrderRouter {
                 _tokenIn,
                 _tokenOut,
                 _fee,
-                reciever,
+                _reciever,
                 block.timestamp + 5,
                 _amountIn,
                 _amountOutMin,
                 0
             );
 
-        /// @notice Swap tokens for wrapped native tokens (nato).
+        ///@notice Execute the swap on the lp for the amounts specified.
         try swapRouter.exactInputSingle(params) returns (uint256 _amountOut) {
-            if (_amountOut < _amountOutMin) {
-                return 0;
-            }
-
+            ///@dev The swap router will handle when amountOut < amountOutMin.
             return _amountOut;
-        } catch {
+        } catch Error(string memory reason) {
+            ///TODO: FIXME: does the router roll back on revert or are the tokens sent back or how is this handled?
+            ///@notice If there was an error during the swap, emit an event.
+            emit UniV3SwapError(reason);
             return 0;
         }
-
-        ///@notice calculate the amount recieved
-        ///TODO: revisit this, if we should wrap this in an uncheck_getTargetAmountIned,
     }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
