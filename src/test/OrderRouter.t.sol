@@ -91,10 +91,10 @@ contract OrderRouterTest is DSTest {
     }
 
     //==================================Order Router Helper Functions ========================================
-    function testGetPoolFee() public {
-        address pairAddress = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
-        assertEq(500, orderRouter.getV3PoolFee(pairAddress));
-    }
+    // function testGetPoolFee() public {
+    //     address pairAddress = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+    //     assertEq(500, orderRouter.getV3PoolFee(pairAddress));
+    // }
 
     function testLPIsNotUniv3() public {
         address uniV2LPAddress = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
@@ -176,11 +176,11 @@ contract OrderRouterTest is DSTest {
         assertEq(targetDecimalsOhm, uint8(9));
     }
 
-    function testGetUniV3Fee() public {
-        address uniV3LPAddress = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
-        uint24 fee = orderRouter.getUniV3Fee(uniV3LPAddress);
-        assertEq(fee, uint24(500));
-    }
+    // function testGetUniV3Fee() public {
+    //     address uniV3LPAddress = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+    //     uint24 fee = orderRouter.getV3PoolFee(uniV3LPAddress);
+    //     assertEq(fee, uint24(500));
+    // }
 
     function testSortTokens() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -1180,7 +1180,7 @@ contract OrderRouterTest is DSTest {
             tokenIn,
             tokenOut,
             lp,
-            300,
+            3000,
             amountReceived,
             amountInMaximum,
             reciever,
@@ -1263,7 +1263,7 @@ contract OrderRouterWrapper is OrderRouter {
         view
         returns (uint24 poolFee)
     {
-        return _getV3PoolFee(pairAddress);
+        return getV3PoolFee(pairAddress);
     }
 
     function calculateReward(uint128 percentFee, uint128 wethValue)
@@ -1428,9 +1428,6 @@ contract OrderRouterWrapper is OrderRouter {
             );
     }
 
-    function getUniV3Fee(address lp) public returns (uint24) {
-        return _getUniV3Fee(lp);
-    }
 
     function getTargetDecimals(address token)
         public

@@ -56,11 +56,13 @@ contract OrderBookTest is DSTest {
     bytes32 _uniswapV2HexDem =
         0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
 
+    address swapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     //Initialize array of Dex specifications
     bytes32[] _hexDems = [_uniswapV2HexDem, _uniswapV2HexDem];
     address[] _dexFactories = [_uniV2FactoryAddress, _uniV3FactoryAddress];
     bool[] _isUniV2 = [true, false];
     uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000000;
+
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         conveyorLimitOrders = new ConveyorLimitOrders(
@@ -69,11 +71,11 @@ contract OrderBookTest is DSTest {
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6,
             5,
-            2592000,
             300000,
             _hexDems,
             _dexFactories,
             _isUniV2,
+            swapRouter,
             alphaXDivergenceThreshold
         );
         swapHelper = new Swap(_sushiSwapRouterAddress, wnato);
@@ -282,44 +284,73 @@ contract OrderBookTest is DSTest {
         }
     }
 
-    function testUpdateOrder(
-        uint256 swapAmount,
-        uint256 executionPrice,
-        uint256 swapAmount1,
-        uint256 executionPrice1
-    ) public {
-        IERC20(swapToken).approve(address(orderBook), MAX_UINT);
+    function testUpdateOrder(uint256 swapAmount) public {
+        if (swapAmount > 1000) {
+            IERC20(swapToken).approve(address(orderBook), MAX_UINT);
 
-        try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
-            uint256 amountOut
-        ) {
+            cheatCodes.deal(address(swapHelper), MAX_UINT);
+            // try
+            uint256 amountOut = swapHelper.swapEthForTokenWithUniV2(
+                100,
+                swapToken
+            );
+            // returns (uint256 amountOut) {
             //create a new order
             ConveyorLimitOrders.Order memory order = newOrder(
                 swapToken,
                 wnato,
-                uint128(executionPrice),
-                uint128(amountOut),
-                uint128(amountOut)
+                uint128(0),
+                uint128(1),
+                uint128(1)
             );
             //place a mock order
             bytes32 orderId = placeMockOrder(order);
-            try
-                swapHelper.swapEthForTokenWithUniV2(swapAmount1, swapToken)
-            returns (uint256 amountOut1) {
-                //create a new order to replace the old order
-                ConveyorLimitOrders.Order memory updatedOrder = newOrder(
-                    swapToken,
-                    wnato,
-                    uint128(executionPrice1),
-                    uint128(amountOut1),
-                    uint128(amountOut1)
-                );
-                updatedOrder.orderId = orderId;
 
-                //submit the updated order
-                orderBook.updateOrder(updatedOrder);
-            } catch {}
-        } catch {}
+            //create a new order to replace the old order
+            ConveyorLimitOrders.Order memory updatedOrder = newOrder(
+                swapToken,
+                wnato,
+                uint128(1),
+                uint128(1),
+                uint128(1)
+            );
+
+            updatedOrder.orderId = orderId;
+            //submit the updated order
+            orderBook.updateOrder(updatedOrder);
+            // } catch {}
+        }
+    }
+
+    function testUpdateOrder1() public {
+        IERC20(swapToken).approve(address(orderBook), MAX_UINT);
+
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        uint256 amountOut = swapHelper.swapEthForTokenWithUniV2(100, swapToken);
+
+        //create a new order
+        ConveyorLimitOrders.Order memory order = newOrder(
+            swapToken,
+            wnato,
+            uint128(0),
+            uint128(1),
+            uint128(1)
+        );
+        //place a mock order
+        bytes32 orderId = placeMockOrder(order);
+
+        //create a new order to replace the old order
+        ConveyorLimitOrders.Order memory updatedOrder = newOrder(
+            swapToken,
+            wnato,
+            uint128(1),
+            uint128(1),
+            uint128(1)
+        );
+
+        updatedOrder.orderId = orderId;
+        //submit the updated order
+        orderBook.updateOrder(updatedOrder);
     }
 
     function testFailUpdateOrder_OrderDoesNotExist(

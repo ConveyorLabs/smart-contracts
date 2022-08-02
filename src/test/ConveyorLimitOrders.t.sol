@@ -85,7 +85,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     ];
 
     uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000; //3402823669209385000000000000000000000
-
+    address swapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     function setUp() public {
         scriptRunner = new ScriptRunner();
         cheatCodes = CheatCodes(HEVM_ADDRESS);
@@ -97,11 +97,11 @@ contract ConveyorLimitOrdersTest is DSTest {
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6,
             5,
-            2592000,
             3000000,
             _hexDems,
             _dexFactories,
             _isUniV2,
+            swapRouter,
             alphaXDivergenceThreshold
         );
     }
@@ -2646,11 +2646,11 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
         address _usdc,
         address _quoterAddress,
         uint256 _refreshFee,
-        uint256 _refreshInterval,
         uint256 _executionCost,
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
+        address _swapRouter,
         uint256 _alphaXDivergenceThreshold
     )
         ConveyorLimitOrders(
@@ -2659,11 +2659,11 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
             _usdc,
             _quoterAddress,
             _refreshFee,
-            _refreshInterval,
             _executionCost,
             _initBytecodes,
             _dexFactories,
             _isUniV2,
+            _swapRouter,
             _alphaXDivergenceThreshold
         )
     {}

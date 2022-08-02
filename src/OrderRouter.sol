@@ -157,6 +157,7 @@ contract OrderRouter {
     uint256 constant MAX_UINT_256 =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     uint256 constant ONE_128x128 = uint256(1) << 128;
+    uint24 constant ZERO_UINT24= 0;
 
     //----------------------Immutables------------------------------------//
 
@@ -357,7 +358,7 @@ contract OrderRouter {
         SpotReserve[] memory spotReserves,
         OrderBook.Order[] memory orders,
         bool wethIsToken0
-    ) internal returns (uint128 maxBeaconReward) {
+    ) internal view returns (uint128 maxBeaconReward) {
         ///@notice Cache the first order buy status.
         bool buy = orders[0].buy;
 
@@ -572,7 +573,7 @@ contract OrderRouter {
         uint128 reserve0,
         uint128 reserve1,
         uint128 fee
-    ) public view returns (uint128) {
+    ) public pure returns (uint128) {
         uint128 maxReward = uint128(
             ConveyorMath.mul64I(
                 fee,
@@ -762,6 +763,8 @@ contract OrderRouter {
         address _reciever,
         address _sender
     ) internal returns (uint256 amountRecieved) {
+        ///TODO: FIXME: Figure out how to not double tax with the SwapRouter
+        ///SwapRouter needs approval over the order.owner's token's at order placement time to not double tax
         ///@notice Transfer the tokens to the contract
         if (_sender != address(this)) {
             IERC20(_tokenIn).transferFrom(_sender, address(this), _amountIn);
@@ -770,7 +773,7 @@ contract OrderRouter {
         ///@notice Aprove the tokens on the swap router.
         IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
 
-        //Initialize swap parameters for the swap router
+        ///@notice Initialize swap parameters for the swap router
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
             .ExactInputSingleParams(
                 _tokenIn,
@@ -795,32 +798,31 @@ contract OrderRouter {
         }
     }
 
-    /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
-    /// @param token0 bytes32 address of token1
-    /// @param token1 bytes32 address of token2
-    /// @param _factory bytes32 contract factory address
-    /// @param _initBytecode bytes32 initialization bytecode for dex pair
-    /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
-    /// @param token0 bytes32 address of token1
-    /// @param token1 bytes32 address of token2
-    /// @param _factory bytes32 contract factory address
-    /// @param _initBytecode bytes32 initialization bytecode for dex pair
+    /// @notice Helper function to get Uniswap V2 spot price of pair token0/token1.
+    /// @param token0 - Address of token1.
+    /// @param token1 - Address of token2.
+    /// @param _factory - Factory address.
+    /// @param _initBytecode - Initialization bytecode of the v2 factory contract.
     function _calculateV2SpotPrice(
         address token0,
         address token1,
         address _factory,
         bytes32 _initBytecode
     ) internal view returns (SpotReserve memory spRes, address poolAddress) {
+        ///@notice Require token address's are not identical
         require(token0 != token1, "Invalid Token Pair, IDENTICAL Address's");
+
         address tok0;
         address tok1;
 
         {
             (tok0, tok1) = _sortTokens(token0, token1);
         }
+
+        ///@notice SpotReserve struct to hold the reserve values and spot price of the dex.
         SpotReserve memory _spRes;
 
-        //Return Uniswap V2 Pair address
+        ///@notice Get pool address on the token pair.
         address pairAddress = _getV2PairAddress(
             _factory,
             tok0,
@@ -830,38 +832,45 @@ contract OrderRouter {
 
         require(pairAddress != address(0), "Invalid token pair");
 
+        ///@notice If the token pair does not exist on the dex return empty SpotReserve struct.
         if (!(IUniswapV2Factory(_factory).getPair(tok0, tok1) == pairAddress)) {
             return (_spRes, address(0));
         }
         {
-            //Set reserve0, reserve1 to current LP reserves
+            ///@notice Set reserve0, reserve1 to current LP reserves
             (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pairAddress)
                 .getReserves();
 
-            //Set common based reserve values
+            ///@notice Convert the reserve values to a common decimal base.
             (
                 uint256 commonReserve0,
                 uint256 commonReserve1
             ) = _getReservesCommonDecimals(tok0, tok1, reserve0, reserve1);
 
+            ///@notice If tokenIn is token0 on the pair address.
+            ///@notice Always set the tokenIn to _spRes.res0 in the SpotReserve structure
             if (token0 == tok0) {
+                ///@notice Set spotPrice to the current spot price on the dex represented as 128.128 fixed point.
                 _spRes.spotPrice = ConveyorMath.div128x128(
                     commonReserve1 << 128,
                     commonReserve0 << 128
                 );
                 _spRes.token0IsReserve0 = true;
 
+                ///@notice Set res0, res1 on SpotReserve to commonReserve0, commonReserve1 respectively.
                 (_spRes.res0, _spRes.res1) = (
                     uint128(commonReserve0),
                     uint128(commonReserve1)
                 );
             } else {
+                ///@notice Set spotPrice to the current spot price on the dex represented as 128.128 fixed point.
                 _spRes.spotPrice = ConveyorMath.div128x128(
                     commonReserve0 << 128,
                     commonReserve1 << 128
                 );
                 _spRes.token0IsReserve0 = false;
 
+                ///@notice Set spotPrice to the current spot price on the dex represented as 128.128 fixed point.
                 (_spRes.res1, _spRes.res0) = (
                     uint128(commonReserve0),
                     uint128(commonReserve1)
@@ -869,10 +878,15 @@ contract OrderRouter {
             }
         }
 
-        // Left shift commonReserve0 9 digits i.e. commonReserve0 = commonReserve0 * 2 ** 9
+        ///@notice Return pool address and populated SpotReserve struct.
         (spRes, poolAddress) = (_spRes, pairAddress);
     }
 
+    ///@notice Helper function to derive the token pair address on a Dex from the factory address and initialization bytecode.
+    ///@param _factory - Factory address of the Dex.
+    ///@param token0 - Token0 address.
+    ///@param token1 - Token1 address.
+    ///@param _initBytecode - Initialization bytecode of the factory contract.
     function _getV2PairAddress(
         address _factory,
         address token0,
@@ -895,17 +909,22 @@ contract OrderRouter {
         );
     }
 
+    ///@notice Helper function to convert reserve values to common 18 decimal base. 
+    ///@param tok0 - Address of token0.
+    ///@param tok1 - Address of token1.
+    ///@param reserve0 - Reserve0 liquidity. 
+    ///@param reserve1 - Reserve1 liquidity.
     function _getReservesCommonDecimals(
         address tok0,
         address tok1,
         uint128 reserve0,
         uint128 reserve1
     ) internal view returns (uint128, uint128) {
-        //Get target decimals for token0 & token1
+        ///@notice Get target decimals for token0 & token1
         uint8 token0Decimals = _getTargetDecimals(tok0);
         uint8 token1Decimals = _getTargetDecimals(tok1);
 
-        //Set common based reserve values
+        ///@notice Retrieve the common 18 decimal reserve values. 
         (uint128 commonReserve0, uint128 commonReserve1) = _convertToCommonBase(
             reserve0,
             token0Decimals,
@@ -916,112 +935,62 @@ contract OrderRouter {
         return (commonReserve0, commonReserve1);
     }
 
-    function _getReservesCommonDecimalsV3(
-        address token0,
-        address token1,
-        uint128 reserve0,
-        uint128 reserve1,
-        address pool
-    )
-        internal
-        view
-        returns (
-            uint128,
-            uint128,
-            bool token0IsReserve0
-        )
-    {
-        //Get target decimals for token0 & token1
-        uint8 token0Decimals = _getTargetDecimals(token0);
-        uint8 token1Decimals = _getTargetDecimals(token1);
-
-        address TOKEN0 = IUniswapV3Pool(pool).token0();
-
-        token0IsReserve0 = TOKEN0 == token0 ? true : false;
-        if (token0IsReserve0) {
-            //Set common based reserve values
-            (
-                uint128 commonReserve0,
-                uint128 commonReserve1
-            ) = _convertToCommonBase(
-                    reserve0,
-                    token0Decimals,
-                    reserve1,
-                    token1Decimals
-                );
-
-            return (commonReserve0, commonReserve1, token0IsReserve0);
-        } else {
-            //Set common based reserve values
-            (
-                uint128 commonReserve0,
-                uint128 commonReserve1
-            ) = _convertToCommonBase(
-                    reserve0,
-                    token1Decimals,
-                    reserve1,
-                    token0Decimals
-                );
-
-            return (commonReserve1, commonReserve0, token0IsReserve0);
-        }
-    }
-
-    // function _getV3PairAddress(address token0, address token1)
-    /// @notice Helper function to get Uniswap V2 spot price of pair token1/token2
-    /// @param token0 bytes32 address of token1
-    /// @param token1 bytes32 address of token2
-    /// @param fee lp fee
-    /// @param _factory Uniswap v3 factory address
+    
+    /// @notice Helper function to get Uniswap V3 spot price of pair token0/token1
+    /// @param token0 - Address of token0.
+    /// @param token1 - Address of token1.
+    /// @param fee - The fee in the pool. 
+    /// @param _factory - Uniswap v3 factory address.
+    /// @return  _spRes SpotReserve struct to hold reserve0, reserve1, and the spot price of the token pair. 
+    /// @return pool Address of the Uniswap V3 pool.
     function _calculateV3SpotPrice(
         address token0,
         address token1,
         uint24 fee,
         address _factory
-    ) internal returns (SpotReserve memory, address) {
-        SpotReserve memory _spRes;
-
+    ) internal view returns (SpotReserve memory _spRes, address pool) {
+        ///@notice Initialize variables to prevent stack too deep. 
         address pool;
         int24 tick;
+
         ///FIXME: change this to 600
         uint32 tickSecond = 1; //10 minute time weighted average price to use as baseline for maxBeaconReward analysis
         ///FIXME: don't forget this is important
+
+        ///@notice Set amountIn to the amountIn value in the the max token decimals of token0/token1.
         uint112 amountIn = _getGreatestTokenDecimalsAmountIn(token0, token1);
-        //Scope to prevent stack too deep error
+
+        ///@notice Scope to prevent stack too deep error.
         {
-            //Pool address for token pair
+            ///@notice Get the pool address for token pair.
             pool = IUniswapV3Factory(_factory).getPool(token0, token1, fee);
 
+            ///@notice If the pool does not exist on the dex, return empty SpotReserve structure and address(0).
             if (pool == address(0)) {
                 return (_spRes, address(0));
             }
 
-            uint128 reserve0 = uint128(IERC20(token0).balanceOf(pool));
-            uint128 reserve1 = uint128(IERC20(token1).balanceOf(pool));
-
-            (
-                _spRes.res0,
-                _spRes.res1,
-                _spRes.token0IsReserve0
-            ) = _getReservesCommonDecimalsV3(
-                token0,
-                token1,
-                reserve0,
-                reserve1,
-                pool
-            );
+            ///@notice Notice current tick on the pool. 
             {
-                // int56 / uint32 = int24
+            
                 tick = _getTick(pool, tickSecond);
             }
         }
 
-        //amountOut = tick range spot over specified tick interval
+        ///@notice Set token0InPool to token0 in pool.
+        address token0InPool = IUniswapV3Pool(pool).token0();
+
+        _spRes.token0IsReserve0 = token0InPool == token0 ? true : false; 
+
+        ///@notice Get the current spot price of the pool. 
         _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token0, token1);
 
         return (_spRes, pool);
     }
 
+    ///@notice Helper function to determine if a pool address is Uni V2 compatible.
+    ///@param lp - Pair address. 
+    ///@return bool Idicator whether the pool is not Uni V3 compatible. 
     function _lpIsNotUniV3(address lp) internal returns (bool) {
         bool success;
         assembly {
@@ -1046,63 +1015,76 @@ contract OrderRouter {
         return !success;
     }
 
+    ///@notice Helper function to get Uniswap V3 fee from a pool address. 
+    ///@param lpAddress - Address of the lp. 
+    ///@return fee The fee on the lp. 
     function _getUniV3Fee(address lpAddress) internal returns (uint24 fee) {
         if (!_lpIsNotUniV3(lpAddress)) {
             return IUniswapV3Pool(lpAddress).fee();
         } else {
-            return uint24(0);
+            return ZERO_UINT24;
         }
     }
 
+    ///@notice Helper function to get arithmetic mean tick from Uniswap V3 Pool.
+    ///@param pool - Address of the pool.
+    ///@param tickSecond - The tick range.
+    ///@return tick Arithmetic mean tick over the range tickSeconds. 
     function _getTick(address pool, uint32 tickSecond)
         internal
         view
         returns (int24 tick)
     {
         int56 tickCumulativesDelta;
-        //tickSeconds array defines our tick interval of observation over the lp
+
+        ///@notice Initialize tickSeconds range. 
         uint32[] memory tickSeconds = new uint32[](2);
-        //Populate tickSeconds array current block to tickSecond behind current block for tick range
         tickSeconds[0] = tickSecond;
         tickSeconds[1] = 0;
 
         {
+            ///@notice Retrieve tickCumulatives from the observation over the pool from tickSeconds[1]-> tickSeconds[0]
             (int56[] memory tickCumulatives, ) = IUniswapV3Pool(pool).observe(
                 tickSeconds
             );
 
-            //Spot price of tickSeconds ago - spot price of current block
+            ///@notice Set tickCumulativesDelta to the difference in spot prices from tickCumulatives[1] to the current block. 
             tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
-
             tick = int24(tickCumulativesDelta / int32(tickSecond));
 
             if (
                 tickCumulativesDelta < 0 &&
                 (tickCumulativesDelta % int32(tickSecond) != 0)
             ) tick--;
+
         }
-        // int56 / uint32 = int24
+       
         return tick;
     }
 
-    /// @notice Helper to get all lps and prices across multiple dexes
-    /// @param token0 address of token0
-    /// @param token1 address of token1
-    /// @param FEE uniV3 fee
+    /// @notice Helper function to get all v2/v3 spot prices on a token pair.
+    /// @param token0 - Address of token0.
+    /// @param token1 - Address of token1.
+    /// @param FEE - The Uniswap V3 pool fee on the token pair. 
+    /// @return prices - SpotReserve array holding the reserves and spot prices across all dexes. 
+    /// @return lps - Pool address's on the token pair across all dexes. 
     function _getAllPrices(
         address token0,
         address token1,
         uint24 FEE
-    ) internal returns (SpotReserve[] memory prices, address[] memory lps) {
+    ) internal view returns (SpotReserve[] memory prices, address[] memory lps) {
+        ///@notice Check if the token address' are identical. 
         if (token0 != token1) {
+
+            ///@notice Initialize SpotReserve and lp arrays of lenth dexes.length
             SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
             address[] memory _lps = new address[](dexes.length);
 
-            //Iterate through Dex's in dexes check if isUniV2 and accumulate spot price to meanSpotPrice
+            ///@notice Iterate through Dexs in dexes and check if isUniV2.
             for (uint256 i = 0; i < dexes.length; ++i) {
                 if (dexes[i].isUniV2) {
                     {
-                        //Right shift spot price 9 decimals and add to meanSpotPrice
+                        ///@notice Get the Uniswap v2 spot price and lp address. 
                         (
                             SpotReserve memory spotPrice,
                             address poolAddress
@@ -1112,7 +1094,7 @@ contract OrderRouter {
                                 dexes[i].factoryAddress,
                                 dexes[i].initBytecode
                             );
-
+                        ///@notice Set SpotReserve and lp values if the returned values are not null. 
                         if (spotPrice.spotPrice != 0) {
                             _spotPrices[i] = spotPrice;
                             _lps[i] = poolAddress;
@@ -1121,6 +1103,7 @@ contract OrderRouter {
                 } else {
                     {
                         {
+                            ///@notice Get the Uniswap v2 spot price and lp address. 
                             (
                                 SpotReserve memory spotPrice,
                                 address poolAddress
@@ -1130,6 +1113,8 @@ contract OrderRouter {
                                     FEE,
                                     dexes[i].factoryAddress
                                 );
+
+                            ///@notice Set SpotReserve and lp values if the returned values are not null. 
                             if (spotPrice.spotPrice != 0) {
                                 _lps[i] = poolAddress;
                                 _spotPrices[i] = spotPrice;
@@ -1140,6 +1125,7 @@ contract OrderRouter {
             }
 
             return (_spotPrices, _lps);
+
         } else {
             SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
             address[] memory _lps = new address[](dexes.length);
@@ -1147,43 +1133,33 @@ contract OrderRouter {
         }
     }
 
-    //TODO: duplicate, remove this
-    /// @notice Helper to get the lp fee from a v3 pair address
-    /// @param pairAddress address of v3 lp pair
-    /// @return poolFee uint24 fee of the pool
-    function _getV3PoolFee(address pairAddress)
-        internal
-        view
-        returns (uint24 poolFee)
-    {
-        poolFee = IUniswapV3Pool(pairAddress).fee();
-    }
-
-    /// @notice Helper to get amountIn amount for token pair
+    /// @notice Helper to get amountIn value in the base of max decimals between token0 and token1. 
+    /// @param token0 - Address of token0.
+    /// @param token1 - Address of token1. 
+    ///@return amountIn - AmountIn value in the decimals of max decimals of token0/token1.
     function _getGreatestTokenDecimalsAmountIn(address token0, address token1)
         internal
         view
         returns (uint112 amountIn)
     {
-        //Get target decimals for token0, token1
-        uint8 token0Target = _getTargetDecimals(token0); //18
-        uint8 token1Target = _getTargetDecimals(token1); //6
+        ///@notice Get target decimals for token0, token1.
+        uint8 token0Target = _getTargetDecimals(token0); 
+        uint8 token1Target = _getTargetDecimals(token1); 
 
-        //target decimal := the difference in decimal targets between tokens
+        ///@notice Set targetDec to max decimals of token0 and token1. 
         uint8 targetDec = (token0Target < token1Target)
             ? (token1Target)
             : (token0Target);
 
-        //Set amountIn to correct target decimals
+        ///@notice Return 1 of amountIn in the max decimals of token0/token1. 
         amountIn = uint112(10**targetDec);
     }
 
-    /// @notice Helper function to change the base decimal value of token0 & token1 to the same target decimal value
-    /// target decimal value for both token decimals to match will be max(token0Decimals, token1Decimals)
-    /// @param reserve0 uint256 token1 value
-    /// @param token0Decimals Decimals of token0
-    /// @param reserve1 uint256 token2 value
-    /// @param token1Decimals Decimals of token1
+    /// @notice Helper function to convert reserve values to common 18 decimal base.
+    /// @param reserve0 - Reserve0 liquidity in pool
+    /// @param token0Decimals - Decimals of token0.
+    /// @param reserve1 - Reserve1 liquidity in pool.
+    /// @param token1Decimals - Decimals of token1.
     function _convertToCommonBase(
         uint128 reserve0,
         uint8 token0Decimals,
@@ -1199,9 +1175,9 @@ contract OrderRouter {
         return (reserve0Common18, reserve1Common18);
     }
 
-    /// @notice Helper function to get target decimals of ERC20 token
-    /// @param token address of token to get target decimals
-    /// @return targetDecimals uint8 target decimals of token
+    /// @notice Helper function to get target decimals of ERC20 token.
+    /// @param token - Address of token to get target decimals.
+    /// @return targetDecimals Target decimals of token.
     function _getTargetDecimals(address token)
         internal
         view
@@ -1210,7 +1186,9 @@ contract OrderRouter {
         return IERC20(token).decimals();
     }
 
-    /// @notice Helper function to return sorted token addresses
+    /// @notice Helper function to return sorted token addresses.
+    /// @param tokenA - Address of tokenA.
+    /// @param tokenB - Address of tokenB.
     function _sortTokens(address tokenA, address tokenB)
         internal
         pure
@@ -1223,35 +1201,40 @@ contract OrderRouter {
         require(token0 != address(0), "UniswapV2Library: ZERO_ADDRESS");
     }
 
-    /// @notice Given a tick and a token amount, calculates the amount of token received in exchange
-    /// @param tick Tick value used to calculate the quote
-    /// @param baseAmount Amount of token to be converted
-    /// @param baseToken Address of an ERC20 token contract used as the baseAmount denomination
-    /// @param quoteToken Address of an ERC20 token contract used as the quoteAmount denomination
-    /// @return quoteAmount Amount of quoteToken received for baseAmount of baseToken
+    /// @notice Helper function to calculate the the quote amount recieved for the base amount of the base token at a certain tick.
+    /// @param tick - Tick value used to calculate the quote.
+    /// @param baseAmount - Amount of tokenIn to be converted.
+    /// @param baseToken - Address of the tokenIn to be quoted. 
+    /// @param quoteToken - Address of the token used to quote the base amount of tokenIn. 
+    /// @return quoteAmount - Amount of quoteToken received for baseAmount of baseToken.
     function _getQuoteAtTick(
         int24 tick,
         uint128 baseAmount,
         address baseToken,
         address quoteToken
     ) internal view returns (uint256) {
+        ///@notice Get sqrtRatio at tick represented as 64.96 fixed point.
         uint160 sqrtRatioX96 = TickMath.getSqrtRatioAtTick(tick);
 
+        ///@notice Get the target decimals of the quote and base token. 
         uint8 targetDecimalsQuote = _getTargetDecimals(quoteToken);
         uint8 targetDecimalsBase = _getTargetDecimals(baseToken);
 
+        ///@notice Initialize Adjusted quote amount to hold the quote amount represented as a 128.128 fixed point number. 
         uint256 adjustedFixed128x128Quote;
         uint256 quoteAmount;
 
-        // Calculate quoteAmount with better precision if it doesn't overflow when multiplied by itself
+        ///@notice Calculate quoteAmount with better precision if it doesn't overflow when multiplied by itself.
         if (sqrtRatioX96 <= type(uint128).max) {
+
+            ///@notice Square the sqrt price to get the 64.96 representation of the spot price. 
             uint256 ratioX192 = uint256(sqrtRatioX96) * sqrtRatioX96;
             quoteAmount = baseToken < quoteToken
                 ? FullMath.mulDiv(ratioX192, baseAmount, 1 << 192)
                 : FullMath.mulDiv(1 << 192, baseAmount, ratioX192);
-
+            
             adjustedFixed128x128Quote = uint256(quoteAmount) << 128;
-
+ 
             if (targetDecimalsQuote < targetDecimalsBase) {
                 return adjustedFixed128x128Quote / 10**targetDecimalsQuote;
             } else {
@@ -1262,6 +1245,7 @@ contract OrderRouter {
                             targetDecimalsQuote));
             }
         } else {
+
             uint256 ratioX128 = FullMath.mulDiv(
                 sqrtRatioX96,
                 sqrtRatioX96,

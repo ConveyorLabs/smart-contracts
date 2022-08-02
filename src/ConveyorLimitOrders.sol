@@ -31,6 +31,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     //TODO: reentrancy modifier
 
+    // ========================================= Constants  =============================================
+    uint256 constant refreshInterval = 2592000;
+
     // ========================================= State Variables =============================================
 
     //mapping to hold users gas credit balances
@@ -45,9 +48,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     //Immutable refresh fee paid monthly by an order to stay in the Conveyor queue
     uint256 immutable refreshFee;
 
-    //Immutable refreshInterval set to 1 month on contract deployment
-    uint256 immutable refreshInterval;
-
     //Immutable execution cost of an order
     uint256 immutable executionCost;
 
@@ -61,11 +61,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         address _usdc,
         address _quoterAddress,
         uint256 _refreshFee,
-        uint256 _refreshInterval,
         uint256 _executionCost,
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
+        address _swapRouter, 
         uint256 _alphaXDivergenceThreshold
     )
         OrderBook(_gasOracle)
@@ -73,6 +73,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             _deploymentByteCodes,
             _dexFactories,
             _isUniV2,
+            _swapRouter,
             _alphaXDivergenceThreshold
         )
     {
@@ -80,7 +81,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         refreshFee = _refreshFee;
         WETH = _weth;
         USDC = _usdc;
-        refreshInterval = _refreshInterval;
         executionCost = _executionCost;
     }
 
