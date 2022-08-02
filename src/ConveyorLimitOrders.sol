@@ -429,10 +429,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         TokenToWethBatchOrder[] memory tokenToWethBatchOrders,
         uint128 maxBeaconReward
     ) internal {
+        ///@notice Initialize the total reward to be paid to the off-chain executor
         uint128 totalBeaconReward;
+
+        ///@notice For each batch in the tokenToWethBatchOrders array
         for (uint256 i = 0; i < tokenToWethBatchOrders.length; ) {
             TokenToWethBatchOrder memory batch = tokenToWethBatchOrders[i];
             for (uint256 j = 0; j < batch.batchLength; ) {
+                ///@notice Execute each order one by one to avoid double taxing taxed tokens
                 Order memory order = getOrderById(batch.orderIds[j]);
                 totalBeaconReward += _executeTokenToWethTaxedOrder(
                     batch,
@@ -452,20 +456,26 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
         }
 
+        /**@notice Update the total reward payable to the off-chain executor. If the reward is greater than the 
+        max reward, set the total reward to the max reward. */
         totalBeaconReward = maxBeaconReward > totalBeaconReward
             ? totalBeaconReward
             : maxBeaconReward;
 
+        ///@notice Transfer the reward to the off-chain executor.
         safeTransferETH(msg.sender, totalBeaconReward);
     }
 
+    ///@notice Function to execute a single TokenToWethTaxedOrder
     function _executeTokenToWethTaxedOrder(
         TokenToWethBatchOrder memory batch,
         Order memory order
     ) internal returns (uint128 beaconReward) {
+        ///@notice Get the UniV3 fee.
+        ///@dev This will return 0 if the lp address is a UniV2 address.
         uint24 fee = _getUniV3Fee(batch.lpAddress);
 
-        ///@notice swap from A to weth
+        ///@notice Execute the first swap from tokenIn to Weth
         uint128 amountOutWeth = uint128(
             _swap(
                 order.tokenIn,
@@ -479,28 +489,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             )
         );
 
+        ///@notice Calculate the protcol fee from the amount of Weth received from the first swap.
         uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
-        // safeTransferETH(msg.sender, beaconReward);
-        //Cache orderId
-        bytes32 orderId = order.orderId;
+        ///@notice Remove the order from the limit order system
+        _removeOrderFromSystem(order);
 
-        //Scope all this
-        {
-            //Delete order from queue after swap execution
-            delete orderIdToOrder[orderId];
-            delete addressToOrderIds[order.owner][orderId];
-            //decrement from total orders per address
-            --totalOrdersPerAddress[order.owner];
-
-            //Decrement totalOrdersQuantity for order owner
-            decrementTotalOrdersQuantity(
-                order.tokenIn,
-                order.owner,
-                order.quantity
-            );
-        }
-
+        ///@notice calculate the reward payable to the off-chain executor
         (, beaconReward) = _calculateReward(protocolFee, amountOutWeth);
     }
 
