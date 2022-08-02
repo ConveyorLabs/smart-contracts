@@ -876,26 +876,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         );
                     }
                 } else {
+                    ///@notice If the order can not execute due to slippage, cancel the order
                     _cancelOrder(currentOrder);
-
-                    bytes32[] memory orderId = new bytes32[](1);
-                    emit OrderCancelled(orderId);
-
-                    orderId[0] = currentOrder.orderId;
-                    //Delete order from queue after swap execution
-                    delete orderIdToOrder[currentOrder.orderId];
-                    delete addressToOrderIds[currentOrder.owner][
-                        currentOrder.orderId
-                    ];
-                    //decrement from total orders per address
-                    --totalOrdersPerAddress[currentOrder.owner];
-
-                    //Decrement totalOrdersQuantity for order owner
-                    decrementTotalOrdersQuantity(
-                        currentOrder.tokenIn,
-                        currentOrder.owner,
-                        currentOrder.quantity
-                    );
                 }
             }
 
@@ -904,7 +886,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
         }
 
-        ///@notice add the last batch to the tokenToWethBatchOrders array
+        ///@notice Add the last batch to the tokenToWethBatchOrders array.
         tokenToWethBatchOrders[
             currentTokenToWethBatchOrdersIndex
         ] = currentTokenToWethBatchOrder;
@@ -912,9 +894,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return tokenToWethBatchOrders;
     }
 
+    ///@notice Transfer the order quantity to the contract.
+    ///@return success - Boolean to indicate if the transfer was successful.
     function transferTokensToContract(Order memory order)
         internal
-        returns (bool)
+        returns (bool success)
     {
         try
             IERC20(order.tokenIn).transferFrom(
@@ -929,7 +913,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return true;
     }
 
-    ///@notice returns the index of the best price in the executionPrices array
+    ///@notice Function to return the index of the best price in the executionPrices array.
+    ///@param executionPrices -
+    ///@param buyOrder -
+
     function _findBestTokenToWethExecutionPrice(
         TokenToWethExecutionPrice[] memory executionPrices,
         bool buyOrder
