@@ -916,7 +916,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice Function to return the index of the best price in the executionPrices array.
     ///@param executionPrices -
     ///@param buyOrder -
-
+    ///@return bestPriceIndex - Index of the best price in the
     function _findBestTokenToWethExecutionPrice(
         TokenToWethExecutionPrice[] memory executionPrices,
         bool buyOrder
