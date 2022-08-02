@@ -1348,7 +1348,7 @@ contract OrderRouter {
             );
         }
     }
-    // fallback() external payable {}
+    // receive() external payable {}
     function swapTokenToETHOnBestDex(
         address tokenIn,
         uint256 amountIn,
@@ -1366,8 +1366,9 @@ contract OrderRouter {
             msg.sender
         );
         uint256 balanceBefore = address(this).balance;
+        
         IWETH(_WETH).withdraw(amountOutWeth);
-        require(false, "HERE");
+      
         if ((address(this).balance - balanceBefore != amountOutWeth)) {
             revert WethWithdrawUnsuccessful();
         }
