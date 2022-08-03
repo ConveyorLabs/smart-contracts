@@ -1808,11 +1808,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 alphaX,
         TokenToWethExecutionPrice memory executionPrice
     ) internal returns (TokenToWethExecutionPrice memory) {
+
+        ///@notice Cache the liquidity pool address
         address pool = executionPrice.lpAddressAToWeth;
 
+        ///@notice Cache token0 and token1 from the pool address
         address token0 = IUniswapV2Pair(pool).token0();
         address token1 = IUniswapV2Pair(pool).token1();
 
+        ///@notice Get the decimals of the tokenIn on the swap
         uint8 tokenInDecimals = token1 == WETH
             ? IERC20(token0).decimals()
             : IERC20(token1).decimals();
@@ -1822,6 +1826,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ? uint128(alphaX * 10**(18 - tokenInDecimals))
             : uint128(alphaX / (10**(tokenInDecimals - 18)));
 
+        ///@notice Simulate the price change on the 18 decimal amountIn quantity, and set executionPrice struct to the updated quantities. 
         (
             executionPrice.price,
             executionPrice.aToWethReserve0,
@@ -1838,19 +1843,26 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return executionPrice;
     }
 
+    ///@notice Function to simulate the TokenToToken price change on a pair.
+    ///@param alphaX - The input quantity to simulate the price change on. 
+    ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on. 
     function simulateTokenToTokenPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
     ) internal returns (TokenToTokenExecutionPrice memory) {
+        ///@notice Check if the reserves are set to 0. This indicated the tokenPair is Weth to TokenOut if true. 
         if (
             executionPrice.aToWethReserve0 != 0 &&
             executionPrice.aToWethReserve1 != 0
         ) {
+            ///@notice Initialize variables to prevent stack too deep 
             address pool = executionPrice.lpAddressAToWeth;
             address token0;
             address token1;
             bool _isUniV2 = _lpIsNotUniV3(pool);
+            ///@notice Scope to prevent stack too deep. 
             {
+                ///@notice Check if the pool is Uni V2 and get the token0 and token1 address. 
                 if (_isUniV2) {
                     token0 = IUniswapV2Pair(pool).token0();
                     token1 = IUniswapV2Pair(pool).token1();
@@ -1860,20 +1872,23 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 }
             }
 
+            ///@notice Get the tokenIn decimals
             uint8 tokenInDecimals = token1 == WETH
                 ? IERC20(token0).decimals()
                 : IERC20(token1).decimals();
 
-            ///@notice Convert to 18 decimals to have correct price change on the reserve quantities in common 18 decimal form
+            ///@notice Convert to 18 decimals to have correct price change on the reserve quantities in common 18 decimal form.
             uint128 amountIn = tokenInDecimals <= 18
                 ? uint128(alphaX * 10**(18 - tokenInDecimals))
                 : uint128(alphaX / (10**(tokenInDecimals - 18)));
 
+            ///@notice Abstracted function call to simulate the token to token price change on the common decimal amountIn
             executionPrice = _simulateTokenToTokenPriceChange(
                 amountIn,
                 executionPrice
             );
         } else {
+            ///@notice Abstracted function call to simulate the weth to token price change on the common decimal amountIn
             executionPrice = _simulateWethToTokenPriceChange(
                 alphaX,
                 executionPrice
@@ -1883,15 +1898,21 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return executionPrice;
     }
 
+    ///@notice Function to simulate the WethToToken price change on a pair.
+    ///@param alphaX - The input quantity to simulate the price change on. 
+    ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on. 
     function _simulateWethToTokenPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
     ) internal returns (TokenToTokenExecutionPrice memory) {
+        ///@notice Cache the Weth and TokenOut reserves
         uint128 reserveBWeth = executionPrice.wethToBReserve0;
         uint128 reserveBToken = executionPrice.wethToBReserve1;
 
+        ///@notice Cache the pool address
         address poolAddressWethToB = executionPrice.lpAddressWethToB;
 
+        ///@notice Get the simulated spot price and reserve values.
         (
             uint256 newSpotPriceB,
             uint128 newReserveBWeth,
@@ -1905,6 +1926,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 false
             );
 
+        ///@notice Update TokenToTokenExecutionPrice to the new simulated values. 
         executionPrice.price = newSpotPriceB;
         executionPrice.aToWethReserve0 = 0;
         executionPrice.aToWethReserve1 = 0;
@@ -1914,10 +1936,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return executionPrice;
     }
 
+    ///@notice Function to simulate the TokenToToken price change on a pair.
+    ///@param alphaX - The input quantity to simulate the price change on. 
+    ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on. 
     function _simulateTokenToTokenPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
     ) internal returns (TokenToTokenExecutionPrice memory) {
+        ///@notice Retrive the new simulated spot price, reserve values, and amount out on the TokenIn To Weth pool
         (
             uint256 newSpotPriceA,
             uint128 newReserveAToken,
@@ -1925,6 +1951,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128 amountOut
         ) = _simulateAToWethPriceChange(alphaX, executionPrice);
 
+        ///@notice Retrive the new simulated spot price, and reserve values on the Weth to tokenOut pool.
+        ///@notice Use the amountOut value from the previous simulation as the amountIn on the current simulation.
         (
             uint256 newSpotPriceB,
             uint128 newReserveBToken,
@@ -1932,7 +1960,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ) = _simulateWethToBPriceChange(amountOut, executionPrice);
 
         {
-            //Signifying that it weth is token0
+            ///@notice Calculate the new spot price over both swaps from the simulated values. 
             uint256 newTokenToTokenSpotPrice = uint256(
                 ConveyorMath.mul64x64(
                     uint128(newSpotPriceA >> 64),
@@ -1940,6 +1968,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 )
             ) << 64;
 
+            ///@notice Update executionPrice to the simulated values, and return executionPrice.
             executionPrice.price = newTokenToTokenSpotPrice;
             executionPrice.aToWethReserve0 = newReserveAToken;
             executionPrice.aToWethReserve1 = newReserveAWeth;
@@ -1949,6 +1978,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         return executionPrice;
     }
 
+    ///@notice Function to simulate the AToWeth price change on a pair.
+    ///@param alphaX - The input quantity to simulate the price change on. 
+    ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on. 
     function _simulateAToWethPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
@@ -1961,10 +1993,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128 amountOut
         )
     {
+        ///@notice Cache the Reserves and the pool address on the liquidity pool
         uint128 reserveAToken = executionPrice.aToWethReserve0;
         uint128 reserveAWeth = executionPrice.aToWethReserve1;
         address poolAddressAToWeth = executionPrice.lpAddressAToWeth;
 
+        ///@notice Simulate the price change from TokenIn To Weth and return the values. 
         (
             newSpotPriceA,
             newReserveAToken,
@@ -1979,6 +2013,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         );
     }
 
+    ///@notice Function to simulate the WethToB price change on a pair.
+    ///@param alphaX - The input quantity to simulate the price change on. 
+    ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on. 
     function _simulateWethToBPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
@@ -1990,10 +2027,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128 newReserveBToken
         )
     {
+        ///@notice Cache the reserve values, and the pool address on the token pair. 
         uint128 reserveBWeth = executionPrice.wethToBReserve0;
         uint128 reserveBToken = executionPrice.wethToBReserve1;
         address poolAddressWethToB = executionPrice.lpAddressWethToB;
 
+        ///@notice Simulate the Weth to TokenOut price change and return the values. 
         (
             newSpotPriceB,
             newReserveBWeth,
@@ -2008,11 +2047,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         );
     }
 
-    /// @notice Helper function to determine the spot price change to the lp after introduction alphaX amount into the reserve pool
-    /// @param alphaX uint256 amount to be added to reserve_x to get out token_y
-    /// @param reserveA current lp reserves for tokenIn and tokenOut
-    /// @param reserveB current lp reserves for tokenIn and tokenOut
-    /// @return unsigned The amount of proportional spot price change in the pool after adding alphaX to the tokenIn reserves
+    /// @notice Function to calculate the price change of a token pair on a specified input quantity. 
+    /// @param alphaX Quantity to be added into the TokenA reserves
+    /// @param reserveA Reserves of tokenA
+    /// @param reserveB Reserves of tokenB
     function _simulateAToBPriceChange(
         uint128 alphaX,
         uint128 reserveA,
@@ -2028,47 +2066,51 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128
         )
     {
+        ///@notice Initialize Array to hold the simulated reserve quantities. 
         uint128[] memory newReserves = new uint128[](2);
 
-        //If not uni v3 do constant product calculation
+        ///@notice If the liquidity pool is not Uniswap V3 then the calculation is different.
         if (_lpIsNotUniV3(pool)) {
             unchecked {
+                ///@notice Supply alphaX to the tokenA reserves. 
                 uint256 denominator = reserveA + alphaX;
 
+                ///@notice Numerator is the new tokenB reserve quantity i.e k/(reserveA+alphaX)
                 uint256 numerator = FullMath.mulDiv(
                     uint256(reserveA),
                     uint256(reserveB),
                     denominator
                 );
 
+                ///@notice Spot price = reserveB/reserveA
                 uint256 spotPrice = uint256(
                     ConveyorMath.divUI(numerator, denominator)
                 ) << 64;
 
-                require(
-                    spotPrice <=
-                        0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
-                    "overflow"
-                );
-
+                ///@notice Update update the new reserves array to the simulated reserve values.
                 newReserves[0] = uint128(denominator);
                 newReserves[1] = uint128(numerator);
 
+                ///@notice Set the amountOut of the swap on alphaX input amount. 
                 uint128 amountOut = uint128(
                     getAmountOut(alphaX, reserveA, reserveB)
                 );
 
                 return (spotPrice, newReserves[0], newReserves[1], amountOut);
             }
+            ///@notice If the liquidity pool is Uniswap V3.
         } else {
+            ///@notice Get the Uniswap V3 spot price change and amountOut from the simuulating alphaX on the pool.
             (
                 uint128 spotPrice64x64,
                 uint128 amountOut
             ) = calculateNextSqrtPriceX96(isTokenToWeth, pool, alphaX);
 
-            newReserves[0] = 1;
-            newReserves[1] = 1;
+            ///@notice Set the reserves to 0 since they are not required for Uniswap V3
+            newReserves[0] = 0;
+            newReserves[1] = 0;
 
+            ///@notice Left shift 64 to adjust spot price to 128.128 fixed point
             uint256 spotPrice = uint256(spotPrice64x64) << 64;
 
             return (spotPrice, newReserves[0], newReserves[1], amountOut);
@@ -2209,7 +2251,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    /// @notice Helper function to determine if order can execute based on the spot price of the lp, the determinig factor is the order.orderType
+    /// @notice Function to determine if an order meets the execution price. 
+    ///@param orderPrice The Spot price for execution of the order.
+    ///@param executionPrice The current execution price of the best prices lp.
+    ///@param buyOrder The buy/sell status of the order. 
     function _orderMeetsExecutionPrice(
         uint256 orderPrice,
         uint256 executionPrice,
@@ -2223,6 +2268,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     ///@notice Checks if order can complete without hitting slippage
+    ///@param spot_price The spot price of the liquidity pool.
+    ///@param order_quantity The input quantity of the order.
+    ///@param amountOutMin The slippage set by the order owner. 
     function _orderCanExecute(
         uint256 spot_price,
         uint256 order_quantity,
