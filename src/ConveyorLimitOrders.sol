@@ -486,23 +486,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ? totalBeaconReward
             : maxBeaconReward;
 
-        ///@notice Decrement gas credit balances for each order owner
-        uint256 executionGasConsumed = calculateExecutionGasConsumed();
-
-        uint256 orderOwnersLength = orderOwners.length;
-        for (uint256 i = 0; i < orderOwnersLength; ) {
-            ///@notice Adjust the order owner's gas credit balance
-            gasCreditBalance[orderOwners[i]] -=
-                executionGasConsumed /
-                orderOwnersLength;
-
-            unchecked {
-                ++i;
-            }
-        }
+        ///@notice Calculate the execution gas compensation.
+        uint256 executionGasCompensation = calculateExecutionGasCompensation(
+            orderOwners
+        );
 
         ///@notice Transfer the reward to the off-chain executor.
-        safeTransferETH(msg.sender, totalBeaconReward + executionGasConsumed);
+        safeTransferETH(
+            msg.sender,
+            totalBeaconReward + executionGasCompensation
+        );
     }
 
     ///@notice Function to execute a single TokenToWethTaxedOrder
@@ -579,6 +572,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ///@notice Instantiate total beacon reward
         uint256 totalBeaconReward;
 
+        uint256 orderOwnersIndex = 0;
+        address[] memory orderOwners = new address[](
+            tokenToWethBatchOrders[0].batchOwners.length
+        );
         ///@notice Iterate through each tokenToWethBatchOrder
         for (uint256 i = 0; i < tokenToWethBatchOrders.length; ) {
             ///@notice If 0 order's exist in the batch continue
@@ -622,6 +619,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     ///@notice Send the order owner their orderPayout
                     safeTransferETH(batch.batchOwners[j], orderPayout);
 
+                    ///@notice Update the orderOwners array for gas credit adjustments
+                    orderOwners[orderOwnersIndex] = batch.batchOwners[j];
+                    ++orderOwnersIndex;
+
                     unchecked {
                         ++j;
                     }
@@ -640,9 +641,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ? totalBeaconReward
             : maxBeaconReward;
 
-        ///TODO: FIXME: Transfer the total gas accumulated from the transaction to the beacon from the order's gas credit balance
+        ///@notice Calculate the execution gas compensation.
+        uint256 executionGasCompensation = calculateExecutionGasCompensation(
+            orderOwners
+        );
+
         ///@notice Send the Total Reward to the beacon.
-        safeTransferETH(msg.sender, totalBeaconReward);
+        safeTransferETH(
+            msg.sender,
+            totalBeaconReward + executionGasCompensation
+        );
     }
 
     ///@notice Function to Execute a single batch of TokenIn to Weth Orders.
@@ -1042,7 +1050,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice Function to execute multiple batch orders from TokenIn to TokenOut for taxed orders.
     ///@param tokenToTokenBatchOrders Array of TokenToToken batches.
     ///@param maxBeaconReward The maximum funds the beacon will recieve after execution.
-
     function _executeTokenToTokenBatchTaxedOrders(
         TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders,
         uint128 maxBeaconReward
@@ -1051,7 +1058,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         for (uint256 i = 0; i < tokenToTokenBatchOrders.length; ) {
             TokenToTokenBatchOrder memory batch = tokenToTokenBatchOrders[i];
 
+            ///@notice Initialize the total reward to be paid to the off-chain executor
             uint128 totalBeaconReward;
+
+            uint256 orderOwnersIndex = 0;
+            address[] memory orderOwners = new address[](
+                tokenToTokenBatchOrders[0].batchOwners.length
+            );
+
             ///@notice For each order in the batch.
             for (uint256 j = 0; j < batch.batchLength; ) {
                 Order memory order = getOrderById(batch.orderIds[j]);
@@ -1062,18 +1076,29 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     order
                 );
 
+                ///@notice Update the orderOwners array for gas credit adjustments
+                orderOwners[orderOwnersIndex] = batch.batchOwners[j];
+                ++orderOwnersIndex;
+
                 unchecked {
                     ++j;
                 }
             }
 
             ///@notice If the total compensation awarded to the executor is greater than the max reward, set the reward to the max reward.
-            if (totalBeaconReward > maxBeaconReward) {
-                totalBeaconReward = maxBeaconReward;
-            }
+            totalBeaconReward = maxBeaconReward > totalBeaconReward
+                ? totalBeaconReward
+                : maxBeaconReward;
 
+            ///@notice Calculate the execution gas compensation.
+            uint256 executionGasCompensation = calculateExecutionGasCompensation(
+                    orderOwners
+                );
             ///@notice Send the reward to the off-chain executor.
-            safeTransferETH(msg.sender, totalBeaconReward);
+            safeTransferETH(
+                msg.sender,
+                totalBeaconReward + executionGasCompensation
+            );
 
             unchecked {
                 ++i;
@@ -1201,6 +1226,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ) internal {
         uint256 totalBeaconReward;
 
+        uint256 orderOwnersIndex = 0;
+        address[] memory orderOwners = new address[](
+            tokenToTokenBatchOrders[0].batchOwners.length
+        );
+
         ///@notice For each batch order in the array.
         for (uint256 i = 0; i < tokenToTokenBatchOrders.length; ) {
             TokenToTokenBatchOrder memory batch = tokenToTokenBatchOrders[i];
@@ -1218,7 +1248,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint256[] memory ownerShares = batch.ownerShares;
             uint256 amountIn = batch.amountIn;
             uint256 batchOrderLength = tokenToTokenBatchOrders[i].batchLength;
-            for (uint256 j = 0; j < batchOrderLength; ++j) {
+            for (uint256 j = 0; j < batchOrderLength; ) {
                 ///@notice Calculate how much to pay each user from the shares they own
                 uint128 orderShare = ConveyorMath.divUI(
                     ownerShares[j],
@@ -1233,6 +1263,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
                 ///@notice Send the order payout to the order owner.
                 safeTransferETH(batch.batchOwners[j], orderPayout);
+
+                ///@notice Update the orderOwners array for gas credit adjustments
+                orderOwners[orderOwnersIndex] = batch.batchOwners[j];
+                ++orderOwnersIndex;
+
+                unchecked {
+                    ++j;
+                }
             }
 
             unchecked {
@@ -1245,8 +1283,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ? totalBeaconReward
             : maxBeaconReward;
 
+        ///@notice Calculate the execution gas compensation.
+        uint256 executionGasCompensation = calculateExecutionGasCompensation(
+            orderOwners
+        );
+
         ///@notice Send the off-chain executor their reward.
-        safeTransferETH(msg.sender, totalBeaconReward);
+        safeTransferETH(
+            msg.sender,
+            totalBeaconReward + executionGasCompensation
+        );
     }
 
     ///@notice Helper function to calculate amountOutMin value agnostically across dexes on the first hop from tokenA to WETH.
@@ -2346,6 +2392,40 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     {
         assembly {
             executionGasConsumed := sub(sload(initialTxGas.slot), gas())
+        }
+    }
+
+    ///@notice Function to adjust order owner's gas credit balance and calaculate the compensation to be paid to the executor.
+    ///@param orderOwners - The order owners in the batch.
+    ///@return gasExecutionCompensation - The amount to be paid to the off-chain executor for execution gas.
+    function calculateExecutionGasCompensation(address[] memory orderOwners)
+        internal
+        returns (uint256 gasExecutionCompensation)
+    {
+        uint256 orderOwnersLength = orderOwners.length;
+
+        ///@notice Decrement gas credit balances for each order owner
+        uint256 executionGasConsumed = calculateExecutionGasConsumed();
+        uint256 gasDecrementValue = executionGasConsumed / orderOwnersLength;
+
+        ///@notice Unchecked for gas efficiency
+        unchecked {
+            for (uint256 i = 0; i < orderOwnersLength; ) {
+                ///@notice Adjust the order owner's gas credit balance
+                uint256 ownerGasCreditBalance = gasCreditBalance[
+                    orderOwners[i]
+                ];
+
+                if (ownerGasCreditBalance >= gasDecrementValue) {
+                    gasCreditBalance[orderOwners[i]] -= gasDecrementValue;
+                    gasExecutionCompensation += gasDecrementValue;
+                } else {
+                    gasCreditBalance[orderOwners[i]] -= ownerGasCreditBalance;
+                    gasExecutionCompensation += ownerGasCreditBalance;
+                }
+
+                ++i;
+            }
         }
     }
 }
