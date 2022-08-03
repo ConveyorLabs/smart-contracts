@@ -73,6 +73,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice IQuoter instance to quote the amountOut for a given amountIn on a UniV3 pool.
     IQuoter immutable iQuoter;
 
+    ///@notice State variable to track the amount of gas initally alloted during executeOrders.
+    uint256 initialTxGas;
+
     // ========================================= Constructor =============================================
 
     ///@param _gasOracle - Address of the ChainLink fast gas oracle.
@@ -378,6 +381,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice This function is called by off-chain executors, passing in an array of orderIds to execute a specific batch of orders.
     /// @param orderIds - Array of orderIds to indicate which orders should be executed.
     function executeOrders(bytes32[] calldata orderIds) external onlyEOA {
+        // Update the initial gas balance.
+        assembly {
+            sstore(initialTxGas.slot, gas())
+        }
+
         ///@notice Get all of the orders by orderId and add them to a temporary orders array
         Order[] memory orders = new Order[](orderIds.length);
         for (uint256 i = 0; i < orderIds.length; ) {
@@ -442,6 +450,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ///@notice Initialize the total reward to be paid to the off-chain executor
         uint128 totalBeaconReward;
 
+        uint256 orderOwnersIndex = 0;
+        address[] memory orderOwners = new address[](
+            tokenToWethBatchOrders[0].batchOwners.length
+        );
+
         ///@notice For each batch in the tokenToWethBatchOrders array
         for (uint256 i = 0; i < tokenToWethBatchOrders.length; ) {
             TokenToWethBatchOrder memory batch = tokenToWethBatchOrders[i];
@@ -453,12 +466,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     order
                 );
 
+                ///@notice Update the orderOwners array for gas credit adjustments
+                orderOwners[orderOwnersIndex] = batch.batchOwners[j];
+                ++orderOwnersIndex;
+
                 unchecked {
                     ++j;
                 }
-
-                //TODO: FIXME:
-                //add functionality to decrement from the gas credit balance depending on the execution cost
             }
 
             unchecked {
@@ -472,8 +486,23 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ? totalBeaconReward
             : maxBeaconReward;
 
+        ///@notice Decrement gas credit balances for each order owner
+        uint256 executionGasConsumed = calculateExecutionGasConsumed();
+
+        uint256 orderOwnersLength = orderOwners.length;
+        for (uint256 i = 0; i < orderOwnersLength; ) {
+            ///@notice Adjust the order owner's gas credit balance
+            gasCreditBalance[orderOwners[i]] -=
+                executionGasConsumed /
+                orderOwnersLength;
+
+            unchecked {
+                ++i;
+            }
+        }
+
         ///@notice Transfer the reward to the off-chain executor.
-        safeTransferETH(msg.sender, totalBeaconReward);
+        safeTransferETH(msg.sender, totalBeaconReward + executionGasConsumed);
     }
 
     ///@notice Function to execute a single TokenToWethTaxedOrder
@@ -2306,5 +2335,17 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function withdrawConveyorFees() external onlyOwner nonReentrant {
         safeTransferETH(owner, conveyorBalance);
         conveyorBalance = 0;
+    }
+
+    ///@notice Function to calculate the execution gas consumed during executeOrders
+    ///@return executionGasConsumed - The amount of gas consumed.
+    function calculateExecutionGasConsumed()
+        internal
+        view
+        returns (uint256 executionGasConsumed)
+    {
+        assembly {
+            executionGasConsumed := sub(sload(initialTxGas.slot), gas())
+        }
     }
 }
