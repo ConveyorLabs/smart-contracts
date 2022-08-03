@@ -198,7 +198,9 @@ contract OrderRouterTest is DSTest {
     }
 
     //==================================Uni V2/V3 Spot Price Calculation Tests========================================
-
+    receive() external payable {
+        // console.log("receive invoked");
+    }
     ///@notice Test calculate V2 spot price on sushi
     function testCalculateV2SpotSushiTest1() public {
         //Test token address's
@@ -1217,10 +1219,10 @@ contract OrderRouterTest is DSTest {
 
 
 
-    //Swap Token to Token on best Dex tests
+    ///@notice Swap Token to Token on best Dex tests
     function testSwapTokenToTokenOnBestDex() public {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
-
+        //Token in USDC
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         //get the token in
         uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
@@ -1234,6 +1236,7 @@ contract OrderRouterTest is DSTest {
 
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
         address reciever = address(this);
+        //Test the swap
         orderRouter.swapTokenToTokenOnBestDex(
             tokenIn,
             tokenOut,
@@ -1245,22 +1248,22 @@ contract OrderRouterTest is DSTest {
         );
     }
 
+    ///@notice Test swap Token To eth on best dex
     function testSwapTokenToEthOnBestDex() public {
-        cheatCodes.deal(address(this), MAX_UINT);
+  
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        cheatCodes.deal(address(orderRouter), MAX_UINT);
+        
         //get the token in
         uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
             10000000000000000000,
             tokenIn
         );
 
-        uint256 amountOutMin = amountReceived - 1;
-
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
-        console.logUint(address(this).balance);
+
+        //Execute the swap
         orderRouter.swapTokenToETHOnBestDex(
             tokenIn,
             amountReceived,
@@ -1272,11 +1275,14 @@ contract OrderRouterTest is DSTest {
 
     // receive() external payable {}
 
+    ///@notice Test swap Eth to token on best dex
     function testSwapEthToTokenOnBestDex() public {
         cheatCodes.deal(address(this), MAX_UINT);
-        
-        address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
+        //Token usdc
+        address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        
+        //Execute the swap
         (bool depositSuccess, ) = address(orderRouter).call{
             value: 1000000000000000000
         }(

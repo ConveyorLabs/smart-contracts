@@ -1799,7 +1799,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     ///@notice Fallback function to receive ether.
-    receive() external payable {}
+    // receive() external payable {}
 
     ///@notice Function to simulate the price change from TokanA to Weth on an amount into the pool
     ///@param alphaX The amount supplied to the TokenA reserves of the pool.

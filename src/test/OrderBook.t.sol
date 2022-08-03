@@ -290,11 +290,11 @@ contract OrderBookTest is DSTest {
     }
     ///@notice Test update order 
     function testUpdateOrder() public {
-        
+            cheatCodes.deal(address(this), MAX_UINT);
             IERC20(swapToken).approve(address(orderBook), MAX_UINT);
 
             cheatCodes.deal(address(swapHelper), MAX_UINT);
-            
+            swapHelper.swapEthForTokenWithUniV2(100 ether, swapToken);
             // returns (uint256 amountOut) {
             //create a new order
             ConveyorLimitOrders.Order memory order = newOrder(
