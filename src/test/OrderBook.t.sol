@@ -83,6 +83,7 @@ contract OrderBookTest is DSTest {
         orderBook = new OrderBookWrapper(aggregatorV3Address);
     }
 
+    ///@notice Test get order by id
     function testGetOrderById() public {
         IERC20(swapToken).approve(address(orderBook), MAX_UINT);
 
@@ -111,6 +112,7 @@ contract OrderBookTest is DSTest {
         assertEq(returnedOrder.quantity, order.quantity);
     }
 
+    ///@notice Test fail get order by id order does not exist
     function testFailGetOrderById_OrderDoesNotExist() public {
         IERC20(swapToken).approve(address(orderBook), MAX_UINT);
 
@@ -128,6 +130,7 @@ contract OrderBookTest is DSTest {
         orderBook.getOrderById(bytes32(0));
     }
 
+    ///@notice Test palce order fuzz test
     function testPlaceOrder(uint256 swapAmount, uint256 executionPrice) public {
         cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(orderBook), MAX_UINT);
@@ -168,6 +171,7 @@ contract OrderBookTest is DSTest {
         } catch {}
     }
 
+    ///@notice Test fail place order InsufficientAlllowanceForOrderPlacement
     function testFailPlaceOrder_InsufficientAllowanceForOrderPlacement(
         uint256 swapAmount,
         uint256 executionPrice
@@ -212,6 +216,7 @@ contract OrderBookTest is DSTest {
         }
     }
 
+    ///@notice Test fail place order InsufficientWalletBalance
     function testFailPlaceOrder_InsufficientWalletBalance() public {
         IERC20(swapToken).approve(address(orderBook), MAX_UINT);
 
@@ -233,6 +238,7 @@ contract OrderBookTest is DSTest {
         orderBook.placeOrder(orderGroup);
     }
 
+    ///@notice Test Fail Place order IncongruentTokenInOrderGroup
     function testFailPlaceOrder_IncongruentTokenInOrderGroup(
         uint256 swapAmount,
         uint256 executionPrice,
@@ -282,17 +288,13 @@ contract OrderBookTest is DSTest {
             require(false, "swap 0 failed");
         }
     }
-
-    function testUpdateOrder(uint256 swapAmount) public {
-        if (swapAmount > 1000) {
+    ///@notice Test update order 
+    function testUpdateOrder() public {
+        
             IERC20(swapToken).approve(address(orderBook), MAX_UINT);
 
             cheatCodes.deal(address(swapHelper), MAX_UINT);
-            // try
-            uint256 amountOut = swapHelper.swapEthForTokenWithUniV2(
-                100,
-                swapToken
-            );
+            
             // returns (uint256 amountOut) {
             //create a new order
             ConveyorLimitOrders.Order memory order = newOrder(
@@ -317,41 +319,11 @@ contract OrderBookTest is DSTest {
             updatedOrder.orderId = orderId;
             //submit the updated order
             orderBook.updateOrder(updatedOrder);
-            // } catch {}
-        }
+       
+        
     }
 
-    function testUpdateOrder1() public {
-        IERC20(swapToken).approve(address(orderBook), MAX_UINT);
-
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        uint256 amountOut = swapHelper.swapEthForTokenWithUniV2(100, swapToken);
-
-        //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
-            swapToken,
-            wnato,
-            uint128(0),
-            uint128(1),
-            uint128(1)
-        );
-        //place a mock order
-        bytes32 orderId = placeMockOrder(order);
-
-        //create a new order to replace the old order
-        ConveyorLimitOrders.Order memory updatedOrder = newOrder(
-            swapToken,
-            wnato,
-            uint128(1),
-            uint128(1),
-            uint128(1)
-        );
-
-        updatedOrder.orderId = orderId;
-        //submit the updated order
-        orderBook.updateOrder(updatedOrder);
-    }
-
+    ///@notice Test fail update order order does not exist
     function testFailUpdateOrder_OrderDoesNotExist(
         uint256 swapAmount,
         uint256 executionPrice,
@@ -391,6 +363,7 @@ contract OrderBookTest is DSTest {
         }
     }
 
+    ///@notice Test min gas credits
     function testMinGasCredits() public {
         cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(orderBook), MAX_UINT);
@@ -405,9 +378,10 @@ contract OrderBookTest is DSTest {
             5,
             5
         );
-
+        
         placeMockOrder(order);
 
+        //Pass in a sample min gas credits that is sufficiently above the threshold
         bool hasMinGasCredits = orderBook.hasMinGasCredits(
             50000000000,
             300000,
