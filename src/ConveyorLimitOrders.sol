@@ -317,7 +317,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             )
         ) {
             ///@notice Remove the order from the limit order system.
-            _removeOrderFromSystem(order);
+            _cancelOrder(order);
 
             ///@notice Decrement from the order owner's gas credit balance.
             gasCreditBalance[order.owner] -= minimumGasCreditsForSingleOrder;
@@ -499,22 +499,26 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             )
         );
 
-        ///@notice Calculate the protcol fee from the amount of Weth received from the first swap.
-        uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
+        if (amountOutWeth > 0) {
+            ///@notice Calculate the protcol fee from the amount of Weth received from the first swap.
+            uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
-        ///@notice Remove the order from the limit order system
-        _removeOrderFromSystem(order);
+            ///@notice Mark the order as resolved from the limit order system.
+            _resolveCompletedOrder(order);
 
-        uint128 conveyorReward;
-        ///@notice calculate the reward payable to the off-chain executor
-        (conveyorReward, beaconReward) = _calculateReward(
-            protocolFee,
-            amountOutWeth
-        );
+            uint128 conveyorReward;
+            ///@notice calculate the reward payable to the off-chain executor
+            (conveyorReward, beaconReward) = _calculateReward(
+                protocolFee,
+                amountOutWeth
+            );
 
-        ///@notice Subtract the beacon/conveyor reward from the amountOutWeth and transer the funds to the order.owner
-        amountOutWeth = amountOutWeth - (conveyorReward + beaconReward);
-        safeTransferETH(order.owner, amountOutWeth);
+            ///@notice Subtract the beacon/conveyor reward from the amountOutWeth and transer the funds to the order.owner
+            amountOutWeth = amountOutWeth - (conveyorReward + beaconReward);
+            safeTransferETH(order.owner, amountOutWeth);
+        } else {
+            _cancelOrder(order);
+        }
     }
 
     ///@notice Function to execute a batch of Token to Weth Orders.
@@ -654,8 +658,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 ///@notice Cache the order to avoid unecessary sloads
                 Order memory cachedOrder = orderIdToOrder[orderId];
 
-                ///@notice Remove the order from the contract.
-                _removeOrderFromSystem(cachedOrder);
+                ///@notice Mark the order as resolved from the limit order system.
+                _resolveCompletedOrder(cachedOrder);
 
                 unchecked {
                     ++i;
@@ -663,7 +667,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
         }
 
-        ///TODO: FIXME: safeTransfer(conveyorReward) to conveyor address
+        ///@notice Increment the conveyor balance by the conveyor reward
+        conveyorBalance += conveyorReward;
+
         return (
             uint256(amountOutWeth - (beaconReward + conveyorReward)),
             uint256(beaconReward)
@@ -1075,14 +1081,17 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
 
             ///@notice Get the amountIn for Weth to tokenB
-            amountInWethToB = order.quantity - (beaconReward + beaconReward);
+            amountInWethToB = order.quantity - (beaconReward + conveyorReward);
         }
+
+        ///@notice Increment the conveyorBalance by the conveyorReward.
+        conveyorBalance += conveyorReward;
 
         ///@notice Get the UniV3 fee for the lp address.
         fee = _getUniV3Fee(batch.lpAddressWethToB);
 
         ///@notice Swap weth for tokenB
-        _swap(
+        uint256 amountOut = _swap(
             WETH,
             order.tokenOut,
             batch.lpAddressWethToB,
@@ -1093,8 +1102,14 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             address(this)
         );
 
-        ///@notice Remove the order from the system.
-        _removeOrderFromSystem(order);
+        ///@notice If the swap was successful.
+        if (amountOut > 0) {
+            ///@notice Mark the order as resolved from the limit order system.
+            _resolveCompletedOrder(order);
+        } else {
+            ///@notice Cancel the order.
+            _cancelOrder(order);
+        }
 
         return beaconReward;
     }
@@ -1332,6 +1347,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     )
                 );
 
+                if (amountOutWeth == 0) {
+                    revert InsufficientOutputAmount();
+                }
+
                 ///@notice Take out the fees from the amountOutWeth
                 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
@@ -1388,14 +1407,18 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 address(this)
             );
 
+            if (amountOutInB == 0) {
+                revert InsufficientOutputAmount();
+            }
+
             ///@notice Scoping to avoid stack too deep errors.
             {
                 ///@notice Iterate through all orderIds in the batch and delete the orders from queue post execution.
                 for (uint256 i = 0; i < batch.batchLength; ) {
                     bytes32 orderId = batch.orderIds[i];
 
-                    ///@notice Remove the order from the system.
-                    _removeOrderFromSystem(orderIdToOrder[orderId]);
+                    ///@notice Mark the order as resolved from the system.
+                    _resolveCompletedOrder(orderIdToOrder[orderId]);
 
                     unchecked {
                         ++i;
@@ -1569,7 +1592,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     {
         ///@notice Create a new token to weth batch order.
         tokenToTokenBatchOrders = new TokenToTokenBatchOrder[](orders.length);
-        
+
         ///@notice Cache the first order in the array.
         Order memory firstOrder = orders[0];
 
@@ -1600,11 +1623,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
         ///@notice Initialize a variable to keep track of how many batch orders there are.
         uint256 currentTokenToTokenBatchOrdersIndex = 0;
-       
+
         ///@notice Scope to prevent stack too deep.
         {
             ///@notice For each order in the orders array.
-            for (uint256 i = 0; i < orders.length;) {
+            for (uint256 i = 0; i < orders.length; ) {
                 ///@notice Get the index of the best exectuion price.
                 uint256 bestPriceIndex = _findBestTokenToTokenExecutionPrice(
                     executionPrices,
@@ -1664,7 +1687,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             ///@notice Add the order to the current batch order.
                             currentTokenToTokenBatchOrder
                                 .amountIn += currentOrder.quantity;
-                            
+
                             ///@notice Add the amountOutMin to the batch order.
                             currentTokenToTokenBatchOrder
                                 .amountOutMin += currentOrder.amountOutMin;
@@ -1700,7 +1723,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         _cancelOrder(currentOrder);
                     }
                 }
-                unchecked{
+                unchecked {
                     ++i;
                 }
             }
@@ -1720,12 +1743,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) internal pure returns (uint256 bestPriceIndex) {
-        
         ///@notice If the order is a buy order, set the initial best price at 0.
         if (buyOrder) {
             uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
             ///@notice For each exectution price in the executionPrices array.
-            for (uint256 i = 0; i < executionPrices.length;) {
+            for (uint256 i = 0; i < executionPrices.length; ) {
                 uint256 executionPrice = executionPrices[i].price;
                 ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
                 if (executionPrice < bestPrice && executionPrice != 0) {
@@ -1750,7 +1772,6 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    
     ///@notice Function to validate the congruency of an array of orders.
     ///@param orders Array of orders to be validated
     function _validateOrderSequencing(Order[] memory orders) internal pure {
@@ -1803,12 +1824,11 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     ///@notice Function to simulate the price change from TokanA to Weth on an amount into the pool
     ///@param alphaX The amount supplied to the TokenA reserves of the pool.
-    ///@param executionPrice The TokenToWethExecutionPrice to simulate the price change on. 
+    ///@param executionPrice The TokenToWethExecutionPrice to simulate the price change on.
     function simulateTokenToWethPriceChange(
         uint128 alphaX,
         TokenToWethExecutionPrice memory executionPrice
     ) internal returns (TokenToWethExecutionPrice memory) {
-
         ///@notice Cache the liquidity pool address
         address pool = executionPrice.lpAddressAToWeth;
 
@@ -1826,7 +1846,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ? uint128(alphaX * 10**(18 - tokenInDecimals))
             : uint128(alphaX / (10**(tokenInDecimals - 18)));
 
-        ///@notice Simulate the price change on the 18 decimal amountIn quantity, and set executionPrice struct to the updated quantities. 
+        ///@notice Simulate the price change on the 18 decimal amountIn quantity, and set executionPrice struct to the updated quantities.
         (
             executionPrice.price,
             executionPrice.aToWethReserve0,
@@ -1844,25 +1864,25 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     ///@notice Function to simulate the TokenToToken price change on a pair.
-    ///@param alphaX - The input quantity to simulate the price change on. 
-    ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on. 
+    ///@param alphaX - The input quantity to simulate the price change on.
+    ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
     function simulateTokenToTokenPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
     ) internal returns (TokenToTokenExecutionPrice memory) {
-        ///@notice Check if the reserves are set to 0. This indicated the tokenPair is Weth to TokenOut if true. 
+        ///@notice Check if the reserves are set to 0. This indicated the tokenPair is Weth to TokenOut if true.
         if (
             executionPrice.aToWethReserve0 != 0 &&
             executionPrice.aToWethReserve1 != 0
         ) {
-            ///@notice Initialize variables to prevent stack too deep 
+            ///@notice Initialize variables to prevent stack too deep
             address pool = executionPrice.lpAddressAToWeth;
             address token0;
             address token1;
             bool _isUniV2 = _lpIsNotUniV3(pool);
-            ///@notice Scope to prevent stack too deep. 
+            ///@notice Scope to prevent stack too deep.
             {
-                ///@notice Check if the pool is Uni V2 and get the token0 and token1 address. 
+                ///@notice Check if the pool is Uni V2 and get the token0 and token1 address.
                 if (_isUniV2) {
                     token0 = IUniswapV2Pair(pool).token0();
                     token1 = IUniswapV2Pair(pool).token1();
@@ -1899,8 +1919,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     ///@notice Function to simulate the WethToToken price change on a pair.
-    ///@param alphaX - The input quantity to simulate the price change on. 
-    ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on. 
+    ///@param alphaX - The input quantity to simulate the price change on.
+    ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
     function _simulateWethToTokenPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
@@ -1926,7 +1946,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 false
             );
 
-        ///@notice Update TokenToTokenExecutionPrice to the new simulated values. 
+        ///@notice Update TokenToTokenExecutionPrice to the new simulated values.
         executionPrice.price = newSpotPriceB;
         executionPrice.aToWethReserve0 = 0;
         executionPrice.aToWethReserve1 = 0;
@@ -1937,8 +1957,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     ///@notice Function to simulate the TokenToToken price change on a pair.
-    ///@param alphaX - The input quantity to simulate the price change on. 
-    ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on. 
+    ///@param alphaX - The input quantity to simulate the price change on.
+    ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
     function _simulateTokenToTokenPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
@@ -1960,7 +1980,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ) = _simulateWethToBPriceChange(amountOut, executionPrice);
 
         {
-            ///@notice Calculate the new spot price over both swaps from the simulated values. 
+            ///@notice Calculate the new spot price over both swaps from the simulated values.
             uint256 newTokenToTokenSpotPrice = uint256(
                 ConveyorMath.mul64x64(
                     uint128(newSpotPriceA >> 64),
@@ -1979,8 +1999,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     ///@notice Function to simulate the AToWeth price change on a pair.
-    ///@param alphaX - The input quantity to simulate the price change on. 
-    ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on. 
+    ///@param alphaX - The input quantity to simulate the price change on.
+    ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
     function _simulateAToWethPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
@@ -1998,7 +2018,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         uint128 reserveAWeth = executionPrice.aToWethReserve1;
         address poolAddressAToWeth = executionPrice.lpAddressAToWeth;
 
-        ///@notice Simulate the price change from TokenIn To Weth and return the values. 
+        ///@notice Simulate the price change from TokenIn To Weth and return the values.
         (
             newSpotPriceA,
             newReserveAToken,
@@ -2014,8 +2034,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     }
 
     ///@notice Function to simulate the WethToB price change on a pair.
-    ///@param alphaX - The input quantity to simulate the price change on. 
-    ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on. 
+    ///@param alphaX - The input quantity to simulate the price change on.
+    ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
     function _simulateWethToBPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice
@@ -2027,12 +2047,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128 newReserveBToken
         )
     {
-        ///@notice Cache the reserve values, and the pool address on the token pair. 
+        ///@notice Cache the reserve values, and the pool address on the token pair.
         uint128 reserveBWeth = executionPrice.wethToBReserve0;
         uint128 reserveBToken = executionPrice.wethToBReserve1;
         address poolAddressWethToB = executionPrice.lpAddressWethToB;
 
-        ///@notice Simulate the Weth to TokenOut price change and return the values. 
+        ///@notice Simulate the Weth to TokenOut price change and return the values.
         (
             newSpotPriceB,
             newReserveBWeth,
@@ -2047,7 +2067,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         );
     }
 
-    /// @notice Function to calculate the price change of a token pair on a specified input quantity. 
+    /// @notice Function to calculate the price change of a token pair on a specified input quantity.
     /// @param alphaX Quantity to be added into the TokenA reserves
     /// @param reserveA Reserves of tokenA
     /// @param reserveB Reserves of tokenB
@@ -2066,13 +2086,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128
         )
     {
-        ///@notice Initialize Array to hold the simulated reserve quantities. 
+        ///@notice Initialize Array to hold the simulated reserve quantities.
         uint128[] memory newReserves = new uint128[](2);
 
         ///@notice If the liquidity pool is not Uniswap V3 then the calculation is different.
         if (_lpIsNotUniV3(pool)) {
             unchecked {
-                ///@notice Supply alphaX to the tokenA reserves. 
+                ///@notice Supply alphaX to the tokenA reserves.
                 uint256 denominator = reserveA + alphaX;
 
                 ///@notice Numerator is the new tokenB reserve quantity i.e k/(reserveA+alphaX)
@@ -2091,7 +2111,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 newReserves[0] = uint128(denominator);
                 newReserves[1] = uint128(numerator);
 
-                ///@notice Set the amountOut of the swap on alphaX input amount. 
+                ///@notice Set the amountOut of the swap on alphaX input amount.
                 uint128 amountOut = uint128(
                     getAmountOut(alphaX, reserveA, reserveB)
                 );
@@ -2251,10 +2271,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    /// @notice Function to determine if an order meets the execution price. 
+    /// @notice Function to determine if an order meets the execution price.
     ///@param orderPrice The Spot price for execution of the order.
     ///@param executionPrice The current execution price of the best prices lp.
-    ///@param buyOrder The buy/sell status of the order. 
+    ///@param buyOrder The buy/sell status of the order.
     function _orderMeetsExecutionPrice(
         uint256 orderPrice,
         uint256 executionPrice,
@@ -2270,7 +2290,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     ///@notice Checks if order can complete without hitting slippage
     ///@param spot_price The spot price of the liquidity pool.
     ///@param order_quantity The input quantity of the order.
-    ///@param amountOutMin The slippage set by the order owner. 
+    ///@param amountOutMin The slippage set by the order owner.
     function _orderCanExecute(
         uint256 spot_price,
         uint256 order_quantity,

@@ -158,12 +158,12 @@ contract OrderRouter {
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     uint256 constant ONE_128x128 = uint256(1) << 128;
     uint24 constant ZERO_UINT24 = 0;
-    uint256 constant ZERO_POINT_9 = 16602069666338597000 <<64;
+    uint256 constant ZERO_POINT_NINE = 16602069666338597000 << 64;
     uint256 constant ONE_POINT_TWO_FIVE = 23058430092136940000 << 64;
     uint128 constant ZERO_POINT_ONE = 1844674407370955300;
-    uint128 constant ZERO_POINT_ZERO_ZERO_FIVE=92233720368547760;
-    uint128 constant ZERO_POINT_ZERO_ZERO_ONE =18446744073709550;
-    uint128 constant MAX_CONVEYOR_PERCENT = 110680464442257300*10**2;
+    uint128 constant ZERO_POINT_ZERO_ZERO_FIVE = 92233720368547760;
+    uint128 constant ZERO_POINT_ZERO_ZERO_ONE = 18446744073709550;
+    uint128 constant MAX_CONVEYOR_PERCENT = 110680464442257300 * 10**2;
     uint128 constant MIN_CONVEYOR_PERCENT = 7378697629483821000;
     //----------------------Immutables------------------------------------//
 
@@ -267,7 +267,7 @@ contract OrderRouter {
         }
 
         ///@notice 0.9 represented as 128.128 fixed point
-        uint256 numerator = ZERO_POINT_9;
+        uint256 numerator = ZERO_POINT_NINE;
 
         ///@notice Exponent= usdAmount/750000
         uint128 exponent = uint128(
@@ -708,7 +708,7 @@ contract OrderRouter {
 
         return amountRecieved;
     }
-    
+
     // receive() external payable {}
     ///@notice Agnostic swap function that determines whether or not to swap on univ2 or univ3
     ///@param _tokenIn - Address of the tokenIn.
@@ -959,9 +959,7 @@ contract OrderRouter {
         ///@notice Initialize variables to prevent stack too deep.
         int24 tick;
 
-        ///FIXME: change this to 600
-        uint32 tickSecond = 1; //10 minute time weighted average price to use as baseline for maxBeaconReward analysis
-        ///FIXME: don't forget this is important
+        uint32 tickSecond = 1; //Instantaneous price to use as baseline for maxBeaconReward analysis
 
         ///@notice Set amountIn to the amountIn value in the the max token decimals of token0/token1.
         uint112 amountIn = _getGreatestTokenDecimalsAmountIn(token0, token1);

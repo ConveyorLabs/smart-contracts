@@ -32,7 +32,7 @@ contract OrderBook is GasOracle {
     /**@notice Event that is emitted when an order is filled. For each order that is filled, the corresponding orderId is added
     to the orderIds param. 
      */
-    event OrderFilled(bytes32[] indexed orderIds);
+    event OrderFufilled(bytes32[] indexed orderIds);
 
     //----------------------Structs------------------------------------//
 
@@ -333,6 +333,8 @@ contract OrderBook is GasOracle {
         emit OrderCancelled(canceledOrderIds);
     }
 
+    ///@notice Function to remove an order from the system.
+    ///@param order - The order that should be removed from the system.
     function _removeOrderFromSystem(Order memory order) internal {
         ///@notice Remove the order from the system
         delete orderIdToOrder[order.orderId];
@@ -347,6 +349,29 @@ contract OrderBook is GasOracle {
             order.owner,
             order.quantity
         );
+    }
+
+    ///@notice Function to resolve an order as completed.
+    ///@param order - The order that should be resolved from the system.
+    function _resolveCompletedOrder(Order memory order) internal {
+        ///@notice Remove the order from the system
+        delete orderIdToOrder[order.orderId];
+        delete addressToOrderIds[order.owner][order.orderId];
+
+        ///@notice Decrement from total orders per address
+        --totalOrdersPerAddress[order.owner];
+
+        ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
+        decrementTotalOrdersQuantity(
+            order.tokenIn,
+            order.owner,
+            order.quantity
+        );
+
+        ///@notice Emit an event to notify the off-chain executors that the order has been fufilled.
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = order.orderId;
+        emit OrderFufilled(orderIds);
     }
 
     /// @notice Helper function to get the total order value on a specific token for the msg.sender.
