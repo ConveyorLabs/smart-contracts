@@ -504,7 +504,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
             ///@notice Mark the order as resolved from the limit order system.
-            _resolveCompletedOrder(order);
+            _resolveCompletedOrderAndEmitOrderFufilled(order);
 
             uint128 conveyorReward;
             ///@notice calculate the reward payable to the off-chain executor
@@ -655,16 +655,16 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 ///@notice Cache the orderId
                 bytes32 orderId = batch.orderIds[i];
 
-                ///@notice Cache the order to avoid unecessary sloads
-                Order memory cachedOrder = orderIdToOrder[orderId];
-
                 ///@notice Mark the order as resolved from the limit order system.
-                _resolveCompletedOrder(cachedOrder);
+                _resolveCompletedOrder(orderIdToOrder[orderId]);
 
                 unchecked {
                     ++i;
                 }
             }
+
+            ///@notice Emit an order fufilled event to notify the off-chain executors.
+            emit OrderFufilled(batch.orderIds);
         }
 
         ///@notice Increment the conveyor balance by the conveyor reward
@@ -1105,7 +1105,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ///@notice If the swap was successful.
         if (amountOut > 0) {
             ///@notice Mark the order as resolved from the limit order system.
-            _resolveCompletedOrder(order);
+            _resolveCompletedOrderAndEmitOrderFufilled(order);
         } else {
             ///@notice Cancel the order.
             _cancelOrder(order);
@@ -1424,6 +1424,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         ++i;
                     }
                 }
+
+                ///@notice Emit an order fufilled event to notify the off-chain executors.
+                emit OrderFufilled(batch.orderIds);
             }
 
             return (amountOutInB, uint256(beaconReward));
