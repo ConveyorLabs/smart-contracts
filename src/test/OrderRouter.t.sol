@@ -92,7 +92,7 @@ contract OrderRouterTest is DSTest {
     }
 
     //==================================Order Router Helper Functions ========================================
-   
+
     ///@notice Test Lp is not uniV3
     function testLPIsNotUniv3() public {
         address uniV2LPAddress = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
@@ -201,6 +201,7 @@ contract OrderRouterTest is DSTest {
     receive() external payable {
         // console.log("receive invoked");
     }
+
     ///@notice Test calculate V2 spot price on sushi
     function testCalculateV2SpotSushiTest1() public {
         //Test token address's
@@ -245,10 +246,8 @@ contract OrderRouterTest is DSTest {
             uint256(reserve1Weth1) << 128,
             uint256(reserve0Kope) << 128
         );
-        (
-            ConveyorLimitOrders.SpotReserve memory priceWethKope,
-            
-        ) = orderRouter.calculateV2SpotPrice(
+        (ConveyorLimitOrders.SpotReserve memory priceWethKope, ) = orderRouter
+            .calculateV2SpotPrice(
                 kope,
                 weth,
                 _sushiFactoryAddress,
@@ -273,15 +272,8 @@ contract OrderRouterTest is DSTest {
             uint256(reserve0OhmCommon) << 128,
             uint256(reserve1Dai) << 128
         );
-        (
-            ConveyorLimitOrders.SpotReserve memory priceOhmDai,
-           
-        ) = orderRouter.calculateV2SpotPrice(
-                dai,
-                ohm,
-                _sushiFactoryAddress,
-                _sushiHexDem
-            );
+        (ConveyorLimitOrders.SpotReserve memory priceOhmDai, ) = orderRouter
+            .calculateV2SpotPrice(dai, ohm, _sushiFactoryAddress, _sushiHexDem);
 
         assertEq(priceOhmDai.spotPrice, expectedOhmDai);
     }
@@ -322,7 +314,7 @@ contract OrderRouterTest is DSTest {
     ///@notice Test calculate V3 spot price usdc/dai
     function testCalculateV3SpotPrice2() public {
         //Test token address's
-        
+
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         address poolDaiUsdc = IUniswapV3Factory(_uniV3FactoryAddress).getPool(
@@ -338,20 +330,13 @@ contract OrderRouterTest is DSTest {
             usdc
         );
 
-        (
-            ConveyorLimitOrders.SpotReserve memory priceDaiUsdc,
-    
-        ) = orderRouter.calculateV3SpotPrice(
-                dai,
-                usdc,
-                3000,
-                _uniV3FactoryAddress
-            );
+        (ConveyorLimitOrders.SpotReserve memory priceDaiUsdc, ) = orderRouter
+            .calculateV3SpotPrice(dai, usdc, 3000, _uniV3FactoryAddress);
 
         assertEq(priceDaiUsdc.spotPrice, expectedDaiUsdc);
     }
 
-    ///@notice Test calculate v2 spot price Uni 
+    ///@notice Test calculate v2 spot price Uni
     function testCalculateV2SpotUni1() public {
         //Test tokens
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -468,10 +453,8 @@ contract OrderRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         if (_amount > 0) {
-            (
-                ConveyorLimitOrders.SpotReserve memory price1,
-                
-            ) = orderRouter.calculateV2SpotPrice(
+            (ConveyorLimitOrders.SpotReserve memory price1, ) = orderRouter
+                .calculateV2SpotPrice(
                     weth,
                     usdc,
                     0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
@@ -489,7 +472,7 @@ contract OrderRouterTest is DSTest {
             ///@notice Pack the args
             string memory path = "scripts/logistic_curve.py";
             string memory args = uint2str(amountInUsdcDollarValue);
-            
+
             //Expected output in bytes
             bytes memory output = scriptRunner.runPythonScript(path, args);
 
@@ -566,7 +549,7 @@ contract OrderRouterTest is DSTest {
             assertEq(rewardConveyor / 10**3, conveyorRewardExpected / 10**3);
         }
     }
-    
+
     ///@notice Helper function to convert a uint to a string
     function uint2str(uint256 _i) internal pure returns (string memory str) {
         if (_i == 0) {
@@ -593,11 +576,9 @@ contract OrderRouterTest is DSTest {
     function testCalculateMaxBeaconRewardTopLevel() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        (
-            OrderRouter.SpotReserve[] memory pricesUsdcWeth,
-            
-        ) = orderRouter.getAllPrices(usdc, weth, 3000);
-       
+        (OrderRouter.SpotReserve[] memory pricesUsdcWeth, ) = orderRouter
+            .getAllPrices(usdc, weth, 3000);
+
         //Sell order ==> High price more advantagous
         OrderBook.Order memory order1 = newMockOrder(
             usdc,
@@ -677,7 +658,7 @@ contract OrderRouterTest is DSTest {
             0
         );
 
-        //V2 outlier 128.128 
+        //V2 outlier 128.128
         uint256 v2Outlier = 195241231237093697621340806139528792;
 
         //Expected target
@@ -760,7 +741,6 @@ contract OrderRouterTest is DSTest {
             run = true;
         }
 
-
         if (run == true) {
             uint128 k = _reserve0 * _reserve1;
             unchecked {
@@ -793,6 +773,7 @@ contract OrderRouterTest is DSTest {
             }
         }
     }
+
     ///@notice Test Calculate AlphaX
     function testCalculateAlphaX(
         uint32 _alphaX,
@@ -843,7 +824,7 @@ contract OrderRouterTest is DSTest {
                         uint256(executionSpotPrice) << 64,
                         uint256(snapShotSpotPrice) << 64
                     );
-                    
+
                     //Delta = delta_temp -1
                     uint256 delta = uint256(
                         ConveyorMath.abs(
@@ -858,7 +839,6 @@ contract OrderRouterTest is DSTest {
                         uint128(_reserve1)
                     );
 
-                    
                     ///This assertion will sometimes fail becaus of 1 decimal precision errors, I believe this has to do with the reserve1Snapshot derivation in the test
                     assertEq(uint256(alphaX) / 100, uint256(_alphaX) / 100);
                 }
@@ -988,7 +968,6 @@ contract OrderRouterTest is DSTest {
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address lp = 0xa2107FA5B38d9bbd2C461D6EDf11B11A50F6b974;
 
-        ///TODO: Get some solid amountOutMin with regard's to slippage on the corresponding lp
         uint256 amountOutMin = 10000;
 
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
@@ -1017,7 +996,6 @@ contract OrderRouterTest is DSTest {
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address lp = 0xa2107FA5B38d9bbd2C461D6EDf11B11A50F6b974;
 
-        ///TODO: Get some solid amountOutMin with regard's to slippage on the corresponding lp
         uint256 amountOutMin = 10000000000000000;
 
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
@@ -1217,8 +1195,6 @@ contract OrderRouterTest is DSTest {
         require(amountOut != 0, "InsufficientOutputAmount");
     }
 
-
-
     ///@notice Swap Token to Token on best Dex tests
     function testSwapTokenToTokenOnBestDex() public {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
@@ -1250,11 +1226,10 @@ contract OrderRouterTest is DSTest {
 
     ///@notice Test swap Token To eth on best dex
     function testSwapTokenToEthOnBestDex() public {
-  
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        
+
         //get the token in
         uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
             10000000000000000000,
@@ -1264,12 +1239,7 @@ contract OrderRouterTest is DSTest {
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
 
         //Execute the swap
-        orderRouter.swapTokenToETHOnBestDex(
-            tokenIn,
-            amountReceived,
-            1,
-            3000
-        );
+        orderRouter.swapTokenToETHOnBestDex(tokenIn, amountReceived, 1, 3000);
         console.logUint(address(this).balance);
     }
 
@@ -1281,7 +1251,7 @@ contract OrderRouterTest is DSTest {
 
         //Token usdc
         address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        
+
         //Execute the swap
         (bool depositSuccess, ) = address(orderRouter).call{
             value: 1000000000000000000
@@ -1295,7 +1265,7 @@ contract OrderRouterTest is DSTest {
             )
         );
     }
-    
+
     //================================================================================================
 }
 
@@ -1319,7 +1289,6 @@ contract OrderRouterWrapper is OrderRouter {
         )
     {}
 
-    
     function calculateMaxBeaconRewardTop(
         SpotReserve[] memory spotReserves,
         OrderBook.Order[] memory orders,

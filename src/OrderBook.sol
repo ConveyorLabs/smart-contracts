@@ -7,7 +7,7 @@ import "./ConveyorErrors.sol";
 
 /// @title OrderBook
 /// @author 0xKitsune, LeytonTaylor
-/// @notice TODO:
+/// @notice TODO: Contract description
 contract OrderBook is GasOracle {
     //----------------------Constructor------------------------------------//
 

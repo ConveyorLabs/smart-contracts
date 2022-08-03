@@ -18,7 +18,7 @@ import "../lib/libraries/QuadruplePrecision.sol";
 
 /// @title OrderRouter
 /// @author 0xKitsune, LeytonTaylor
-/// @notice TODO:
+/// @notice TODO: Contract description
 contract OrderRouter {
     //----------------------Structs------------------------------------//
 
@@ -235,8 +235,6 @@ contract OrderRouter {
     ///@param usdc - Address of USDC
     ///@param weth - Address of Weth
     /// @return calculated_fee_64x64 -  Returns the fee percent that is applied to the amountOut realized from an executed.
-
-    //TODO: FIXME: update all constant values to constant variables
     function _calculateFee(
         uint128 amountIn,
         address usdc,

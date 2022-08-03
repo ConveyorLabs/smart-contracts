@@ -43,7 +43,6 @@ contract ConveyorLimitOrdersTest is DSTest {
     address UNI = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
     address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-    //TODO: add taxed token
     address TAXED_TOKEN = 0xE7eaec9Bca79d537539C00C58Ae93117fB7280b9; //
     address TAXED_TOKEN_1 = 0xe0a189C975e4928222978A74517442239a0b86ff; //
     address TAXED_TOKEN_2 = 0xd99793A840cB0606456916d1CF5eA199ED93Bf97; //6% tax CHAOS token 27
@@ -688,7 +687,6 @@ contract ConveyorLimitOrdersTest is DSTest {
         OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         orderGroup[0] = order;
 
-
         bytes32[] memory orderBatch = conveyorLimitOrders.placeOrder(
             orderGroup
         );
@@ -1179,7 +1177,7 @@ contract ConveyorLimitOrdersTest is DSTest {
                 assertEq(reserveA, expectedReserveA);
 
                 //Adjust precision as python script has lower precision than ConveyorMath library
-                assertEq(reserveB/10**9, expectedReserveB/10**9);
+                assertEq(reserveB / 10**9, expectedReserveB / 10**9);
             }
         }
     }

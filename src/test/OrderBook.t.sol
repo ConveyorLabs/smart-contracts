@@ -37,8 +37,6 @@ contract OrderBookTest is DSTest {
     //----------------State variables for testing--------------------
     ///@notice initialize swap helper
     address uniV2Addr = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    //TODO: add univ3 address
-    address uniV3Addr = address(0);
     address wnato = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     address swapToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
@@ -288,39 +286,38 @@ contract OrderBookTest is DSTest {
             require(false, "swap 0 failed");
         }
     }
-    ///@notice Test update order 
+
+    ///@notice Test update order
     function testUpdateOrder() public {
-            cheatCodes.deal(address(this), MAX_UINT);
-            IERC20(swapToken).approve(address(orderBook), MAX_UINT);
+        cheatCodes.deal(address(this), MAX_UINT);
+        IERC20(swapToken).approve(address(orderBook), MAX_UINT);
 
-            cheatCodes.deal(address(swapHelper), MAX_UINT);
-            swapHelper.swapEthForTokenWithUniV2(100 ether, swapToken);
-            // returns (uint256 amountOut) {
-            //create a new order
-            ConveyorLimitOrders.Order memory order = newOrder(
-                swapToken,
-                wnato,
-                uint128(0),
-                uint128(1),
-                uint128(1)
-            );
-            //place a mock order
-            bytes32 orderId = placeMockOrder(order);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(100 ether, swapToken);
+        // returns (uint256 amountOut) {
+        //create a new order
+        ConveyorLimitOrders.Order memory order = newOrder(
+            swapToken,
+            wnato,
+            uint128(0),
+            uint128(1),
+            uint128(1)
+        );
+        //place a mock order
+        bytes32 orderId = placeMockOrder(order);
 
-            //create a new order to replace the old order
-            ConveyorLimitOrders.Order memory updatedOrder = newOrder(
-                swapToken,
-                wnato,
-                uint128(1),
-                uint128(1),
-                uint128(1)
-            );
+        //create a new order to replace the old order
+        ConveyorLimitOrders.Order memory updatedOrder = newOrder(
+            swapToken,
+            wnato,
+            uint128(1),
+            uint128(1),
+            uint128(1)
+        );
 
-            updatedOrder.orderId = orderId;
-            //submit the updated order
-            orderBook.updateOrder(updatedOrder);
-       
-        
+        updatedOrder.orderId = orderId;
+        //submit the updated order
+        orderBook.updateOrder(updatedOrder);
     }
 
     ///@notice Test fail update order order does not exist
@@ -378,7 +375,7 @@ contract OrderBookTest is DSTest {
             5,
             5
         );
-        
+
         placeMockOrder(order);
 
         //Pass in a sample min gas credits that is sufficiently above the threshold
@@ -615,8 +612,8 @@ contract OrderBookTest is DSTest {
 
         cheatCodes.deal(address(this), MAX_UINT);
         (bool depositSuccess, ) = address(conveyorLimitOrders).call{
-            value: 1000000000000 //12 wei
-        }(abi.encodeWithSignature("depositGasCredits()"));
+            value: 1000000000000
+        }(abi.encodeWithSignature("depositGasCredits()")); //12 wei
 
         swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
 
