@@ -158,7 +158,13 @@ contract OrderRouter {
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     uint256 constant ONE_128x128 = uint256(1) << 128;
     uint24 constant ZERO_UINT24 = 0;
-
+    uint256 constant ZERO_POINT_9 = 16602069666338597000 <<64;
+    uint256 constant ONE_POINT_TWO_FIVE = 23058430092136940000 << 64;
+    uint128 constant ZERO_POINT_ONE = 1844674407370955300;
+    uint128 constant ZERO_POINT_ZERO_ZERO_FIVE=92233720368547760;
+    uint128 constant ZERO_POINT_ZERO_ZERO_ONE =18446744073709550;
+    uint128 constant MAX_CONVEYOR_PERCENT = 110680464442257300*10**2;
+    uint128 constant MIN_CONVEYOR_PERCENT = 7378697629483821000;
     //----------------------Immutables------------------------------------//
 
     ///@notice Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
@@ -261,7 +267,7 @@ contract OrderRouter {
         }
 
         ///@notice 0.9 represented as 128.128 fixed point
-        uint256 numerator = 16602069666338597000 << 64;
+        uint256 numerator = ZERO_POINT_9;
 
         ///@notice Exponent= usdAmount/750000
         uint128 exponent = uint128(
@@ -273,9 +279,9 @@ contract OrderRouter {
             return MIN_FEE_64x64;
         }
 
-        ///@notice denominator = (2.5 + e^(exponent))
+        ///@notice denominator = (1.25 + e^(exponent))
         uint256 denominator = ConveyorMath.add128x128(
-            23058430092136940000 << 64,
+            ONE_POINT_TWO_FIVE,
             uint256(ConveyorMath.exp(exponent)) << 64
         );
 
@@ -289,7 +295,7 @@ contract OrderRouter {
         calculated_fee_64x64 = ConveyorMath.div64x64(
             ConveyorMath.add64x64(
                 uint128(rationalFraction >> 64),
-                1844674407370955300
+                ZERO_POINT_ONE
             ),
             uint128(100 << 64)
         );
@@ -302,9 +308,6 @@ contract OrderRouter {
     /// @param wethValue - Total order value at execution price, represented in wei.
     /// @return conveyorReward - Conveyor reward, represented in wei.
     /// @return beaconReward - Beacon reward, represented in wei.
-
-    //TODO: FIXME: update all constant values to constant variables
-
     function _calculateReward(uint128 percentFee, uint128 wethValue)
         internal
         pure
@@ -320,8 +323,8 @@ contract OrderRouter {
         uint128 conveyorPercent;
 
         ///@notice This is to prevent over flow initialize the fee to fee+ (0.005-fee)/2+0.001*10**2
-        if (percentFee <= 92233720368547760) {
-            int256 innerPartial = int256(92233720368547760) -
+        if (percentFee <= ZERO_POINT_ZERO_ZERO_FIVE) {
+            int256 innerPartial = int256(uint256(ZERO_POINT_ZERO_ZERO_FIVE)) -
                 int128(percentFee);
 
             conveyorPercent =
@@ -330,14 +333,14 @@ contract OrderRouter {
                         uint128(uint256(innerPartial)),
                         uint128(2) << 64
                     ) +
-                    uint128(18446744073709550)) *
+                    uint128(ZERO_POINT_ZERO_ZERO_ONE)) *
                 10**2;
         } else {
-            conveyorPercent = 110680464442257300;
+            conveyorPercent = MAX_CONVEYOR_PERCENT;
         }
 
-        if (conveyorPercent < 7378697629483821000) {
-            conveyorPercent = 7583661452525017000;
+        if (conveyorPercent < MIN_CONVEYOR_PERCENT) {
+            conveyorPercent = MIN_CONVEYOR_PERCENT;
         }
 
         ///@notice Multiply conveyorPercent by total reward to retrive conveyorReward
@@ -954,7 +957,6 @@ contract OrderRouter {
         address _factory
     ) internal view returns (SpotReserve memory _spRes, address pool) {
         ///@notice Initialize variables to prevent stack too deep.
-        address pool;
         int24 tick;
 
         ///FIXME: change this to 600

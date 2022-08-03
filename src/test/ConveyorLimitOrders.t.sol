@@ -688,7 +688,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         orderGroup[0] = order;
 
-        
+
         bytes32[] memory orderBatch = conveyorLimitOrders.placeOrder(
             orderGroup
         );
@@ -1090,9 +1090,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    receive() external payable {
-        // console.log("receive invoked");
-    }
+    receive() external payable {}
 
     //================================================================
     //======================= Order Simulation Unit Tests ============
