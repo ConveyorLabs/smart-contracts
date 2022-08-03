@@ -860,7 +860,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             batchLength
                         ] = currentOrder.orderId;
 
-                        ///@notice Add the orderId to the batch order.
+                        ///@notice Add the amountOutMin to the batch order.
                         currentTokenToWethBatchOrder
                             .amountOutMin += currentOrder.amountOutMin;
 
@@ -1410,33 +1410,37 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    ///FIXME: Checkpoint for final walk.
-
-    ///@notice initializes all routes from a to weth -> weth to b and returns an array of all combinations as ExectionPrice[]
+    ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
+    ///@param orders - Array of orders that are being evaluated for execution.
     function _initializeTokenToTokenExecutionPrices(Order[] memory orders)
         internal
         view
         returns (TokenToTokenExecutionPrice[] memory, uint128)
     {
         address tokenIn = orders[0].tokenIn;
-
+        ///@notice Get all prices for the pairing tokenIn to Weth
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
         ) = _getAllPrices(tokenIn, WETH, orders[0].feeIn);
 
+        ///@notice Get all prices for the pairing Weth to tokenOut
         (
             SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
         ) = _getAllPrices(WETH, orders[0].tokenOut, orders[0].feeOut);
 
+        ///@notice Initialize a new TokenToTokenExecutionPrice array to store prices.
         TokenToTokenExecutionPrice[]
             memory executionPrices = new TokenToTokenExecutionPrice[](
                 spotReserveAToWeth.length * spotReserveWethToB.length
             );
 
+        ///@notice If TokenIn is Weth
         if (tokenIn == WETH) {
+            ///@notice Iterate through each SpotReserve on Weth to TokenB
             for (uint256 i = 0; i < spotReserveWethToB.length; ++i) {
+                ///@notice Then set res0, and res1 for tokenInToWeth to 0 and lpAddressAToWeth to the 0 address
                 executionPrices[i] = TokenToTokenExecutionPrice(
                     0,
                     0,
@@ -1448,10 +1452,13 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 );
             }
         } else {
+            ///@notice Initialize index to 0
             uint256 index = 0;
-            for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
-                for (uint256 j = 0; j < spotReserveWethToB.length; ++j) {
-                    //TODO: update this comment: the first hop is skipped so only use the second spot price
+            ///@notice Iterate through each SpotReserve on TokenA to Weth
+            for (uint256 i = 0; i < spotReserveAToWeth.length; ) {
+                ///@notice Iterate through each SpotReserve on Weth to TokenB
+                for (uint256 j = 0; j < spotReserveWethToB.length; ) {
+                    ///@notice Calculate the spot price from tokenA to tokenB represented as 128.128 fixed point.
                     uint256 spotPriceFinal = uint256(
                         _calculateTokenToWethToTokenSpotPrice(
                             spotReserveAToWeth[i].spotPrice,
@@ -1459,6 +1466,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         )
                     ) << 64;
 
+                    ///@notice Set the executionPrices at index to TokenToTokenExecutionPrice
                     executionPrices[index] = TokenToTokenExecutionPrice(
                         spotReserveAToWeth[i].res0,
                         spotReserveAToWeth[i].res1,
@@ -1468,12 +1476,23 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         lpAddressesAToWeth[i],
                         lpAddressWethToB[j]
                     );
-                    index++;
+                    ///@notice Increment the index
+                    unchecked {
+                        ++index;
+                    }
+
+                    unchecked {
+                        ++j;
+                    }
+                }
+
+                unchecked {
+                    ++i;
                 }
             }
         }
 
-        //Used as a protective hard cap on the beacon reward to prevent flashloaning the orders in the queue
+        ///@notice Get the Max beacon reward on the SpotReserves
         uint128 maxBeaconReward = WETH != tokenIn
             ? calculateMaxBeaconReward(spotReserveAToWeth, orders, false)
             : calculateMaxBeaconReward(spotReserveWethToB, orders, true);
@@ -1537,10 +1556,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         );
     }
 
-    ///@notice Helper function to batch TokenToToken order's in the context of order execution
-    ///@param orders Array of order's to be batched retrieved from orderID's
-    ///@param executionPrices Array of TokenToTokenExecutionPrices to be used to determine order batches
-    ///@return tokenToTokenBatchOrders Order batches on respective Dex's
+    ///@notice Function to batch multiple token to weth orders together.
+    ///@param orders - Array of orders to be batched into the most efficient ordering.
+    ///@param executionPrices - Array of execution prices available to the batch orders. The batch order will be placed on the best execution price.
+    ///@return  tokenToTokenBatchOrders - Returns an array of TokenToWethBatchOrder.
     function _batchTokenToTokenOrders(
         Order[] memory orders,
         TokenToTokenExecutionPrice[] memory executionPrices
@@ -1548,19 +1567,28 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         internal
         returns (TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders)
     {
+        ///@notice Create a new token to weth batch order.
         tokenToTokenBatchOrders = new TokenToTokenBatchOrder[](orders.length);
+        
+        ///@notice Cache the first order in the array.
         Order memory firstOrder = orders[0];
 
+        ///@notice Check if the order is a buy or sell to assign the buy/sell status for the batch.
         bool buyOrder = _buyOrSell(firstOrder);
 
+        ///@notice Assign the batch's tokenIn.
         address batchOrderTokenIn = firstOrder.tokenIn;
+
+        ///@notice Assign the batch's tokenOut.
         address batchOrderTokenOut = firstOrder.tokenOut;
 
+        ///@notice Create a variable to track the best execution price in the array of execution prices.
         uint256 currentBestPriceIndex = _findBestTokenToTokenExecutionPrice(
             executionPrices,
             buyOrder
         );
 
+        ///@notice Initialize a new token to token batch order.
         TokenToTokenBatchOrder
             memory currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
                 orders.length,
@@ -1570,31 +1598,33 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 executionPrices[currentBestPriceIndex].lpAddressWethToB
             );
 
+        ///@notice Initialize a variable to keep track of how many batch orders there are.
         uint256 currentTokenToTokenBatchOrdersIndex = 0;
+       
+        ///@notice Scope to prevent stack too deep.
         {
-            //loop each order
-            for (uint256 i = 0; i < orders.length; i++) {
-                ///@notice get the index of the best exectuion price
+            ///@notice For each order in the orders array.
+            for (uint256 i = 0; i < orders.length;) {
+                ///@notice Get the index of the best exectuion price.
                 uint256 bestPriceIndex = _findBestTokenToTokenExecutionPrice(
                     executionPrices,
                     buyOrder
                 );
 
-                ///@notice if the best price has changed since the last order
+                ///@notice if the best price has changed since the last order, add the batch order to the array and update the best price index.
                 if (i > 0 && currentBestPriceIndex != bestPriceIndex) {
                     ///@notice add the current batch order to the batch orders array
                     tokenToTokenBatchOrders[
                         currentTokenToTokenBatchOrdersIndex
                     ] = currentTokenToTokenBatchOrder;
 
+                    ///@notice Increment the amount of to current token to weth batch orders index
                     currentTokenToTokenBatchOrdersIndex++;
 
-                    //-
-                    ///@notice update the currentBestPriceIndex
+                    ///@notice Update the index of the best execution price.
                     currentBestPriceIndex = bestPriceIndex;
 
-                    ///@notice initialize a new batch order
-                    //TODO: need to implement logic to trim 0 val orders
+                    ///@notice Initialize a new batch order.
                     currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
                         orders.length,
                         batchOrderTokenIn,
@@ -1604,9 +1634,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     );
                 }
 
+                ///@notice Get the current order.
                 Order memory currentOrder = orders[i];
 
-                ///@notice if the order meets the execution price
+                ///@notice Check that the order meets execution price.
                 if (
                     _orderMeetsExecutionPrice(
                         currentOrder.price,
@@ -1614,6 +1645,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         buyOrder
                     )
                 ) {
+                    ///@notice Check that the order can execute without hitting slippage.
                     if (
                         _orderCanExecute(
                             executionPrices[bestPriceIndex].price,
@@ -1625,35 +1657,37 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         bool success = transferTokensToContract(currentOrder);
 
                         if (success) {
+                            ///@notice Get the batch length of the current batch order.
                             uint256 batchLength = currentTokenToTokenBatchOrder
                                 .batchLength;
 
-                            ///@notice add the order to the current batch order
+                            ///@notice Add the order to the current batch order.
                             currentTokenToTokenBatchOrder
                                 .amountIn += currentOrder.quantity;
-
+                            
+                            ///@notice Add the amountOutMin to the batch order.
                             currentTokenToTokenBatchOrder
                                 .amountOutMin += currentOrder.amountOutMin;
 
-                            ///@notice add owner of the order to the batchOwners
+                            ///@notice Add the owner of the order to the batchOwners.
                             currentTokenToTokenBatchOrder.batchOwners[
                                     batchLength
                                 ] = currentOrder.owner;
 
-                            ///@notice add the order quantity of the order to ownerShares
+                            ///@notice Add the order quantity of the order to ownerShares.
                             currentTokenToTokenBatchOrder.ownerShares[
                                     batchLength
                                 ] = currentOrder.quantity;
 
-                            ///@notice add the orderId to the batch order
+                            ///@notice Add the orderId to the batch order.
                             currentTokenToTokenBatchOrder.orderIds[
                                     batchLength
                                 ] = currentOrder.orderId;
 
-                            ///@notice increment the batch length
+                            ///@notice Increment the batch length.
                             ++currentTokenToTokenBatchOrder.batchLength;
 
-                            ///@notice update the best execution price
+                            ///@notice Update the best execution price.
                             (
                                 executionPrices[bestPriceIndex]
                             ) = simulateTokenToTokenPriceChange(
@@ -1662,24 +1696,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             );
                         }
                     } else {
-                        bytes32[] memory orderId = new bytes32[](1);
-                        orderId[0] = currentOrder.orderId;
-                        //Delete order from queue after swap execution
-                        delete orderIdToOrder[currentOrder.orderId];
-                        delete addressToOrderIds[currentOrder.owner][
-                            currentOrder.orderId
-                        ];
-                        //decrement from total orders per address
-                        --totalOrdersPerAddress[currentOrder.owner];
-
-                        //Decrement totalOrdersQuantity for order owner
-                        decrementTotalOrdersQuantity(
-                            currentOrder.tokenIn,
-                            currentOrder.owner,
-                            currentOrder.quantity
-                        );
-                        emit OrderCancelled(orderId);
+                        ///@notice If the order can not execute due to slippage, cancel the order
+                        _cancelOrder(currentOrder);
                     }
+                }
+                unchecked{
+                    ++i;
                 }
             }
         }
@@ -1690,29 +1712,36 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         ] = currentTokenToTokenBatchOrder;
     }
 
-    ///@notice returns the index of the best price in the executionPrices array
-    ///@param buyOrder indicates if the batch is a buy or a sell
+    ///@notice Function to return the index of the best price in the executionPrices array.
+    ///@param executionPrices - Array of execution prices to evaluate.
+    ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
+    ///@return bestPriceIndex - Index of the best price in the executionPrices array.
     function _findBestTokenToTokenExecutionPrice(
         TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) internal pure returns (uint256 bestPriceIndex) {
-        ///@notice if the order is a buy order, set the initial best price at 0, else set the initial best price at max uint256
-
+        
+        ///@notice If the order is a buy order, set the initial best price at 0.
         if (buyOrder) {
             uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-            for (uint256 i = 0; i < executionPrices.length; i++) {
+            ///@notice For each exectution price in the executionPrices array.
+            for (uint256 i = 0; i < executionPrices.length;) {
                 uint256 executionPrice = executionPrices[i].price;
-
+                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
                 if (executionPrice < bestPrice && executionPrice != 0) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
                 }
+                unchecked {
+                    ++i;
+                }
             }
         } else {
             uint256 bestPrice = 0;
+            ///@notice If the order is a sell order, set the initial best price at max uint256.
             for (uint256 i = 0; i < executionPrices.length; i++) {
                 uint256 executionPrice = executionPrices[i].price;
-
+                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
                 if (executionPrice > bestPrice && executionPrice != 0) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
@@ -1721,42 +1750,47 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
-    // ==================== Misc Helper Functions =========================
-
+    
+    ///@notice Function to validate the congruency of an array of orders.
+    ///@param orders Array of orders to be validated
     function _validateOrderSequencing(Order[] memory orders) internal pure {
+        ///@notice Iterate through the length of orders -1.
         for (uint256 i = 0; i < orders.length - 1; i++) {
+            ///@notice Cache order at index i, and i+1
             Order memory currentOrder = orders[i];
             Order memory nextOrder = orders[i + 1];
 
-            ///@notice check if the current order is less than or equal to the next order
+            ///@notice Check if the current order is less than or equal to the next order
             if (currentOrder.quantity > nextOrder.quantity) {
                 revert InvalidBatchOrder();
             }
 
-            ///@notice check if the token in is the same for the last order
+            ///@notice Check if the token in is the same for the last order
             if (currentOrder.tokenIn != nextOrder.tokenIn) {
                 revert IncongruentInputTokenInBatch();
             }
 
-            ///@notice check if the token out is the same for the last order
+            ///@notice Check if the token out is the same for the last order
             if (currentOrder.tokenOut != nextOrder.tokenOut) {
                 revert IncongruentOutputTokenInBatch();
             }
 
-            ///@notice check if the token tax status is the same for the last order
+            ///@notice Check if the token tax status is the same for the last order
             if (currentOrder.buy != nextOrder.buy) {
                 revert IncongruentBuySellStatusInBatch();
             }
 
-            ///@notice check if the token tax status is the same for the last order
+            ///@notice Check if the token tax status is the same for the last order
             if (currentOrder.taxed != nextOrder.taxed) {
                 revert IncongruentTaxedTokenInBatch();
             }
         }
     }
 
+    ///@notice Function to retrieve the buy/sell status of a single order.
+    ///@param order Order to determine buy/sell status on.
+    ///@return bool Boolean indicating the buy/sell status of the order.
     function _buyOrSell(Order memory order) internal pure returns (bool) {
-        //Determine high bool from batched OrderType
         if (order.buy) {
             return true;
         } else {
@@ -1764,8 +1798,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         }
     }
 
+    ///@notice Fallback function to receive ether.
     receive() external payable {}
 
+    ///@notice Function to simulate the price change from TokanA to Weth on an amount into the pool
+    ///@param alphaX The amount supplied to the TokenA reserves of the pool.
+    ///@param executionPrice The TokenToWethExecutionPrice to simulate the price change on. 
     function simulateTokenToWethPriceChange(
         uint128 alphaX,
         TokenToWethExecutionPrice memory executionPrice
