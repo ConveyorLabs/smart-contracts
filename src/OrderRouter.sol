@@ -147,10 +147,12 @@ contract OrderRouter {
     }
 
     //======================Events==================================
+
     event UniV2SwapError(string indexed reason);
     event UniV3SwapError(string indexed reason);
 
-    //======================Constants==================================
+    //======================Constants================================
+
     uint128 constant MIN_FEE_64x64 = 18446744073709552;
     uint128 constant MAX_UINT_128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
     uint128 constant UNI_V2_FEE = 5534023222112865000;
@@ -165,7 +167,8 @@ contract OrderRouter {
     uint128 constant ZERO_POINT_ZERO_ZERO_ONE = 18446744073709550;
     uint128 constant MAX_CONVEYOR_PERCENT = 110680464442257300 * 10**2;
     uint128 constant MIN_CONVEYOR_PERCENT = 7378697629483821000;
-    //----------------------Immutables------------------------------------//
+
+    //======================Immutables================================
 
     ///@notice Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     uint256 immutable alphaXDivergenceThreshold;
@@ -176,10 +179,10 @@ contract OrderRouter {
     ///@notice The wrapped native token address for the chain.
     address immutable _WETH;
 
-    //----------------------Constructor------------------------------------//
+    //======================Constructor================================
 
     /**@dev It is important to note that a univ2 compatible DEX must be initialized in the 0th index.
-     The _calculateFee function relies on a uniV2 DEX to be in the 0th index.*/
+        The _calculateFee function relies on a uniV2 DEX to be in the 0th index.*/
     ///@param _deploymentByteCodes - Array of DEX creation init bytecodes.
     ///@param _dexFactories - Array of DEX factory addresses.
     ///@param _isUniV2 - Array of booleans indicating if the DEX is UniV2 compatible.
@@ -210,7 +213,7 @@ contract OrderRouter {
         _WETH = _weth;
     }
 
-    //----------------------Functions------------------------------------//
+    //======================Functions================================
 
     ///@notice Transfer ETH to a specific address and require that the call was successful.
     ///@param to - The address that should be sent Ether.
@@ -415,9 +418,11 @@ contract OrderRouter {
 
         ///@notice if the order is a buy order and the v2Outlier is greater than the v3Spot price
         if (buy && v2Outlier > v3Spot) {
+
             ///@notice return the max uint128 value as the max beacon reward.
             return MAX_UINT_128;
         } else if (!(buy) && v2Outlier < v3Spot) {
+
             /**@notice if the order is a sell order and the v2Outlier is less than the v3Spot price
            return the max uint128 value as the max beacon reward.*/
             return MAX_UINT_128;
@@ -1287,18 +1292,22 @@ contract OrderRouter {
 
         uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
         address bestLp;
-
+        
         //Iterate through all dex's and get best price and corresponding lp
-        for (uint256 i = 0; i < prices.length; ++i) {
-            if (prices[i].spotPrice != 0) {
+        for (uint256 i = 0; i < prices.length;) {
+            if (prices[i].spotPrice != 0 && !(lps[i]==address(0))) {
                 if (prices[i].spotPrice < bestPrice) {
                     bestPrice = prices[i].spotPrice;
                     bestLp = lps[i];
                 }
             }
+            unchecked {
+                ++i;
+            }
         }
 
         if (_lpIsNotUniV3(bestLp)) {
+            
             //Call swap univ2
             amountOut = _swapV2(
                 tokenIn,
@@ -1310,6 +1319,7 @@ contract OrderRouter {
                 sender
             );
         } else {
+            
             amountOut = _swapV3(
                 tokenIn,
                 tokenOut,

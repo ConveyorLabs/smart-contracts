@@ -1197,31 +1197,34 @@ contract OrderRouterTest is DSTest {
 
     ///@notice Swap Token to Token on best Dex tests
     function testSwapTokenToTokenOnBestDex() public {
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        //Token in USDC
-        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            10000000000000000,
-            tokenIn
+        cheatCodes.deal(address(this), 500000000000 ether);
+        address tokenIn = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
+            abi.encodeWithSignature("deposit()")
         );
 
-        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        require(depositSuccess, "failure when depositing ether into weth");
 
-        uint256 amountOutMin = amountReceived - 1;
+        
+        address tokenOut = 0x1cEB5cB57C4D4E2b2433641b95Dd330A33185A44;
 
-        IERC20(tokenIn).approve(address(orderRouter), amountReceived);
+        IERC20(tokenIn).approve(address(orderRouter), 200000000000000000);
+
         address reciever = address(this);
+        
         //Test the swap
-        orderRouter.swapTokenToTokenOnBestDex(
+        uint256 amountOut = orderRouter.swapTokenToTokenOnBestDex(
             tokenIn,
             tokenOut,
-            amountReceived,
-            amountOutMin,
-            500,
+            200000000000000000,
+            2142082942848619299,
+            5000,
             reciever,
             address(this)
         );
+
+        console.log("Amount out Keeper", amountOut);
+        
     }
 
     ///@notice Test swap Token To eth on best dex

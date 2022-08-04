@@ -529,11 +529,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             _resolveCompletedOrderAndEmitOrderFufilled(order);
 
             uint128 conveyorReward;
+
             ///@notice calculate the reward payable to the off-chain executor
             (conveyorReward, beaconReward) = _calculateReward(
                 protocolFee,
                 amountOutWeth
             );
+
+            ///@notice Increment the conveyorBalance
+            conveyorBalance+= conveyorReward;
 
             ///@notice Subtract the beacon/conveyor reward from the amountOutWeth and transer the funds to the order.owner
             amountOutWeth = amountOutWeth - (conveyorReward + beaconReward);
