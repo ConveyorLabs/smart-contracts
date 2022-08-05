@@ -1171,7 +1171,7 @@ contract OrderRouterTest is DSTest {
             1000000000000000,
             tokenIn
         );
-
+    
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
 
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -1197,16 +1197,12 @@ contract OrderRouterTest is DSTest {
 
     ///@notice Swap Token to Token on best Dex tests
     function testSwapTokenToTokenOnBestDex() public {
-        cheatCodes.deal(address(this), 500000000000 ether);
-        address tokenIn = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
-            abi.encodeWithSignature("deposit()")
-        );
-
-        require(depositSuccess, "failure when depositing ether into weth");
-
+        cheatCodes.deal(address(swapHelper), 500000000000 ether);
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         
-        address tokenOut = 0x1cEB5cB57C4D4E2b2433641b95Dd330A33185A44;
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, tokenIn);
+        
+        address tokenOut = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
 
         IERC20(tokenIn).approve(address(orderRouter), 200000000000000000);
 
@@ -1216,9 +1212,9 @@ contract OrderRouterTest is DSTest {
         uint256 amountOut = orderRouter.swapTokenToTokenOnBestDex(
             tokenIn,
             tokenOut,
-            200000000000000000,
-            2142082942848619299,
-            5000,
+            1602060,
+            110610000000000090,
+            3000,
             reciever,
             address(this)
         );

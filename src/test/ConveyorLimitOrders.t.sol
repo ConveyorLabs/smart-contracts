@@ -47,6 +47,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     address TAXED_TOKEN_1 = 0xe0a189C975e4928222978A74517442239a0b86ff; //
     address TAXED_TOKEN_2 = 0xd99793A840cB0606456916d1CF5eA199ED93Bf97; //6% tax CHAOS token 27
     address TAXED_TOKEN_3 = 0xcFEB09C3c5F0f78aD72166D55f9e6E9A60e96eEC;
+    
     //MAX_UINT for testing
     uint256 constant MAX_UINT = 2**256 - 1;
 

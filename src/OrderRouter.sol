@@ -1295,7 +1295,7 @@ contract OrderRouter {
         
         //Iterate through all dex's and get best price and corresponding lp
         for (uint256 i = 0; i < prices.length;) {
-            if (prices[i].spotPrice != 0 && !(lps[i]==address(0))) {
+            if (prices[i].spotPrice != 0) {
                 if (prices[i].spotPrice < bestPrice) {
                     bestPrice = prices[i].spotPrice;
                     bestLp = lps[i];
@@ -1305,7 +1305,7 @@ contract OrderRouter {
                 ++i;
             }
         }
-
+        
         if (_lpIsNotUniV3(bestLp)) {
             
             //Call swap univ2
@@ -1318,6 +1318,7 @@ contract OrderRouter {
                 reciever,
                 sender
             );
+      
         } else {
             
             amountOut = _swapV3(
@@ -1329,6 +1330,10 @@ contract OrderRouter {
                 reciever,
                 sender
             );
+        }
+
+        if(amountOut< amountOutMin){
+            revert InsufficientOutputAmount();
         }
     }
 
