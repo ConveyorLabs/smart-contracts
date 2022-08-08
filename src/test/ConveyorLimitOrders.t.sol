@@ -2301,7 +2301,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         internal
         returns (bytes32[] memory)
     {
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, USDC);
+        swapHelper.swapEthForTokenWithUniV2(10000 ether, USDC);
 
         OrderBook.Order memory order1 = newMockOrder(
             USDC,
@@ -2311,7 +2311,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             false,
             0,
             1,
-            5000000000, //5000 DAI
+            5000000000, //5000 USDC
             3000,
             3000,
             0,
@@ -2326,7 +2326,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             false,
             0,
             1,
-            5000000000, //5000 DAI
+            5000000000, //5000 USDC
             3000,
             3000,
             0,
@@ -2341,7 +2341,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             false,
             0,
             1,
-            5000000000, //5000 DAI
+            5000000000, //5000 USDC
             3000,
             3000,
             0,
@@ -2356,7 +2356,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             false,
             0,
             1,
-            5000000000, //5000 DAI
+            5000000000, //5000 USDC
             3000,
             3000,
             0,

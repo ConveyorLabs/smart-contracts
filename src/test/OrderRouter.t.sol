@@ -1016,121 +1016,59 @@ contract OrderRouterTest is DSTest {
     function testSwapV3_1() public {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        
         //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            1000000000000000,
-            tokenIn
+        cheatCodes.deal(address(this), MAX_UINT);
+
+        (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
+            abi.encodeWithSignature("deposit()")
         );
+        address tokenIn = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        IERC20(tokenIn).approve(address(orderRouter), 1000000000000000000);
+        
+        //address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-        IERC20(tokenIn).approve(address(orderRouter), amountReceived);
-
-        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        uint24 fee = 500;
-
-        uint256 amountOut = 1;
-        uint256 amountInMaximum = amountReceived - 1;
+        address _lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+        
+        
         address reciever = address(this);
         orderRouter.swapV3(
+            _lp,
             tokenIn,
-            tokenOut,
-            fee,
-            amountInMaximum,
-            amountOut,
+            3000,
+            1000000000000000000,
+            1,
             reciever,
             address(this)
         );
     }
 
+    //Uniswap V3 SwapRouter Tests
     function testSwapV3_2() public {
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        address tokenIn = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
-        //get the token in
         uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            1000000000000000,
-            tokenIn
-        );
-
+                1000 ether,
+                tokenIn
+            );
+        
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
-
-        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        uint24 fee = 500;
-
-        uint256 amountOut = 1;
-        uint256 amountInMaximum = amountReceived - 1;
+    
+        address _lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+        
         address reciever = address(this);
+
         orderRouter.swapV3(
+            _lp,
             tokenIn,
-            tokenOut,
-            fee,
-            amountInMaximum,
-            amountOut,
+            3000,
+            10000000000,
+            1,
             reciever,
             address(this)
         );
     }
-
-    function testSwapV3_3() public {
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        address tokenIn = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            1000000000000000,
-            tokenIn
-        );
-
-        IERC20(tokenIn).approve(address(orderRouter), amountReceived);
-
-        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        uint24 fee = 500;
-
-        uint256 amountOut = 1;
-        uint256 amountInMaximum = amountReceived - 1;
-        address reciever = address(this);
-        orderRouter.swapV3(
-            tokenIn,
-            tokenOut,
-            fee,
-            amountInMaximum,
-            amountOut,
-            reciever,
-            address(this)
-        );
-    }
-
-    function testFailSwapV3_InsufficientOutputAmount() public {
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        address tokenIn = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            1000000000000000,
-            tokenIn
-        );
-
-        IERC20(tokenIn).approve(address(orderRouter), amountReceived);
-
-        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        uint24 fee = 500;
-
-        uint256 amountOut = amountReceived;
-        uint256 amountInMaximum = amountReceived - 1;
-        address reciever = address(this);
-        uint256 amountOutSwap = orderRouter.swapV3(
-            tokenIn,
-            tokenOut,
-            fee,
-            amountInMaximum,
-            amountOut,
-            reciever,
-            address(this)
-        );
-
-        require(amountOutSwap != 0, "InsufficientOutputAmount");
-    }
-
+    
     function testSwap() public {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
@@ -1196,74 +1134,74 @@ contract OrderRouterTest is DSTest {
     }
 
     ///@notice Swap Token to Token on best Dex tests
-    function testSwapTokenToTokenOnBestDex() public {
-        cheatCodes.deal(address(swapHelper), 500000000000 ether);
-        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    // function testSwapTokenToTokenOnBestDex() public {
+    //     cheatCodes.deal(address(swapHelper), 500000000000 ether);
+    //     address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+    //     swapHelper.swapEthForTokenWithUniV2(1000 ether, tokenIn);
         
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, tokenIn);
+    //     address tokenOut = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
+
+    //     IERC20(tokenIn).approve(address(orderRouter), 200000000000000000);
+
+    //     address reciever = address(this);
         
-        address tokenOut = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
+    //     //Test the swap
+    //     uint256 amountOut = orderRouter.swapTokenToTokenOnBestDex(
+    //         tokenIn,
+    //         tokenOut,
+    //         1602060,
+    //         110610000000000090,
+    //         3000,
+    //         reciever,
+    //         address(this)
+    //     );
 
-        IERC20(tokenIn).approve(address(orderRouter), 200000000000000000);
-
-        address reciever = address(this);
+    //     console.log("Amount out Keeper", amountOut);
         
-        //Test the swap
-        uint256 amountOut = orderRouter.swapTokenToTokenOnBestDex(
-            tokenIn,
-            tokenOut,
-            1602060,
-            110610000000000090,
-            3000,
-            reciever,
-            address(this)
-        );
+    // }
 
-        console.log("Amount out Keeper", amountOut);
-        
-    }
+    // ///@notice Test swap Token To eth on best dex
+    // function testSwapTokenToEthOnBestDex() public {
+    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-    ///@notice Test swap Token To eth on best dex
-    function testSwapTokenToEthOnBestDex() public {
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
+    //     address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    //     //get the token in
+    //     uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+    //         10000000000000000000,
+    //         tokenIn
+    //     );
 
-        //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            10000000000000000000,
-            tokenIn
-        );
+    //     IERC20(tokenIn).approve(address(orderRouter), amountReceived);
 
-        IERC20(tokenIn).approve(address(orderRouter), amountReceived);
+    //     //Execute the swap
+    //     orderRouter.swapTokenToETHOnBestDex(tokenIn, amountReceived, 1, 3000);
+    //     console.logUint(address(this).balance);
+    // }
 
-        //Execute the swap
-        orderRouter.swapTokenToETHOnBestDex(tokenIn, amountReceived, 1, 3000);
-        console.logUint(address(this).balance);
-    }
+    // // receive() external payable {}
 
-    // receive() external payable {}
+    // ///@notice Test swap Eth to token on best dex
+    // function testSwapEthToTokenOnBestDex() public {
+    //     cheatCodes.deal(address(this), MAX_UINT);
 
-    ///@notice Test swap Eth to token on best dex
-    function testSwapEthToTokenOnBestDex() public {
-        cheatCodes.deal(address(this), MAX_UINT);
+    //     //Token usdc
+    //     address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-        //Token usdc
-        address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-
-        //Execute the swap
-        (bool depositSuccess, ) = address(orderRouter).call{
-            value: 1000000000000000000
-        }(
-            abi.encodeWithSignature(
-                "swapETHToTokenOnBestDex(address,uint256,uint256,uint24)",
-                tokenOut,
-                1000000000000000000,
-                10000,
-                500
-            )
-        );
-    }
+    //     //Execute the swap
+    //     (bool depositSuccess, ) = address(orderRouter).call{
+    //         value: 1000000000000000000
+    //     }(
+    //         abi.encodeWithSignature(
+    //             "swapETHToTokenOnBestDex(address,uint256,uint256,uint24)",
+    //             tokenOut,
+    //             1000000000000000000,
+    //             10000,
+    //             500
+    //         )
+    //     );
+    // }
 
     //================================================================================================
 }
@@ -1394,8 +1332,8 @@ contract OrderRouterWrapper is OrderRouter {
     }
 
     function swapV3(
+        address _lp,
         address _tokenIn,
-        address _tokenOut,
         uint24 _fee,
         uint256 _amountIn,
         uint256 _amountOutMin,
@@ -1404,8 +1342,8 @@ contract OrderRouterWrapper is OrderRouter {
     ) public returns (uint256) {
         return
             _swapV3(
+                _lp,
                 _tokenIn,
-                _tokenOut,
                 _fee,
                 _amountIn,
                 _amountOutMin,

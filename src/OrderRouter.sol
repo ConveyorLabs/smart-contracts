@@ -15,6 +15,8 @@ import "../lib/interfaces/uniswap-v3/ISwapRouter.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "../lib/libraries/Uniswap/LowGasSafeMath.sol";
 import "../lib/libraries/QuadruplePrecision.sol";
+import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
+import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 
 /// @title OrderRouter
 /// @author 0xKitsune, LeytonTaylor
@@ -126,6 +128,8 @@ contract OrderRouter {
     ///@dev TODO: say what the owner can do
     address owner;
 
+    uint256 uniV3AmountOut;
+
     //----------------------State Structures------------------------------------//
 
     ///@notice Array of Dex that is used to calculate spot prices for a given order.
@@ -153,6 +157,9 @@ contract OrderRouter {
 
     //======================Constants================================
 
+    IQuoter constant Quoter = IQuoter(
+                0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
+            );
     uint128 constant MIN_FEE_64x64 = 18446744073709552;
     uint128 constant MAX_UINT_128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
     uint128 constant UNI_V2_FEE = 5534023222112865000;
@@ -418,11 +425,9 @@ contract OrderRouter {
 
         ///@notice if the order is a buy order and the v2Outlier is greater than the v3Spot price
         if (buy && v2Outlier > v3Spot) {
-
             ///@notice return the max uint128 value as the max beacon reward.
             return MAX_UINT_128;
         } else if (!(buy) && v2Outlier < v3Spot) {
-
             /**@notice if the order is a sell order and the v2Outlier is less than the v3Spot price
            return the max uint128 value as the max beacon reward.*/
             return MAX_UINT_128;
@@ -698,6 +703,7 @@ contract OrderRouter {
         {} catch Error(string memory reason) {
             ///@notice If there was an error during the swap, emit an event.
             emit UniV2SwapError(reason);
+           
             return 0;
         }
 
@@ -713,6 +719,7 @@ contract OrderRouter {
     }
 
     // receive() external payable {}
+
     ///@notice Agnostic swap function that determines whether or not to swap on univ2 or univ3
     ///@param _tokenIn - Address of the tokenIn.
     ///@param _tokenOut - Address of the tokenOut.
@@ -745,8 +752,8 @@ contract OrderRouter {
             );
         } else {
             amountRecieved = _swapV3(
+                _lp,
                 _tokenIn,
-                _tokenOut,
                 _fee,
                 _amountIn,
                 _amountOutMin,
@@ -755,58 +762,152 @@ contract OrderRouter {
             );
         }
     }
-
-    /// @notice Helper function to perform a swapExactInputSingle on Uniswap V3.
-    ///@param _tokenIn - Address of the tokenIn.
-    ///@param _tokenOut - Address of the tokenOut.
-    ///@param _fee - Fee for the lp address.
-    ///@param _amountIn - AmountIn for the swap.
-    ///@param _amountOutMin - AmountOutMin for the swap.
-    ///@param _reciever - Address to receive the amountOut.
-    ///@param _sender - Address to send the tokenIn.
-    ///@return amountRecieved - Amount received from the swap.
+    ///@notice Function to swap two tokens on a Uniswap V3 pool.
+    ///@param _lp - Address of the liquidity pool to execute the swap on.
+    ///@param _tokenIn - Address of the TokenIn on the swap.
+    ///@param _fee - The swap fee on the liquiditiy pool. 
+    ///@param _amountIn The amount in for the swap. 
+    ///@param _amountOutMin The minimum amount out in TokenOut post swap. 
+    ///@param _reciever The receiver of the tokens post swap. 
+    ///@param _sender The sender of TokenIn on the swap. 
+    ///@return amountRecieved The amount of TokenOut received post swap. 
     function _swapV3(
+        address _lp,
         address _tokenIn,
-        address _tokenOut,
         uint24 _fee,
         uint256 _amountIn,
         uint256 _amountOutMin,
         address _reciever,
         address _sender
     ) internal returns (uint256 amountRecieved) {
-        ///TODO: FIXME: Figure out how to not double tax with the SwapRouter
-        ///SwapRouter needs approval over the order.owner's token's at order placement time to not double tax
-        ///@notice Transfer the tokens to the contract
-        if (_sender != address(this)) {
-            IERC20(_tokenIn).transferFrom(_sender, address(this), _amountIn);
+        ///@notice Initialize variables to prevent stack too deep. 
+        uint160 _sqrtPriceLimitX96;
+        bool _zeroForOne;
+
+        ///@notice Scope out logic to prevent stack too deep. 
+        {
+            ///@notice Get the sqrtPriceLimitX96 and zeroForOne on the swap. 
+            (_sqrtPriceLimitX96, _zeroForOne) = getNextSqrtPriceV3(_lp, _amountIn, _tokenIn, _fee);
         }
 
-        ///@notice Aprove the tokens on the swap router.
-        IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
+        ///@notice Pack the relevant data to be retrieved in the swap callback. 
+        bytes memory data = abi.encode(_amountOutMin, _zeroForOne, _lp, _tokenIn, _sender);
 
-        ///@notice Initialize swap parameters for the swap router
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
-            .ExactInputSingleParams(
-                _tokenIn,
-                _tokenOut,
-                _fee,
-                _reciever,
-                block.timestamp + 5,
-                _amountIn,
-                _amountOutMin,
-                0
-            );
+        ///@notice Initialize Storage variable uniV3AmountOut to 0 prior to the swap. 
+        uniV3AmountOut = 0;
 
         ///@notice Execute the swap on the lp for the amounts specified.
-        try swapRouter.exactInputSingle(params) returns (uint256 _amountOut) {
-            ///@dev The swap router will handle when amountOut < amountOutMin.
-            return _amountOut;
-        } catch Error(string memory reason) {
-            ///TODO: FIXME: does the router roll back on revert or are the tokens sent back or how is this handled?
+        try IUniswapV3Pool(_lp).swap(
+            _reciever,
+            _zeroForOne,
+            int256(_amountIn),
+            _sqrtPriceLimitX96,
+            data
+        )
+        {} catch Error(string memory reason) {
             ///@notice If there was an error during the swap, emit an event.
-            emit UniV3SwapError(reason);
+            emit UniV2SwapError(reason);
+           
             return 0;
         }
+
+        ///@notice Return the amountOut yielded from the swap. 
+        return uniV3AmountOut;
+    }
+
+    ///@notice Function to calculate the nextSqrtPriceX96 for a Uniswap V3 swap.
+    ///@param _lp - Address of the liquidity pool to execute the swap on.
+    ///@param _alphaX - The input amount to calculate the nextSqrtPriceX96.
+    ///@param _tokenIn - The address of TokenIn. 
+    ///@param _fee - The swap fee on the liquiditiy pool. 
+    ///@return _sqrtPriceLimitX96 - The nextSqrtPriceX96 after alphaX amount of TokenIn is introduced to the pool.
+    ///@return  _zeroForOne - Boolean indicating whether Token0 is being swapped for Token1 on the liquidity pool. 
+    function getNextSqrtPriceV3(address _lp, uint256 _alphaX, address _tokenIn, uint24 _fee)
+        internal
+        returns (uint160 _sqrtPriceLimitX96, bool _zeroForOne)
+    {
+        ///@notice Initialize token0 & token1 to prevent stack too deep. 
+        address token0;
+        address token1;
+        ///@notice Scope out logic to prevent stack too deep. 
+        {
+            ///@notice Retrieve token0 & token1 from the liquidity pool.
+            token0 = IUniswapV3Pool(_lp).token0();
+            token1 = IUniswapV3Pool(_lp).token1();
+
+            ///@notice Set boolean _zeroForOne. 
+            _zeroForOne = token0 == _tokenIn ? true : false;
+        }
+
+        ///@notice Get the current sqrtPriceX96 from the liquidity pool.
+        (uint160 _srtPriceX96, , , , , , ) = IUniswapV3Pool(_lp).slot0();
+
+        ///@notice Get the liquditity from the liquidity pool.
+        uint128 liquidity = IUniswapV3Pool(_lp).liquidity();
+
+        ///@notice If swapping token1 for token0. 
+        if (!_zeroForOne) {
+            ///@notice Get the nextSqrtPrice after introducing alphaX into the token1 reserves. 
+            _sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
+                _srtPriceX96,
+                liquidity,
+                _alphaX,
+                _zeroForOne
+            );
+        } else {
+            ///@notice Quote the amountOut from _alphaX swapped into the token0 reserves. 
+            uint128 amountOut = uint128(
+                Quoter.quoteExactInputSingle(token0, token1, _fee, _alphaX, 0)
+            );
+
+            ///@notice Get the nextSqrtPrice after introducing amountOut into the token1 reserves. 
+            _sqrtPriceLimitX96 = SqrtPriceMath
+                .getNextSqrtPriceFromAmount1RoundingDown(
+                    _srtPriceX96,
+                    liquidity,
+                    amountOut,
+                    false
+                );
+        }
+    }
+    ///@notice Uniswap V3 callback function called during a swap on a v3 liqudity pool.
+    ///@param amount0Delta - The change in token0 reserves from the swap.
+    ///@param amount1Delta - The change in token1 reserves from the swap. 
+    ///@param data - The data packed into the swap. 
+    function uniswapV3SwapCallback(
+        int256 amount0Delta,
+        int256 amount1Delta,
+        bytes memory data
+    ) external {
+        ///@notice Decode all of the swap data. 
+        (uint256 amountOutMin, bool _zeroForOne, address _lp, address tokenIn, address _sender) = abi.decode(data, (uint256, bool, address, address, address));
+        ///@notice If swapping token0 for token1.
+        if (_zeroForOne) {
+            ///@notice Set contract storage variable to the amountOut from the swap. 
+            uniV3AmountOut = uint256(-amount1Delta);
+
+        ///@notice If swapping token1 for token0.
+        } else {
+
+            ///@notice Set contract storage variable to the amountOut from the swap. 
+            uniV3AmountOut = uint256(-amount0Delta);
+        }
+
+        ///@notice Require the amountOut from the swap is greater than or equal to the amountOutMin. 
+        if(uniV3AmountOut<amountOutMin){
+            revert InsufficientOutputAmount();
+        }
+
+        ///@notice Set amountIn to the amountInDelta depending on boolean zeroForOne. 
+        uint256 amountIn = _zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta);
+        
+        if(!(_sender == address(this))){
+            ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender. 
+            IERC20(tokenIn).transferFrom(_sender, _lp, amountIn);
+        }else{
+            IERC20(tokenIn).transfer(_lp, amountIn);
+        }
+        
     }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token0/token1.
@@ -1275,119 +1376,119 @@ contract OrderRouter {
 
     //------------Single Swap Best Dex price Aggregation---------------------------------
 
-    function swapTokenToTokenOnBestDex(
-        address tokenIn,
-        address tokenOut,
-        uint256 amountIn,
-        uint256 amountOutMin,
-        uint24 FEE,
-        address reciever,
-        address sender
-    ) public returns (uint256 amountOut) {
-        (SpotReserve[] memory prices, address[] memory lps) = _getAllPrices(
-            tokenIn,
-            tokenOut,
-            FEE
-        );
+    // function swapTokenToTokenOnBestDex(
+    //     address tokenIn,
+    //     address tokenOut,
+    //     uint256 amountIn,
+    //     uint256 amountOutMin,
+    //     uint24 FEE,
+    //     address reciever,
+    //     address sender
+    // ) public returns (uint256 amountOut) {
+    //     (SpotReserve[] memory prices, address[] memory lps) = _getAllPrices(
+    //         tokenIn,
+    //         tokenOut,
+    //         FEE
+    //     );
 
-        uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-        address bestLp;
-        
-        //Iterate through all dex's and get best price and corresponding lp
-        for (uint256 i = 0; i < prices.length;) {
-            if (prices[i].spotPrice != 0) {
-                if (prices[i].spotPrice < bestPrice) {
-                    bestPrice = prices[i].spotPrice;
-                    bestLp = lps[i];
-                }
-            }
-            unchecked {
-                ++i;
-            }
-        }
-        
-        if (_lpIsNotUniV3(bestLp)) {
-            
-            //Call swap univ2
-            amountOut = _swapV2(
-                tokenIn,
-                tokenOut,
-                bestLp,
-                amountIn,
-                amountOutMin,
-                reciever,
-                sender
-            );
-      
-        } else {
-            
-            amountOut = _swapV3(
-                tokenIn,
-                tokenOut,
-                FEE,
-                amountIn,
-                amountOutMin,
-                reciever,
-                sender
-            );
-        }
+    //     uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+    //     address bestLp;
 
-        if(amountOut< amountOutMin){
-            revert InsufficientOutputAmount();
-        }
-    }
+    //     //Iterate through all dex's and get best price and corresponding lp
+    //     for (uint256 i = 0; i < prices.length;) {
+    //         if (prices[i].spotPrice != 0) {
+    //             if (prices[i].spotPrice < bestPrice) {
+    //                 bestPrice = prices[i].spotPrice;
+    //                 bestLp = lps[i];
+    //             }
+    //         }
+    //         unchecked {
+    //             ++i;
+    //         }
+    //     }
 
-    function swapETHToTokenOnBestDex(
-        address tokenOut,
-        uint256 amountIn,
-        uint256 amountOutMin,
-        uint24 FEE
-    ) external payable returns (uint256 amountOut) {
-        if (msg.value != amountIn) {
-            revert InsufficientDepositAmount();
-        }
+    //     if (_lpIsNotUniV3(bestLp)) {
 
-        (bool success, ) = _WETH.call{value: amountIn}(
-            abi.encodeWithSignature("deposit()")
-        );
-        if (success) {
-            amountOut = swapTokenToTokenOnBestDex(
-                _WETH,
-                tokenOut,
-                amountIn,
-                amountOutMin,
-                FEE,
-                msg.sender,
-                address(this)
-            );
-        }
-    }
+    //         //Call swap univ2
+    //         amountOut = _swapV2(
+    //             tokenIn,
+    //             tokenOut,
+    //             bestLp,
+    //             amountIn,
+    //             amountOutMin,
+    //             reciever,
+    //             sender
+    //         );
 
-    function swapTokenToETHOnBestDex(
-        address tokenIn,
-        uint256 amountIn,
-        uint256 amountOutMin,
-        uint24 FEE
-    ) external returns (uint256) {
-        uint256 amountOutWeth = swapTokenToTokenOnBestDex(
-            tokenIn,
-            _WETH,
-            amountIn,
-            amountOutMin,
-            FEE,
-            address(this),
-            msg.sender
-        );
-        uint256 balanceBefore = address(this).balance;
+    //     } else {
 
-        IWETH(_WETH).withdraw(amountOutWeth);
+    //         amountOut = _swapV3(
+    //             tokenIn,
+    //             tokenOut,
+    //             FEE,
+    //             amountIn,
+    //             amountOutMin,
+    //             reciever,
+    //             sender
+    //         );
+    //     }
 
-        if ((address(this).balance - balanceBefore != amountOutWeth)) {
-            revert WethWithdrawUnsuccessful();
-        }
+    //     if(amountOut< amountOutMin){
+    //         revert InsufficientOutputAmount();
+    //     }
+    // }
 
-        safeTransferETH(msg.sender, amountOutWeth);
+    // function swapETHToTokenOnBestDex(
+    //     address tokenOut,
+    //     uint256 amountIn,
+    //     uint256 amountOutMin,
+    //     uint24 FEE
+    // ) external payable returns (uint256 amountOut) {
+    //     if (msg.value != amountIn) {
+    //         revert InsufficientDepositAmount();
+    //     }
 
-        return amountOutWeth;
-    }
+    //     (bool success, ) = _WETH.call{value: amountIn}(
+    //         abi.encodeWithSignature("deposit()")
+    //     );
+    //     if (success) {
+    //         amountOut = swapTokenToTokenOnBestDex(
+    //             _WETH,
+    //             tokenOut,
+    //             amountIn,
+    //             amountOutMin,
+    //             FEE,
+    //             msg.sender,
+    //             address(this)
+    //         );
+    //     }
+    // }
+
+    // function swapTokenToETHOnBestDex(
+    //     address tokenIn,
+    //     uint256 amountIn,
+    //     uint256 amountOutMin,
+    //     uint24 FEE
+    // ) external returns (uint256) {
+    //     uint256 amountOutWeth = swapTokenToTokenOnBestDex(
+    //         tokenIn,
+    //         _WETH,
+    //         amountIn,
+    //         amountOutMin,
+    //         FEE,
+    //         address(this),
+    //         msg.sender
+    //     );
+    //     uint256 balanceBefore = address(this).balance;
+
+    //     IWETH(_WETH).withdraw(amountOutWeth);
+
+    //     if ((address(this).balance - balanceBefore != amountOutWeth)) {
+    //         revert WethWithdrawUnsuccessful();
+    //     }
+
+    //     safeTransferETH(msg.sender, amountOutWeth);
+
+    //     return amountOutWeth;
+    // }
 }
