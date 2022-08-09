@@ -923,8 +923,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         );
                     }
                 } else {
-                    ///@notice If the order can not execute due to slippage, cancel the order
-                    _cancelOrder(currentOrder);
+                    ///@notice If the order can not execute due to slippage, revert to notify the off-chain executor.
+                    revert OrderHasInsufficientSlippage(currentOrder.orderId);
                 }
             }
 
@@ -1801,8 +1801,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             );
                         }
                     } else {
-                        ///@notice If the order can not execute due to slippage, cancel the order
-                        _cancelOrder(currentOrder);
+                        ///@notice If the order can not execute due to slippage, revert to notify the off-chain executor. 
+                        revert OrderHasInsufficientSlippage(currentOrder.orderId);
                     }
                 }
                 unchecked {

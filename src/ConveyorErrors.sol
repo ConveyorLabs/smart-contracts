@@ -5,6 +5,7 @@ error InsufficientGasCreditBalance();
 error InsufficientGasCreditBalanceForOrderExecution();
 error InsufficientWalletBalance();
 error OrderDoesNotExist(bytes32 orderId);
+error OrderHasInsufficientSlippage(bytes32 orderId);
 error IncongruentTokenInOrderGroup();
 error OrderNotRefreshable();
 error OrderHasReachedExpiration();
