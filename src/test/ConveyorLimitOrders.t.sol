@@ -43,11 +43,11 @@ contract ConveyorLimitOrdersTest is DSTest {
     address UNI = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
     address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-    //TODO: add taxed token
     address TAXED_TOKEN = 0xE7eaec9Bca79d537539C00C58Ae93117fB7280b9; //
     address TAXED_TOKEN_1 = 0xe0a189C975e4928222978A74517442239a0b86ff; //
     address TAXED_TOKEN_2 = 0xd99793A840cB0606456916d1CF5eA199ED93Bf97; //6% tax CHAOS token 27
     address TAXED_TOKEN_3 = 0xcFEB09C3c5F0f78aD72166D55f9e6E9A60e96eEC;
+    
     //MAX_UINT for testing
     uint256 constant MAX_UINT = 2**256 - 1;
 
@@ -85,6 +85,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     ];
 
     uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000; //3402823669209385000000000000000000000
+    address swapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     function setUp() public {
         scriptRunner = new ScriptRunner();
@@ -96,12 +97,11 @@ contract ConveyorLimitOrdersTest is DSTest {
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6,
-            5,
-            2592000,
             3000000,
             _hexDems,
             _dexFactories,
             _isUniV2,
+            swapRouter,
             alphaXDivergenceThreshold
         );
     }
@@ -193,7 +193,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     //==================== Execution Tests ===========================
     //================================================================
 
-    // Token to Weth Batch success
+    ///@notice Test to Execute a batch of Token To Weth Orders
     function testExecuteTokenToWethOrderBatch() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -221,6 +221,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
+    ///@notice Test to execute a single token to with order
     function testExecuteWethToTokenSingle() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -236,6 +237,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         IERC20(WETH).approve(address(conveyorLimitOrders), MAX_UINT);
 
+        //Create a new mock order
         OrderBook.Order memory order = newMockOrder(
             WETH,
             DAI,
@@ -255,6 +257,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         bytes32[] memory orderBatch = new bytes32[](1);
 
         orderBatch[0] = orderId;
+        //check that the orders have been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);
@@ -272,13 +275,14 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    //Single order TokenToWeth success
+    ///@notice Teas To execute a single token to Weth order Dai/Weth
     function testExecuteTokenToWethSingle() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
+        //Create a new mock order
         OrderBook.Order memory order = newMockOrder(
             DAI,
             WETH,
@@ -299,6 +303,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         bytes32[] memory orderBatch = new bytes32[](1);
 
         orderBatch[0] = orderId;
+        //check that the orders have been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);
@@ -316,13 +321,15 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    // Token to Weth Batch success
+    ///@notice Test to execute a batch of Weth to Token orders Weth/Dai
     function testExecuteWethToTokenOrderBatch() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         cheatCodes.deal(address(this), MAX_UINT);
+
+        //Deposit weth to address(this)
         (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
             abi.encodeWithSignature("deposit()")
         );
@@ -333,6 +340,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         IERC20(WETH).approve(address(conveyorLimitOrders), MAX_UINT);
 
         bytes32[] memory tokenToWethOrderBatch = placeNewMockWethToTokenBatch();
+        //Make sure the orders have been placed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(tokenToWethOrderBatch[i]);
@@ -350,6 +358,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
+    ///@notice Test to execute a single token to token order. Dai/Uni
     function testExecuteTokenToTokenSingle() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -394,7 +403,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    // Token to Weth Batch success
+    ///@notice Test To Execute a batch of Token to token orders Usdc/Uni
     function testExecuteTokenToTokenBatch() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -424,7 +433,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    //weth to taxed token
+    ///@notice Test to execute a single weth to taxed order
     function testExecuteWethToTaxedTokenSingle() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -479,7 +488,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    //TODO:
+    ///@notice Test to execute a batch of weth to taxed token orders
     function testExecuteWethToTaxedTokenBatch() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -516,7 +525,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    //weth to taxed token
+    ///@notice Test to execute a single taxed to token order Taxed_token/Weth
     function testExecuteTaxedTokenToWethSingle() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -545,15 +554,19 @@ contract ConveyorLimitOrdersTest is DSTest {
         bytes32[] memory orderBatch = conveyorLimitOrders.placeOrder(
             orderGroup
         );
+        //Ensure all of the orders have been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);
 
             assert(order0.orderId != bytes32(0));
         }
+        //Prank tx.origin since executeOrders is onlyEOA
         cheatCodes.prank(tx.origin);
+        //Execute the batch
         conveyorLimitOrders.executeOrders(orderBatch);
 
+        //Ensure the batch has been fulfilled
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);
@@ -561,7 +574,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    //TODO:
+    ///@notice Test to execute a batch of Taxed to token orders
     function testExecuteTaxedTokenToWethBatch() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -581,6 +594,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
 
         cheatCodes.prank(tx.origin);
+        //Execute the orders
         conveyorLimitOrders.executeOrders(tokenToWethOrderBatch);
 
         // check that the orders have been fufilled and removed
@@ -591,7 +605,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    //weth to taxed token
+    ///@notice Test to execute a single Token To Taxed order
     function testExecuteTokenToTaxedTokenSingle() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -620,6 +634,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             orderGroup
         );
 
+        //Ensure the order has been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);
@@ -628,6 +643,8 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
 
         cheatCodes.prank(tx.origin);
+
+        //Execute the order
         conveyorLimitOrders.executeOrders(orderBatch);
 
         // check that the orders have been fufilled and removed
@@ -638,13 +655,13 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    //TODO: //FIXME:
+    ///@notice Test to execute a batch of token to taxed token orders
     function testExecuteTokenToTaxedTokenBatch() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
     }
 
-    //weth to taxed token
+    ///@notice Taxed Token to dai single test
     function testExecuteTaxedTokenToTokenSingle() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -670,6 +687,7 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         orderGroup[0] = order;
+
         bytes32[] memory orderBatch = conveyorLimitOrders.placeOrder(
             orderGroup
         );
@@ -678,7 +696,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         conveyorLimitOrders.executeOrders(orderBatch);
     }
 
-    //TODO:
+    ///@notice Test to execute a batch of taxed token to token orders
     function testExecuteTaxedTokenToTokenBatch() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -707,6 +725,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
+    ///@notice Test to execute a batch of taxed token to taxed token orders
     function testExecuteTaxedTokenToTaxedTokenBatch() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -735,7 +754,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    //weth to taxed token
+    ///@notice Test to execute a single taxed token to taxed token order
     function testExecuteTaxedTokenToTaxedTokenSingle() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -784,8 +803,8 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-
     //----------------------------Gas Credit Tests-----------------------------------------
+    ///@notice Deposit gas credits test
     function testDepositGasCredits(uint256 _amount) public {
         //deal this address max eth
         cheatCodes.deal(address(this), MAX_UINT);
@@ -823,6 +842,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
+    ///@notice Fail deposit gas credits, revert InsufficientWalletBalance test
     function testFailDepositGasCredits_InsufficientWalletBalance(
         uint256 _amount
     ) public {
@@ -845,6 +865,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
+    ///@notice Withdraw gas credit pass test
     function testWithdrawGasCredits(uint256 _amount) public {
         cheatCodes.deal(address(this), MAX_UINT);
 
@@ -885,6 +906,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
+    ///@notice Fail withdraw gas credits, revert InsufficientGasCreditBalance test
     function testFailWithdrawGasCredits_InsufficientGasCreditBalance(
         uint256 _amount
     ) public {
@@ -924,12 +946,14 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
+    ///@notice Refresh order test
     function testRefreshOrder() public {
         cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
+        depositGasCreditsForMockOrders(100);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
+        //Initialize a new order
         OrderBook.Order memory order = newMockOrder(
             DAI,
             UNI,
@@ -950,6 +974,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         bytes32[] memory orderBatch = new bytes32[](1);
 
         orderBatch[0] = orderId;
+        ///Ensure the order has been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);
@@ -969,6 +994,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
+    ///Test refresh order, cancel order since order has expired test
     function testRefreshOrderWithCancelOrderOrderExpired() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -976,6 +1002,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
 
+        //Initialize a new order
         OrderBook.Order memory order = newMockOrder(
             DAI,
             UNI,
@@ -996,13 +1023,13 @@ contract ConveyorLimitOrdersTest is DSTest {
         bytes32[] memory orderBatch = new bytes32[](1);
 
         orderBatch[0] = orderId;
+
         //Ensure order was not canceled
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
                 .getOrderById(orderBatch[i]);
 
             assert(order0.orderId != bytes32(0));
-            assert(order0.lastRefreshTimestamp ==0);
         }
 
         conveyorLimitOrders.refreshOrder(orderBatch);
@@ -1015,65 +1042,8 @@ contract ConveyorLimitOrdersTest is DSTest {
         }
     }
 
-    function testRefreshOrderWithCancelOrderRefreshFeeExceedsGasCredits() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(100000000000000000);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-        IERC20(DAI).approve(address(conveyorLimitOrders), MAX_UINT);
-        OrderBook.Order memory order = newMockOrder(
-            DAI,
-            UNI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 DAI
-            3000,
-            3000,
-            0,
-            0
-        );
-
-        OrderBook.Order memory order1 = newMockOrder(
-            DAI,
-            UNI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 DAI
-            3000,
-            3000,
-            0,
-            0
-        );
-
-        OrderBook.Order[] memory orders = new OrderBook.Order[](2);
-        orders[0]= order;
-        orders[1]=order1;
-
-        bytes32[] memory orderBatch = placeMultipleMockOrder(orders);
-
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
-                .getOrderById(orderBatch[i]);
-
-            assert(order0.orderId != bytes32(0));
-        }
-
-        conveyorLimitOrders.refreshOrder(orderBatch);
-
-       //Ensure the order's are cancelled
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            ConveyorLimitOrders.Order memory order0 = conveyorLimitOrders
-                .getOrderById(orderBatch[i]);
-            assert(order0.orderId == bytes32(0));
-        }
-    }
     //block 15233771
+    ///Test refresh order, Order not refreshable since last refresh timestamp isn't beyond the refresh threshold from the current block.timestamp
     function testRefreshOrderNotRefreshable() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -1117,81 +1087,9 @@ contract ConveyorLimitOrdersTest is DSTest {
             assert(order0.orderId != bytes32(0));
             assert(order.lastRefreshTimestamp == 1659049037);
         }
-
     }
 
-    receive() external payable {
-        // console.log("receive invoked");
-    }
-
-    //Swap Token to Token on best Dex tests
-    function testSwapTokenToTokenOnBestDex() public {
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            10000000000000000,
-            tokenIn
-        );
-
-        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
-        uint256 amountOutMin = amountReceived - 1;
-
-        IERC20(tokenIn).approve(address(conveyorLimitOrders), amountReceived);
-        address reciever = address(this);
-        conveyorLimitOrders.swapTokenToTokenOnBestDex(
-            tokenIn,
-            tokenOut,
-            amountReceived,
-            amountOutMin,
-            500,
-            reciever,
-            address(this)
-        );
-    }
-
-    function testSwapTokenToEthOnBestDex() public {
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            10000000000000000,
-            tokenIn
-        );
-
-        uint256 amountOutMin = amountReceived - 1;
-
-        IERC20(tokenIn).approve(address(conveyorLimitOrders), amountReceived);
-        console.logUint(address(this).balance);
-        conveyorLimitOrders.swapTokenToETHOnBestDex(
-            tokenIn,
-            amountReceived,
-            amountOutMin,
-            500
-        );
-        console.logUint(address(this).balance);
-    }
-
-    function testSwapEthToTokenOnBestDex() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-
-        address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-
-        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
-            value: 1000000000000000000
-        }(
-            abi.encodeWithSignature(
-                "swapETHToTokenOnBestDex(address,uint256,uint256,uint24)",
-                tokenOut,
-                1000000000000000000,
-                10000,
-                500
-            )
-        );
-    }
+    receive() external payable {}
 
     //================================================================
     //======================= Order Simulation Unit Tests ============
@@ -1225,18 +1123,23 @@ contract ConveyorLimitOrdersTest is DSTest {
                     lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
                 });
 
-        ConveyorLimitOrders.TokenToTokenExecutionPrice[] memory executionPrices = new OrderRouter.TokenToTokenExecutionPrice[](2);
-        executionPrices[0]= tokenToTokenExecutionPrice;
-        executionPrices[1]= tokenToTokenExecutionPrice1;
+        ConveyorLimitOrders.TokenToTokenExecutionPrice[]
+            memory executionPrices = new OrderRouter.TokenToTokenExecutionPrice[](
+                2
+            );
+        executionPrices[0] = tokenToTokenExecutionPrice;
+        executionPrices[1] = tokenToTokenExecutionPrice1;
 
-        uint256 bestPriceIndexBuy = conveyorLimitOrders.findBestTokenToTokenExecutionPrice(executionPrices, true);
-        uint256 bestPriceIndexSell = conveyorLimitOrders.findBestTokenToTokenExecutionPrice(executionPrices, false);
+        uint256 bestPriceIndexBuy = conveyorLimitOrders
+            .findBestTokenToTokenExecutionPrice(executionPrices, true);
+        uint256 bestPriceIndexSell = conveyorLimitOrders
+            .findBestTokenToTokenExecutionPrice(executionPrices, false);
 
         assertEq(bestPriceIndexBuy, 0);
-        assertEq(bestPriceIndexSell,1);
-
-
+        assertEq(bestPriceIndexSell, 1);
     }
+
+    ///@notice Simulate AToBPrice Change V2 reserve tests
     function testSimulateAToBPriceChangeV2ReserveOutputs(uint112 _amountIn)
         public
     {
@@ -1274,11 +1177,13 @@ contract ConveyorLimitOrdersTest is DSTest {
 
                 assertEq(reserveA, expectedReserveA);
 
+                //Adjust precision as python script has lower precision than ConveyorMath library
                 assertEq(reserveB / 10**9, expectedReserveB / 10**9);
             }
         }
     }
 
+    ///@notice Simulate AToB price change v2 spot price test
     function testSimulateAToBPriceChangeV2SpotPrice(uint112 _amountIn) public {
         uint112 reserveAIn = 7957765096999155822679329;
         uint112 reserveBIn = 4628057647836077568601;
@@ -1306,7 +1211,7 @@ contract ConveyorLimitOrdersTest is DSTest {
                 args[2] = uint2str(reserveBIn);
                 bytes memory spotOut = scriptRunner.runPythonScript(path, args);
                 uint256 spotPriceExpected = bytesToUint(spotOut);
-
+                //Adjust precision since python script is lower precision, 128.128 >>75 still leaves 53 bits of precision decimals and 128 bits of precision integers
                 assertEq(spotPrice >> 75, spotPriceExpected >> 75);
             }
         }
@@ -1324,6 +1229,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     }
 
     //Block # 15233771
+    //Test simulate weth to b price change V3 test
     function testSimulateWethToBPriceChangeV3() public {
         uint8[] memory decimals = new uint8[](2);
         decimals[0] = 18;
@@ -1350,6 +1256,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     }
 
     //Block # 15233771
+    ///@notice Simulate AToWeth Price change V3 test
     function testSimulateAToWethPriceChangeV3() public {
         uint8[] memory decimals = new uint8[](2);
         decimals[0] = 18;
@@ -1377,6 +1284,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     }
 
     //Block # 15233771
+    ///@notice Simulate WethToB price change v2 test
     function testSimulateWethToBPriceChangeV2() public {
         uint8[] memory decimals = new uint8[](2);
         decimals[0] = 18;
@@ -1403,6 +1311,7 @@ contract ConveyorLimitOrdersTest is DSTest {
     }
 
     //Block # 15233771
+    ///@notice Simulate AToWeth price change V2 test
     function testSimulateAToWethPriceChangeV2() public {
         uint8[] memory decimals = new uint8[](2);
         decimals[0] = 18;
@@ -1429,6 +1338,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         assertEq(amountOut, 28408586008574759898);
     }
 
+    ///@notice Helper function to convert string to int for ffi tests
     function uint2str(uint256 _i) internal pure returns (string memory str) {
         if (_i == 0) {
             return "0";
@@ -1449,6 +1359,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         str = string(bstr);
     }
 
+    ///@notice Helper to convert bytes to uint for ffi tests
     function bytesToUint(bytes memory b) internal pure returns (uint256) {
         uint256 number;
         for (uint256 i = 0; i < b.length; i++) {
@@ -2390,7 +2301,7 @@ contract ConveyorLimitOrdersTest is DSTest {
         internal
         returns (bytes32[] memory)
     {
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, USDC);
+        swapHelper.swapEthForTokenWithUniV2(10000 ether, USDC);
 
         OrderBook.Order memory order1 = newMockOrder(
             USDC,
@@ -2400,7 +2311,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             false,
             0,
             1,
-            5000000000, //5000 DAI
+            5000000000, //5000 USDC
             3000,
             3000,
             0,
@@ -2415,7 +2326,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             false,
             0,
             1,
-            5000000000, //5000 DAI
+            5000000000, //5000 USDC
             3000,
             3000,
             0,
@@ -2430,7 +2341,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             false,
             0,
             1,
-            5000000000, //5000 DAI
+            5000000000, //5000 USDC
             3000,
             3000,
             0,
@@ -2445,7 +2356,7 @@ contract ConveyorLimitOrdersTest is DSTest {
             false,
             0,
             1,
-            5000000000, //5000 DAI
+            5000000000, //5000 USDC
             3000,
             3000,
             0,
@@ -2645,12 +2556,11 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
         address _weth,
         address _usdc,
         address _quoterAddress,
-        uint256 _refreshFee,
-        uint256 _refreshInterval,
         uint256 _executionCost,
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
+        address _swapRouter,
         uint256 _alphaXDivergenceThreshold
     )
         ConveyorLimitOrders(
@@ -2658,12 +2568,11 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
             _weth,
             _usdc,
             _quoterAddress,
-            _refreshFee,
-            _refreshInterval,
             _executionCost,
             _initBytecodes,
             _dexFactories,
             _isUniV2,
+            _swapRouter,
             _alphaXDivergenceThreshold
         )
     {}
@@ -2717,12 +2626,14 @@ contract ConveyorLimitOrdersWrapper is ConveyorLimitOrders {
     {
         return _simulateAToWethPriceChange(alphaX, executionPrice);
     }
+
     function findBestTokenToTokenExecutionPrice(
         TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) public returns (uint256 bestPriceIndex) {
         return _findBestTokenToTokenExecutionPrice(executionPrices, buyOrder);
     }
+
     function simulateWethToBPriceChange(
         uint128 alphaX,
         TokenToTokenExecutionPrice memory executionPrice

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity >=0.8.15;
 
 error InsufficientGasCreditBalance();
@@ -9,6 +9,8 @@ error IncongruentTokenInOrderGroup();
 error OrderNotRefreshable();
 error OrderHasReachedExpiration();
 error InsufficientOutputAmount();
+error InsufficientInputAmount();
+error InsufficientLiquidity();
 error MsgSenderIsNotOwner();
 error InsufficientDepositAmount();
 error InsufficientAllowanceForOrderPlacement();
@@ -19,3 +21,7 @@ error IncongruentTaxedTokenInBatch();
 error IncongruentBuySellStatusInBatch();
 error WethWithdrawUnsuccessful();
 error MsgSenderIsNotTxOrigin();
+error Reentrancy();
+error ETHTransferFailed();
+error InvalidTokenPairIdenticalAddress();
+error InvalidTokenPair();
