@@ -1134,74 +1134,79 @@ contract OrderRouterTest is DSTest {
     }
 
     ///@notice Swap Token to Token on best Dex tests
-    // function testSwapTokenToTokenOnBestDex() public {
-    //     cheatCodes.deal(address(swapHelper), 500000000000 ether);
-    //     address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    function testSwapTokenToTokenOnBestDex() public {
+        cheatCodes.deal(address(swapHelper), 500000000000 ether);
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-    //     swapHelper.swapEthForTokenWithUniV2(1000 ether, tokenIn);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, tokenIn);
         
-    //     address tokenOut = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
+        address tokenOut = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
 
-    //     IERC20(tokenIn).approve(address(orderRouter), 200000000000000000);
+        IERC20(tokenIn).approve(address(orderRouter), 200000000000000000);
 
-    //     address reciever = address(this);
+        address reciever = address(this);
+        uint256 balanaceBefore = IERC20(tokenOut).balanceOf(address(this));
         
-    //     //Test the swap
-    //     uint256 amountOut = orderRouter.swapTokenToTokenOnBestDex(
-    //         tokenIn,
-    //         tokenOut,
-    //         1602060,
-    //         110610000000000090,
-    //         3000,
-    //         reciever,
-    //         address(this)
-    //     );
+        orderRouter.swapTokenToTokenOnBestDex(
+            tokenIn,
+            tokenOut,
+            1602060,
+            110610000000000090,
+            3000,
+            reciever,
+            address(this)
+        );
 
-    //     console.log("Amount out Keeper", amountOut);
+        assertGt(IERC20(tokenOut).balanceOf(address(this)), balanaceBefore);
         
-    // }
+    }
 
-    // ///@notice Test swap Token To eth on best dex
-    // function testSwapTokenToEthOnBestDex() public {
-    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
+    ///@notice Test swap Token To eth on best dex
+    function testSwapTokenToEthOnBestDex() public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-    //     address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        uint256 balanceBefore= address(this).balance;
+        //get the token in
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+            10000000000000000000,
+            tokenIn
+        );
 
-    //     //get the token in
-    //     uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-    //         10000000000000000000,
-    //         tokenIn
-    //     );
+        IERC20(tokenIn).approve(address(orderRouter), amountReceived);
 
-    //     IERC20(tokenIn).approve(address(orderRouter), amountReceived);
+        //Execute the swap
+        orderRouter.swapTokenToETHOnBestDex(tokenIn, amountReceived, 1, 3000);
+        assertGt(address(this).balance, balanceBefore);
+    }
 
-    //     //Execute the swap
-    //     orderRouter.swapTokenToETHOnBestDex(tokenIn, amountReceived, 1, 3000);
-    //     console.logUint(address(this).balance);
-    // }
+    // receive() external payable {}
 
-    // // receive() external payable {}
+    ///@notice Test swap Eth to token on best dex
+    function testSwapEthToTokenOnBestDex() public {
+        cheatCodes.deal(address(this), MAX_UINT);
 
-    // ///@notice Test swap Eth to token on best dex
-    // function testSwapEthToTokenOnBestDex() public {
-    //     cheatCodes.deal(address(this), MAX_UINT);
+        //Token usdc
+        address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-    //     //Token usdc
-    //     address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        //Cache the balance before the swap
+        uint256 balanceBefore = IERC20(tokenOut).balanceOf(address(this));
 
-    //     //Execute the swap
-    //     (bool depositSuccess, ) = address(orderRouter).call{
-    //         value: 1000000000000000000
-    //     }(
-    //         abi.encodeWithSignature(
-    //             "swapETHToTokenOnBestDex(address,uint256,uint256,uint24)",
-    //             tokenOut,
-    //             1000000000000000000,
-    //             10000,
-    //             500
-    //         )
-    //     );
-    // }
+        //Execute the swap
+        (bool depositSuccess, ) = address(orderRouter).call{
+            value: 1000000000000000000
+        }(
+            abi.encodeWithSignature(
+                "swapETHToTokenOnBestDex(address,uint256,uint256,uint24)",
+                tokenOut,
+                1000000000000000000,
+                10000,
+                500
+            )
+        );
+
+        assertGt(IERC20(tokenOut).balanceOf(address(this)), balanceBefore);
+    }
 
     //================================================================================================
 }
