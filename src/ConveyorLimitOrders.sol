@@ -2271,6 +2271,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     nextSqrtPriceX96
                 );
 
+                ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
                 spotPrice = ConveyorMath.mul64x64(
                     ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64),
                     ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64)
@@ -2295,7 +2296,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     nextSqrtPriceX96
                 );
 
-                ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
+                ///@notice sqrtSpotPrice64x64 == token1/token0 which is the correct direction so, simply square the 64.64 sqrt price. 
                 spotPrice = ConveyorMath.mul64x64(
                     sqrtSpotPrice64x64,
                     sqrtSpotPrice64x64
@@ -2318,11 +2319,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         amountOut,
                         false
                     );
-                ///@notice since token0 = weth token1/token0 is the proper exchange rate so convert to 64.64 and square to yield the spot price
+                ///@notice Since token0 = weth token1/token0 is the proper exchange rate so convert to 64.64 and square to yield the spot price
                 uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
                     nextSqrtPriceX96
                 );
 
+                ///@notice sqrtSpotPrice64x64 == token1/token0 which is the correct direction so, simply square the 64.64 sqrt price. 
                 spotPrice = ConveyorMath.mul64x64(
                     sqrtSpotPrice64x64,
                     sqrtSpotPrice64x64
@@ -2341,10 +2343,12 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     false
                 );
 
-                ///@notice convert to 64.64 and take the inverse ^2 to yield token0/token1 spotPrice out
+                ///@notice Convert to 64.64.
                 uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
                     nextSqrtPriceX96
                 );
+
+                ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
                 spotPrice = ConveyorMath.mul64x64(
                     ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64),
                     ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64)
