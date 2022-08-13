@@ -1161,6 +1161,37 @@ contract OrderRouterTest is DSTest {
         
     }
 
+    //-------------------------Swap TokenToToken 1Inch Bench's-----------------------------------
+    ///@notice Swap Token to Token on best Dex tests
+    function testSwapTokenToTokenOnBestDexBench1() public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        cheatCodes.deal(address(this), 10000 ether);
+        address tokenIn = 0xE7f58A92476056627f9FdB92286778aBd83b285F;
+
+        swapHelper.swapEthForTokenWithUniV2(100 ether, tokenIn);
+        
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        
+        IERC20(tokenIn).approve(address(orderRouter), 9097633906578113726487);
+       
+        address reciever = address(this);
+
+        uint256 balanaceBefore = IERC20(tokenOut).balanceOf(address(this));
+        
+        orderRouter.swapTokenToTokenOnBestDex(
+            tokenIn,
+            tokenOut,
+            9097633906578113726487,
+            1019962012349067393,
+            3000,
+            reciever,
+            address(this)
+        );
+
+        assertGt(IERC20(tokenOut).balanceOf(address(this)), balanaceBefore);
+        
+    }
+
     ///@notice Test swap Token To eth on best dex
     function testSwapTokenToEthOnBestDex() public {
         cheatCodes.deal(address(swapHelper), MAX_UINT);

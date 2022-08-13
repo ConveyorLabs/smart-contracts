@@ -396,25 +396,53 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             }
         }
 
-        ///@notice Validate that the orders in the batch are passed in with increasing quantity.
-        _validateOrderSequencing(orders);
+        ///@notice If the length of orders array is greater than a single order, than validate the order sequencing.
+        if (orders.length > 1) {
+            ///@notice Validate that the orders in the batch are passed in with increasing quantity.
+            _validateOrderSequencing(orders);
+        }
 
         ///@notice Check if the order contains any taxed tokens.
         if (orders[0].taxed == true) {
             ///@notice If the tokenOut on the order is Weth
             if (orders[0].tokenOut == WETH) {
-                _executeTokenToWethTaxedOrders(orders);
+                ///@notice If the length of the orders array > 1, execute multiple TokenToWeth taxed orders. 
+                if(orders.length>1){
+                    _executeTokenToWethTaxedOrders(orders);
+                ///@notice If the length ==1, execute a single TokenToWeth taxed order. 
+                }else{
+                    _executeTokenToWethOrderSingle(orders);
+                }
             } else {
-                ///@notice Otherwise, if the tokenOut is not Weth and the order is a taxed order.
-                _executeTokenToTokenTaxedOrders(orders);
+                ///@notice If the length of the orders array > 1, execute multiple TokenToToken taxed orders. 
+                if(orders.length>1){
+                    ///@notice Otherwise, if the tokenOut is not Weth and the order is a taxed order.
+                    _executeTokenToTokenTaxedOrders(orders);
+                ///@notice If the length ==1, execute a single TokenToToken taxed order. 
+                }else{
+                    _executeTokenToTokenOrderSingle(orders);
+                }   
+                
             }
         } else {
             ///@notice If the order is not taxed and the tokenOut on the order is Weth
             if (orders[0].tokenOut == WETH) {
-                _executeTokenToWethOrders(orders);
+                ///@notice If the length of the orders array > 1, execute multiple TokenToWeth taxed orders. 
+                if (orders.length > 1) {
+                    _executeTokenToWethOrders(orders);
+                ///@notice If the length ==1, execute a single TokenToWeth taxed order. 
+                } else {
+                    _executeTokenToWethOrderSingle(orders);
+                }
             } else {
-                ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
-                _executeTokenToTokenOrders(orders);
+                ///@notice If the length of the orders array > 1, execute multiple TokenToToken orders. 
+                if (orders.length > 1) {
+                    ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
+                    _executeTokenToTokenOrders(orders);
+                ///@notice If the length ==1, execute a single TokenToToken order. 
+                } else {
+                    _executeTokenToTokenOrderSingle(orders);
+                }
             }
         }
     }
@@ -537,7 +565,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             );
 
             ///@notice Increment the conveyorBalance
-            conveyorBalance+= conveyorReward;
+            conveyorBalance += conveyorReward;
 
             ///@notice Subtract the beacon/conveyor reward from the amountOutWeth and transer the funds to the order.owner
             amountOutWeth = amountOutWeth - (conveyorReward + beaconReward);
@@ -566,6 +594,123 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         _executeTokenToWethBatchOrders(tokenToWethBatchOrders, maxBeaconReward);
     }
 
+    ///@notice Function to execute a batch of Token to Weth Orders.
+    function _executeTokenToWethOrderSingle(Order[] memory orders) internal {
+        ///@notice Get all of the execution prices on TokenIn to Weth for each dex.
+        (
+            TokenToWethExecutionPrice[] memory executionPrices,
+            uint128 maxBeaconReward
+        ) = _initializeTokenToWethExecutionPrices(orders);
+
+        ///@notice Create a variable to track the best execution price in the array of execution prices.
+        uint256 bestPriceIndex = _findBestTokenToWethExecutionPrice(
+            executionPrices,
+            orders[0].buy
+        );
+
+        ///@notice Pass the order, maxBeaconReward, and TokenToWethExecutionPrice into _executeTokenToWethSingle for execution. 
+        _executeTokenToWethSingle(
+            orders[0],
+            maxBeaconReward,
+            executionPrices[bestPriceIndex]
+        );
+    }
+
+    ///@notice Function to execute a single TokenToWeth order.
+    ///@param order - The order to be executed. 
+    ///@param maxBeaconReward - The maximum beacon reward. 
+    ///@param executionPrice - The best priced TokenToWethExecutionPrice to execute the order. 
+    function _executeTokenToWethSingle(
+        Order memory order,
+        uint128 maxBeaconReward,
+        TokenToWethExecutionPrice memory executionPrice
+    ) internal {
+        ///@notice Cache the order owner into memory.
+        address owner = order.owner;
+
+        ///@notice Create an orderOwners array of length 1 and set the 0th index to the order owner.
+        address[] memory orderOwners = new address[](1);
+        orderOwners[0] = owner;
+
+        ///@notice Execute the TokenIn to Weth order.
+        (uint256 amountOut, uint256 beaconReward) = _executeTokenToWethOrder(
+            order,
+            executionPrice
+        );
+
+        ///@notice Send the order owner their orderPayout.
+        safeTransferETH(owner, amountOut);
+
+        /**@notice If the maxBeaconReward is greater than the beaconReward then keep the beaconReward else set beaconReward
+        to the maxBeaconReward
+        */
+        beaconReward = maxBeaconReward > beaconReward
+            ? beaconReward
+            : maxBeaconReward;
+
+        ///@notice Calculate the execution gas compensation.
+        uint256 executionGasCompensation = calculateExecutionGasCompensation(
+            orderOwners
+        );
+
+        ///@notice Send the Total Reward to the beacon.
+        safeTransferETH(msg.sender, beaconReward + executionGasCompensation);
+    }
+    
+    ///@notice Function to execute a single Token To Weth order.
+    ///@param order - The order to be executed. 
+    ///@param executionPrice - The best priced TokenToWethExecutionPrice to execute the order on. 
+    function _executeTokenToWethOrder(
+        Order memory order,
+        TokenToWethExecutionPrice memory executionPrice
+    ) internal returns (uint256, uint256) {
+        ///@notice Get the Uniswap V3 pool fee on the lp address for the batch.
+        uint24 fee = _getUniV3Fee(executionPrice.lpAddressAToWeth);
+
+        ///@notice Swap the batch amountIn on the batch lp address and send the weth back to the contract.
+        uint128 amountOutWeth = uint128(
+            _swap(
+                order.tokenIn,
+                WETH,
+                executionPrice.lpAddressAToWeth,
+                order.feeIn,
+                order.quantity,
+                order.amountOutMin,
+                address(this),
+                order.owner
+            )
+        );
+
+        ///@notice Retrieve the protocol fee for the total amount out.
+        uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
+
+        ///@notice Get the conveyor and beacon reward from the total amount out.
+        (uint128 conveyorReward, uint128 beaconReward) = _calculateReward(
+            protocolFee,
+            amountOutWeth
+        );
+
+        ///@notice Cache the orderId
+        bytes32 orderId = order.orderId;
+
+        ///@notice Mark the order as resolved from the limit order system.
+        _resolveCompletedOrder(orderIdToOrder[orderId]);
+
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = orderId;
+
+        ///@notice Emit an order fufilled event to notify the off-chain executors.
+        emit OrderFufilled(orderIds);
+
+        ///@notice Increment the conveyor balance by the conveyor reward
+        conveyorBalance += conveyorReward;
+
+        return (
+            uint256(amountOutWeth - (beaconReward + conveyorReward)),
+            uint256(beaconReward)
+        );
+    }
+
     ///@notice Function to execute multiple batch orders from TokenIn to Weth.
     ///@param tokenToWethBatchOrders Array of TokenToWeth batches.
     ///@param maxBeaconReward The maximum funds the beacon will recieve after execution.
@@ -582,16 +727,15 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         );
         ///@notice Iterate through each tokenToWethBatchOrder
         for (uint256 i = 0; i < tokenToWethBatchOrders.length; ) {
+            ///@notice Set batch to the i'th batch order
+            TokenToWethBatchOrder memory batch = tokenToWethBatchOrders[i];
             ///@notice If 0 order's exist in the batch continue
-            if (tokenToWethBatchOrders[i].batchLength > 0) {
-                ///@notice Set batch to the i'th batch order
-                TokenToWethBatchOrder memory batch = tokenToWethBatchOrders[i];
-
+            if (batch.batchLength > 0) {
                 ///@notice Execute the TokenIn to Weth batch
                 (
                     uint256 amountOut,
                     uint256 beaconReward
-                ) = _executeTokenToWethBatch(tokenToWethBatchOrders[i]);
+                ) = _executeTokenToWethBatch(batch);
 
                 ///@notice Accumulate the totalBeaconReward
                 totalBeaconReward += beaconReward;
@@ -603,8 +747,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                 uint256 amountIn = batch.amountIn;
 
                 ///@notice batchOrderLength represents the total amount of orders in the batch
-                uint256 batchOrderLength = tokenToWethBatchOrders[i]
-                    .batchLength;
+                uint256 batchOrderLength = batch.batchLength;
 
                 ///@notice Iterate through each order in the batch
                 for (uint256 j = 0; j < batchOrderLength; ) {
@@ -923,8 +1066,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                         );
                     }
                 } else {
-                    ///@notice If the order can not execute due to slippage, cancel the order
-                    _cancelOrder(currentOrder);
+                    ///@notice If the order can not execute due to slippage, revert to notify the off-chain executor.
+                    revert OrderHasInsufficientSlippage(currentOrder.orderId);
                 }
             }
 
@@ -1025,6 +1168,28 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         _executeTokenToTokenBatchOrders(
             tokenToTokenBatchOrders,
             maxBeaconReward
+        );
+    }
+
+    ///@notice Function to execute an array of TokenToToken orders
+    ///@param orders - Array of orders to be executed.
+    function _executeTokenToTokenOrderSingle(Order[] memory orders) internal {
+        ///@notice Get all execution prices.
+        (
+            TokenToTokenExecutionPrice[] memory executionPrices,
+            uint128 maxBeaconReward
+        ) = _initializeTokenToTokenExecutionPrices(orders);
+
+        uint256 bestPriceIndex = _findBestTokenToTokenExecutionPrice(
+            executionPrices,
+            orders[0].buy
+        );
+
+        ///@notice Execute the batches of orders.
+        _executeTokenToTokenSingle(
+            orders[0],
+            maxBeaconReward,
+            executionPrices[bestPriceIndex]
         );
     }
 
@@ -1243,7 +1408,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             (
                 uint256 amountOut,
                 uint256 beaconReward
-            ) = _executeTokenToTokenBatch(tokenToTokenBatchOrders[i]);
+            ) = _executeTokenToTokenBatch(batch);
 
             ///@notice aAd the beacon reward to the totalBeaconReward
             totalBeaconReward += beaconReward;
@@ -1251,7 +1416,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             ///@notice Calculate the amountOut owed to each order owner in the batch.
             uint256[] memory ownerShares = batch.ownerShares;
             uint256 amountIn = batch.amountIn;
-            uint256 batchOrderLength = tokenToTokenBatchOrders[i].batchLength;
+            uint256 batchOrderLength = batch.batchLength;
             for (uint256 j = 0; j < batchOrderLength; ) {
                 ///@notice Calculate how much to pay each user from the shares they own
                 uint128 orderShare = ConveyorMath.divUI(
@@ -1298,6 +1463,176 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
             totalBeaconReward + executionGasCompensation
         );
     }
+
+    ///@notice Function to execute a single Token To Token order.
+    ///@param order - The order to be executed. 
+    ///@param maxBeaconReward - The maximum beacon reward.
+    ///@param executionPrice - The best priced TokenToTokenExecutionPrice to execute the order on. 
+    function _executeTokenToTokenSingle(
+        Order memory order,
+        uint128 maxBeaconReward,
+        TokenToTokenExecutionPrice memory executionPrice
+    ) internal {
+        ///@notice Cache the owner address in memory.
+        address owner = order.owner;
+
+        ///@notice Create an array of orderOwners of length 1 and set the owner to the 0th index.
+        address[] memory orderOwners = new address[](1);
+        orderOwners[0] = owner;
+
+        ///@notice Execute the order.
+        (uint256 amountOut, uint256 beaconReward) = _executeTokenToTokenOrder(
+            order,
+            executionPrice
+        );
+
+        ///@notice Send the order payout to the order owner.
+        safeTransferETH(owner, amountOut);
+
+        ///@notice Adjust the beaconReward according to the maxBeaconReward.
+        beaconReward = beaconReward < maxBeaconReward
+            ? beaconReward
+            : maxBeaconReward;
+
+        ///@notice Calculate the execution gas compensation.
+        uint256 executionGasCompensation = calculateExecutionGasCompensation(
+            orderOwners
+        );
+
+        ///@notice Send the off-chain executor their reward.
+        safeTransferETH(msg.sender, beaconReward + executionGasCompensation);
+    }
+
+    ///@notice Function to execute a swap from TokenToWeth for an order. 
+    ///@param executionPrice - The best priced TokenToTokenExecutionPrice for the order to be executed on.
+    ///@param order - The order to be executed. 
+    ///@return amountOutWeth - The amountOut in Weth after the swap. 
+    function _executeSwapTokenToWethOrder(
+        TokenToTokenExecutionPrice memory executionPrice,
+        Order memory order
+    ) internal returns (uint128 amountOutWeth) {
+        ///@notice Cache the liquidity pool address. 
+        address lpAddressAToWeth = executionPrice.lpAddressAToWeth;
+
+        ///@notice Cache the order Quantity. 
+        uint256 orderQuantity = order.quantity;
+
+        ///@notice Calculate the amountOutMin for the tokenA to Weth swap.
+        uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWeth(
+            lpAddressAToWeth,
+            orderQuantity,
+            order.orderId,
+            order.taxIn
+        );
+
+        ///@notice Swap from tokenA to Weth.
+        amountOutWeth = uint128(
+            _swap(
+                order.tokenIn,
+                WETH,
+                lpAddressAToWeth,
+                order.feeIn,
+                order.quantity,
+                batchAmountOutMinAToWeth,
+                address(this),
+                order.owner
+            )
+        );
+
+        ///@notice Take out fees from the amountOut.
+        uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
+
+        ///@notice Calculate the conveyorReward and executor reward.
+        (uint128 conveyorReward, uint128 beaconReward) = _calculateReward(
+            protocolFee,
+            amountOutWeth
+        );
+
+        ///@notice Increment the conveyor protocol's balance of ether in the contract by the conveyorReward.
+        conveyorBalance += conveyorReward;
+
+        ///@notice Get the AmountIn for weth to tokenB.
+        amountOutWeth = amountOutWeth - (beaconReward + conveyorReward);
+    }
+
+    ///@notice Function to execute a single Token To Token order. 
+    ///@param order - The order to be executed. 
+    ///@param executionPrice - The best priced TokenToTokenExecution price to execute the order on.
+    function _executeTokenToTokenOrder(
+        Order memory order,
+        TokenToTokenExecutionPrice memory executionPrice
+    ) internal returns (uint256, uint256) {
+        ///@notice Initialize variables to prevent stack too deep. 
+        uint256 amountInWethToB;
+        uint128 conveyorReward;
+        uint128 beaconReward;
+
+        ///@notice Scope to prevent stack too deep. 
+        {
+            ///@notice If the tokenIn is not weth.
+            if (order.tokenIn != WETH) {
+                amountInWethToB = _executeSwapTokenToWethOrder(
+                    executionPrice,
+                    order
+                );
+                if (amountInWethToB == 0) {
+                    revert InsufficientOutputAmount();
+                }
+            } else {
+
+                ///@notice Transfer the TokenIn to the contract. 
+                transferTokensToContract(order);
+                
+                uint256 amountIn = order.quantity;
+                ///@notice Take out fees from the batch amountIn since token0 is weth.
+                uint128 protocolFee = _calculateFee(
+                    uint128(amountIn),
+                    USDC,
+                    WETH
+                );
+
+                ///@notice Calculate the conveyorReward and the off-chain logic executor reward.
+                (conveyorReward, beaconReward) = _calculateReward(
+                    protocolFee,
+                    uint128(amountIn)
+                );
+
+                ///@notice Increment the conveyor balance by the conveyor reward.
+                conveyorBalance += conveyorReward;
+
+                ///@notice Get the amountIn for the Weth to tokenB swap.
+                amountInWethToB = amountIn - (beaconReward + conveyorReward);
+            }
+        }
+
+        ///@notice Swap Weth for tokenB.
+        uint256 amountOutInB = _swap(
+            WETH,
+            order.tokenOut,
+            executionPrice.lpAddressWethToB,
+            order.feeOut,
+            amountInWethToB,
+            order.amountOutMin,
+            order.owner,
+            address(this)
+        );
+            
+        if (amountOutInB == 0) {
+            revert InsufficientOutputAmount();
+        }
+
+        ///@notice Mark the order as resolved from the system.
+        _resolveCompletedOrder(order);
+
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = order.orderId;
+        ///@notice Emit an order fufilled event to notify the off-chain executors.
+        emit OrderFufilled(orderIds);
+
+        return (amountOutInB, uint256(beaconReward));
+    }
+
+ 
 
     ///@notice Helper function to calculate amountOutMin value agnostically across dexes on the first hop from tokenA to WETH.
     ///@param lpAddressAToWeth - lp address of A to weth pair.
@@ -1391,6 +1726,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
         internal
         returns (uint256, uint256)
     {
+        ///@notice Initialize variables used throughout the function. 
         uint128 protocolFee;
         uint128 beaconReward;
         uint128 conveyorReward;
@@ -1801,8 +2137,10 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                             );
                         }
                     } else {
-                        ///@notice If the order can not execute due to slippage, cancel the order
-                        _cancelOrder(currentOrder);
+                        ///@notice If the order can not execute due to slippage, revert to notify the off-chain executor.
+                        revert OrderHasInsufficientSlippage(
+                            currentOrder.orderId
+                        );
                     }
                 }
                 unchecked {
@@ -2296,7 +2634,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     nextSqrtPriceX96
                 );
 
-                ///@notice sqrtSpotPrice64x64 == token1/token0 which is the correct direction so, simply square the 64.64 sqrt price. 
+                ///@notice sqrtSpotPrice64x64 == token1/token0 which is the correct direction so, simply square the 64.64 sqrt price.
                 spotPrice = ConveyorMath.mul64x64(
                     sqrtSpotPrice64x64,
                     sqrtSpotPrice64x64
@@ -2324,7 +2662,7 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
                     nextSqrtPriceX96
                 );
 
-                ///@notice sqrtSpotPrice64x64 == token1/token0 which is the correct direction so, simply square the 64.64 sqrt price. 
+                ///@notice sqrtSpotPrice64x64 == token1/token0 which is the correct direction so, simply square the 64.64 sqrt price.
                 spotPrice = ConveyorMath.mul64x64(
                     sqrtSpotPrice64x64,
                     sqrtSpotPrice64x64
