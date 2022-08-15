@@ -1,4 +1,5 @@
-pragma solidity >=0.8.15;
+// SPDX-License-Identifier: AGPL-3.0-only
+pragma solidity >=0.8.14;
 
 interface IAggregatorV3 {
     function latestRoundData()
