@@ -1224,8 +1224,8 @@ contract ConveyorLimitOrdersTest is DSTest {
 
         (uint256 spotPrice, , , uint128 amountOut) = conveyorLimitOrders
             .simulateAToBPriceChange(alphaX, 0, 0, poolAddress, true);
-        assertEq(spotPrice, 195185994537407119486875905535508480);
-        assertEq(amountOut, 2859640483990650224);
+        assertEq(spotPrice, 179282676665509839559858841469321216);
+        assertEq(amountOut, 2626673514238889973);
     }
 
     //Block # 15233771

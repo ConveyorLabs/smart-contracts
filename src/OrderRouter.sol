@@ -640,19 +640,6 @@ contract OrderRouter {
 
     //------------------------Admin Functions----------------------------
 
-    /// @notice OnlyOwner function that adds a new Dex to the dexes array.
-    /// @param _factory - Factory address to add to the Dex struct.
-    /// @param _initBytecode - Initialization bytecode to add to the Dex struct.
-    /// @param _isUniV2 - Boolean that indicates if the new Dex is UniV2 compatible.
-    function addDex(
-        address _factory,
-        bytes32 _initBytecode,
-        bool _isUniV2
-    ) public onlyOwner {
-        Dex memory _dex = Dex(_factory, _initBytecode, _isUniV2);
-        dexes.push(_dex);
-    }
-
     ///@notice Helper function to execute a swap on a UniV2 LP
     ///@param _tokenIn - Address of the tokenIn.
     ///@param _tokenOut - Address of the tokenOut.

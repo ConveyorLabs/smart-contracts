@@ -620,8 +620,8 @@ contract OrderRouterTest is DSTest {
             false
         );
 
-        assertLt(maxReward, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
-        assertEq(maxReward, 3829877604957868988);
+        assertEq(maxReward, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
+ 
     }
 
     ///@notice Test Calculate Price Divergence from batch min
@@ -885,15 +885,7 @@ contract OrderRouterTest is DSTest {
 
     //================================================================================================
 
-    //==================================Admin Function Tests===========================================
-    function testAddDex() public {
-        orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
-    }
-
-    function testFailAddDex_MsgSenderIsNotOwner() public {
-        cheatCodes.prank(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-        orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
-    }
+    
 
     //================================================================================================
 
