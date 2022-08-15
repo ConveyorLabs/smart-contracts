@@ -6,8 +6,8 @@ import "./GasOracle.sol";
 import "./ConveyorErrors.sol";
 
 /// @title OrderBook
-/// @author 0xKitsune, LeytonTaylor
-/// @notice TODO: Contract description
+/// @author 0xKitsune, LeytonTaylor, Conveyor Labs
+/// @notice Contract to maintain active orders in limit order system. 
 contract OrderBook is GasOracle {
     //----------------------Constructor------------------------------------//
 
@@ -464,7 +464,6 @@ contract OrderBook is GasOracle {
             ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
             uint256 minimumGasCredits = totalOrderCount *
                 gasPrice *
-                ///TODO: Change this to the immutable
                 executionCost *
                 multiplier;
 

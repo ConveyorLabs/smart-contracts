@@ -19,8 +19,8 @@ import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 
 /// @title OrderRouter
-/// @author 0xKitsune, LeytonTaylor
-/// @notice TODO: Contract description
+/// @author 0xKitsune, LeytonTaylor, Conveyor Labs
+/// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures. 
 contract OrderRouter {
     //----------------------Structs------------------------------------//
 
@@ -125,7 +125,7 @@ contract OrderRouter {
     //----------------------State Variables------------------------------------//
 
     ///@notice The owner of the Order Router contract
-    ///@dev TODO: say what the owner can do
+    ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract. 
     address owner;
 
     uint256 uniV3AmountOut;
@@ -141,7 +141,7 @@ contract OrderRouter {
     //----------------------Modifiers------------------------------------//
 
     ///@notice Modifier function to only allow the owner of the contract to call specific functions
-    ///@dev TODO: list functions with only owner modifier
+    ///@dev Functions with onlyOwner: withdrawConveyorFees, transferOwnership.
     modifier onlyOwner() {
         if (msg.sender != owner) {
             revert MsgSenderIsNotOwner();
