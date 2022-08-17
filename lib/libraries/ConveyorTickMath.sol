@@ -1,4 +1,4 @@
-pragma solidity >=0.8.14;
+pragma solidity >=0.8.16;
 
 import "./Uniswap/FullMath.sol";
 import "./Uniswap/LowGasSafeMath.sol";
