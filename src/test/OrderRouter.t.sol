@@ -368,6 +368,7 @@ contract OrderRouterTest is DSTest {
         assertEq(spotPriceWethUsdc, expectedWethUsdc);
     }
 
+    ///@notice v2 spot price assertion test
     function testCalculateV2SpotUni2() public {
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
@@ -394,6 +395,7 @@ contract OrderRouterTest is DSTest {
         assertEq(spotPriceDaiUsdc.spotPrice, expectedDaiUsdc);
     }
 
+    ///@notice v2 spot price assertion test
     function testCalculateV2SpotUni3() public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
@@ -573,56 +575,57 @@ contract OrderRouterTest is DSTest {
 
     //15233771
     ///@notice Test calculate Max beacon reward top level function
-    function testCalculateMaxBeaconRewardTopLevel() public {
-        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        (OrderRouter.SpotReserve[] memory pricesUsdcWeth, ) = orderRouter
-            .getAllPrices(usdc, weth, 3000);
+    // function testCalculateMaxBeaconRewardTopLevel() public {
+    //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    //     (OrderRouter.SpotReserve[] memory pricesUsdcWeth, ) = orderRouter
+    //         .getAllPrices(usdc, weth, 3000);
 
-        //Sell order ==> High price more advantagous
-        OrderBook.Order memory order1 = newMockOrder(
-            usdc,
-            weth,
-            1,
-            false,
-            false,
-            0,
-            1,
-            10000000,
-            3000,
-            0,
-            0,
-            0
-        );
+    //     //Sell order ==> High price more advantagous
+    //     OrderBook.Order memory order1 = newMockOrder(
+    //         usdc,
+    //         weth,
+    //         1,
+    //         false,
+    //         false,
+    //         0,
+    //         1,
+    //         10000000,
+    //         3000,
+    //         0,
+    //         0,
+    //         0
+    //     );
 
-        OrderBook.Order memory order2 = newMockOrder(
-            usdc,
-            weth,
-            1,
-            false,
-            false,
-            0,
-            1,
-            10000000,
-            3000,
-            0,
-            0,
-            0
-        );
+    //     OrderBook.Order memory order2 = newMockOrder(
+    //         usdc,
+    //         weth,
+    //         1,
+    //         false,
+    //         false,
+    //         0,
+    //         1,
+    //         10000000,
+    //         3000,
+    //         0,
+    //         0,
+    //         0
+    //     );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
-        orderBatch[0] = order1;
-        orderBatch[1] = order2;
+    //     OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
+    //     orderBatch[0] = order1;
+    //     orderBatch[1] = order2;
 
-        uint128 maxReward = orderRouter.calculateMaxBeaconRewardTop(
-            pricesUsdcWeth,
-            orderBatch,
-            false
-        );
+    //     uint128 maxReward = orderRouter.calculateMaxBeaconRewardTop(
+    //         pricesUsdcWeth,
+    //         orderBatch,
+    //         false
+    //     );
 
-        assertLt(maxReward, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
-        assertEq(maxReward, 3829877604957868988);
-    }
+    //     ///@notice Max reward is MAX_UINT 128
+    //     assertEq(maxReward, 340282366920938463463374607431768211455);
+ 
+    // }
 
     ///@notice Test Calculate Price Divergence from batch min
     function testCalculatePriceDivergenceFromBatchMin() public {
@@ -885,18 +888,6 @@ contract OrderRouterTest is DSTest {
 
     //================================================================================================
 
-    //==================================Admin Function Tests===========================================
-    function testAddDex() public {
-        orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
-    }
-
-    function testFailAddDex_MsgSenderIsNotOwner() public {
-        cheatCodes.prank(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-        orderRouter.addDex(_uniV2FactoryAddress, _uniswapV2HexDem, true);
-    }
-
-    //================================================================================================
-
     //==================================Swap Tests===========================================
 
     //Uniswap V2 Swap Tests
@@ -939,7 +930,6 @@ contract OrderRouterTest is DSTest {
 
         address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address lp = 0xAE461cA67B15dc8dc81CE7615e0320dA1A9aB8D5;
-        ///TODO: Take a look at the amountOutMin here
         uint256 amountOutMin = 10000;
 
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);

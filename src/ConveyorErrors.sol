@@ -26,3 +26,5 @@ error Reentrancy();
 error ETHTransferFailed();
 error InvalidTokenPairIdenticalAddress();
 error InvalidTokenPair();
+error InvalidAddress();
+error UnauthorizedCaller();

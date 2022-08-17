@@ -19,8 +19,8 @@ import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 
 /// @title OrderRouter
-/// @author 0xKitsune, LeytonTaylor
-/// @notice TODO: Contract description
+/// @author 0xKitsune, LeytonTaylor, Conveyor Labs
+/// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures. 
 contract OrderRouter {
     //----------------------Structs------------------------------------//
 
@@ -125,7 +125,7 @@ contract OrderRouter {
     //----------------------State Variables------------------------------------//
 
     ///@notice The owner of the Order Router contract
-    ///@dev TODO: say what the owner can do
+    ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract. 
     address owner;
 
     uint256 uniV3AmountOut;
@@ -141,7 +141,7 @@ contract OrderRouter {
     //----------------------Modifiers------------------------------------//
 
     ///@notice Modifier function to only allow the owner of the contract to call specific functions
-    ///@dev TODO: list functions with only owner modifier
+    ///@dev Functions with onlyOwner: withdrawConveyorFees, transferOwnership.
     modifier onlyOwner() {
         if (msg.sender != owner) {
             revert MsgSenderIsNotOwner();
@@ -639,19 +639,6 @@ contract OrderRouter {
     }
 
     //------------------------Admin Functions----------------------------
-
-    /// @notice OnlyOwner function that adds a new Dex to the dexes array.
-    /// @param _factory - Factory address to add to the Dex struct.
-    /// @param _initBytecode - Initialization bytecode to add to the Dex struct.
-    /// @param _isUniV2 - Boolean that indicates if the new Dex is UniV2 compatible.
-    function addDex(
-        address _factory,
-        bytes32 _initBytecode,
-        bool _isUniV2
-    ) public onlyOwner {
-        Dex memory _dex = Dex(_factory, _initBytecode, _isUniV2);
-        dexes.push(_dex);
-    }
 
     ///@notice Helper function to execute a swap on a UniV2 LP
     ///@param _tokenIn - Address of the tokenIn.

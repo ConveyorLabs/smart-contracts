@@ -19,9 +19,10 @@ import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/ConveyorTickMath.sol";
 
 /// @title OrderRouter
-/// @author LeytonTaylor, 0xKitsune
-/// @notice TODO:
+/// @author LeytonTaylor, 0xKitsune, Conveyor Labs
+/// @notice Limit Order contract to execute existing limit orders within the OrderBook contract. 
 contract ConveyorLimitOrders is OrderBook, OrderRouter {
+
     // ========================================= Modifiers =============================================
 
     ///@notice Modifier to restrict smart contracts from calling a function.
@@ -51,8 +52,8 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     uint256 constant REFRESH_INTERVAL = 2592000;
 
     ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
-    //TODO: FIXME: we need to set the refresh fee
-    uint256 immutable REFRESH_FEE = 5;
+    uint256 constant REFRESH_FEE = 20000000000000000;
+
     // ========================================= State Variables =============================================
 
     ///@notice Boolean responsible for indicating if a function has been entered when the nonReentrant modifier is used.
@@ -75,6 +76,9 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
 
     ///@notice State variable to track the amount of gas initally alloted during executeOrders.
     uint256 initialTxGas;
+
+    ///@notice Temporary owner storage variable when transferring ownership of the contract. 
+    address tempOwner;
 
     // ========================================= Constructor =============================================
 
@@ -2727,6 +2731,23 @@ contract ConveyorLimitOrders is OrderBook, OrderRouter {
     function withdrawConveyorFees() external onlyOwner nonReentrant {
         safeTransferETH(owner, conveyorBalance);
         conveyorBalance = 0;
+    }
+
+    ///@notice Function to confirm ownership transfer of the contract.
+    function confirmTransferOwnership() external {
+        if(msg.sender != tempOwner){
+            revert UnauthorizedCaller();
+        }
+        owner = msg.sender;
+    }
+
+    ///@notice Function to transfer ownership of the contract.
+    function transferOwnership(address newOwner) external onlyOwner {
+        if(owner== address(0)){
+            revert InvalidAddress();
+        }
+        tempOwner = newOwner;
+
     }
 
     ///@notice Function to calculate the execution gas consumed during executeOrders
