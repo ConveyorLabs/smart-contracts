@@ -1224,12 +1224,14 @@ contract ConveyorLimitOrdersTest is DSTest {
 
     //     (uint256 spotPrice, , , uint128 amountOut) = conveyorLimitOrders
     //         .simulateAToBPriceChange(alphaX, 0, 0, poolAddress, true);
+
     //     assertEq(spotPrice, 179570008050006124574493135473737728);
     //     assertEq(amountOut, 2630889035305553500);
     // }
 
     //Block # 15233771
     //Test simulate weth to b price change V3 test
+
     // function testSimulateWethToBPriceChangeV3() public {
     //     uint8[] memory decimals = new uint8[](2);
     //     decimals[0] = 18;
@@ -1256,7 +1258,9 @@ contract ConveyorLimitOrdersTest is DSTest {
     // }
 
     //Block # 15233771
+
     ///@notice Simulate AToWeth Price change V3 test
+
     // function testSimulateAToWethPriceChangeV3() public {
     //     uint8[] memory decimals = new uint8[](2);
     //     decimals[0] = 18;
@@ -1279,8 +1283,10 @@ contract ConveyorLimitOrdersTest is DSTest {
     //             5000000000000000000000,
     //             tokenToTokenExecutionPrice
     //         );
+
     //     assertEq(newSpotPriceA, 179260530996058765835863903453577216);
     //     assertEq(amountOut, 2626349041956157673);
+
     // }
 
     //Block # 15233771

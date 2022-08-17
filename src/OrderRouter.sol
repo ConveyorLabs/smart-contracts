@@ -1361,150 +1361,149 @@ contract OrderRouter {
         }
     }
 
-    //------------Single Swap Best Dex price Aggregation---------------------------------
-    ///@notice Function to execute the best priced swap across all dexes on a token pair.
-    ///@param tokenIn - The address of TokenIn on the swap.
-    ///@param tokenOut - The address of TokenOut on the swap. 
-    ///@param amountIn - The quantity of TokenIn on the swap. 
-    ///@param amountOutMin - The minimum amount received in TokenOut on the swap. 
-    ///@param FEE - The Uniswap V3 liquidity pool fee on the swap. 
-    ///@param reciever - The receiver of the tokens after the swap. 
-    ///@param sender - The sender of the amountIn of TokenIn on the swap. 
-    ///@return amountOut - The amount received in TokenOut from the swap. 
+   //------------Single Swap Best Dex price Aggregation---------------------------------
+
     function swapTokenToTokenOnBestDex(
-        address tokenIn,
-        address tokenOut,
+        address[] memory path,
+        address[] memory tokenPath,
         uint256 amountIn,
-        uint256 amountOutMin,
-        uint24 FEE,
+        uint256[] memory amountOutMin,
+        uint24[] memory FEE,
         address reciever,
         address sender
-    ) public returns (uint256 amountOut) {
-        ///@notice Get all the prices and liquidity pool addresses for the token pair. 
-        (SpotReserve[] memory prices, address[] memory lps) = _getAllPrices(
-            tokenIn,
-            tokenOut,
-            FEE
-        );
-
-        ///@notice Set the best price to MAX_UINT. 
-        uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-        address bestLp;
-
-        ///@notice Iterate through all dexes and get best price and corresponding lp.
-        for (uint256 i = 0; i < prices.length;) {
-            if (prices[i].spotPrice != 0) {
-                if (prices[i].spotPrice < bestPrice) {
-                    bestPrice = prices[i].spotPrice;
-                    bestLp = lps[i];
-                }
-            }
-            unchecked {
-                ++i;
+    ) public returns (uint256 amountInS) {
+        address tokenIn;
+        address tokenOut;
+        address dynamicSender;
+        address dynamicReceiver;
+        amountInS = amountIn;
+        for (uint256 i = 0; i < path.length; ++i) {
+            ///@notice If there is more than one hop. Set the dynamic sender to address(this).
+            dynamicSender = i == 0 ? sender : address(this);
+            ///@notice If the swap is a multihop & we are in the middle, send the tokens to the contract.
+            dynamicReceiver = (path.length != 1 && i != path.length - 1)
+                ? address(this)
+                : reciever;
+            ///@notice Get tokenIn and tokenOut from the tokenPath.
+            (tokenIn, tokenOut) = (tokenPath[i], tokenPath[i + 1]);
+            ///@notice Cache the lp in memory.
+            address lp = path[i];
+            ///@notice If the liquidity pool is not Uniswap V3.
+            if (_lpIsNotUniV3(lp)) {
+                ///@notice Call Swap V2 on the Token pair.
+                amountInS = _swapV2(
+                    tokenIn,
+                    tokenOut,
+                    lp,
+                    amountInS,
+                    amountOutMin[i],
+                    dynamicReceiver,
+                    dynamicSender
+                );
+                ///@notice If the liqudiity pool is Uniswap V3.
+            } else {
+                ///@notice Call Swap V3 on the Token pair.
+                amountInS = _swapV3(
+                    lp,
+                    tokenIn,
+                    FEE[i],
+                    amountInS,
+                    amountOutMin[i],
+                    dynamicReceiver,
+                    dynamicSender
+                );
             }
         }
-        ///@notice If the liquidity pool is not Uniswap V3. 
-        if (_lpIsNotUniV3(bestLp)) {
 
-            ///@notice Call Swap V2 on the Token pair. 
-            amountOut = _swapV2(
-                tokenIn,
-                tokenOut,
-                bestLp,
-                amountIn,
-                amountOutMin,
-                reciever,
-                sender
-            );
-        ///@notice If the liqudiity pool is Uniswap V3. 
-        } else {
-            ///@notice Call Swap V3 on the Token pair. 
-            amountOut = _swapV3(
-                bestLp,
-                tokenIn,
-                FEE,
-                amountIn,
-                amountOutMin,
-                reciever,
-                sender
-            );
-        }
-
-        ///@notice Revert the tx if the amount received is less than the amountOutMin. 
-        if(amountOut< amountOutMin){
+        ///@notice Revert the tx if the amount received is less than the amountOutMin.
+        if (amountIn < amountOutMin[path.length - 1]) {
             revert InsufficientOutputAmount();
         }
     }
-    ///@notice Function to execute the best priced swap across all dexes from ETH to TokenOut.
-    ///@param tokenOut - The address of TokenOut on the swap. 
-    ///@param amountIn - The quantity of TokenIn on the swap. 
-    ///@param amountOutMin - The minimum amount received in TokenOut on the swap. 
-    ///@param FEE - The Uniswap V3 liquidity pool fee on the swap. 
+
+    ///@notice Function to make a swap from Eth to Token B.
+    ///@param path - The path the execute the swap over.
+    ///@param tokenPath - An array of token address's holding the tokens on the swap.
+    ///@param amountIn - The amountIn on the swap.
+    ///@param amountOutMin - An array of amountOutMins over the swap.
+    ///@param FEE - An array of V3 fee's for each liquidity pool in the swap.
+    ///@param reciever - The receiver of the tokens out from the swap.
+    ///@param sender - The sender of the tokens on the swap.
     function swapETHToTokenOnBestDex(
-        address tokenOut,
+        address[] memory path,
+        address[] memory tokenPath,
         uint256 amountIn,
-        uint256 amountOutMin,
-        uint24 FEE
+        uint256[] memory amountOutMin,
+        uint24[] memory FEE,
+        address reciever,
+        address sender
     ) external payable returns (uint256 amountOut) {
-        ///@notice Revert if the message value != amountIn. 
+        ///@notice Revert if the message value != amountIn.
         if (msg.value != amountIn) {
             revert InsufficientDepositAmount();
         }
 
-        ///@notice Deposit the ETH to receive WETH. 
+        ///@notice Deposit the ETH to receive WETH.
         (bool success, ) = _WETH.call{value: amountIn}(
             abi.encodeWithSignature("deposit()")
         );
-        ///@notice If the WETH was succesfully received. 
+
+        ///@notice If the WETH was succesfully received.
         if (success) {
             ///@notice Call swapTokenToTokenOnBestDex for the pair WETH to TokenOut.
             amountOut = swapTokenToTokenOnBestDex(
-                _WETH,
-                tokenOut,
+                path,
+                tokenPath,
                 amountIn,
                 amountOutMin,
                 FEE,
-                msg.sender,
+                reciever,
                 address(this)
             );
         }
     }
 
-    ///@notice Function to execute the best priced swap across all dexes from TokenIn to ETH.
-    ///@param tokenIn - The address of TokenIn on the swap. 
-    ///@param amountIn - The quantity of TokenIn on the swap. 
-    ///@param amountOutMin - The minimum amount received in TokenOut on the swap. 
-    ///@param FEE - The Uniswap V3 liquidity pool fee on the swap. 
+    ///@notice Function to make a swap from TokenA to Eth.
+    ///@param path - The path the execute the swap over.
+    ///@param tokenPath - An array of token address's holding the tokens on the swap.
+    ///@param amountIn - The amountIn on the swap.
+    ///@param amountOutMin - An array of amountOutMins over the swap.
+    ///@param FEE - An array of V3 fee's for each liquidity pool in the swap.
+    ///@param reciever - The receiver of the tokens out from the swap.
+    ///@param sender - The sender of the tokens on the swap.
     function swapTokenToETHOnBestDex(
-        address tokenIn,
+        address[] memory path,
+        address[] memory tokenPath,
         uint256 amountIn,
-        uint256 amountOutMin,
-        uint24 FEE
+        uint256[] memory amountOutMin,
+        uint24[] memory FEE,
+        address reciever,
+        address sender
     ) external returns (uint256) {
-        ///@notice Call swapTokenToTokenOnBestDex for TokenIn To WETH. 
+        ///@notice Call swapTokenToTokenOnBestDex for TokenIn To WETH.
         uint256 amountOutWeth = swapTokenToTokenOnBestDex(
-            tokenIn,
-            _WETH,
+            path,
+            tokenPath,
             amountIn,
             amountOutMin,
             FEE,
             address(this),
-            msg.sender
+            sender
         );
 
-        ///@notice Cache the balance of the contract. 
+        ///@notice Cache the balance of the contract.
         uint256 balanceBefore = address(this).balance;
 
-        ///@notice Withdraw the WETH to receive ETH in the contract. 
+        ///@notice Withdraw the WETH to receive ETH in the contract.
         IWETH(_WETH).withdraw(amountOutWeth);
 
-        ///@notice Require the difference between the current balance and the old balance is amountOutWeth. 
+        ///@notice Require the difference between the current balance and the old balance is amountOutWeth.
         if ((address(this).balance - balanceBefore != amountOutWeth)) {
             revert WethWithdrawUnsuccessful();
         }
 
-        ///@notice Transfer the ETH to the sender. 
-        safeTransferETH(msg.sender, amountOutWeth);
+        ///@notice Transfer the ETH to the sender.
+        safeTransferETH(reciever, amountOutWeth);
 
         return amountOutWeth;
     }

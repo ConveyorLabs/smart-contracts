@@ -1130,19 +1130,31 @@ contract OrderRouterTest is DSTest {
 
         swapHelper.swapEthForTokenWithUniV2(1000 ether, tokenIn);
         
-        address tokenOut = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
+        address tokenOut = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
         IERC20(tokenIn).approve(address(orderRouter), 200000000000000000);
 
         address reciever = address(this);
         uint256 balanaceBefore = IERC20(tokenOut).balanceOf(address(this));
+        address lp = 0xAaF5110db6e744ff70fB339DE037B990A20bdace;
+        address[] memory path = new address[](1);
+        address[][] memory tokenInTokeOut = new address[][](1);
+        address[] memory tokens = new address[](2);
+        tokens[0]= tokenIn;
+        tokens[1]= tokenOut;
+        tokenInTokeOut[0]= tokens;
+        uint256[] memory amountOutMins= new uint256[](1);
+        amountOutMins[0]=1;
+        path[0]= lp;
+        uint24[] memory FEE= new uint24[](1);
         
+        FEE[0]=500;
         orderRouter.swapTokenToTokenOnBestDex(
-            tokenIn,
-            tokenOut,
-            1602060,
-            110610000000000090,
-            3000,
+            path,
+            tokens,
+            16020600,
+            amountOutMins,
+            FEE,
             reciever,
             address(this)
         );
@@ -1151,29 +1163,37 @@ contract OrderRouterTest is DSTest {
         
     }
 
-    //-------------------------Swap TokenToToken 1Inch Bench's-----------------------------------
     ///@notice Swap Token to Token on best Dex tests
-    function testSwapTokenToTokenOnBestDexBench1() public {
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        cheatCodes.deal(address(this), 10000 ether);
+    function testSwapTokenToTokenOnBestDexBenchDwebWeth_1Inch() public {
+        cheatCodes.deal(address(swapHelper), 500000000000 ether);
         address tokenIn = 0xE7f58A92476056627f9FdB92286778aBd83b285F;
 
-        swapHelper.swapEthForTokenWithUniV2(100 ether, tokenIn);
+        swapHelper.swapEthForTokenWithUniV2(2 ether, tokenIn);
         
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        
-        IERC20(tokenIn).approve(address(orderRouter), 9097633906578113726487);
-       
-        address reciever = address(this);
 
+        IERC20(tokenIn).approve(address(orderRouter), 9097633906578113726487);
+
+        address reciever = address(this);
         uint256 balanaceBefore = IERC20(tokenOut).balanceOf(address(this));
+        address lp = 0xf4Eae3218778510CC1D07Ed22338d6D8df2AdaF1;
+        address[] memory path = new address[](1);
+       
+        address[] memory tokens = new address[](2);
+        tokens[0]= tokenIn;
+        tokens[1]= tokenOut;
+        uint256[] memory amountOutMins= new uint256[](1);
+       amountOutMins[0]=19962012349067393;
+        path[0]= lp;
+        uint24[] memory FEE= new uint24[](1);
         
+        FEE[0]=3000;
         orderRouter.swapTokenToTokenOnBestDex(
-            tokenIn,
-            tokenOut,
+            path,
+            tokens,
             9097633906578113726487,
-            1019962012349067393,
-            3000,
+            amountOutMins,
+            FEE,
             reciever,
             address(this)
         );
@@ -1181,6 +1201,96 @@ contract OrderRouterTest is DSTest {
         assertGt(IERC20(tokenOut).balanceOf(address(this)), balanaceBefore);
         
     }
+
+    ///@notice Swap Token to Token on best Dex tests
+    function testSwapTokenToTokenOnBestDexBenchDwebWeth_1Inch1() public {
+        cheatCodes.deal(address(swapHelper), 500000000000 ether);
+        address tokenIn = 0xE7f58A92476056627f9FdB92286778aBd83b285F;
+
+        swapHelper.swapEthForTokenWithUniV2(2 ether, tokenIn);
+        
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+        IERC20(tokenIn).approve(address(orderRouter), 9097633906578113726487);
+
+        address reciever = address(this);
+        uint256 balanaceBefore = IERC20(tokenOut).balanceOf(address(this));
+        address lp = 0xf4Eae3218778510CC1D07Ed22338d6D8df2AdaF1;
+        address[] memory path = new address[](1);
+       
+        address[] memory tokens = new address[](2);
+        tokens[0]= tokenIn;
+        tokens[1]= tokenOut;
+        uint256[] memory amountOutMins= new uint256[](1);
+       amountOutMins[0]=19962012349067393;
+        path[0]= lp;
+        uint24[] memory FEE= new uint24[](1);
+        
+        FEE[0]=3000;
+        orderRouter.swapTokenToTokenOnBestDex(
+            path,
+            tokens,
+            9097633906578113726487,
+            amountOutMins,
+            FEE,
+            reciever,
+            address(this)
+        );
+
+        assertGt(IERC20(tokenOut).balanceOf(address(this)), balanaceBefore);
+        
+    }
+
+    // ///@notice Swap Token to Token on best Dex tests
+    // function testSwapTokenToTokenOnBestDexBenchAlphaWethUsdc_1Inch() public {
+    //     cheatCodes.deal(address(swapHelper), 500000000000 ether);
+    //     address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+    //     swapHelper.swapEthForTokenWithUniV2(4 ether, tokenIn);
+        
+    //     address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+       
+    //     IERC20(tokenIn).approve(address(orderRouter), 7000000000);
+
+    //     address reciever = address(this);
+    //     uint256 balanaceBefore = IERC20(0xaaAEBE6Fe48E54f431b0C390CfaF0b017d09D42d).balanceOf(address(this));
+    //     address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+    //     address lp1 = 0x06729eb2424da47898F935267BD4a62940DE5105;
+    //     address[] memory path = new address[](2);
+    //     address[] memory tokenPath = new address[](3);
+    //     address[] memory tokens = new address[](2);
+    //     tokenPath[0]= tokenIn;
+    //     tokenPath[1]= tokenOut;
+    //     tokenPath[2]=0xaaAEBE6Fe48E54f431b0C390CfaF0b017d09D42d;
+        
+    //     uint256[] memory amountOutMins = new uint256[](2);
+    //     amountOutMins[0]=3513887431158077065;
+    //     amountOutMins[1]=20616574;
+    //     path[0]= lp;
+    //     path[1]= lp1;
+    //     uint24[] memory FEE= new uint24[](2);
+    //     FEE[0]=500;
+    //     FEE[1]=3000;
+    //     orderRouter.swapTokenToTokenOnBestDex(
+    //         path,
+    //         tokenPath,
+    //         7000000000,
+    //         amountOutMins,
+    //         FEE,
+    //         reciever,
+    //         address(this)
+    //     );
+
+    //     assertGt(IERC20(0xaaAEBE6Fe48E54f431b0C390CfaF0b017d09D42d).balanceOf(address(this)), balanaceBefore);
+        
+    // }
+
+
+
+ 
+
+    //-------------------------Swap TokenToToken 1Inch Bench's-----------------------------------
+    
 
     ///@notice Test swap Token To eth on best dex
     function testSwapTokenToEthOnBestDex() public {
@@ -1195,34 +1305,49 @@ contract OrderRouterTest is DSTest {
         );
 
         IERC20(tokenIn).approve(address(orderRouter), amountReceived);
-
+        address[] memory tokens = new address[](2);
+        tokens[0]= tokenIn;
+        tokens[1]= WETH;
+        address[] memory path = new address[](1);
+        path[0]=0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
+        uint256[] memory amountOutMins= new uint256[](1);
+        amountOutMins[0]=1;
+        uint24[] memory FEE= new uint24[](1);
+        FEE[0]=3000;
         //Execute the swap
-        orderRouter.swapTokenToETHOnBestDex(tokenIn, amountReceived, 1, 3000);
+        orderRouter.swapTokenToETHOnBestDex(path, tokens, amountReceived, amountOutMins, FEE, address(this), address(this));
         assertGt(address(this).balance, balanceBefore);
     }
 
-    // receive() external payable {}
-
     ///@notice Test swap Eth to token on best dex
-    function testSwapEthToTokenOnBestDex() public {
+    function testSwapEthToTokenOnBestBenchDexWETHSocks_1Inch() public {
         cheatCodes.deal(address(this), MAX_UINT);
-
-        //Token usdc
-        address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-
+        address[] memory path = new address[](1);
+        path[0]=0x0dACb47E00aed6AbAdE32c7B398e029393E0D848;
+        address tokenIn = WETH;
+        address tokenOut=0x23B608675a2B2fB1890d3ABBd85c5775c51691d5;
+        address[] memory tokens = new address[](2);
+        tokens[0]= WETH;
+        tokens[1]= tokenOut;
         //Cache the balance before the swap
         uint256 balanceBefore = IERC20(tokenOut).balanceOf(address(this));
-
+        uint256[] memory amountOutMins= new uint256[](1);
+        amountOutMins[0]=1;
+        uint24[] memory FEE= new uint24[](1);
+        FEE[0]=3000;
         //Execute the swap
         (bool depositSuccess, ) = address(orderRouter).call{
-            value: 1000000000000000000
+            value: 74597796352972563
         }(
             abi.encodeWithSignature(
-                "swapETHToTokenOnBestDex(address,uint256,uint256,uint24)",
-                tokenOut,
-                1000000000000000000,
-                10000,
-                500
+                "swapETHToTokenOnBestDex(address[],address[],uint256,uint256[],uint24[],address,address)",
+                path,
+                tokens,
+                74597796352972563,
+                amountOutMins,
+                FEE,
+                address(this),
+                address(this)
             )
         );
 
