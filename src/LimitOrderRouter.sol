@@ -15,7 +15,9 @@ import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/ConveyorTickMath.sol";
+import "./ITokenToTokenLimitOrderExecution.sol";
 
+///FIXME: Change msg.sender to tx.origin for all execution contracts to pay out the beacon reward
 /// @title OrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract. 
@@ -86,13 +88,12 @@ contract LimitOrderRouter is OrderBook {
     ///@notice Temporary owner storage variable when transferring ownership of the contract. 
     address tempOwner;
 
-
     //TODO: Change this to contractOwner to not get mixed up with orderOwner
     ///@notice The owner of the Order Router contract
     ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract. 
     address owner;
 
-
+    address immutable tokenToTokenExecutionAddress;
 
     // ========================================= Constructor =============================================
 
@@ -104,7 +105,8 @@ contract LimitOrderRouter is OrderBook {
         address _gasOracle,
         address _weth,
         address _usdc,
-        uint256 _executionCost
+        uint256 _executionCost,
+        address _tokenToTokenExecutionAddress
     )
         OrderBook(_gasOracle)
     {
@@ -112,6 +114,7 @@ contract LimitOrderRouter is OrderBook {
         USDC = _usdc;
         ORDER_EXECUTION_GAS_COST = _executionCost;
         owner = msg.sender;
+        tokenToTokenExecutionAddress = _tokenToTokenExecutionAddress;
     }
 
     // ========================================= Events  =============================================
@@ -455,7 +458,7 @@ contract LimitOrderRouter is OrderBook {
                       //TODO: _executeTokenToTokenTaxedOrders(orders);
                 ///@notice If the length ==1, execute a single TokenToToken taxed order. 
                 }else{
-                      //TODO: _executeTokenToTokenOrderSingle(orders);
+                      // _executeTokenToTokenOrderSingle(orders);
                 }   
                 
             }
@@ -473,15 +476,41 @@ contract LimitOrderRouter is OrderBook {
                 ///@notice If the length of the orders array > 1, execute multiple TokenToToken orders. 
                 if (orders.length > 1) {
                     ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
-                      //TODO: _executeTokenToTokenOrders(orders);
+                    ITokenToTokenExecution(tokenToTokenExecutionAddress).executeTokenToTokenOrders(orders);
                 ///@notice If the length ==1, execute a single TokenToToken order. 
                 } else {
-                      //TODO: _executeTokenToTokenOrderSingle(orders);
+                    ITokenToTokenExecution(tokenToTokenExecutionAddress).executeTokenToTokenOrderSingle(orders);
                 }
             }
         }
 
-        //TODO: Handle gas credit values
+        ///@notice Get the array of order owners.
+        address[] memory orderOwners = getOrderOwners(orders);
+
+         ///@notice Calculate the execution gas compensation.
+        uint256 executionGasCompensation = calculateExecutionGasCompensation(
+            orderOwners
+        );
+
+        ///@notice Transfer the reward to the off-chain executor.
+        safeTransferETH(
+            msg.sender,
+            executionGasCompensation
+        );
+
+    }
+
+    ///@notice Function to return an array of order owners. 
+    ///@param orders - Array of orders.
+    ///@return orderOwners - An array of order owners in the orders array. 
+    function getOrderOwners(Order[] memory orders) internal pure returns (address[] memory orderOwners){
+        orderOwners = new address[](orders.length);
+        for(uint256 i =0; i < orders.length;){
+            orderOwners[i]= orders[i].owner;
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     ///@notice Function to withdraw owner fee's accumulated

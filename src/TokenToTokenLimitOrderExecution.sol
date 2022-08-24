@@ -96,9 +96,7 @@ contract TokenToTokenExecution is OrderRouter {
                 order.quantity
             )
         {} catch {
-            // //TODO: we should just revert when this happens
-            // _cancelOrder(order);
-            // return false;
+            ///@notice Revert on token transfer failure. 
             revert TokenTransferFailed(order.orderId);
         }
         return true;
@@ -106,8 +104,8 @@ contract TokenToTokenExecution is OrderRouter {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
-    function _executeTokenToTokenOrders(OrderBook.Order[] memory orders)
-        internal
+    function executeTokenToTokenOrders(OrderBook.Order[] memory orders)
+        external
     {
         ///@notice Get all execution prices.
         (
@@ -131,8 +129,8 @@ contract TokenToTokenExecution is OrderRouter {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
-    function _executeTokenToTokenOrderSingle(OrderBook.Order[] memory orders)
-        internal
+    function executeTokenToTokenOrderSingle(OrderBook.Order[] memory orders)
+        external
     {
         ///@notice Get all execution prices.
         (
@@ -219,17 +217,15 @@ contract TokenToTokenExecution is OrderRouter {
             ? totalBeaconReward
             : maxBeaconReward;
 
-        // //TODO: Figure out what to do with this and where it will go, likely the controller
-        // ///@notice Calculate the execution gas compensation.
-        // uint256 executionGasCompensation = calculateExecutionGasCompensation(
-        //     orderOwners
-        // );
+        
+        ///@notice Unwrap the total reward. 
+        IWETH(WETH).withdraw(totalBeaconReward);
 
-        // ///@notice Send the off-chain executor their reward.
-        // safeTransferETH(
-        //     msg.sender,
-        //     totalBeaconReward + executionGasCompensation
-        // );
+        ///@notice Send the off-chain executor their reward.
+        safeTransferETH(
+            tx.origin,
+            totalBeaconReward
+        );
     }
 
     ///@notice Function to execute a single Token To Token order.
@@ -255,21 +251,18 @@ contract TokenToTokenExecution is OrderRouter {
         );
 
         ///@notice Send the order payout to the order owner.
-        safeTransferETH(owner, amountOut);
+        IERC20(order.tokenOut).transfer(owner, amountOut);
 
         ///@notice Adjust the beaconReward according to the maxBeaconReward.
         beaconReward = beaconReward < maxBeaconReward
             ? beaconReward
             : maxBeaconReward;
 
-        // ///@notice Calculate the execution gas compensation.
-        // //TODO: Figure out what to do with this and where it will go, likely the controller
-        // uint256 executionGasCompensation = calculateExecutionGasCompensation(
-        //     orderOwners
-        // );
+        ///@notice Send the off-chain executor their reward.
+        IWETH(WETH).withdraw(beaconReward);
 
-        // ///@notice Send the off-chain executor their reward.
-        // safeTransferETH(msg.sender, beaconReward + executionGasCompensation);
+        ///@notice Transfer the unwrapped ether to the tx origin. 
+        safeTransferETH(tx.origin, beaconReward);
     }
 
     ///@notice Function to execute a swap from TokenToWeth for an order.
@@ -406,12 +399,12 @@ contract TokenToTokenExecution is OrderRouter {
     }
 
     ///@notice Helper function to calculate amountOutMin value agnostically across dexes on the first hop from tokenA to WETH.
-    ///@param lpAddressAToWeth - lp address of A to weth pair.
-    ///@param amountInOrder - The amountIn for the swap.
-    //TODO: natspec for order
-    ///@param taxIn - The token tax for the tokenIn. If the token is not taxed, this value is 0.
-
-    //TODO: update args to take the order and derive the taxIn leave the amountInOrder alone because this could be a batch amount in
+    ///@param lpAddressAToWeth - The liquidity pool for tokenA to Weth.  
+    ///@param amountInOrder - The amount in on the swap. 
+    ///@param taxIn - The tax on the input token for the swap. 
+    ///@param feeIn - The fee on the swap. 
+    ///@param tokenIn - The address of tokenIn on the swap. 
+    ///@return amountOutMinAToWeth - The amountOutMin in the swap. 
     function calculateAmountOutMinAToWeth(
         address lpAddressAToWeth,
         uint256 amountInOrder,
@@ -914,6 +907,7 @@ contract TokenToTokenExecution is OrderRouter {
                             currentOrder.orderId
                         );
                     }
+                    ///@notice Revert if Order does not meet execution price. 
                     revert OrderDoesNotMeetExecutionPrice(currentOrder.orderId);
                 }
                 unchecked {
@@ -1467,16 +1461,4 @@ contract TokenToTokenExecution is OrderRouter {
         conveyorBalance = 0;
     }
 
-    //TODO:
-    ///@notice Function to calculate the execution gas consumed during executeOrders
-    ///@return executionGasConsumed - The amount of gas consumed.
-    function calculateExecutionGasConsumed()
-        internal
-        view
-        returns (uint256 executionGasConsumed)
-    {
-        assembly {
-            executionGasConsumed := sub(sload(initialTxGas.slot), gas())
-        }
-    }
 }
