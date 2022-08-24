@@ -124,6 +124,8 @@ contract OrderRouter {
 
     //----------------------State Variables------------------------------------//
 
+
+    //TODO: Change this to contractOwner to not get mixed up with orderOwner
     ///@notice The owner of the Order Router contract
     ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract. 
     address owner;
