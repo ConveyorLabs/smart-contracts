@@ -16,7 +16,8 @@ import "../lib/interfaces/token/IWETH.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/ConveyorTickMath.sol";
 import "./ITokenToTokenLimitOrderExecution.sol";
-
+import "./ITaxedLimitOrderExecution.sol";
+import "./ITokenToWethLimitOrderExecution.sol";
 ///FIXME: Change msg.sender to tx.origin for all execution contracts to pay out the beacon reward
 /// @title OrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
@@ -93,8 +94,14 @@ contract LimitOrderRouter is OrderBook {
     ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract. 
     address owner;
 
+    ///@notice TokenToTokenExecution contract address.
     address immutable tokenToTokenExecutionAddress;
 
+    ///@notice TaxedExecution contract address.
+    address immutable taxedExecutionAddress;
+
+    ///@notice TokenToWethExecution contract address.
+    address immutable tokenToWethExecutionAddress;
     // ========================================= Constructor =============================================
 
     ///@param _gasOracle - Address of the ChainLink fast gas oracle.
@@ -106,7 +113,9 @@ contract LimitOrderRouter is OrderBook {
         address _weth,
         address _usdc,
         uint256 _executionCost,
-        address _tokenToTokenExecutionAddress
+        address _tokenToTokenExecutionAddress,
+        address _taxedExecutionAddress,
+        address _tokenToWethExecutionAddress
     )
         OrderBook(_gasOracle)
     {
@@ -115,6 +124,8 @@ contract LimitOrderRouter is OrderBook {
         ORDER_EXECUTION_GAS_COST = _executionCost;
         owner = msg.sender;
         tokenToTokenExecutionAddress = _tokenToTokenExecutionAddress;
+        taxedExecutionAddress = _taxedExecutionAddress;
+        tokenToWethExecutionAddress = _tokenToWethExecutionAddress;
     }
 
     // ========================================= Events  =============================================
@@ -446,19 +457,19 @@ contract LimitOrderRouter is OrderBook {
                 ///@notice If the length of the orders array > 1, execute multiple TokenToWeth taxed orders. 
                 if(orders.length>1){
 
-                    //TODO: _executeTokenToWethTaxedOrders(orders);
+                    ITaxedLimitOrderExecution(taxedExecutionAddress).executeTokenToWethTaxedOrders(orders);
                 ///@notice If the length ==1, execute a single TokenToWeth taxed order. 
                 }else{
-                      //TODO: _executeTokenToWethOrderSingle(orders);
+                    ITokenToWethLimitOrderExecution(tokenToWethExecutionAddress).executeTokenToWethOrderSingle(orders);
                 }
             } else {
                 ///@notice If the length of the orders array > 1, execute multiple TokenToToken taxed orders. 
                 if(orders.length>1){
                     ///@notice Otherwise, if the tokenOut is not Weth and the order is a taxed order.
-                      //TODO: _executeTokenToTokenTaxedOrders(orders);
+                    ITaxedLimitOrderExecution(taxedExecutionAddress).executeTokenToTokenTaxedOrders(orders);
                 ///@notice If the length ==1, execute a single TokenToToken taxed order. 
                 }else{
-                      // _executeTokenToTokenOrderSingle(orders);
+                      ITokenToTokenExecution(tokenToTokenExecutionAddress).executeTokenToTokenOrderSingle(orders);
                 }   
                 
             }
@@ -467,10 +478,10 @@ contract LimitOrderRouter is OrderBook {
             if (orders[0].tokenOut == WETH) {
                 ///@notice If the length of the orders array > 1, execute multiple TokenToWeth taxed orders. 
                 if (orders.length > 1) {
-                      //TODO: _executeTokenToWethOrders(orders);
+                      ITokenToWethLimitOrderExecution(tokenToWethExecutionAddress).executeTokenToWethOrders(orders);
                 ///@notice If the length ==1, execute a single TokenToWeth taxed order. 
                 } else {
-                      //TODO: _executeTokenToWethOrderSingle(orders);
+                      ITokenToWethLimitOrderExecution(tokenToWethExecutionAddress).executeTokenToWethOrderSingle(orders);
                 }
             } else {
                 ///@notice If the length of the orders array > 1, execute multiple TokenToToken orders. 
