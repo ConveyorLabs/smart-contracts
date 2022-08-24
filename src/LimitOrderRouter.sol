@@ -494,6 +494,7 @@ contract LimitOrderRouter is OrderBook {
                 }
             }
         }
+        ///TODO: Emit OrderFullfilled events for each order
 
         ///@notice Get the array of order owners.
         address[] memory orderOwners = getOrderOwners(orders);
