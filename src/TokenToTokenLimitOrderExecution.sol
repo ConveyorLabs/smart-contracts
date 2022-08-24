@@ -18,9 +18,8 @@ import "../lib/libraries/ConveyorTickMath.sol";
 
 /// @title OrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
-/// @notice Limit Order contract to execute existing limit orders within the OrderBook contract. 
+/// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
 contract TokenToTokenExecution is OrderRouter {
-
     // ========================================= Modifiers =============================================
 
     ///@notice Conveyor funds balance in the contract.
@@ -42,8 +41,6 @@ contract TokenToTokenExecution is OrderRouter {
 
     ///@notice State variable to track the amount of gas initally alloted during executeOrders.
     uint256 initialTxGas;
-
-
 
     // ========================================= Constructor =============================================
 
@@ -82,8 +79,6 @@ contract TokenToTokenExecution is OrderRouter {
         ORDER_EXECUTION_GAS_COST = _executionCost;
     }
 
-
-
     // ========================================= FUNCTIONS =============================================
 
     // ==================== Order Execution Functions =========================
@@ -101,10 +96,7 @@ contract TokenToTokenExecution is OrderRouter {
                 order.quantity
             )
         {} catch {
-
             // //TODO: we should just revert when this happens
-
-
             // _cancelOrder(order);
             // return false;
         }
@@ -113,7 +105,9 @@ contract TokenToTokenExecution is OrderRouter {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
-    function _executeTokenToTokenOrders(OrderBook.Order[] memory orders) internal {
+    function _executeTokenToTokenOrders(OrderBook.Order[] memory orders)
+        internal
+    {
         ///@notice Get all execution prices.
         (
             TokenToTokenExecutionPrice[] memory executionPrices,
@@ -136,7 +130,9 @@ contract TokenToTokenExecution is OrderRouter {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
-    function _executeTokenToTokenOrderSingle(OrderBook.Order[] memory orders) internal {
+    function _executeTokenToTokenOrderSingle(OrderBook.Order[] memory orders)
+        internal
+    {
         ///@notice Get all execution prices.
         (
             TokenToTokenExecutionPrice[] memory executionPrices,
@@ -155,6 +151,7 @@ contract TokenToTokenExecution is OrderRouter {
             executionPrices[bestPriceIndex]
         );
     }
+
     ///@notice Function to execute token to token batch orders.
     ///@param tokenToTokenBatchOrders - Array of token to token batch orders.
     ///@param maxBeaconReward - Max beacon reward for the batch.
@@ -235,9 +232,9 @@ contract TokenToTokenExecution is OrderRouter {
     }
 
     ///@notice Function to execute a single Token To Token order.
-    ///@param order - The order to be executed. 
+    ///@param order - The order to be executed.
     ///@param maxBeaconReward - The maximum beacon reward.
-    ///@param executionPrice - The best priced TokenToTokenExecutionPrice to execute the order on. 
+    ///@param executionPrice - The best priced TokenToTokenExecutionPrice to execute the order on.
     function _executeTokenToTokenSingle(
         OrderBook.Order memory order,
         uint128 maxBeaconReward,
@@ -274,18 +271,18 @@ contract TokenToTokenExecution is OrderRouter {
         // safeTransferETH(msg.sender, beaconReward + executionGasCompensation);
     }
 
-    ///@notice Function to execute a swap from TokenToWeth for an order. 
+    ///@notice Function to execute a swap from TokenToWeth for an order.
     ///@param executionPrice - The best priced TokenToTokenExecutionPrice for the order to be executed on.
-    ///@param order - The order to be executed. 
-    ///@return amountOutWeth - The amountOut in Weth after the swap. 
+    ///@param order - The order to be executed.
+    ///@return amountOutWeth - The amountOut in Weth after the swap.
     function _executeSwapTokenToWethOrder(
         TokenToTokenExecutionPrice memory executionPrice,
         OrderBook.Order memory order
     ) internal returns (uint128 amountOutWeth) {
-        ///@notice Cache the liquidity pool address. 
+        ///@notice Cache the liquidity pool address.
         address lpAddressAToWeth = executionPrice.lpAddressAToWeth;
 
-        ///@notice Cache the order Quantity. 
+        ///@notice Cache the order Quantity.
         uint256 orderQuantity = order.quantity;
 
         uint24 feeIn = order.feeIn;
@@ -297,7 +294,7 @@ contract TokenToTokenExecution is OrderRouter {
             orderQuantity,
             order.taxIn,
             feeIn,
-            tokenIn            
+            tokenIn
         );
 
         ///@notice Swap from tokenA to Weth.
@@ -330,19 +327,19 @@ contract TokenToTokenExecution is OrderRouter {
         amountOutWeth = amountOutWeth - (beaconReward + conveyorReward);
     }
 
-    ///@notice Function to execute a single Token To Token order. 
-    ///@param order - The order to be executed. 
+    ///@notice Function to execute a single Token To Token order.
+    ///@param order - The order to be executed.
     ///@param executionPrice - The best priced TokenToTokenExecution price to execute the order on.
     function _executeTokenToTokenOrder(
         OrderBook.Order memory order,
         TokenToTokenExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
-        ///@notice Initialize variables to prevent stack too deep. 
+        ///@notice Initialize variables to prevent stack too deep.
         uint256 amountInWethToB;
         uint128 conveyorReward;
         uint128 beaconReward;
 
-        ///@notice Scope to prevent stack too deep. 
+        ///@notice Scope to prevent stack too deep.
         {
             ///@notice If the tokenIn is not weth.
             if (order.tokenIn != WETH) {
@@ -354,10 +351,9 @@ contract TokenToTokenExecution is OrderRouter {
                     revert InsufficientOutputAmount();
                 }
             } else {
-
-                ///@notice Transfer the TokenIn to the contract. 
+                ///@notice Transfer the TokenIn to the contract.
                 transferTokensToContract(order);
-                
+
                 uint256 amountIn = order.quantity;
                 ///@notice Take out fees from the batch amountIn since token0 is weth.
                 uint128 protocolFee = _calculateFee(
@@ -391,7 +387,7 @@ contract TokenToTokenExecution is OrderRouter {
             order.owner,
             address(this)
         );
-            
+
         if (amountOutInB == 0) {
             revert InsufficientOutputAmount();
         }
@@ -408,14 +404,12 @@ contract TokenToTokenExecution is OrderRouter {
         return (amountOutInB, uint256(beaconReward));
     }
 
- 
-
     ///@notice Helper function to calculate amountOutMin value agnostically across dexes on the first hop from tokenA to WETH.
     ///@param lpAddressAToWeth - lp address of A to weth pair.
     ///@param amountInOrder - The amountIn for the swap.
     //TODO: natspec for order
     ///@param taxIn - The token tax for the tokenIn. If the token is not taxed, this value is 0.
-    
+
     //TODO: update args to take the order and derive the taxIn leave the amountInOrder alone because this could be a batch amount in
     function calculateAmountOutMinAToWeth(
         address lpAddressAToWeth,
@@ -423,18 +417,16 @@ contract TokenToTokenExecution is OrderRouter {
         uint16 taxIn,
         uint24 feeIn,
         address tokenIn
-
     ) internal returns (uint256 amountOutMinAToWeth) {
         ///@notice Check if the lp is UniV3
         if (!_lpIsNotUniV3(lpAddressAToWeth)) {
-
             ///@notice 1000==100% so divide amountInOrder *taxIn by 10**5 to adjust to correct base
             uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
             uint256 amountIn = amountInOrder - amountInBuffer;
 
             ///@notice Calculate the amountOutMin for the swap.
             amountOutMinAToWeth = iQuoter.quoteExactInputSingle(
-               tokenIn,
+                tokenIn,
                 WETH,
                 feeIn,
                 amountIn,
@@ -505,7 +497,7 @@ contract TokenToTokenExecution is OrderRouter {
         internal
         returns (uint256, uint256)
     {
-        ///@notice Initialize variables used throughout the function. 
+        ///@notice Initialize variables used throughout the function.
         uint128 protocolFee;
         uint128 beaconReward;
         uint128 conveyorReward;
@@ -516,10 +508,8 @@ contract TokenToTokenExecution is OrderRouter {
         if (!(batch.batchLength == 0)) {
             ///@notice If the tokenIn is not weth.
             if (batch.tokenIn != WETH) {
-                
                 ///@notice Get the UniV3 fee for the tokenA to Weth swap.
                 fee = _getUniV3Fee(batch.lpAddressAToWeth);
-
 
                 ///@notice Calculate the amountOutMin for tokenA to Weth.
                 uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWeth(
@@ -530,7 +520,6 @@ contract TokenToTokenExecution is OrderRouter {
                     batch.tokenIn
                 );
 
-               
                 ///@notice Swap from tokenA to Weth.
                 uint128 amountOutWeth = uint128(
                     _swap(
@@ -609,7 +598,6 @@ contract TokenToTokenExecution is OrderRouter {
                 revert InsufficientOutputAmount();
             }
 
-
             // //TODO: Migrate the order state updates to the limit order router contract
             // ///@notice Scoping to avoid stack too deep errors.
             // {
@@ -638,11 +626,9 @@ contract TokenToTokenExecution is OrderRouter {
 
     ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
     ///@param orders - Array of orders that are being evaluated for execution.
-    function _initializeTokenToTokenExecutionPrices(OrderBook.Order[] memory orders)
-        internal
-        view
-        returns (TokenToTokenExecutionPrice[] memory, uint128)
-    {
+    function _initializeTokenToTokenExecutionPrices(
+        OrderBook.Order[] memory orders
+    ) internal view returns (TokenToTokenExecutionPrice[] memory, uint128) {
         address tokenIn = orders[0].tokenIn;
         ///@notice Get all prices for the pairing tokenIn to Weth
         (
@@ -927,6 +913,7 @@ contract TokenToTokenExecution is OrderRouter {
                             currentOrder.orderId
                         );
                     }
+                    revert OrderDoesNotMeetExecutionPrice(currentOrder.orderId);
                 }
                 unchecked {
                     ++i;
@@ -980,7 +967,11 @@ contract TokenToTokenExecution is OrderRouter {
     ///@notice Function to retrieve the buy/sell status of a single order.
     ///@param order Order to determine buy/sell status on.
     ///@return bool Boolean indicating the buy/sell status of the order.
-    function _buyOrSell(OrderBook.Order memory order) internal pure returns (bool) {
+    function _buyOrSell(OrderBook.Order memory order)
+        internal
+        pure
+        returns (bool)
+    {
         if (order.buy) {
             return true;
         } else {
