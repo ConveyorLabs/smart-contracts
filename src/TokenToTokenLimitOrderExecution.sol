@@ -99,6 +99,7 @@ contract TokenToTokenExecution is OrderRouter {
             // //TODO: we should just revert when this happens
             // _cancelOrder(order);
             // return false;
+            revert TokenTransferFailed(order.orderId);
         }
         return true;
     }
