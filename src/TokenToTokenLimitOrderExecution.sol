@@ -58,7 +58,6 @@ contract TokenToTokenExecution is OrderRouter {
     ///@param _initByteCodes - Array of initBytecodes required to calculate pair addresses for each DEX.
     ///@param _dexFactories - Array of DEX factory addresses to be added to the system.
     ///@param _isUniV2 - Array indicating if a DEX factory passed in during initialization is a UniV2 compatiable DEX.
-    ///@param _swapRouter - Address of the UniV3 SwapRouter for the chain.
     ///@param _alphaXDivergenceThreshold - Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     constructor(
         address _weth,
@@ -69,14 +68,12 @@ contract TokenToTokenExecution is OrderRouter {
         bytes32[] memory _initByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
-        address _swapRouter,
         uint256 _alphaXDivergenceThreshold
     )
         OrderRouter(
             _initByteCodes,
             _dexFactories,
             _isUniV2,
-            _swapRouter,
             _alphaXDivergenceThreshold
         )
     {
@@ -146,7 +143,9 @@ contract TokenToTokenExecution is OrderRouter {
             uint128 maxBeaconReward
         ) = _initializeTokenToTokenExecutionPrices(orders);
 
-        uint256 bestPriceIndex = _findBestTokenToTokenExecutionPrice(
+        uint256 bestPriceIndex = ILimitOrderBatcher(
+                LIMIT_ORDER_BATCHER
+            ).findBestTokenToTokenExecutionPrice(
             executionPrices,
             orders[0].buy
         );
@@ -159,43 +158,6 @@ contract TokenToTokenExecution is OrderRouter {
         );
     }
 
-    ///@notice Function to return the index of the best price in the executionPrices array.
-    ///@param executionPrices - Array of execution prices to evaluate.
-    ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
-    ///@return bestPriceIndex - Index of the best price in the executionPrices array.
-    function _findBestTokenToTokenExecutionPrice(
-        OrderRouter.TokenToTokenExecutionPrice[] memory executionPrices,
-        bool buyOrder
-    ) internal pure returns (uint256 bestPriceIndex) {
-        ///@notice If the order is a buy order, set the initial best price at 0.
-        if (buyOrder) {
-            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-            ///@notice For each exectution price in the executionPrices array.
-            for (uint256 i = 0; i < executionPrices.length; ) {
-                uint256 executionPrice = executionPrices[i].price;
-                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
-                if (executionPrice < bestPrice && executionPrice != 0) {
-                    bestPrice = executionPrice;
-                    bestPriceIndex = i;
-                }
-                unchecked {
-                    ++i;
-                }
-            }
-        } else {
-            uint256 bestPrice = 0;
-            ///@notice If the order is a sell order, set the initial best price at max uint256.
-            for (uint256 i = 0; i < executionPrices.length; i++) {
-                uint256 executionPrice = executionPrices[i].price;
-                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
-                if (executionPrice > bestPrice && executionPrice != 0) {
-                    bestPrice = executionPrice;
-                    bestPriceIndex = i;
-                }
-            }
-        }
-    }
-
     ///@notice Function to execute token to token batch orders.
     ///@param tokenToTokenBatchOrders - Array of token to token batch orders.
     ///@param maxBeaconReward - Max beacon reward for the batch.
@@ -204,11 +166,6 @@ contract TokenToTokenExecution is OrderRouter {
         uint128 maxBeaconReward
     ) internal {
         uint256 totalBeaconReward;
-
-        uint256 orderOwnersIndex = 0;
-        address[] memory orderOwners = new address[](
-            tokenToTokenBatchOrders[0].batchOwners.length
-        );
 
         ///@notice For each batch order in the array.
         for (uint256 i = 0; i < tokenToTokenBatchOrders.length; ) {
@@ -241,11 +198,8 @@ contract TokenToTokenExecution is OrderRouter {
                 );
 
                 ///@notice Send the order payout to the order owner.
+                ///FIXME: Fix
                 safeTransferETH(batch.batchOwners[j], orderPayout);
-
-                ///@notice Update the orderOwners array for gas credit adjustments
-                orderOwners[orderOwnersIndex] = batch.batchOwners[j];
-                ++orderOwnersIndex;
 
                 unchecked {
                     ++j;
@@ -426,15 +380,6 @@ contract TokenToTokenExecution is OrderRouter {
         if (amountOutInB == 0) {
             revert InsufficientOutputAmount();
         }
-
-        // //TODO: controller handle
-        // ///@notice Mark the order as resolved from the system.
-        // _resolveCompletedOrder(order);
-
-        // bytes32[] memory orderIds = new bytes32[](1);
-        // orderIds[0] = order.orderId;
-        // ///@notice Emit an order fufilled event to notify the off-chain executors.
-        // emit OrderFufilled(orderIds);
 
         return (amountOutInB, uint256(beaconReward));
     }
@@ -632,25 +577,6 @@ contract TokenToTokenExecution is OrderRouter {
             if (amountOutInB == 0) {
                 revert InsufficientOutputAmount();
             }
-
-            // //TODO: Migrate the order state updates to the limit order router contract
-            // ///@notice Scoping to avoid stack too deep errors.
-            // {
-            //     ///@notice Iterate through all orderIds in the batch and delete the orders from queue post execution.
-            //     for (uint256 i = 0; i < batch.batchLength; ) {
-            //         bytes32 orderId = batch.orderIds[i];
-
-            //         ///@notice Mark the order as resolved from the system.
-            //         _resolveCompletedOrder(orderIdToOrder[orderId]);
-
-            //         unchecked {
-            //             ++i;
-            //         }
-            //     }
-
-            //     ///@notice Emit an order fufilled event to notify the off-chain executors.
-            //     emit OrderFufilled(batch.orderIds);
-            // }
 
             return (amountOutInB, uint256(beaconReward));
         } else {

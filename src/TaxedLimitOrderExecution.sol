@@ -47,7 +47,6 @@ contract TaxedTokenToTokenExecution is OrderRouter {
     ///@param _initByteCodes - Array of initBytecodes required to calculate pair addresses for each DEX.
     ///@param _dexFactories - Array of DEX factory addresses to be added to the system.
     ///@param _isUniV2 - Array indicating if a DEX factory passed in during initialization is a UniV2 compatiable DEX.
-    ///@param _swapRouter - Address of the UniV3 SwapRouter for the chain.
     ///@param _alphaXDivergenceThreshold - Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     constructor(
         address _weth,
@@ -56,7 +55,6 @@ contract TaxedTokenToTokenExecution is OrderRouter {
         bytes32[] memory _initByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
-        address _swapRouter,
         uint256 _alphaXDivergenceThreshold,
         address _orderBookAddress
     )
@@ -64,7 +62,6 @@ contract TaxedTokenToTokenExecution is OrderRouter {
             _initByteCodes,
             _dexFactories,
             _isUniV2,
-            _swapRouter,
             _alphaXDivergenceThreshold
         )
     {

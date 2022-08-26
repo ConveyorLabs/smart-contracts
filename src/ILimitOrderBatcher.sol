@@ -9,4 +9,9 @@ interface ILimitOrderBatcher {
         OrderBook.Order[] memory orders,
         OrderRouter.TokenToTokenExecutionPrice[] memory executionPrices
     ) external returns (OrderRouter.TokenToTokenBatchOrder[] memory);
+
+    function findBestTokenToTokenExecutionPrice(
+        OrderRouter.TokenToTokenExecutionPrice[] memory executionPrices,
+        bool buyOrder
+    ) external pure returns (uint256 bestPriceIndex);
 }

@@ -180,8 +180,6 @@ contract OrderRouter {
     ///@notice Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     uint256 immutable alphaXDivergenceThreshold;
 
-    ///@notice Instance of the UniV3 swap router.
-    ISwapRouter public immutable swapRouter;
 
     //======================Constructor================================
 
@@ -190,13 +188,11 @@ contract OrderRouter {
     ///@param _deploymentByteCodes - Array of DEX creation init bytecodes.
     ///@param _dexFactories - Array of DEX factory addresses.
     ///@param _isUniV2 - Array of booleans indicating if the DEX is UniV2 compatible.
-    ///@param _swapRouterAddress - The UniV3 swap router address for the network.
     ///@param _alphaXDivergenceThreshold - Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     constructor(
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
-        address _swapRouterAddress,
         uint256 _alphaXDivergenceThreshold
     ) {
         ///@notice Initialize DEXs and other variables
@@ -210,7 +206,6 @@ contract OrderRouter {
             );
         }
         alphaXDivergenceThreshold = _alphaXDivergenceThreshold;
-        swapRouter = ISwapRouter(_swapRouterAddress);
         owner = msg.sender;
     }
 
