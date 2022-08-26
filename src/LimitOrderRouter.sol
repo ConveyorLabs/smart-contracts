@@ -18,12 +18,12 @@ import "../lib/libraries/ConveyorTickMath.sol";
 import "./ITokenToTokenLimitOrderExecution.sol";
 import "./ITaxedLimitOrderExecution.sol";
 import "./ITokenToWethLimitOrderExecution.sol";
+
 ///FIXME: Change msg.sender to tx.origin for all execution contracts to pay out the beacon reward
 /// @title OrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
-/// @notice Limit Order contract to execute existing limit orders within the OrderBook contract. 
+/// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
 contract LimitOrderRouter is OrderBook {
-
     // ========================================= Modifiers =============================================
 
     ///@notice Modifier to restrict smart contracts from calling a function.
@@ -43,7 +43,6 @@ contract LimitOrderRouter is OrderBook {
 
         _;
     }
-
 
     ///@notice Conveyor funds balance in the contract.
     uint256 conveyorBalance;
@@ -86,12 +85,12 @@ contract LimitOrderRouter is OrderBook {
     ///@notice State variable to track the amount of gas initally alloted during executeOrders.
     uint256 initialTxGas;
 
-    ///@notice Temporary owner storage variable when transferring ownership of the contract. 
+    ///@notice Temporary owner storage variable when transferring ownership of the contract.
     address tempOwner;
 
     //TODO: Change this to contractOwner to not get mixed up with orderOwner
     ///@notice The owner of the Order Router contract
-    ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract. 
+    ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
     address owner;
 
     ///@notice TokenToTokenExecution contract address.
@@ -102,6 +101,7 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice TokenToWethExecution contract address.
     address immutable tokenToWethExecutionAddress;
+
     // ========================================= Constructor =============================================
 
     ///@param _gasOracle - Address of the ChainLink fast gas oracle.
@@ -116,9 +116,7 @@ contract LimitOrderRouter is OrderBook {
         address _tokenToTokenExecutionAddress,
         address _taxedExecutionAddress,
         address _tokenToWethExecutionAddress
-    )
-        OrderBook(_gasOracle)
-    {
+    ) OrderBook(_gasOracle) {
         WETH = _weth;
         USDC = _usdc;
         ORDER_EXECUTION_GAS_COST = _executionCost;
@@ -387,7 +385,6 @@ contract LimitOrderRouter is OrderBook {
         return true;
     }
 
-
     ///@notice Function to validate the congruency of an array of orders.
     ///@param orders Array of orders to be validated
     function _validateOrderSequencing(Order[] memory orders) internal pure {
@@ -454,71 +451,88 @@ contract LimitOrderRouter is OrderBook {
         if (orders[0].taxed == true) {
             ///@notice If the tokenOut on the order is Weth
             if (orders[0].tokenOut == WETH) {
-                ///@notice If the length of the orders array > 1, execute multiple TokenToWeth taxed orders. 
-                if(orders.length>1){
-
-                    ITaxedLimitOrderExecution(taxedExecutionAddress).executeTokenToWethTaxedOrders(orders);
-                ///@notice If the length ==1, execute a single TokenToWeth taxed order. 
-                }else{
-                    ITokenToWethLimitOrderExecution(tokenToWethExecutionAddress).executeTokenToWethOrderSingle(orders);
+                ///@notice If the length of the orders array > 1, execute multiple TokenToWeth taxed orders.
+                if (orders.length > 1) {
+                    ITaxedLimitOrderExecution(taxedExecutionAddress)
+                        .executeTokenToWethTaxedOrders(orders);
+                    ///@notice If the length ==1, execute a single TokenToWeth taxed order.
+                } else {
+                    ITokenToWethLimitOrderExecution(tokenToWethExecutionAddress)
+                        .executeTokenToWethOrderSingle(orders);
                 }
             } else {
-                ///@notice If the length of the orders array > 1, execute multiple TokenToToken taxed orders. 
-                if(orders.length>1){
+                ///@notice If the length of the orders array > 1, execute multiple TokenToToken taxed orders.
+                if (orders.length > 1) {
                     ///@notice Otherwise, if the tokenOut is not Weth and the order is a taxed order.
-                    ITaxedLimitOrderExecution(taxedExecutionAddress).executeTokenToTokenTaxedOrders(orders);
-                ///@notice If the length ==1, execute a single TokenToToken taxed order. 
-                }else{
-                      ITokenToTokenExecution(tokenToTokenExecutionAddress).executeTokenToTokenOrderSingle(orders);
-                }   
-                
+                    ITaxedLimitOrderExecution(taxedExecutionAddress)
+                        .executeTokenToTokenTaxedOrders(orders);
+                    ///@notice If the length ==1, execute a single TokenToToken taxed order.
+                } else {
+                    ITokenToTokenExecution(tokenToTokenExecutionAddress)
+                        .executeTokenToTokenOrderSingle(orders);
+                }
             }
         } else {
             ///@notice If the order is not taxed and the tokenOut on the order is Weth
             if (orders[0].tokenOut == WETH) {
-                ///@notice If the length of the orders array > 1, execute multiple TokenToWeth taxed orders. 
+                ///@notice If the length of the orders array > 1, execute multiple TokenToWeth taxed orders.
                 if (orders.length > 1) {
-                      ITokenToWethLimitOrderExecution(tokenToWethExecutionAddress).executeTokenToWethOrders(orders);
-                ///@notice If the length ==1, execute a single TokenToWeth taxed order. 
+                    ITokenToWethLimitOrderExecution(tokenToWethExecutionAddress)
+                        .executeTokenToWethOrders(orders);
+                    ///@notice If the length ==1, execute a single TokenToWeth taxed order.
                 } else {
-                      ITokenToWethLimitOrderExecution(tokenToWethExecutionAddress).executeTokenToWethOrderSingle(orders);
+                    ITokenToWethLimitOrderExecution(tokenToWethExecutionAddress)
+                        .executeTokenToWethOrderSingle(orders);
                 }
             } else {
-                ///@notice If the length of the orders array > 1, execute multiple TokenToToken orders. 
+                ///@notice If the length of the orders array > 1, execute multiple TokenToToken orders.
                 if (orders.length > 1) {
                     ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
-                    ITokenToTokenExecution(tokenToTokenExecutionAddress).executeTokenToTokenOrders(orders);
-                ///@notice If the length ==1, execute a single TokenToToken order. 
+                    ITokenToTokenExecution(tokenToTokenExecutionAddress)
+                        .executeTokenToTokenOrders(orders);
+                    ///@notice If the length ==1, execute a single TokenToToken order.
                 } else {
-                    ITokenToTokenExecution(tokenToTokenExecutionAddress).executeTokenToTokenOrderSingle(orders);
+                    ITokenToTokenExecution(tokenToTokenExecutionAddress)
+                        .executeTokenToTokenOrderSingle(orders);
                 }
             }
         }
-        ///TODO: Emit OrderFullfilled events for each order
-
+        ///TODO: Emit OrderFullfilled events for
+        ///@notice Iterate through all orderIds in the batch and delete the orders from queue post execution.
+        for (uint256 i = 0; i < orderIds.length; ) {
+            bytes32 orderId = orderIds[i];
+            ///@notice Mark the order as resolved from the system.
+            _resolveCompletedOrder(orderIdToOrder[orderId]);
+            unchecked {
+                ++i;
+            }
+        }
+        ///@notice Emit an order fufilled event to notify the off-chain executors.
+        emit OrderFufilled(orderIds);
+        
         ///@notice Get the array of order owners.
         address[] memory orderOwners = getOrderOwners(orders);
 
-         ///@notice Calculate the execution gas compensation.
+        ///@notice Calculate the execution gas compensation.
         uint256 executionGasCompensation = calculateExecutionGasCompensation(
             orderOwners
         );
 
         ///@notice Transfer the reward to the off-chain executor.
-        safeTransferETH(
-            msg.sender,
-            executionGasCompensation
-        );
-
+        safeTransferETH(msg.sender, executionGasCompensation);
     }
 
-    ///@notice Function to return an array of order owners. 
+    ///@notice Function to return an array of order owners.
     ///@param orders - Array of orders.
-    ///@return orderOwners - An array of order owners in the orders array. 
-    function getOrderOwners(Order[] memory orders) internal pure returns (address[] memory orderOwners){
+    ///@return orderOwners - An array of order owners in the orders array.
+    function getOrderOwners(Order[] memory orders)
+        internal
+        pure
+        returns (address[] memory orderOwners)
+    {
         orderOwners = new address[](orders.length);
-        for(uint256 i =0; i < orders.length;){
-            orderOwners[i]= orders[i].owner;
+        for (uint256 i = 0; i < orders.length; ) {
+            orderOwners[i] = orders[i].owner;
             unchecked {
                 ++i;
             }
@@ -531,11 +545,9 @@ contract LimitOrderRouter is OrderBook {
         conveyorBalance = 0;
     }
 
-    
-
     ///@notice Function to confirm ownership transfer of the contract.
     function confirmTransferOwnership() external {
-        if(msg.sender != tempOwner){
+        if (msg.sender != tempOwner) {
             revert UnauthorizedCaller();
         }
         owner = msg.sender;
@@ -543,11 +555,10 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice Function to transfer ownership of the contract.
     function transferOwnership(address newOwner) external onlyOwner {
-        if(owner== address(0)){
+        if (owner == address(0)) {
             revert InvalidAddress();
         }
         tempOwner = newOwner;
-
     }
 
     ///@notice Function to calculate the execution gas consumed during executeOrders
@@ -595,7 +606,6 @@ contract LimitOrderRouter is OrderBook {
             }
         }
     }
-
 
     ///@notice Transfer ETH to a specific address and require that the call was successful.
     ///@param to - The address that should be sent Ether.
