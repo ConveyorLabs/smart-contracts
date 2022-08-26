@@ -426,7 +426,7 @@ contract LimitOrderRouter is OrderBook {
     ///@notice This function is called by off-chain executors, passing in an array of orderIds to execute a specific batch of orders.
     /// @param orderIds - Array of orderIds to indicate which orders should be executed.
     function executeOrders(bytes32[] calldata orderIds) external onlyEOA {
-        // Update the initial gas balance.
+        //Update the initial gas balance.
         assembly {
             sstore(initialTxGas.slot, gas())
         }
@@ -497,7 +497,7 @@ contract LimitOrderRouter is OrderBook {
                 }
             }
         }
-        ///TODO: Emit OrderFullfilled events for
+
         ///@notice Iterate through all orderIds in the batch and delete the orders from queue post execution.
         for (uint256 i = 0; i < orderIds.length; ) {
             bytes32 orderId = orderIds[i];
@@ -509,7 +509,7 @@ contract LimitOrderRouter is OrderBook {
         }
         ///@notice Emit an order fufilled event to notify the off-chain executors.
         emit OrderFufilled(orderIds);
-        
+
         ///@notice Get the array of order owners.
         address[] memory orderOwners = getOrderOwners(orders);
 
