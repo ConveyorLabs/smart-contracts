@@ -13,7 +13,9 @@ import "./utils/ScriptRunner.sol";
 import "../OrderBook.sol";
 import "../LimitOrderRouter.sol";
 import "../LimitOrderBatcher.sol";
-
+import "../TokenToTokenLimitOrderExecution.sol";
+import "../TokenToWethLimitOrderExecution.sol";
+import "../TaxedTokenToTokenExecution.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -31,7 +33,18 @@ interface CheatCodes {
 contract TokenToTokenLimitOrderExecutionTest is DSTest {
     //Initialize limit-v0 contract for testing
     LimitOrderRouter limitOrderRouter;
+    ExecutionWrapper limitOrderBatcher;
+    //Initialize execution contracts
+    TokenToTokenExecution tokenToTokenExecution;
+    TaxedTokenToTokenExecution taxedTokenExecution;
+    TokenToWethExecution tokenToWethExecution;
+
+    OrderRouter orderRouter;
+    //Initialize OrderBook
+    OrderBook orderBook;
+
     ScriptRunner scriptRunner;
+
     Swap swapHelper;
     Swap swapHelperUniV2;
 
@@ -89,23 +102,59 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
 
     uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000; //0.00001
     address swapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
 
     function setUp() public {
         scriptRunner = new ScriptRunner();
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         swapHelper = new Swap(_sushiSwapRouterAddress, WETH);
         swapHelperUniV2 = new Swap(uniV2Addr, WETH);
+
+        orderBook = new OrderBook(aggregatorV3Address);
+
+        limitOrderBatcher = new ExecutionWrapper(
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+            0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
+        );
+
         limitOrderRouter = new LimitOrderRouter(
-            0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
+            3000000,
+            _tokenToTokenExecutionAddress,
+            _taxedExecutionAddress,
+            _tokenToWethExecutionAddress
+        );
+
+        
+    }
+
+    function initializeExecutionContracts() public {
+        tokenToTokenExecution = new TokenToTokenLimitOrderExecution(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6,
-            3000000,
-            _hexDems,
-            _dexFactories,
-            _isUniV2,
-            swapRouter,
-            alphaXDivergenceThreshold
+            address(limitOrderBatcher),
+            300000,
+            address(orderRouter)
+        );
+
+        taxedTokenExecution = new TokenToTokenLimitOrderExecution(
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
+            0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6,
+            address(limitOrderBatcher),
+            300000,
+            address(orderRouter)
+        );
+
+        tokenToWethExecution = new TokenToTokenLimitOrderExecution(
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
+            0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6,
+            address(limitOrderBatcher),
+            300000,
+            address(orderRouter)
         );
     }
 
@@ -202,7 +251,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-        IERC20(DAI).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(DAI).approve(address(tokenToWethExecution), MAX_UINT);
         bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethBatch();
 
         //check that the orders have been placed
@@ -238,7 +287,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
 
         require(depositSuccess, "failure when depositing ether into weth");
 
-        IERC20(WETH).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(WETH).approve(address(tokenToTokenExecution), MAX_UINT);
 
         //Create a new mock order
         OrderBook.Order memory order = newMockOrder(
@@ -284,7 +333,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-        IERC20(DAI).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(DAI).approve(address(tokenToWethExecution), MAX_UINT);
         //Create a new mock order
         OrderBook.Order memory order = newMockOrder(
             DAI,
@@ -340,7 +389,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         //require that the deposit was a success
         require(depositSuccess, "testDepositGasCredits: deposit failed");
 
-        IERC20(WETH).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(WETH).approve(address(tokenToTokenExecution), MAX_UINT);
 
         bytes32[] memory tokenToWethOrderBatch = placeNewMockWethToTokenBatch();
         //Make sure the orders have been placed
@@ -367,7 +416,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-        IERC20(DAI).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(DAI).approve(address(tokenToTokenExecution), MAX_UINT);
         OrderBook.Order memory order = newMockOrder(
             DAI,
             UNI,
@@ -412,7 +461,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-        IERC20(USDC).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(USDC).approve(address(tokenToTokenExecution), MAX_UINT);
 
         bytes32[]
             memory tokenToTokenOrderBatch = placeNewMockTokenToTokenBatch();
@@ -450,7 +499,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
 
         require(depositSuccess, "failure when depositing ether into weth");
 
-        IERC20(WETH).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(WETH).approve(address(taxedTokenExecution), MAX_UINT);
         OrderBook.Order memory order = newMockOrder(
             WETH,
             TAXED_TOKEN,
@@ -505,7 +554,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
 
         require(depositSuccess, "failure when depositing ether into weth");
 
-        IERC20(WETH).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(WETH).approve(address(taxedTokenExecution), MAX_UINT);
 
         bytes32[] memory wethToTaxedOrderBatch = placeNewMockWethToTaxedBatch();
 
@@ -536,7 +585,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, TAXED_TOKEN);
 
-        IERC20(TAXED_TOKEN).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(TAXED_TOKEN).approve(address(taxedTokenExecution), MAX_UINT);
 
         OrderBook.Order memory order = newMockOrder(
             TAXED_TOKEN,
@@ -583,7 +632,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-        IERC20(TAXED_TOKEN).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(TAXED_TOKEN).approve(address(taxedTokenExecution), MAX_UINT);
 
         bytes32[]
             memory tokenToWethOrderBatch = placeNewMockTokenToWethTaxedBatch();
@@ -615,7 +664,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
 
-        IERC20(DAI).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(DAI).approve(address(taxedTokenExecution), MAX_UINT);
         OrderBook.Order memory order = newMockOrder(
             DAI,
             TAXED_TOKEN,
@@ -671,7 +720,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, TAXED_TOKEN);
 
-        IERC20(TAXED_TOKEN).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(TAXED_TOKEN).approve(address(taxedTokenExecution), MAX_UINT);
 
         OrderBook.Order memory order = newMockOrder(
             TAXED_TOKEN,
@@ -706,7 +755,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         cheatCodes.deal(address(swapHelperUniV2), MAX_UINT);
         swapHelperUniV2.swapEthForTokenWithUniV2(10000 ether, TAXED_TOKEN);
 
-        IERC20(TAXED_TOKEN).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(TAXED_TOKEN).approve(address(taxedTokenExecution), MAX_UINT);
 
         bytes32[] memory orderBatch = placeNewMockTaxedToTokenBatch();
 
@@ -735,7 +784,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         cheatCodes.deal(address(swapHelperUniV2), MAX_UINT);
         swapHelperUniV2.swapEthForTokenWithUniV2(10000 ether, TAXED_TOKEN);
 
-        IERC20(TAXED_TOKEN).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(TAXED_TOKEN).approve(address(taxedTokenExecution), MAX_UINT);
 
         bytes32[] memory orderBatch = placeNewMockTaxedToTaxedTokenBatch();
 
@@ -764,7 +813,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, TAXED_TOKEN);
 
-        IERC20(TAXED_TOKEN).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(TAXED_TOKEN).approve(address(taxedTokenExecution), MAX_UINT);
 
         OrderBook.Order memory order = newMockOrder(
             TAXED_TOKEN,
@@ -955,7 +1004,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         depositGasCreditsForMockOrders(100);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-        IERC20(DAI).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(DAI).approve(address(tokenToTokenExecution), MAX_UINT);
         //Initialize a new order
         OrderBook.Order memory order = newMockOrder(
             DAI,
@@ -1003,7 +1052,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-        IERC20(DAI).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(DAI).approve(address(tokenToTokenExecution), MAX_UINT);
 
         //Initialize a new order
         OrderBook.Order memory order = newMockOrder(
@@ -1052,7 +1101,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-        IERC20(DAI).approve(address(limitOrderRouter), MAX_UINT);
+        IERC20(DAI).approve(address(tokenToTokenExecution), MAX_UINT);
         console.log(block.timestamp);
         OrderBook.Order memory order = newMockOrder(
             DAI,
@@ -1428,7 +1477,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         orderGroup[0] = order;
 
         //place order
-        bytes32[] memory orderIds = limitOrderRouter.placeOrder(orderGroup);
+        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
 
         orderId = orderIds[0];
     }
@@ -1437,7 +1486,7 @@ contract TokenToTokenLimitOrderExecutionTest is DSTest {
         OrderBook.Order[] memory orderGroup
     ) internal returns (bytes32[] memory) {
         //place order
-        bytes32[] memory orderIds = limitOrderRouter.placeOrder(orderGroup);
+        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
 
         return orderIds;
     }
@@ -2594,28 +2643,12 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
 
 contract ExecutionWrapper is LimitOrderBatcher {
     constructor(
-        address _gasOracle,
         address _weth,
-        address _usdc,
-        address _quoterAddress,
-        uint256 _executionCost,
-        bytes32[] memory _initBytecodes,
-        address[] memory _dexFactories,
-        bool[] memory _isUniV2,
-        address _swapRouter,
-        uint256 _alphaXDivergenceThreshold
+        address _quoterAddress
     )
-        LimitOrderRouter(
-            _gasOracle,
+        LimitOrderBatcher(
             _weth,
-            _usdc,
-            _quoterAddress,
-            _executionCost,
-            _initBytecodes,
-            _dexFactories,
-            _isUniV2,
-            _swapRouter,
-            _alphaXDivergenceThreshold
+            _quoterAddress
         )
     {}
 
