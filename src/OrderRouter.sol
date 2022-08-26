@@ -20,7 +20,7 @@ import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 
 /// @title OrderRouter
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
-/// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures. 
+/// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures.
 contract OrderRouter {
     //----------------------Structs------------------------------------//
 
@@ -124,10 +124,9 @@ contract OrderRouter {
 
     //----------------------State Variables------------------------------------//
 
-
     //TODO: Change this to contractOwner to not get mixed up with orderOwner
     ///@notice The owner of the Order Router contract
-    ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract. 
+    ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
     address owner;
 
     uint256 uniV3AmountOut;
@@ -159,9 +158,8 @@ contract OrderRouter {
 
     //======================Constants================================
 
-    IQuoter constant Quoter = IQuoter(
-                0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
-            );
+    IQuoter constant Quoter =
+        IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
     uint128 constant MIN_FEE_64x64 = 18446744073709552;
     uint128 constant MAX_UINT_128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
     uint128 constant UNI_V2_FEE = 5534023222112865000;
@@ -185,9 +183,6 @@ contract OrderRouter {
     ///@notice Instance of the UniV3 swap router.
     ISwapRouter public immutable swapRouter;
 
-    ///@notice The wrapped native token address for the chain.
-    address immutable _WETH;
-
     //======================Constructor================================
 
     /**@dev It is important to note that a univ2 compatible DEX must be initialized in the 0th index.
@@ -197,14 +192,12 @@ contract OrderRouter {
     ///@param _isUniV2 - Array of booleans indicating if the DEX is UniV2 compatible.
     ///@param _swapRouterAddress - The UniV3 swap router address for the network.
     ///@param _alphaXDivergenceThreshold - Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
-    ///@param _weth - The wrapped native token address for the chain.
     constructor(
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
         address _swapRouterAddress,
-        uint256 _alphaXDivergenceThreshold,
-        address _weth
+        uint256 _alphaXDivergenceThreshold
     ) {
         ///@notice Initialize DEXs and other variables
         for (uint256 i = 0; i < _deploymentByteCodes.length; ++i) {
@@ -219,7 +212,6 @@ contract OrderRouter {
         alphaXDivergenceThreshold = _alphaXDivergenceThreshold;
         swapRouter = ISwapRouter(_swapRouterAddress);
         owner = msg.sender;
-        _WETH = _weth;
     }
 
     //======================Functions================================
@@ -692,7 +684,7 @@ contract OrderRouter {
         {} catch Error(string memory reason) {
             ///@notice If there was an error during the swap, emit an event.
             emit UniV2SwapError(reason);
-           
+
             return 0;
         }
 
@@ -751,15 +743,16 @@ contract OrderRouter {
             );
         }
     }
+
     ///@notice Function to swap two tokens on a Uniswap V3 pool.
     ///@param _lp - Address of the liquidity pool to execute the swap on.
     ///@param _tokenIn - Address of the TokenIn on the swap.
-    ///@param _fee - The swap fee on the liquiditiy pool. 
-    ///@param _amountIn The amount in for the swap. 
-    ///@param _amountOutMin The minimum amount out in TokenOut post swap. 
-    ///@param _reciever The receiver of the tokens post swap. 
-    ///@param _sender The sender of TokenIn on the swap. 
-    ///@return amountRecieved The amount of TokenOut received post swap. 
+    ///@param _fee - The swap fee on the liquiditiy pool.
+    ///@param _amountIn The amount in for the swap.
+    ///@param _amountOutMin The minimum amount out in TokenOut post swap.
+    ///@param _reciever The receiver of the tokens post swap.
+    ///@param _sender The sender of TokenIn on the swap.
+    ///@return amountRecieved The amount of TokenOut received post swap.
     function _swapV3(
         address _lp,
         address _tokenIn,
@@ -769,62 +762,76 @@ contract OrderRouter {
         address _reciever,
         address _sender
     ) internal returns (uint256 amountRecieved) {
-        ///@notice Initialize variables to prevent stack too deep. 
+        ///@notice Initialize variables to prevent stack too deep.
         uint160 _sqrtPriceLimitX96;
         bool _zeroForOne;
 
-        ///@notice Scope out logic to prevent stack too deep. 
+        ///@notice Scope out logic to prevent stack too deep.
         {
-            ///@notice Get the sqrtPriceLimitX96 and zeroForOne on the swap. 
-            (_sqrtPriceLimitX96, _zeroForOne) = getNextSqrtPriceV3(_lp, _amountIn, _tokenIn, _fee);
+            ///@notice Get the sqrtPriceLimitX96 and zeroForOne on the swap.
+            (_sqrtPriceLimitX96, _zeroForOne) = getNextSqrtPriceV3(
+                _lp,
+                _amountIn,
+                _tokenIn,
+                _fee
+            );
         }
 
-        ///@notice Pack the relevant data to be retrieved in the swap callback. 
-        bytes memory data = abi.encode(_amountOutMin, _zeroForOne, _lp, _tokenIn, _sender);
+        ///@notice Pack the relevant data to be retrieved in the swap callback.
+        bytes memory data = abi.encode(
+            _amountOutMin,
+            _zeroForOne,
+            _lp,
+            _tokenIn,
+            _sender
+        );
 
-        ///@notice Initialize Storage variable uniV3AmountOut to 0 prior to the swap. 
+        ///@notice Initialize Storage variable uniV3AmountOut to 0 prior to the swap.
         uniV3AmountOut = 0;
 
         ///@notice Execute the swap on the lp for the amounts specified.
-        try IUniswapV3Pool(_lp).swap(
-            _reciever,
-            _zeroForOne,
-            int256(_amountIn),
-            _sqrtPriceLimitX96,
-            data
-        )
+        try
+            IUniswapV3Pool(_lp).swap(
+                _reciever,
+                _zeroForOne,
+                int256(_amountIn),
+                _sqrtPriceLimitX96,
+                data
+            )
         {} catch Error(string memory reason) {
             ///@notice If there was an error during the swap, emit an event.
             emit UniV2SwapError(reason);
-           
+
             return 0;
         }
 
-        ///@notice Return the amountOut yielded from the swap. 
+        ///@notice Return the amountOut yielded from the swap.
         return uniV3AmountOut;
     }
 
     ///@notice Function to calculate the nextSqrtPriceX96 for a Uniswap V3 swap.
     ///@param _lp - Address of the liquidity pool to execute the swap on.
     ///@param _alphaX - The input amount to calculate the nextSqrtPriceX96.
-    ///@param _tokenIn - The address of TokenIn. 
-    ///@param _fee - The swap fee on the liquiditiy pool. 
+    ///@param _tokenIn - The address of TokenIn.
+    ///@param _fee - The swap fee on the liquiditiy pool.
     ///@return _sqrtPriceLimitX96 - The nextSqrtPriceX96 after alphaX amount of TokenIn is introduced to the pool.
-    ///@return  _zeroForOne - Boolean indicating whether Token0 is being swapped for Token1 on the liquidity pool. 
-    function getNextSqrtPriceV3(address _lp, uint256 _alphaX, address _tokenIn, uint24 _fee)
-        internal
-        returns (uint160 _sqrtPriceLimitX96, bool _zeroForOne)
-    {
-        ///@notice Initialize token0 & token1 to prevent stack too deep. 
+    ///@return  _zeroForOne - Boolean indicating whether Token0 is being swapped for Token1 on the liquidity pool.
+    function getNextSqrtPriceV3(
+        address _lp,
+        uint256 _alphaX,
+        address _tokenIn,
+        uint24 _fee
+    ) internal returns (uint160 _sqrtPriceLimitX96, bool _zeroForOne) {
+        ///@notice Initialize token0 & token1 to prevent stack too deep.
         address token0;
         address token1;
-        ///@notice Scope out logic to prevent stack too deep. 
+        ///@notice Scope out logic to prevent stack too deep.
         {
             ///@notice Retrieve token0 & token1 from the liquidity pool.
             token0 = IUniswapV3Pool(_lp).token0();
             token1 = IUniswapV3Pool(_lp).token1();
 
-            ///@notice Set boolean _zeroForOne. 
+            ///@notice Set boolean _zeroForOne.
             _zeroForOne = token0 == _tokenIn ? true : false;
         }
 
@@ -834,9 +841,9 @@ contract OrderRouter {
         ///@notice Get the liquditity from the liquidity pool.
         uint128 liquidity = IUniswapV3Pool(_lp).liquidity();
 
-        ///@notice If swapping token1 for token0. 
+        ///@notice If swapping token1 for token0.
         if (!_zeroForOne) {
-            ///@notice Get the nextSqrtPrice after introducing alphaX into the token1 reserves. 
+            ///@notice Get the nextSqrtPrice after introducing alphaX into the token1 reserves.
             _sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
                 _srtPriceX96,
                 liquidity,
@@ -844,12 +851,12 @@ contract OrderRouter {
                 _zeroForOne
             );
         } else {
-            ///@notice Quote the amountOut from _alphaX swapped into the token0 reserves. 
+            ///@notice Quote the amountOut from _alphaX swapped into the token0 reserves.
             uint128 amountOut = uint128(
                 Quoter.quoteExactInputSingle(token0, token1, _fee, _alphaX, 0)
             );
 
-            ///@notice Get the nextSqrtPrice after introducing amountOut into the token1 reserves. 
+            ///@notice Get the nextSqrtPrice after introducing amountOut into the token1 reserves.
             _sqrtPriceLimitX96 = SqrtPriceMath
                 .getNextSqrtPriceFromAmount1RoundingDown(
                     _srtPriceX96,
@@ -859,44 +866,51 @@ contract OrderRouter {
                 );
         }
     }
+
     ///@notice Uniswap V3 callback function called during a swap on a v3 liqudity pool.
     ///@param amount0Delta - The change in token0 reserves from the swap.
-    ///@param amount1Delta - The change in token1 reserves from the swap. 
-    ///@param data - The data packed into the swap. 
+    ///@param amount1Delta - The change in token1 reserves from the swap.
+    ///@param data - The data packed into the swap.
     function uniswapV3SwapCallback(
         int256 amount0Delta,
         int256 amount1Delta,
         bytes memory data
     ) external {
-        ///@notice Decode all of the swap data. 
-        (uint256 amountOutMin, bool _zeroForOne, address _lp, address tokenIn, address _sender) = abi.decode(data, (uint256, bool, address, address, address));
+        ///@notice Decode all of the swap data.
+        (
+            uint256 amountOutMin,
+            bool _zeroForOne,
+            address _lp,
+            address tokenIn,
+            address _sender
+        ) = abi.decode(data, (uint256, bool, address, address, address));
         ///@notice If swapping token0 for token1.
         if (_zeroForOne) {
-            ///@notice Set contract storage variable to the amountOut from the swap. 
+            ///@notice Set contract storage variable to the amountOut from the swap.
             uniV3AmountOut = uint256(-amount1Delta);
 
-        ///@notice If swapping token1 for token0.
+            ///@notice If swapping token1 for token0.
         } else {
-
-            ///@notice Set contract storage variable to the amountOut from the swap. 
+            ///@notice Set contract storage variable to the amountOut from the swap.
             uniV3AmountOut = uint256(-amount0Delta);
         }
 
-        ///@notice Require the amountOut from the swap is greater than or equal to the amountOutMin. 
-        if(uniV3AmountOut<amountOutMin){
+        ///@notice Require the amountOut from the swap is greater than or equal to the amountOutMin.
+        if (uniV3AmountOut < amountOutMin) {
             revert InsufficientOutputAmount();
         }
 
-        ///@notice Set amountIn to the amountInDelta depending on boolean zeroForOne. 
-        uint256 amountIn = _zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta);
-        
-        if(!(_sender == address(this))){
-            ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender. 
+        ///@notice Set amountIn to the amountInDelta depending on boolean zeroForOne.
+        uint256 amountIn = _zeroForOne
+            ? uint256(amount0Delta)
+            : uint256(amount1Delta);
+
+        if (!(_sender == address(this))) {
+            ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender.
             IERC20(tokenIn).transferFrom(_sender, _lp, amountIn);
-        }else{
+        } else {
             IERC20(tokenIn).transfer(_lp, amountIn);
         }
-        
     }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token0/token1.

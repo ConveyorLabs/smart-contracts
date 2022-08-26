@@ -65,8 +65,7 @@ contract TaxedTokenToTokenExecution is OrderRouter {
             _dexFactories,
             _isUniV2,
             _swapRouter,
-            _alphaXDivergenceThreshold,
-            _weth
+            _alphaXDivergenceThreshold
         )
     {
         orderBookAddress = _orderBookAddress;
@@ -1416,7 +1415,6 @@ contract TaxedTokenToTokenExecution is OrderRouter {
         return executionPrice;
     }
 
-
     ///@notice Function to simulate the WethToToken price change on a pair.
     ///@param alphaX - The input quantity to simulate the price change on.
     ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
@@ -1454,7 +1452,6 @@ contract TaxedTokenToTokenExecution is OrderRouter {
 
         return executionPrice;
     }
-
 
     ///@notice Function to simulate the TokenToToken price change on a pair.
     ///@param alphaX - The input quantity to simulate the price change on.
@@ -1497,7 +1494,6 @@ contract TaxedTokenToTokenExecution is OrderRouter {
         }
         return executionPrice;
     }
-
 
     ///@notice Function to simulate the AToWeth price change on a pair.
     ///@param alphaX - The input quantity to simulate the price change on.
@@ -1567,8 +1563,6 @@ contract TaxedTokenToTokenExecution is OrderRouter {
             false
         );
     }
-
-
 
     ///@notice Function to return the index of the best price in the executionPrices array.
     ///@param executionPrices - Array of execution prices to evaluate.

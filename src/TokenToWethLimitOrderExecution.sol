@@ -64,8 +64,7 @@ contract TokenToWethExecution is OrderRouter {
             _dexFactories,
             _isUniV2,
             _swapRouter,
-            _alphaXDivergenceThreshold,
-            _weth
+            _alphaXDivergenceThreshold
         )
     {
         iQuoter = IQuoter(_quoterAddress);
@@ -78,7 +77,9 @@ contract TokenToWethExecution is OrderRouter {
     // ==================== Order Execution Functions =========================
 
     ///@notice Function to execute a batch of Token to Weth Orders.
-    function executeTokenToWethOrders(OrderBook.Order[] memory orders) external {
+    function executeTokenToWethOrders(OrderBook.Order[] memory orders)
+        external
+    {
         ///@notice Get all of the execution prices on TokenIn to Weth for each dex.
         (
             TokenToWethExecutionPrice[] memory executionPrices,
@@ -97,7 +98,9 @@ contract TokenToWethExecution is OrderRouter {
     }
 
     ///@notice Function to execute a batch of Token to Weth Orders.
-    function executeTokenToWethOrderSingle(OrderBook.Order[] memory orders) external {
+    function executeTokenToWethOrderSingle(OrderBook.Order[] memory orders)
+        external
+    {
         ///@notice Get all of the execution prices on TokenIn to Weth for each dex.
         (
             TokenToWethExecutionPrice[] memory executionPrices,
@@ -110,7 +113,7 @@ contract TokenToWethExecution is OrderRouter {
             orders[0].buy
         );
 
-        ///@notice Pass the order, maxBeaconReward, and TokenToWethExecutionPrice into _executeTokenToWethSingle for execution. 
+        ///@notice Pass the order, maxBeaconReward, and TokenToWethExecutionPrice into _executeTokenToWethSingle for execution.
         _executeTokenToWethSingle(
             orders[0],
             maxBeaconReward,
@@ -119,9 +122,9 @@ contract TokenToWethExecution is OrderRouter {
     }
 
     ///@notice Function to execute a single TokenToWeth order.
-    ///@param order - The order to be executed. 
-    ///@param maxBeaconReward - The maximum beacon reward. 
-    ///@param executionPrice - The best priced TokenToWethExecutionPrice to execute the order. 
+    ///@param order - The order to be executed.
+    ///@param maxBeaconReward - The maximum beacon reward.
+    ///@param executionPrice - The best priced TokenToWethExecutionPrice to execute the order.
     function _executeTokenToWethSingle(
         OrderBook.Order memory order,
         uint128 maxBeaconReward,
@@ -151,7 +154,6 @@ contract TokenToWethExecution is OrderRouter {
         ///@notice Send the Total Reward to the beacon.
         safeTransferETH(msg.sender, beaconReward);
     }
-
 
     ///@notice Function to return the index of the best price in the executionPrices array.
     ///@param executionPrices - Array of execution prices to evaluate.
@@ -197,10 +199,10 @@ contract TokenToWethExecution is OrderRouter {
             }
         }
     }
-    
+
     ///@notice Function to execute a single Token To Weth order.
-    ///@param order - The order to be executed. 
-    ///@param executionPrice - The best priced TokenToWethExecutionPrice to execute the order on. 
+    ///@param order - The order to be executed.
+    ///@param executionPrice - The best priced TokenToWethExecutionPrice to execute the order on.
     function _executeTokenToWethOrder(
         OrderBook.Order memory order,
         TokenToWethExecutionPrice memory executionPrice
@@ -291,7 +293,6 @@ contract TokenToWethExecution is OrderRouter {
                     ///@notice Send the order owner their orderPayout
                     IERC20(WETH).transfer(batch.batchOwners[j], orderPayout);
 
-
                     unchecked {
                         ++j;
                     }
@@ -310,14 +311,11 @@ contract TokenToWethExecution is OrderRouter {
             ? totalBeaconReward
             : maxBeaconReward;
 
-        ///@notice Unwrap the WETH to send to the beacon. 
+        ///@notice Unwrap the WETH to send to the beacon.
         IWETH(WETH).withdraw(totalBeaconReward);
 
         ///@notice Send the Total Reward to the beacon.
-        safeTransferETH(
-            msg.sender,
-            totalBeaconReward
-        );
+        safeTransferETH(msg.sender, totalBeaconReward);
     }
 
     ///@notice Function to Execute a single batch of TokenIn to Weth Orders.
@@ -363,11 +361,9 @@ contract TokenToWethExecution is OrderRouter {
 
     ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
     ///@param orders - Array of orders that are being evaluated for execution.
-    function _initializeTokenToWethExecutionPrices(OrderBook.Order[] memory orders)
-        internal
-        view
-        returns (TokenToWethExecutionPrice[] memory, uint128)
-    {
+    function _initializeTokenToWethExecutionPrices(
+        OrderBook.Order[] memory orders
+    ) internal view returns (TokenToWethExecutionPrice[] memory, uint128) {
         ///@notice Get all prices for the pairing
         (
             SpotReserve[] memory spotReserveAToWeth,
@@ -600,7 +596,7 @@ contract TokenToWethExecution is OrderRouter {
                 order.quantity
             )
         {} catch {
-            ///@notice Revert on token transfer failure. 
+            ///@notice Revert on token transfer failure.
             revert TokenTransferFailed(order.orderId);
         }
         return true;
@@ -663,12 +659,12 @@ contract TokenToWethExecution is OrderRouter {
     }
 
     ///@notice Helper function to calculate amountOutMin value agnostically across dexes on the first hop from tokenA to WETH.
-    ///@param lpAddressAToWeth - The liquidity pool for tokenA to Weth.  
-    ///@param amountInOrder - The amount in on the swap. 
-    ///@param taxIn - The tax on the input token for the swap. 
-    ///@param feeIn - The fee on the swap. 
-    ///@param tokenIn - The address of tokenIn on the swap. 
-    ///@return amountOutMinAToWeth - The amountOutMin in the swap. 
+    ///@param lpAddressAToWeth - The liquidity pool for tokenA to Weth.
+    ///@param amountInOrder - The amount in on the swap.
+    ///@param taxIn - The tax on the input token for the swap.
+    ///@param feeIn - The fee on the swap.
+    ///@param tokenIn - The address of tokenIn on the swap.
+    ///@return amountOutMinAToWeth - The amountOutMin in the swap.
     function calculateAmountOutMinAToWeth(
         address lpAddressAToWeth,
         uint256 amountInOrder,
@@ -746,7 +742,6 @@ contract TokenToWethExecution is OrderRouter {
         uint256 denominator = reserveIn * 1000 + (amountInWithFee);
         amountOut = numerator / denominator;
     }
-
 
     ///@notice Function to retrieve the buy/sell status of a single order.
     ///@param order Order to determine buy/sell status on.
@@ -1114,5 +1109,4 @@ contract TokenToWethExecution is OrderRouter {
         safeTransferETH(owner, conveyorBalance);
         conveyorBalance = 0;
     }
-
 }
