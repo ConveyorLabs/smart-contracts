@@ -16,12 +16,23 @@ import "../lib/interfaces/token/IWETH.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/ConveyorTickMath.sol";
 import "./ILimitOrderBatcher.sol";
+import "./IOrderRouter.sol";
 
 /// @title OrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
-contract TokenToTokenExecution is OrderRouter {
+contract TokenToTokenExecution {
     // ========================================= Modifiers =============================================
+
+    ///@notice Modifier function to only allow the owner of the contract to call specific functions
+    ///@dev Functions with onlyOwner: withdrawConveyorFees, transferOwnership.
+    modifier onlyOwner() {
+        if (msg.sender != owner) {
+            revert MsgSenderIsNotOwner();
+        }
+
+        _;
+    }
 
     ///@notice Conveyor funds balance in the contract.
     uint256 conveyorBalance;
@@ -43,10 +54,15 @@ contract TokenToTokenExecution is OrderRouter {
     ///@notice IQuoter instance to quote the amountOut for a given amountIn on a UniV3 pool.
     IQuoter immutable iQuoter;
 
+    ///@notice Address of the order router contract. 
+    address immutable ORDER_ROUTER;
+
     ///@notice State variable to track the amount of gas initally alloted during executeOrders.
     uint256 initialTxGas;
 
-    TokenToTokenBatchOrder[] batchOrders;
+    address owner;
+
+    OrderRouter.TokenToTokenBatchOrder[] batchOrders;
 
     // ========================================= Constructor =============================================
 
@@ -55,33 +71,23 @@ contract TokenToTokenExecution is OrderRouter {
     ///@param _quoterAddress - Address for the IQuoter instance.
     //TODO: limit order batcher
     ///@param _executionCost - The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
-    ///@param _initByteCodes - Array of initBytecodes required to calculate pair addresses for each DEX.
-    ///@param _dexFactories - Array of DEX factory addresses to be added to the system.
-    ///@param _isUniV2 - Array indicating if a DEX factory passed in during initialization is a UniV2 compatiable DEX.
-    ///@param _alphaXDivergenceThreshold - Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     constructor(
         address _weth,
         address _usdc,
         address _quoterAddress,
         address _limitOrderBatcher,
         uint256 _executionCost,
-        bytes32[] memory _initByteCodes,
-        address[] memory _dexFactories,
-        bool[] memory _isUniV2,
-        uint256 _alphaXDivergenceThreshold
+        address _orderRouter
     )
-        OrderRouter(
-            _initByteCodes,
-            _dexFactories,
-            _isUniV2,
-            _alphaXDivergenceThreshold
-        )
+       
     {
         iQuoter = IQuoter(_quoterAddress);
         WETH = _weth;
         USDC = _usdc;
         LIMIT_ORDER_BATCHER = _limitOrderBatcher;
         ORDER_EXECUTION_GAS_COST = _executionCost;
+        ORDER_ROUTER= _orderRouter;
+        owner = msg.sender;
     }
 
     // ========================================= FUNCTIONS =============================================
@@ -114,13 +120,13 @@ contract TokenToTokenExecution is OrderRouter {
     {
         ///@notice Get all execution prices.
         (
-            TokenToTokenExecutionPrice[] memory executionPrices,
+            OrderRouter.TokenToTokenExecutionPrice[] memory executionPrices,
             uint128 maxBeaconReward
         ) = ILimitOrderBatcher(LIMIT_ORDER_BATCHER).initializeTokenToTokenExecutionPrices(orders);
 
         //TODO: external call to the lib and then if everything goes through, then transfer all tokes to the current contract context
         ///@notice Batch the orders into optimized quantities to result in the best execution price and gas cost for each order.
-        TokenToTokenBatchOrder[]
+        OrderRouter.TokenToTokenBatchOrder[]
             memory tokenToTokenBatchOrders = ILimitOrderBatcher(
                 LIMIT_ORDER_BATCHER
             ).batchTokenToTokenOrders(orders, executionPrices);
@@ -139,7 +145,7 @@ contract TokenToTokenExecution is OrderRouter {
     {
         ///@notice Get all execution prices.
         (
-            TokenToTokenExecutionPrice[] memory executionPrices,
+            OrderRouter.TokenToTokenExecutionPrice[] memory executionPrices,
             uint128 maxBeaconReward
         ) = ILimitOrderBatcher(LIMIT_ORDER_BATCHER).initializeTokenToTokenExecutionPrices(orders);
 
@@ -162,14 +168,14 @@ contract TokenToTokenExecution is OrderRouter {
     ///@param tokenToTokenBatchOrders - Array of token to token batch orders.
     ///@param maxBeaconReward - Max beacon reward for the batch.
     function _executeTokenToTokenBatchOrders(
-        TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders,
+        OrderRouter.TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders,
         uint128 maxBeaconReward
     ) internal {
         uint256 totalBeaconReward;
 
         ///@notice For each batch order in the array.
         for (uint256 i = 0; i < tokenToTokenBatchOrders.length; ) {
-            TokenToTokenBatchOrder memory batch = tokenToTokenBatchOrders[i];
+            OrderRouter.TokenToTokenBatchOrder memory batch = tokenToTokenBatchOrders[i];
 
             ///@notice Execute the batch order
             (
@@ -223,6 +229,22 @@ contract TokenToTokenExecution is OrderRouter {
         safeTransferETH(tx.origin, totalBeaconReward);
     }
 
+    ///@notice Transfer ETH to a specific address and require that the call was successful.
+    ///@param to - The address that should be sent Ether.
+    ///@param amount - The amount of Ether that should be sent.
+    function safeTransferETH(address to, uint256 amount) public {
+        bool success;
+
+        assembly {
+            // Transfer the ETH and store if it succeeded or not.
+            success := call(gas(), to, amount, 0, 0, 0, 0)
+        }
+
+        if (!success) {
+            revert ETHTransferFailed();
+        }
+    }
+
     ///@notice Function to execute a single Token To Token order.
     ///@param order - The order to be executed.
     ///@param maxBeaconReward - The maximum beacon reward.
@@ -230,7 +252,7 @@ contract TokenToTokenExecution is OrderRouter {
     function _executeTokenToTokenSingle(
         OrderBook.Order memory order,
         uint128 maxBeaconReward,
-        TokenToTokenExecutionPrice memory executionPrice
+        OrderRouter.TokenToTokenExecutionPrice memory executionPrice
     ) internal {
         ///@notice Cache the owner address in memory.
         address owner = order.owner;
@@ -265,7 +287,7 @@ contract TokenToTokenExecution is OrderRouter {
     ///@param order - The order to be executed.
     ///@return amountOutWeth - The amountOut in Weth after the swap.
     function _executeSwapTokenToWethOrder(
-        TokenToTokenExecutionPrice memory executionPrice,
+        OrderRouter.TokenToTokenExecutionPrice memory executionPrice,
         OrderBook.Order memory order
     ) internal returns (uint128 amountOutWeth) {
         ///@notice Cache the liquidity pool address.
@@ -288,7 +310,7 @@ contract TokenToTokenExecution is OrderRouter {
 
         ///@notice Swap from tokenA to Weth.
         amountOutWeth = uint128(
-            _swap(
+            IOrderRouter(ORDER_ROUTER).swap(
                 tokenIn,
                 WETH,
                 lpAddressAToWeth,
@@ -301,10 +323,10 @@ contract TokenToTokenExecution is OrderRouter {
         );
 
         ///@notice Take out fees from the amountOut.
-        uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
+        uint128 protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(amountOutWeth, USDC, WETH);
 
         ///@notice Calculate the conveyorReward and executor reward.
-        (uint128 conveyorReward, uint128 beaconReward) = _calculateReward(
+        (uint128 conveyorReward, uint128 beaconReward) = IOrderRouter(ORDER_ROUTER).calculateReward(
             protocolFee,
             amountOutWeth
         );
@@ -321,7 +343,7 @@ contract TokenToTokenExecution is OrderRouter {
     ///@param executionPrice - The best priced TokenToTokenExecution price to execute the order on.
     function _executeTokenToTokenOrder(
         OrderBook.Order memory order,
-        TokenToTokenExecutionPrice memory executionPrice
+        OrderRouter.TokenToTokenExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
         ///@notice Initialize variables to prevent stack too deep.
         uint256 amountInWethToB;
@@ -345,14 +367,14 @@ contract TokenToTokenExecution is OrderRouter {
 
                 uint256 amountIn = order.quantity;
                 ///@notice Take out fees from the batch amountIn since token0 is weth.
-                uint128 protocolFee = _calculateFee(
+                uint128 protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(
                     uint128(amountIn),
                     USDC,
                     WETH
                 );
 
                 ///@notice Calculate the conveyorReward and the off-chain logic executor reward.
-                (conveyorReward, beaconReward) = _calculateReward(
+                (conveyorReward, beaconReward) = IOrderRouter(ORDER_ROUTER).calculateReward(
                     protocolFee,
                     uint128(amountIn)
                 );
@@ -366,7 +388,7 @@ contract TokenToTokenExecution is OrderRouter {
         }
 
         ///@notice Swap Weth for tokenB.
-        uint256 amountOutInB = _swap(
+        uint256 amountOutInB = IOrderRouter(ORDER_ROUTER).swap(
             WETH,
             order.tokenOut,
             executionPrice.lpAddressWethToB,
@@ -388,7 +410,7 @@ contract TokenToTokenExecution is OrderRouter {
     ///@param batch - The token to token batch to execute.
     ///@return amountOut - The amount out recevied from the swap.
     ///@return beaconReward - Compensation reward amount to be sent to the off-chain logic executor.
-    function _executeTokenToTokenBatch(TokenToTokenBatchOrder memory batch)
+    function _executeTokenToTokenBatch(OrderRouter.TokenToTokenBatchOrder memory batch)
         internal
         returns (uint256, uint256)
     {
@@ -417,7 +439,7 @@ contract TokenToTokenExecution is OrderRouter {
 
                 ///@notice Swap from tokenA to Weth.
                 uint128 amountOutWeth = uint128(
-                    _swap(
+                    IOrderRouter(ORDER_ROUTER).swap(
                         batch.tokenIn,
                         WETH,
                         batch.lpAddressAToWeth,
@@ -434,10 +456,10 @@ contract TokenToTokenExecution is OrderRouter {
                 }
 
                 ///@notice Take out the fees from the amountOutWeth
-                protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
+                protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(amountOutWeth, USDC, WETH);
 
                 ///@notice Calculate the conveyorReward and the off-chain logic executor reward.
-                (conveyorReward, beaconReward) = _calculateReward(
+                (conveyorReward, beaconReward) = IOrderRouter(ORDER_ROUTER).calculateReward(
                     protocolFee,
                     amountOutWeth
                 );
@@ -453,14 +475,14 @@ contract TokenToTokenExecution is OrderRouter {
                 ///@notice Otherwise, if the tokenIn is Weth
 
                 ///@notice Take out fees from the batch amountIn since token0 is weth.
-                protocolFee = _calculateFee(
+                protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(
                     uint128(batch.amountIn),
                     USDC,
                     WETH
                 );
 
                 ///@notice Calculate the conveyorReward and the off-chain logic executor reward.
-                (conveyorReward, beaconReward) = _calculateReward(
+                (conveyorReward, beaconReward) = IOrderRouter(ORDER_ROUTER).calculateReward(
                     protocolFee,
                     uint128(batch.amountIn)
                 );
@@ -478,7 +500,7 @@ contract TokenToTokenExecution is OrderRouter {
             fee = _getUniV3Fee(batch.lpAddressWethToB);
 
             ///@notice Swap Weth for tokenB.
-            uint256 amountOutInB = _swap(
+            uint256 amountOutInB = IOrderRouter(ORDER_ROUTER).swap(
                 WETH,
                 batch.tokenOut,
                 batch.lpAddressWethToB,
@@ -498,6 +520,44 @@ contract TokenToTokenExecution is OrderRouter {
             ///@notice If there are no orders in the batch, return 0 values for the amountOut (in tokenB) and the off-chain executor reward.
             return (0, 0);
         }
+    }
+
+    ///@notice Helper function to get Uniswap V3 fee from a pool address.
+    ///@param lpAddress - Address of the lp.
+    ///@return fee The fee on the lp.
+    function _getUniV3Fee(address lpAddress) internal returns (uint24 fee) {
+        if (!_lpIsNotUniV3(lpAddress)) {
+            return IUniswapV3Pool(lpAddress).fee();
+        } else {
+            return uint24(0);
+        }
+    }
+
+    ///@notice Helper function to determine if a pool address is Uni V2 compatible.
+    ///@param lp - Pair address.
+    ///@return bool Idicator whether the pool is not Uni V3 compatible.
+    function _lpIsNotUniV3(address lp) internal returns (bool) {
+        bool success;
+        assembly {
+            //store the function sig for  "fee()"
+            mstore(
+                0x00,
+                0xddca3f4300000000000000000000000000000000000000000000000000000000
+            )
+
+            success := call(
+                gas(), // gas remaining
+                lp, // destination address
+                0, // no ether
+                0x00, // input buffer (starts after the first 32 bytes in the `data` array)
+                0x04, // input length (loaded from the first 32 bytes in the `data` array)
+                0x00, // output buffer
+                0x00 // output length
+            )
+        }
+        ///@notice return the opposite of success, meaning if the call succeeded, the address is univ3, and we should
+        ///@notice indicate that _lpIsNotUniV3 is false
+        return !success;
     }
 
     ///@notice Function to withdraw owner fee's accumulated

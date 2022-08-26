@@ -234,11 +234,11 @@ contract OrderRouter {
     ///@param usdc - Address of USDC
     ///@param weth - Address of Weth
     /// @return calculated_fee_64x64 -  Returns the fee percent that is applied to the amountOut realized from an executed.
-    function _calculateFee(
+    function calculateFee(
         uint128 amountIn,
         address usdc,
         address weth
-    ) internal view returns (uint128) {
+    ) external view returns (uint128) {
         uint128 calculated_fee_64x64;
 
         ///@notice Initialize spot reserve structure to retrive the spot price from uni v2
@@ -305,8 +305,8 @@ contract OrderRouter {
     /// @param wethValue - Total order value at execution price, represented in wei.
     /// @return conveyorReward - Conveyor reward, represented in wei.
     /// @return beaconReward - Beacon reward, represented in wei.
-    function _calculateReward(uint128 percentFee, uint128 wethValue)
-        internal
+    function calculateReward(uint128 percentFee, uint128 wethValue)
+        external
         pure
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
@@ -706,7 +706,7 @@ contract OrderRouter {
     ///@param _reciever - Address to receive the amountOut.
     ///@param _sender - Address to send the tokenIn.
     ///@return amountRecieved - Amount received from the swap.
-    function _swap(
+    function swap(
         address _tokenIn,
         address _tokenOut,
         address _lp,
@@ -715,7 +715,7 @@ contract OrderRouter {
         uint256 _amountOutMin,
         address _reciever,
         address _sender
-    ) internal returns (uint256 amountRecieved) {
+    ) external returns (uint256 amountRecieved) {
         if (_lpIsNotUniV3(_lp)) {
             amountRecieved = _swapV2(
                 _tokenIn,

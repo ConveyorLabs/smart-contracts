@@ -18,4 +18,26 @@ interface IOrderRouter {
         OrderBook.Order[] memory orders,
         bool wethIsToken0
     ) external view returns (uint128 maxBeaconReward);
+
+    function calculateFee(
+        uint128 amountIn,
+        address usdc,
+        address weth
+    ) external view returns (uint128);
+
+    function swap(
+        address _tokenIn,
+        address _tokenOut,
+        address _lp,
+        uint24 _fee,
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        address _reciever,
+        address _sender
+    ) external returns (uint256 amountRecieved);
+
+    function calculateReward(uint128 percentFee, uint128 wethValue)
+        external
+        pure
+        returns (uint128 conveyorReward, uint128 beaconReward);
 }
