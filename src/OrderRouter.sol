@@ -362,7 +362,7 @@ contract OrderRouter {
         SpotReserve[] memory spotReserves,
         OrderBook.Order[] memory orders,
         bool wethIsToken0
-    ) internal view returns (uint128 maxBeaconReward) {
+    ) external view returns (uint128 maxBeaconReward) {
         ///@notice Cache the first order buy status.
         bool buy = orders[0].buy;
 
@@ -1172,12 +1172,12 @@ contract OrderRouter {
     /// @param FEE - The Uniswap V3 pool fee on the token pair.
     /// @return prices - SpotReserve array holding the reserves and spot prices across all dexes.
     /// @return lps - Pool address's on the token pair across all dexes.
-    function _getAllPrices(
+    function getAllPrices(
         address token0,
         address token1,
         uint24 FEE
     )
-        internal
+        external
         view
         returns (SpotReserve[] memory prices, address[] memory lps)
     {

@@ -116,7 +116,7 @@ contract TokenToTokenExecution is OrderRouter {
         (
             TokenToTokenExecutionPrice[] memory executionPrices,
             uint128 maxBeaconReward
-        ) = _initializeTokenToTokenExecutionPrices(orders);
+        ) = ILimitOrderBatcher(LIMIT_ORDER_BATCHER).initializeTokenToTokenExecutionPrices(orders);
 
         //TODO: external call to the lib and then if everything goes through, then transfer all tokes to the current contract context
         ///@notice Batch the orders into optimized quantities to result in the best execution price and gas cost for each order.
@@ -141,7 +141,7 @@ contract TokenToTokenExecution is OrderRouter {
         (
             TokenToTokenExecutionPrice[] memory executionPrices,
             uint128 maxBeaconReward
-        ) = _initializeTokenToTokenExecutionPrices(orders);
+        ) = ILimitOrderBatcher(LIMIT_ORDER_BATCHER).initializeTokenToTokenExecutionPrices(orders);
 
         uint256 bestPriceIndex = ILimitOrderBatcher(
                 LIMIT_ORDER_BATCHER
@@ -278,7 +278,7 @@ contract TokenToTokenExecution is OrderRouter {
         address tokenIn = order.tokenIn;
 
         ///@notice Calculate the amountOutMin for the tokenA to Weth swap.
-        uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWeth(
+        uint256 batchAmountOutMinAToWeth = ILimitOrderBatcher(LIMIT_ORDER_BATCHER).calculateAmountOutMinAToWeth(
             lpAddressAToWeth,
             orderQuantity,
             order.taxIn,
@@ -384,91 +384,6 @@ contract TokenToTokenExecution is OrderRouter {
         return (amountOutInB, uint256(beaconReward));
     }
 
-    ///@notice Function to get the amountOut from a UniV2 lp.
-    ///@param amountIn - AmountIn for the swap.
-    ///@param reserveIn - tokenIn reserve for the swap.
-    ///@param reserveOut - tokenOut reserve for the swap.
-    ///@return amountOut - AmountOut from the given parameters.
-    function getAmountOut(
-        uint256 amountIn,
-        uint256 reserveIn,
-        uint256 reserveOut
-    ) internal pure returns (uint256 amountOut) {
-        if (amountIn == 0) {
-            revert InsufficientInputAmount();
-        }
-
-        if (reserveIn == 0) {
-            revert InsufficientLiquidity();
-        }
-
-        if (reserveOut == 0) {
-            revert InsufficientLiquidity();
-        }
-
-        uint256 amountInWithFee = amountIn * 997;
-        uint256 numerator = amountInWithFee * reserveOut;
-        uint256 denominator = reserveIn * 1000 + (amountInWithFee);
-        amountOut = numerator / denominator;
-    }
-
-    ///@notice Helper function to calculate amountOutMin value agnostically across dexes on the first hop from tokenA to WETH.
-    ///@param lpAddressAToWeth - The liquidity pool for tokenA to Weth.
-    ///@param amountInOrder - The amount in on the swap.
-    ///@param taxIn - The tax on the input token for the swap.
-    ///@param feeIn - The fee on the swap.
-    ///@param tokenIn - The address of tokenIn on the swap.
-    ///@return amountOutMinAToWeth - The amountOutMin in the swap.
-    function calculateAmountOutMinAToWeth(
-        address lpAddressAToWeth,
-        uint256 amountInOrder,
-        uint16 taxIn,
-        uint24 feeIn,
-        address tokenIn
-    ) internal returns (uint256 amountOutMinAToWeth) {
-        ///@notice Check if the lp is UniV3
-        if (!_lpIsNotUniV3(lpAddressAToWeth)) {
-            ///@notice 1000==100% so divide amountInOrder *taxIn by 10**5 to adjust to correct base
-            uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
-            uint256 amountIn = amountInOrder - amountInBuffer;
-
-            ///@notice Calculate the amountOutMin for the swap.
-            amountOutMinAToWeth = iQuoter.quoteExactInputSingle(
-                tokenIn,
-                WETH,
-                feeIn,
-                amountIn,
-                0
-            );
-        } else {
-            ///@notice Otherwise if the lp is a UniV2 LP.
-
-            ///@notice Get the reserves from the pool.
-            (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(
-                lpAddressAToWeth
-            ).getReserves();
-
-            ///@notice Initialize the reserve0 and reserve1 depending on if Weth is token0 or token1.
-            if (WETH == IUniswapV2Pair(lpAddressAToWeth).token0()) {
-                uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
-                uint256 amountIn = amountInOrder - amountInBuffer;
-                amountOutMinAToWeth = getAmountOut(
-                    amountIn,
-                    uint256(reserve1),
-                    uint256(reserve0)
-                );
-            } else {
-                uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
-                uint256 amountIn = amountInOrder - amountInBuffer;
-                amountOutMinAToWeth = getAmountOut(
-                    amountIn,
-                    uint256(reserve0),
-                    uint256(reserve1)
-                );
-            }
-        }
-    }
-
     ///@notice Function to execute a token to token batch
     ///@param batch - The token to token batch to execute.
     ///@return amountOut - The amount out recevied from the swap.
@@ -492,7 +407,7 @@ contract TokenToTokenExecution is OrderRouter {
                 fee = _getUniV3Fee(batch.lpAddressAToWeth);
 
                 ///@notice Calculate the amountOutMin for tokenA to Weth.
-                uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWeth(
+                uint256 batchAmountOutMinAToWeth = ILimitOrderBatcher(LIMIT_ORDER_BATCHER).calculateAmountOutMinAToWeth(
                     batch.lpAddressAToWeth,
                     batch.amountIn,
                     0,
@@ -583,108 +498,6 @@ contract TokenToTokenExecution is OrderRouter {
             ///@notice If there are no orders in the batch, return 0 values for the amountOut (in tokenB) and the off-chain executor reward.
             return (0, 0);
         }
-    }
-
-    ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
-    ///@param orders - Array of orders that are being evaluated for execution.
-    function _initializeTokenToTokenExecutionPrices(
-        OrderBook.Order[] memory orders
-    ) internal view returns (TokenToTokenExecutionPrice[] memory, uint128) {
-        address tokenIn = orders[0].tokenIn;
-        ///@notice Get all prices for the pairing tokenIn to Weth
-        (
-            SpotReserve[] memory spotReserveAToWeth,
-            address[] memory lpAddressesAToWeth
-        ) = _getAllPrices(tokenIn, WETH, orders[0].feeIn);
-
-        ///@notice Get all prices for the pairing Weth to tokenOut
-        (
-            SpotReserve[] memory spotReserveWethToB,
-            address[] memory lpAddressWethToB
-        ) = _getAllPrices(WETH, orders[0].tokenOut, orders[0].feeOut);
-
-        ///@notice Initialize a new TokenToTokenExecutionPrice array to store prices.
-        TokenToTokenExecutionPrice[]
-            memory executionPrices = new TokenToTokenExecutionPrice[](
-                spotReserveAToWeth.length * spotReserveWethToB.length
-            );
-
-        ///@notice If TokenIn is Weth
-        if (tokenIn == WETH) {
-            ///@notice Iterate through each SpotReserve on Weth to TokenB
-            for (uint256 i = 0; i < spotReserveWethToB.length; ++i) {
-                ///@notice Then set res0, and res1 for tokenInToWeth to 0 and lpAddressAToWeth to the 0 address
-                executionPrices[i] = TokenToTokenExecutionPrice(
-                    0,
-                    0,
-                    spotReserveWethToB[i].res0,
-                    spotReserveWethToB[i].res1,
-                    spotReserveWethToB[i].spotPrice,
-                    address(0),
-                    lpAddressWethToB[i]
-                );
-            }
-        } else {
-            ///@notice Initialize index to 0
-            uint256 index = 0;
-            ///@notice Iterate through each SpotReserve on TokenA to Weth
-            for (uint256 i = 0; i < spotReserveAToWeth.length; ) {
-                ///@notice Iterate through each SpotReserve on Weth to TokenB
-                for (uint256 j = 0; j < spotReserveWethToB.length; ) {
-                    ///@notice Calculate the spot price from tokenA to tokenB represented as 128.128 fixed point.
-                    uint256 spotPriceFinal = uint256(
-                        _calculateTokenToWethToTokenSpotPrice(
-                            spotReserveAToWeth[i].spotPrice,
-                            spotReserveWethToB[j].spotPrice
-                        )
-                    ) << 64;
-
-                    ///@notice Set the executionPrices at index to TokenToTokenExecutionPrice
-                    executionPrices[index] = TokenToTokenExecutionPrice(
-                        spotReserveAToWeth[i].res0,
-                        spotReserveAToWeth[i].res1,
-                        spotReserveWethToB[j].res1,
-                        spotReserveWethToB[j].res0,
-                        spotPriceFinal,
-                        lpAddressesAToWeth[i],
-                        lpAddressWethToB[j]
-                    );
-                    ///@notice Increment the index
-                    unchecked {
-                        ++index;
-                    }
-
-                    unchecked {
-                        ++j;
-                    }
-                }
-
-                unchecked {
-                    ++i;
-                }
-            }
-        }
-
-        ///@notice Get the Max beacon reward on the SpotReserves
-        uint128 maxBeaconReward = WETH != tokenIn
-            ? calculateMaxBeaconReward(spotReserveAToWeth, orders, false)
-            : calculateMaxBeaconReward(spotReserveWethToB, orders, true);
-
-        return (executionPrices, maxBeaconReward);
-    }
-
-    ///@notice Helper to calculate the multiplicative spot price over both router hops
-    ///@param spotPriceAToWeth spotPrice of Token A relative to Weth
-    ///@param spotPriceWethToB spotPrice of Weth relative to Token B
-    ///@return spotPriceFinal multiplicative finalSpot
-    function _calculateTokenToWethToTokenSpotPrice(
-        uint256 spotPriceAToWeth,
-        uint256 spotPriceWethToB
-    ) internal pure returns (uint128 spotPriceFinal) {
-        spotPriceFinal = ConveyorMath.mul64x64(
-            uint128(spotPriceAToWeth >> 64),
-            uint128(spotPriceWethToB >> 64)
-        );
     }
 
     ///@notice Function to withdraw owner fee's accumulated

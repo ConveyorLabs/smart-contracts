@@ -14,4 +14,19 @@ interface ILimitOrderBatcher {
         OrderRouter.TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex);
+
+    function calculateAmountOutMinAToWeth(
+        address lpAddressAToWeth,
+        uint256 amountInOrder,
+        uint16 taxIn,
+        uint24 feeIn,
+        address tokenIn
+    ) external returns (uint256 amountOutMinAToWeth);
+
+    function initializeTokenToTokenExecutionPrices(
+        OrderBook.Order[] memory orders
+    )
+        external
+        view
+        returns (OrderRouter.TokenToTokenExecutionPrice[] memory, uint128);
 }
