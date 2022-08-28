@@ -705,19 +705,19 @@ contract OrderRouter {
 
         
         ///@notice Execute the swap on the lp for the amounts specified.
-        try
+      
             IUniswapV2Pair(_lp).swap(
                 amount0Out,
                 amount1Out,
                 _reciever,
                 new bytes(0)
-            )
-        {} catch Error(string memory reason) {
-            ///@notice If there was an error during the swap, emit an event.
-            emit UniV2SwapError(reason);
+            );
+        // {} catch Error(string memory reason) {
+        //     ///@notice If there was an error during the swap, emit an event.
+        //     emit UniV2SwapError(reason);
             
-            return 0;
-        }
+        //     revert 
+        // }
 
         ///@notice calculate the amount recieved
         amountRecieved = IERC20(_tokenOut).balanceOf(_reciever) - balanceBefore;
@@ -753,6 +753,7 @@ contract OrderRouter {
         address _sender
     ) external returns (uint256 amountRecieved) {
         if (_lpIsNotUniV3(_lp)) {
+            
             amountRecieved = _swapV2(
                 _tokenIn,
                 _tokenOut,
@@ -763,6 +764,7 @@ contract OrderRouter {
                 _sender
             );
         } else {
+            
             amountRecieved = _swapV3(
                 _lp,
                 _tokenIn,
@@ -821,21 +823,21 @@ contract OrderRouter {
         uniV3AmountOut = 0;
 
         ///@notice Execute the swap on the lp for the amounts specified.
-        try
+        
             IUniswapV3Pool(_lp).swap(
                 _reciever,
                 _zeroForOne,
                 int256(_amountIn),
                 _sqrtPriceLimitX96,
                 data
-            )
-        {} catch Error(string memory reason) {
-            ///@notice If there was an error during the swap, emit an event.
-            ///TODO: Change this
-            emit UniV2SwapError(reason);
+            );
+        // {} catch Error(string memory reason) {
+        //     ///@notice If there was an error during the swap, emit an event.
+        //     ///TODO: Change this
+        //     emit UniV2SwapError(reason);
             
-            return 0;
-        }
+        //     return 0;
+        // }
         
         ///@notice Return the amountOut yielded from the swap.
         return uniV3AmountOut;

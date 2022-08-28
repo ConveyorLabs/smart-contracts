@@ -121,12 +121,14 @@ contract LimitOrderRouterTest is DSTest {
             alphaXDivergenceThreshold
         );
         
-        orderBook = new OrderBook(aggregatorV3Address, address(orderRouter));
+        
         limitOrderBatcher = new LimitOrderBatcher(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6,
             address(orderRouter)
         );
+
+          
 
         tokenToTokenExecution = new TokenToTokenExecution(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
@@ -142,7 +144,7 @@ contract LimitOrderRouterTest is DSTest {
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6,
             address(orderRouter),
-            address(orderBook)
+            address(limitOrderRouter)
         );
 
         tokenToWethExecution = new TokenToWethExecution(
@@ -161,7 +163,9 @@ contract LimitOrderRouterTest is DSTest {
             address(taxedTokenExecution),
             address(tokenToWethExecution),
             address(orderRouter)
-        );  
+        );
+
+        
     }
 
 
@@ -769,7 +773,7 @@ contract LimitOrderRouterTest is DSTest {
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             OrderBook.Order memory order0 = limitOrderRouter
                 .getOrderById(orderBatch[i]);
-
+            console.log(order0.quantity);
             assert(order0.orderId != bytes32(0));
         }
 
@@ -1153,7 +1157,7 @@ contract LimitOrderRouterTest is DSTest {
     //================================================================
     //======================= Helper functions =======================
     //================================================================
-
+    
     function newMockOrder(
         address tokenIn,
         address tokenOut,

@@ -1086,6 +1086,7 @@ contract LimitOrderBatcher {
             ///@notice Initialize the reserve0 and reserve1 depending on if Weth is token0 or token1.
             if (WETH == IUniswapV2Pair(lpAddressAToWeth).token0()) {
                 uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
+                
                 uint256 amountIn = amountInOrder - amountInBuffer;
                 amountOutMinAToWeth = getAmountOut(
                     amountIn,
@@ -1093,7 +1094,9 @@ contract LimitOrderBatcher {
                     uint256(reserve0)
                 );
             } else {
+
                 uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
+                
                 uint256 amountIn = amountInOrder - amountInBuffer;
                 amountOutMinAToWeth = getAmountOut(
                     amountIn,

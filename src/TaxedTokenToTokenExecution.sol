@@ -17,7 +17,7 @@ import "../lib/libraries/ConveyorTickMath.sol";
 import "./IOrderBook.sol";
 import "./IOrderRouter.sol";
 import "./LimitOrderBatcher.sol";
-
+import "./test/utils/Console.sol";
 /// @title OrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
@@ -99,16 +99,14 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
         ///@notice Execute the batched orders
         _executeTokenToWethBatchTaxedOrders(
             tokenToWethBatchOrders,
-            maxBeaconReward,
-            orders
+            maxBeaconReward
         );
     }
 
     ///@notice Function to execute batch orders from a taxed token to Weth.
     function _executeTokenToWethBatchTaxedOrders(
         OrderRouter.TokenToWethBatchOrder[] memory tokenToWethBatchOrders,
-        uint128 maxBeaconReward,
-        OrderBook.Order[] memory orders
+        uint128 maxBeaconReward
     ) internal {
         ///@notice Initialize the total reward to be paid to the off-chain executor
         uint128 totalBeaconReward;
@@ -141,11 +139,7 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
             ? totalBeaconReward
             : maxBeaconReward;
 
-        ///@notice Unwrap the ETH before sending to the beacon.
-        IWETH(WETH).withdraw(totalBeaconReward);
-
-        ///@notice Transfer the reward to the off-chain executor.
-        safeTransferETH(msg.sender, totalBeaconReward);
+        IOrderRouter(ORDER_ROUTER).transferBeaconReward(totalBeaconReward, tx.origin, WETH);
     }
 
     ///@notice Transfer ETH to a specific address and require that the call was successful.
@@ -282,7 +276,7 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
             for (uint256 j = 0; j < batch.batchLength; ) {
                 OrderBook.Order memory order = IOrderBook(orderBookAddress)
                     .getOrderById(batch.orderIds[j]);
-
+                
                 ///@notice Execute the order.
                 totalBeaconReward += _executeTokenToTokenTaxedOrder(
                     tokenToTokenBatchOrders[i],
@@ -317,7 +311,7 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
     ) internal returns (uint128 amountOutWeth) {
         ///@notice Get the UniV3 fee, this will be 0 if the lp is not UniV3.
         uint24 fee = _getUniV3Fee(batch.lpAddressAToWeth);
-
+        
         ///@notice Calculate the amountOutMin for the tokenA to Weth swap.
         uint256 batchAmountOutMinAToWeth = calculateAmountOutMinAToWeth(
             batch.lpAddressAToWeth,
@@ -326,6 +320,7 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
             order.feeIn,
             order.tokenIn
         );
+        
 
         ///@notice Swap from tokenA to Weth.
         amountOutWeth = uint128(
@@ -336,7 +331,7 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
                 fee,
                 order.quantity,
                 batchAmountOutMinAToWeth,
-                address(this),
+                ORDER_ROUTER,
                 order.owner
             )
         );
@@ -371,10 +366,11 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
         uint256 amountInWethToB;
         uint24 fee;
         uint128 conveyorReward;
-
+        
         ///@notice If the tokenIn is not Weth, swap from weth to token.
         if (order.tokenIn != WETH) {
             amountInWethToB = _executeSwapTokenToWeth(batch, order);
+            
         } else {
             ///@notice Otherwise, if the tokenIn is weth, calculate the reward first.
             protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(uint128(order.quantity), USDC, WETH);
@@ -394,7 +390,7 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
 
         ///@notice Get the UniV3 fee for the lp address.
         fee = _getUniV3Fee(batch.lpAddressWethToB);
-
+        
         ///@notice Swap weth for tokenB
         uint256 amountOut = IOrderRouter(ORDER_ROUTER).swap(
             WETH,
@@ -404,8 +400,9 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
             amountInWethToB,
             order.amountOutMin,
             order.owner,
-            address(ORDER_ROUTER)
+            ORDER_ROUTER
         );
+        
 
         ///@notice If the swap failed revert the tx.
         if (amountOut == 0) {
@@ -476,10 +473,12 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
                 feeIn,
                 order.quantity,
                 batchAmountOutMinAToWeth,
-                address(ORDER_ROUTER),
+                ORDER_ROUTER,
                 order.owner
             )
         );
+        
+        
 
         ///@notice Take out fees from the amountOut.
         uint128 protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(amountOutWeth, USDC, WETH);
