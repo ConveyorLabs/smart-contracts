@@ -941,11 +941,7 @@ contract OrderRouter {
             ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender.
             IERC20(tokenIn).transferFrom(_sender, _lp, amountIn);
         } else {
-            // uint256 balance = IERC20(tokenIn).balanceOf(address(this));
-            // assembly {
-            //     mstore(0x00, balance)
-            //     revert(0x00, 0x20)
-            // }
+            
             IERC20(tokenIn).transfer(_lp, amountIn);
             
         }

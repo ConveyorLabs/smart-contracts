@@ -258,7 +258,7 @@ contract LimitOrderRouterTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-        IERC20(DAI).approve(address(tokenToWethExecution), MAX_UINT);
+        IERC20(DAI).approve(address(orderRouter), MAX_UINT);
         bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethBatch();
 
         //check that the orders have been placed

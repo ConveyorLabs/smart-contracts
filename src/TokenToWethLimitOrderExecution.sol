@@ -138,8 +138,7 @@ contract TokenToWethExecution is LimitOrderBatcher {
             executionPrice
         );
 
-        ///@notice Transfer the out amount to the order owner.
-        IERC20(WETH).transfer(orderOwner, amountOut);
+        IOrderRouter(ORDER_ROUTER).transferTokensOutToOwner(order.owner, amountOut, WETH);
 
         /**@notice If the maxBeaconReward is greater than the beaconReward then keep the beaconReward else set beaconReward
         to the maxBeaconReward
@@ -148,10 +147,7 @@ contract TokenToWethExecution is LimitOrderBatcher {
             ? beaconReward
             : maxBeaconReward;
 
-        ///@notice Unwrap the beacon reward to transfer to the off-chain executor.
-        IWETH(WETH).withdraw(beaconReward);
-        ///@notice Send the Total Reward to the beacon.
-        safeTransferETH(msg.sender, beaconReward);
+        IOrderRouter(ORDER_ROUTER).transferBeaconReward(beaconReward, tx.origin, WETH);
     }
 
     ///@notice Transfer ETH to a specific address and require that the call was successful.
@@ -187,7 +183,7 @@ contract TokenToWethExecution is LimitOrderBatcher {
                 order.feeIn,
                 order.quantity,
                 order.amountOutMin,
-                address(this),
+                address(ORDER_ROUTER),
                 order.owner
             )
         );
@@ -270,7 +266,7 @@ contract TokenToWethExecution is LimitOrderBatcher {
                     );
 
                     ///@notice Send the order owner their orderPayout
-                    IERC20(WETH).transfer(batch.batchOwners[j], orderPayout);
+                    IOrderRouter(ORDER_ROUTER).transferTokensOutToOwner(batch.batchOwners[j], orderPayout, WETH);
 
                     unchecked {
                         ++j;
@@ -289,12 +285,8 @@ contract TokenToWethExecution is LimitOrderBatcher {
         totalBeaconReward = maxBeaconReward > totalBeaconReward
             ? totalBeaconReward
             : maxBeaconReward;
-
-        ///@notice Unwrap the WETH to send to the beacon.
-        IWETH(WETH).withdraw(totalBeaconReward);
-
-        ///@notice Send the Total Reward to the beacon.
-        safeTransferETH(msg.sender, totalBeaconReward);
+        
+       IOrderRouter(ORDER_ROUTER).transferBeaconReward(totalBeaconReward, tx.origin, WETH);
     }
 
     ///@notice Function to Execute a single batch of TokenIn to Weth Orders.
@@ -315,8 +307,8 @@ contract TokenToWethExecution is LimitOrderBatcher {
                 fee,
                 batch.amountIn,
                 batch.amountOutMin,
-                address(this),
-                address(this)
+                ORDER_ROUTER,
+                ORDER_ROUTER
             )
         );
 
