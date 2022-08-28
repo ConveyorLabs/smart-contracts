@@ -129,14 +129,13 @@ contract TokenToWethExecution is LimitOrderBatcher {
         uint128 maxBeaconReward,
         OrderRouter.TokenToWethExecutionPrice memory executionPrice
     ) internal {
-        ///@notice Cache the order owner into memory.
-        address orderOwner = order.owner;
 
         ///@notice Execute the TokenIn to Weth order.
         (uint256 amountOut, uint256 beaconReward) = _executeTokenToWethOrder(
             order,
             executionPrice
         );
+
 
         IOrderRouter(ORDER_ROUTER).transferTokensOutToOwner(order.owner, amountOut, WETH);
 
@@ -183,7 +182,7 @@ contract TokenToWethExecution is LimitOrderBatcher {
                 order.feeIn,
                 order.quantity,
                 order.amountOutMin,
-                address(ORDER_ROUTER),
+                ORDER_ROUTER,
                 order.owner
             )
         );
