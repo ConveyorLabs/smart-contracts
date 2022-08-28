@@ -18,6 +18,7 @@ import "../lib/libraries/ConveyorTickMath.sol";
 import "./IOrderRouter.sol";
 import "./LimitOrderBatcher.sol";
 import "./test/utils/Console.sol";
+
 /// @title OrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
@@ -51,7 +52,7 @@ contract TokenToTokenExecution is LimitOrderBatcher {
     ///@notice IQuoter instance to quote the amountOut for a given amountIn on a UniV3 pool.
     IQuoter immutable iQuoter;
 
-    ///@notice Address of the order router contract. 
+    ///@notice Address of the order router contract.
     address immutable ORDER_ROUTER;
 
     ///@notice State variable to track the amount of gas initally alloted during executeOrders.
@@ -75,14 +76,12 @@ contract TokenToTokenExecution is LimitOrderBatcher {
         address _limitOrderBatcher,
         uint256 _executionCost,
         address _orderRouter
-    )
-       LimitOrderBatcher(_weth, _quoterAddress, _orderRouter)
-    {
+    ) LimitOrderBatcher(_weth, _quoterAddress, _orderRouter) {
         iQuoter = IQuoter(_quoterAddress);
         USDC = _usdc;
         LIMIT_ORDER_BATCHER = _limitOrderBatcher;
         ORDER_EXECUTION_GAS_COST = _executionCost;
-        ORDER_ROUTER= _orderRouter;
+        ORDER_ROUTER = _orderRouter;
         owner = msg.sender;
     }
 
@@ -104,7 +103,10 @@ contract TokenToTokenExecution is LimitOrderBatcher {
         //TODO: external call to the lib and then if everything goes through, then transfer all tokes to the current contract context
         ///@notice Batch the orders into optimized quantities to result in the best execution price and gas cost for each order.
         OrderRouter.TokenToTokenBatchOrder[]
-            memory tokenToTokenBatchOrders = batchTokenToTokenOrders(orders, executionPrices);
+            memory tokenToTokenBatchOrders = batchTokenToTokenOrders(
+                orders,
+                executionPrices
+            );
 
         ///@notice Execute the batches of orders.
         _executeTokenToTokenBatchOrders(
@@ -148,7 +150,8 @@ contract TokenToTokenExecution is LimitOrderBatcher {
 
         ///@notice For each batch order in the array.
         for (uint256 i = 0; i < tokenToTokenBatchOrders.length; ) {
-            OrderRouter.TokenToTokenBatchOrder memory batch = tokenToTokenBatchOrders[i];
+            OrderRouter.TokenToTokenBatchOrder
+                memory batch = tokenToTokenBatchOrders[i];
 
             ///@notice Execute the batch order
             (
@@ -178,7 +181,11 @@ contract TokenToTokenExecution is LimitOrderBatcher {
 
                 ///@notice Send the order payout to the order owner.
                 ///FIXME: Fix
-                IOrderRouter(ORDER_ROUTER).transferTokensOutToOwner(batch.batchOwners[j], orderPayout, batch.tokenOut);
+                IOrderRouter(ORDER_ROUTER).transferTokensOutToOwner(
+                    batch.batchOwners[j],
+                    orderPayout,
+                    batch.tokenOut
+                );
 
                 unchecked {
                     ++j;
@@ -195,7 +202,11 @@ contract TokenToTokenExecution is LimitOrderBatcher {
             ? totalBeaconReward
             : maxBeaconReward;
 
-        IOrderRouter(ORDER_ROUTER).transferBeaconReward(totalBeaconReward, tx.origin, WETH);
+        IOrderRouter(ORDER_ROUTER).transferBeaconReward(
+            totalBeaconReward,
+            tx.origin,
+            WETH
+        );
     }
 
     ///@notice Transfer ETH to a specific address and require that the call was successful.
@@ -223,7 +234,6 @@ contract TokenToTokenExecution is LimitOrderBatcher {
         uint128 maxBeaconReward,
         OrderRouter.TokenToTokenExecutionPrice memory executionPrice
     ) internal {
-
         ///@notice Execute the order.
         (, uint256 beaconReward) = _executeTokenToTokenOrder(
             order,
@@ -235,7 +245,11 @@ contract TokenToTokenExecution is LimitOrderBatcher {
             ? beaconReward
             : maxBeaconReward;
 
-        IOrderRouter(ORDER_ROUTER).transferBeaconReward(beaconReward, tx.origin, WETH);
+        IOrderRouter(ORDER_ROUTER).transferBeaconReward(
+            beaconReward,
+            tx.origin,
+            WETH
+        );
     }
 
     receive() external payable {}
@@ -265,29 +279,47 @@ contract TokenToTokenExecution is LimitOrderBatcher {
             feeIn,
             tokenIn
         );
-
-        ///@notice Swap from tokenA to Weth.
-        amountOutWeth = uint128(
-            IOrderRouter(ORDER_ROUTER).swap(
-                tokenIn,
-                WETH,
-                lpAddressAToWeth,
-                feeIn,
-                order.quantity,
-                batchAmountOutMinAToWeth,
-                ORDER_ROUTER,
-                ORDER_ROUTER
-            )
-        );
+        if (!order.taxed) {
+            ///@notice Swap from tokenA to Weth.
+            amountOutWeth = uint128(
+                IOrderRouter(ORDER_ROUTER).swap(
+                    tokenIn,
+                    WETH,
+                    lpAddressAToWeth,
+                    feeIn,
+                    order.quantity,
+                    batchAmountOutMinAToWeth,
+                    ORDER_ROUTER,
+                    ORDER_ROUTER
+                )
+            );
+        }else{
+            ///@notice Swap from tokenA to Weth.
+            amountOutWeth = uint128(
+                IOrderRouter(ORDER_ROUTER).swap(
+                    tokenIn,
+                    WETH,
+                    lpAddressAToWeth,
+                    feeIn,
+                    order.quantity,
+                    batchAmountOutMinAToWeth,
+                    ORDER_ROUTER,
+                    order.owner
+                )
+            );
+        }
 
         ///@notice Take out fees from the amountOut.
-        uint128 protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(amountOutWeth, USDC, WETH);
+        uint128 protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(
+            amountOutWeth,
+            USDC,
+            WETH
+        );
 
         ///@notice Calculate the conveyorReward and executor reward.
-        (uint128 conveyorReward, uint128 beaconReward) = IOrderRouter(ORDER_ROUTER).calculateReward(
-            protocolFee,
-            amountOutWeth
-        );
+        (uint128 conveyorReward, uint128 beaconReward) = IOrderRouter(
+            ORDER_ROUTER
+        ).calculateReward(protocolFee, amountOutWeth);
 
         ///@notice Increment the conveyor protocol's balance of ether in the contract by the conveyorReward.
         conveyorBalance += conveyorReward;
@@ -312,8 +344,10 @@ contract TokenToTokenExecution is LimitOrderBatcher {
         {
             ///@notice If the tokenIn is not weth.
             if (order.tokenIn != WETH) {
-                ///@notice Transfer the TokenIn to the contract.
-                IOrderRouter(ORDER_ROUTER).transferTokensToContract(order);
+                if (!order.taxed) {
+                    ///@notice Transfer the TokenIn to the contract.
+                    IOrderRouter(ORDER_ROUTER).transferTokensToContract(order);
+                }
 
                 amountInWethToB = _executeSwapTokenToWethOrder(
                     executionPrice,
@@ -323,10 +357,9 @@ contract TokenToTokenExecution is LimitOrderBatcher {
                     revert InsufficientOutputAmount();
                 }
             } else {
-                
                 ///@notice Transfer the TokenIn to the contract.
                 IOrderRouter(ORDER_ROUTER).transferTokensToContract(order);
-                
+
                 uint256 amountIn = order.quantity;
                 ///@notice Take out fees from the batch amountIn since token0 is weth.
                 uint128 protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(
@@ -336,10 +369,8 @@ contract TokenToTokenExecution is LimitOrderBatcher {
                 );
 
                 ///@notice Calculate the conveyorReward and the off-chain logic executor reward.
-                (conveyorReward, beaconReward) = IOrderRouter(ORDER_ROUTER).calculateReward(
-                    protocolFee,
-                    uint128(amountIn)
-                );
+                (conveyorReward, beaconReward) = IOrderRouter(ORDER_ROUTER)
+                    .calculateReward(protocolFee, uint128(amountIn));
 
                 ///@notice Increment the conveyor balance by the conveyor reward.
                 conveyorBalance += conveyorReward;
@@ -348,7 +379,7 @@ contract TokenToTokenExecution is LimitOrderBatcher {
                 amountInWethToB = amountIn - (beaconReward + conveyorReward);
             }
         }
-        
+
         ///@notice Swap Weth for tokenB.
         uint256 amountOutInB = IOrderRouter(ORDER_ROUTER).swap(
             WETH,
@@ -360,9 +391,6 @@ contract TokenToTokenExecution is LimitOrderBatcher {
             order.owner,
             address(ORDER_ROUTER)
         );
-        
-
-        
 
         if (amountOutInB == 0) {
             revert InsufficientOutputAmount();
@@ -375,10 +403,9 @@ contract TokenToTokenExecution is LimitOrderBatcher {
     ///@param batch - The token to token batch to execute.
     ///@return amountOut - The amount out recevied from the swap.
     ///@return beaconReward - Compensation reward amount to be sent to the off-chain logic executor.
-    function _executeTokenToTokenBatch(OrderRouter.TokenToTokenBatchOrder memory batch)
-        internal
-        returns (uint256, uint256)
-    {
+    function _executeTokenToTokenBatch(
+        OrderRouter.TokenToTokenBatchOrder memory batch
+    ) internal returns (uint256, uint256) {
         ///@notice Initialize variables used throughout the function.
         uint128 protocolFee;
         uint128 beaconReward;
@@ -421,13 +448,15 @@ contract TokenToTokenExecution is LimitOrderBatcher {
                 }
 
                 ///@notice Take out the fees from the amountOutWeth
-                protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(amountOutWeth, USDC, WETH);
+                protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(
+                    amountOutWeth,
+                    USDC,
+                    WETH
+                );
 
                 ///@notice Calculate the conveyorReward and the off-chain logic executor reward.
-                (conveyorReward, beaconReward) = IOrderRouter(ORDER_ROUTER).calculateReward(
-                    protocolFee,
-                    amountOutWeth
-                );
+                (conveyorReward, beaconReward) = IOrderRouter(ORDER_ROUTER)
+                    .calculateReward(protocolFee, amountOutWeth);
 
                 ///@notice Increment the conveyor balance by the conveyor reward.
                 conveyorBalance += conveyorReward;
@@ -447,10 +476,8 @@ contract TokenToTokenExecution is LimitOrderBatcher {
                 );
 
                 ///@notice Calculate the conveyorReward and the off-chain logic executor reward.
-                (conveyorReward, beaconReward) = IOrderRouter(ORDER_ROUTER).calculateReward(
-                    protocolFee,
-                    uint128(batch.amountIn)
-                );
+                (conveyorReward, beaconReward) = IOrderRouter(ORDER_ROUTER)
+                    .calculateReward(protocolFee, uint128(batch.amountIn));
 
                 ///@notice Increment the conveyor balance by the conveyor reward.
                 conveyorBalance += conveyorReward;
@@ -498,7 +525,6 @@ contract TokenToTokenExecution is LimitOrderBatcher {
         }
     }
 
-
     ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
     ///@param orders - Array of orders that are being evaluated for execution.
     function initializeTokenToTokenExecutionPrices(
@@ -513,7 +539,11 @@ contract TokenToTokenExecution is LimitOrderBatcher {
         (
             OrderRouter.SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = IOrderRouter(ORDER_ROUTER).getAllPrices(tokenIn, WETH, orders[0].feeIn);
+        ) = IOrderRouter(ORDER_ROUTER).getAllPrices(
+                tokenIn,
+                WETH,
+                orders[0].feeIn
+            );
 
         ///@notice Get all prices for the pairing Weth to tokenOut
         (
@@ -562,15 +592,16 @@ contract TokenToTokenExecution is LimitOrderBatcher {
                     ) << 64;
 
                     ///@notice Set the executionPrices at index to TokenToTokenExecutionPrice
-                    executionPrices[index] = OrderRouter.TokenToTokenExecutionPrice(
-                        spotReserveAToWeth[i].res0,
-                        spotReserveAToWeth[i].res1,
-                        spotReserveWethToB[j].res1,
-                        spotReserveWethToB[j].res0,
-                        spotPriceFinal,
-                        lpAddressesAToWeth[i],
-                        lpAddressWethToB[j]
-                    );
+                    executionPrices[index] = OrderRouter
+                        .TokenToTokenExecutionPrice(
+                            spotReserveAToWeth[i].res0,
+                            spotReserveAToWeth[i].res1,
+                            spotReserveWethToB[j].res1,
+                            spotReserveWethToB[j].res0,
+                            spotPriceFinal,
+                            lpAddressesAToWeth[i],
+                            lpAddressWethToB[j]
+                        );
                     ///@notice Increment the index
                     unchecked {
                         ++index;
@@ -589,17 +620,23 @@ contract TokenToTokenExecution is LimitOrderBatcher {
 
         ///@notice Get the Max beacon reward on the SpotReserves
         uint128 maxBeaconReward = WETH != tokenIn
-            ? IOrderRouter(ORDER_ROUTER).calculateMaxBeaconReward(spotReserveAToWeth, orders, false)
-            : IOrderRouter(ORDER_ROUTER).calculateMaxBeaconReward(spotReserveWethToB, orders, true);
+            ? IOrderRouter(ORDER_ROUTER).calculateMaxBeaconReward(
+                spotReserveAToWeth,
+                orders,
+                false
+            )
+            : IOrderRouter(ORDER_ROUTER).calculateMaxBeaconReward(
+                spotReserveWethToB,
+                orders,
+                true
+            );
 
         return (executionPrices, maxBeaconReward);
     }
-
 
     ///@notice Function to withdraw owner fee's accumulated
     function withdrawConveyorFees() external onlyOwner {
         safeTransferETH(owner, conveyorBalance);
         conveyorBalance = 0;
     }
-
 }
