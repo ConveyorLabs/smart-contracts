@@ -124,7 +124,7 @@ contract TokenToTokenExecution is LimitOrderBatcher {
             uint128 maxBeaconReward
         ) = initializeTokenToTokenExecutionPrices(orders);
 
-        uint256 bestPriceIndex = findBestTokenToTokenExecutionPrice(
+        uint256 bestPriceIndex = _findBestTokenToTokenExecutionPrice(
             executionPrices,
             orders[0].buy
         );

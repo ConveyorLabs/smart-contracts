@@ -4,11 +4,12 @@ pragma solidity >=0.8.16;
 import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Utils.sol";
-
+import "../OrderBook.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
 import "./utils/Swap.sol";
+import "../LimitOrderRouter.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -27,7 +28,7 @@ contract OrderBookTest is DSTest {
     CheatCodes cheatCodes;
     OrderBookWrapper orderBook;
     Swap swapHelper;
-
+    LimitOrderRouter limitOrderRouter;
     event OrderPlaced(bytes32[] indexed orderIds);
     event OrderCancelled(bytes32[] indexed orderIds);
     event OrderUpdated(bytes32[] indexed orderIds);
@@ -61,22 +62,20 @@ contract OrderBookTest is DSTest {
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
-        conveyorLimitOrders = new ConveyorLimitOrders(
-            0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
-            0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6,
-            300000,
-            _hexDems,
-            _dexFactories,
-            _isUniV2,
-            swapRouter,
-            alphaXDivergenceThreshold
-        );
+        
         swapHelper = new Swap(_sushiSwapRouterAddress, wnato);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
         orderBook = new OrderBookWrapper(aggregatorV3Address);
+        limitOrderRouter = new LimitOrderRouter(
+            0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
+            3000000,
+            address(0),
+            address(0),
+            address(0)
+        );
     }
 
     ///@notice Test get order by id
@@ -86,7 +85,7 @@ contract OrderBookTest is DSTest {
         swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
 
         //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
+        OrderBook.Order memory order = newOrder(
             swapToken,
             wnato,
             245000000000000000000,
@@ -96,7 +95,7 @@ contract OrderBookTest is DSTest {
         //place a mock order
         bytes32 orderId = placeMockOrder(order);
 
-        ConveyorLimitOrders.Order memory returnedOrder = orderBook.getOrderById(
+        OrderBook.Order memory returnedOrder = orderBook.getOrderById(
             orderId
         );
 
@@ -113,7 +112,7 @@ contract OrderBookTest is DSTest {
         IERC20(swapToken).approve(address(orderBook), MAX_UINT);
 
         //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
+        OrderBook.Order memory order = newOrder(
             swapToken,
             wnato,
             245000000000000000000,
@@ -144,8 +143,8 @@ contract OrderBookTest is DSTest {
             );
 
             //create a new array of orders
-            ConveyorLimitOrders.Order[]
-                memory orderGroup = new ConveyorLimitOrders.Order[](1);
+            OrderBook.Order[]
+                memory orderGroup = new OrderBook.Order[](1);
             //add the order to the arrOrder and add the arrOrder to the orderGroup
             orderGroup[0] = order;
 
@@ -187,8 +186,8 @@ contract OrderBookTest is DSTest {
             );
 
             //create a new array of orders
-            ConveyorLimitOrders.Order[]
-                memory orderGroup = new ConveyorLimitOrders.Order[](1);
+            OrderBook.Order[]
+                memory orderGroup = new OrderBook.Order[](1);
             //add the order to the arrOrder and add the arrOrder to the orderGroup
             orderGroup[0] = order;
 
@@ -225,8 +224,8 @@ contract OrderBookTest is DSTest {
         );
 
         //create a new array of orders
-        ConveyorLimitOrders.Order[]
-            memory orderGroup = new ConveyorLimitOrders.Order[](1);
+        OrderBook.Order[]
+            memory orderGroup = new OrderBook.Order[](1);
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
 
@@ -269,8 +268,8 @@ contract OrderBookTest is DSTest {
                 );
 
                 //create a new array of orders
-                ConveyorLimitOrders.Order[]
-                    memory orderGroup = new ConveyorLimitOrders.Order[](2);
+                OrderBook.Order[]
+                    memory orderGroup = new OrderBook.Order[](2);
                 //add the order to the arrOrder and add the arrOrder to the orderGroup
                 orderGroup[0] = order1;
                 orderGroup[1] = order2;
@@ -294,7 +293,7 @@ contract OrderBookTest is DSTest {
         swapHelper.swapEthForTokenWithUniV2(100 ether, swapToken);
         // returns (uint256 amountOut) {
         //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
+        OrderBook.Order memory order = newOrder(
             swapToken,
             wnato,
             uint128(0),
@@ -305,7 +304,7 @@ contract OrderBookTest is DSTest {
         bytes32 orderId = placeMockOrder(order);
 
         //create a new order to replace the old order
-        ConveyorLimitOrders.Order memory updatedOrder = newOrder(
+        OrderBook.Order memory updatedOrder = newOrder(
             swapToken,
             wnato,
             uint128(1),
@@ -330,7 +329,7 @@ contract OrderBookTest is DSTest {
             uint256 amountOut
         ) {
             //create a new order
-            ConveyorLimitOrders.Order memory order = newOrder(
+            OrderBook.Order memory order = newOrder(
                 swapToken,
                 wnato,
                 uint128(amountOut),
@@ -342,7 +341,7 @@ contract OrderBookTest is DSTest {
             placeMockOrder(order);
 
             //create a new order to replace the old order
-            ConveyorLimitOrders.Order memory updatedOrder = newOrder(
+            OrderBook.Order memory updatedOrder = newOrder(
                 swapToken,
                 wnato,
                 10,
@@ -424,7 +423,7 @@ contract OrderBookTest is DSTest {
             swapToken
         );
         //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
+        OrderBook.Order memory order = newOrder(
             swapToken,
             wnato,
             uint128(amountOut),
@@ -470,8 +469,8 @@ contract OrderBookTest is DSTest {
         );
 
         //create a new array of orders
-        ConveyorLimitOrders.Order[]
-            memory orderGroup = new ConveyorLimitOrders.Order[](2);
+        OrderBook.Order[]
+            memory orderGroup = new OrderBook.Order[](2);
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order1;
         orderGroup[1] = order2;
@@ -503,7 +502,7 @@ contract OrderBookTest is DSTest {
         IERC20(swapToken).approve(address(orderBook), MAX_UINT);
 
         //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
+        OrderBook.Order memory order = newOrder(
             swapToken,
             wnato,
             245000000000000000000,
@@ -557,7 +556,7 @@ contract OrderBookTest is DSTest {
         IERC20(swapToken).approve(address(orderBook), MAX_UINT);
 
         //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
+        OrderBook.Order memory order = newOrder(
             swapToken,
             wnato,
             245000000000000000000,
@@ -577,13 +576,13 @@ contract OrderBookTest is DSTest {
         cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(orderBook), MAX_UINT);
 
-        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
+        (bool depositSuccess, ) = address(limitOrderRouter).call{
             value: 100000000000000
         }(abi.encodeWithSignature("depositGasCredits()"));
         swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
 
         //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
+        OrderBook.Order memory order = newOrder(
             swapToken,
             wnato,
             245000000000000000000,
@@ -609,14 +608,14 @@ contract OrderBookTest is DSTest {
         IERC20(swapToken).approve(address(orderBook), MAX_UINT);
 
         cheatCodes.deal(address(this), MAX_UINT);
-        (bool depositSuccess, ) = address(conveyorLimitOrders).call{
+        (bool depositSuccess, ) = address(limitOrderRouter).call{
             value: 1000000000000
         }(abi.encodeWithSignature("depositGasCredits()")); //12 wei
 
         swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
 
         //create a new order
-        ConveyorLimitOrders.Order memory order = newOrder(
+        OrderBook.Order memory order = newOrder(
             swapToken,
             wnato,
             245000000000000000000,
@@ -665,13 +664,13 @@ contract OrderBookTest is DSTest {
         });
     }
 
-    function placeMockOrder(ConveyorLimitOrders.Order memory order)
+    function placeMockOrder(OrderBook.Order memory order)
         internal
         returns (bytes32 orderId)
     {
         //create a new array of orders
-        ConveyorLimitOrders.Order[]
-            memory orderGroup = new ConveyorLimitOrders.Order[](1);
+        OrderBook.Order[]
+            memory orderGroup = new OrderBook.Order[](1);
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
 

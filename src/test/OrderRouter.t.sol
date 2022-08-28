@@ -13,7 +13,7 @@ import "../OrderRouter.sol";
 import "./utils/ScriptRunner.sol";
 import "../../lib/libraries/Uniswap/LowGasSafeMath.sol";
 import "../../lib/libraries/Uniswap/FullMath.sol";
-
+import "../OrderBook.sol";
 // import "../../scripts/logistic_curve.py";
 
 interface CheatCodes {
@@ -863,7 +863,7 @@ contract OrderRouterTest is DSTest {
         uint16 feeOut,
         uint32 lastRefreshTimestamp,
         uint32 expirationTimestamp
-    ) internal view returns (OrderRouter.Order memory order) {
+    ) internal view returns (OrderBook.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
             buy: buy,
@@ -1140,21 +1140,8 @@ contract OrderRouterWrapper is OrderRouter {
         )
     {}
 
-    function calculateMaxBeaconRewardTop(
-        SpotReserve[] memory spotReserves,
-        OrderBook.Order[] memory orders,
-        bool wethIsToken0
-    ) public returns (uint128) {
-        return calculateMaxBeaconReward(spotReserves, orders, wethIsToken0);
-    }
+   
 
-    function calculateFee(
-        uint128 amountIn,
-        address usdc,
-        address weth
-    ) public returns (uint128 Out64x64) {
-        return _calculateFee(amountIn, usdc, weth);
-    }
 
     function getV3PoolFee(address pairAddress)
         public
@@ -1164,12 +1151,6 @@ contract OrderRouterWrapper is OrderRouter {
         return getV3PoolFee(pairAddress);
     }
 
-    function calculateReward(uint128 percentFee, uint128 wethValue)
-        public
-        returns (uint128 conveyorReward, uint128 beaconReward)
-    {
-        return _calculateReward(percentFee, wethValue);
-    }
 
     function __calculateMaxBeaconReward(
         uint256 delta,
@@ -1200,29 +1181,6 @@ contract OrderRouterWrapper is OrderRouter {
     }
 
     receive() external payable {}
-
-    function swap(
-        address tokenIn,
-        address tokenOut,
-        address lpAddress,
-        uint24 fee,
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address reciever,
-        address sender
-    ) public returns (uint256 amountOut) {
-        return
-            _swap(
-                tokenIn,
-                tokenOut,
-                lpAddress,
-                fee,
-                amountIn,
-                amountOutMin,
-                reciever,
-                sender
-            );
-    }
 
     function swapV2(
         address _tokenIn,
@@ -1292,17 +1250,6 @@ contract OrderRouterWrapper is OrderRouter {
         return _calculateV3SpotPrice(token0, token1, FEE, _factory);
     }
 
-    /// @notice Helper to get all lps and prices across multiple dexes
-    /// @param token0 address of token0
-    /// @param token1 address of token1
-    /// @param FEE uniV3 fee
-    function getAllPrices(
-        address token0,
-        address token1,
-        uint24 FEE
-    ) public returns (SpotReserve[] memory prices, address[] memory lps) {
-        return _getAllPrices(token0, token1, FEE);
-    }
 
     /// @notice Helper to get amountIn amount for token pair
     function getTargetAmountIn(address token0, address token1)
