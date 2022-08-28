@@ -66,12 +66,13 @@ contract OrderBookTest is DSTest {
         swapHelper = new Swap(_sushiSwapRouterAddress, wnato);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
-        orderBook = new OrderBookWrapper(aggregatorV3Address);
+        orderBook = new OrderBookWrapper(aggregatorV3Address, address(0));
         limitOrderRouter = new LimitOrderRouter(
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             3000000,
+            address(0),
             address(0),
             address(0),
             address(0)
@@ -683,7 +684,7 @@ contract OrderBookTest is DSTest {
 
 ///@notice wrapper around the OrderBook contract to expose internal functions for testing
 contract OrderBookWrapper is DSTest, OrderBook {
-    constructor(address _gasOracle) OrderBook(_gasOracle) {}
+    constructor(address _gasOracle, address _orderRouter) OrderBook(_gasOracle, _orderRouter) {}
 
     function calculateMinGasCredits(
         uint256 gasPrice,

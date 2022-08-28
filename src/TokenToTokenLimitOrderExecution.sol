@@ -178,7 +178,7 @@ contract TokenToTokenExecution is LimitOrderBatcher {
 
                 ///@notice Send the order payout to the order owner.
                 ///FIXME: Fix
-                safeTransferETH(batch.batchOwners[j], orderPayout);
+                IOrderRouter(ORDER_ROUTER).transferTokensOutToOwner(batch.batchOwners[j], orderPayout, batch.tokenOut);
 
                 unchecked {
                     ++j;
@@ -195,11 +195,7 @@ contract TokenToTokenExecution is LimitOrderBatcher {
             ? totalBeaconReward
             : maxBeaconReward;
 
-        ///@notice Unwrap the total reward.
-        IWETH(WETH).withdraw(totalBeaconReward);
-
-        ///@notice Send the off-chain executor their reward.
-        safeTransferETH(tx.origin, totalBeaconReward);
+        IOrderRouter(ORDER_ROUTER).transferBeaconReward(totalBeaconReward, tx.origin, WETH);
     }
 
     ///@notice Transfer ETH to a specific address and require that the call was successful.
@@ -239,11 +235,7 @@ contract TokenToTokenExecution is LimitOrderBatcher {
             ? beaconReward
             : maxBeaconReward;
 
-        ///@notice Send the off-chain executor their reward.
-        IWETH(WETH).withdraw(beaconReward);
-
-        ///@notice Transfer the unwrapped ether to the tx origin.
-        safeTransferETH(tx.origin, beaconReward);
+        IOrderRouter(ORDER_ROUTER).transferBeaconReward(beaconReward, tx.origin, WETH);
     }
 
     receive() external payable {}
@@ -330,7 +322,7 @@ contract TokenToTokenExecution is LimitOrderBatcher {
             } else {
                 
                 ///@notice Transfer the TokenIn to the contract.
-                transferTokensToContract(order);
+                IOrderRouter(ORDER_ROUTER).transferTokensToContract(order);
                 
                 uint256 amountIn = order.quantity;
                 ///@notice Take out fees from the batch amountIn since token0 is weth.
@@ -365,6 +357,7 @@ contract TokenToTokenExecution is LimitOrderBatcher {
             order.owner,
             address(ORDER_ROUTER)
         );
+        require(false, "here");
 
         
 
@@ -415,8 +408,8 @@ contract TokenToTokenExecution is LimitOrderBatcher {
                         fee,
                         batch.amountIn,
                         batchAmountOutMinAToWeth,
-                        address(this),
-                        address(this)
+                        ORDER_ROUTER,
+                        ORDER_ROUTER
                     )
                 );
 
@@ -476,8 +469,8 @@ contract TokenToTokenExecution is LimitOrderBatcher {
                 fee,
                 amountInWethToB,
                 batch.amountOutMin,
-                address(this),
-                address(this)
+                ORDER_ROUTER,
+                ORDER_ROUTER
             );
 
             if (amountOutInB == 0) {

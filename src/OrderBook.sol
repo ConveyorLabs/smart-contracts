@@ -10,8 +10,11 @@ import "./ConveyorErrors.sol";
 /// @notice Contract to maintain active orders in limit order system. 
 contract OrderBook is GasOracle {
     //----------------------Constructor------------------------------------//
+    address immutable ORDER_ROUTER;
 
-    constructor(address _gasOracle) GasOracle(_gasOracle) {}
+    constructor(address _gasOracle, address _orderRouter) GasOracle(_gasOracle) {
+        ORDER_ROUTER= _orderRouter;
+    }
 
     //----------------------Events------------------------------------//
     /**@notice Event that is emitted when a new order is placed. For each order that is placed, the corresponding orderId is added

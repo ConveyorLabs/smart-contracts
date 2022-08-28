@@ -41,4 +41,12 @@ interface IOrderRouter {
         external
         pure
         returns (uint128 conveyorReward, uint128 beaconReward);
+
+    function transferTokensToContract(OrderBook.Order memory order)
+        external
+        returns (bool success);
+
+    function transferTokensOutToOwner(address owner, uint256 amount, address tokenOut) external;
+
+     function transferBeaconReward(uint256 totalBeaconReward, address executorAddress, address weth) external;
 }

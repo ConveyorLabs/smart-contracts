@@ -115,8 +115,9 @@ contract LimitOrderRouter is OrderBook {
         uint256 _executionCost,
         address _tokenToTokenExecutionAddress,
         address _taxedExecutionAddress,
-        address _tokenToWethExecutionAddress
-    ) OrderBook(_gasOracle) {
+        address _tokenToWethExecutionAddress,
+        address _orderRouter
+    ) OrderBook(_gasOracle, _orderRouter) {
         WETH = _weth;
         USDC = _usdc;
         ORDER_EXECUTION_GAS_COST = _executionCost;

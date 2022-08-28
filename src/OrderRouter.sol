@@ -479,6 +479,41 @@ contract OrderRouter {
         return maxBeaconReward;
     }
 
+    ///@notice Transfer the order quantity to the contract.
+    ///@return success - Boolean to indicate if the transfer was successful.
+    function transferTokensToContract(OrderBook.Order memory order)
+        external
+        returns (bool success)
+    {
+        try
+            IERC20(order.tokenIn).transferFrom(
+                order.owner,
+                address(this),
+                order.quantity
+            )
+        {} catch {
+            ///@notice Revert on token transfer failure.
+            revert TokenTransferFailed(order.orderId);
+        }
+        return true;
+    }
+
+    function transferTokensOutToOwner(address orderOwner, uint256 amount, address tokenOut) external {
+        try IERC20(tokenOut).transfer(orderOwner, amount)
+        {} catch {
+            revert TokenTransferFailed(bytes32(0));
+        }
+    }
+
+    function transferBeaconReward(uint256 totalBeaconReward, address executorAddress, address weth) external {
+        ///@notice Unwrap the total reward.
+        IWETH(weth).withdraw(totalBeaconReward);
+
+        ///@notice Send the off-chain executor their reward.
+        safeTransferETH(executorAddress, totalBeaconReward);
+    }
+
+
     ///@notice Helper function to calculate the alphaXDivergenceThreshold using the price that is the maximum distance from the v2Outlier.
     ///@param v2Outlier - SpotPrice of the v2Outlier used to cross reference against the alphaXDivergenceThreshold.
     ///@param orders - Array of orders used compare spot prices against.
@@ -695,7 +730,7 @@ contract OrderRouter {
         return amountRecieved;
     }
 
-    // receive() external payable {}
+    receive() external payable {}
 
     ///@notice Agnostic swap function that determines whether or not to swap on univ2 or univ3
     ///@param _tokenIn - Address of the tokenIn.
@@ -796,11 +831,12 @@ contract OrderRouter {
             )
         {} catch Error(string memory reason) {
             ///@notice If there was an error during the swap, emit an event.
+            ///TODO: Change this
             emit UniV2SwapError(reason);
-
+            
             return 0;
         }
-
+        
         ///@notice Return the amountOut yielded from the swap.
         return uniV3AmountOut;
     }
@@ -905,7 +941,13 @@ contract OrderRouter {
             ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender.
             IERC20(tokenIn).transferFrom(_sender, _lp, amountIn);
         } else {
+            // uint256 balance = IERC20(tokenIn).balanceOf(address(this));
+            // assembly {
+            //     mstore(0x00, balance)
+            //     revert(0x00, 0x20)
+            // }
             IERC20(tokenIn).transfer(_lp, amountIn);
+            
         }
     }
 

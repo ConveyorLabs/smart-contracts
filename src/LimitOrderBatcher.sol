@@ -8,10 +8,15 @@ contract LimitOrderBatcher {
     address immutable WETH;
     IQuoter immutable QUOTER;
     address immutable orderRouter;
-    constructor(address weth, address quoterAddress, address orderRouterAddress) {
+
+    constructor(
+        address weth,
+        address quoterAddress,
+        address orderRouterAddress
+    ) {
         WETH = weth;
         QUOTER = IQuoter(quoterAddress);
-        orderRouter= orderRouterAddress;
+        orderRouter = orderRouterAddress;
     }
 
     ///@notice Function to batch multiple token to weth orders together.
@@ -115,49 +120,55 @@ contract LimitOrderBatcher {
                             currentOrder.amountOutMin
                         )
                     ) {
-                        ///@notice Get the batch length of the current batch order.
-                        uint256 batchLength = currentTokenToTokenBatchOrder
-                            .batchLength;
+                        ///@notice Transfer the tokenIn from the user's wallet to the contract. If the transfer fails, cancel the order.
+                        bool success = IOrderRouter(orderRouter)
+                            .transferTokensToContract(currentOrder);
+                        if (success) {
+                            ///@notice Get the batch length of the current batch order.
+                            uint256 batchLength = currentTokenToTokenBatchOrder
+                                .batchLength;
 
-                        ///@notice Add the order to the current batch order.
-                        currentTokenToTokenBatchOrder.amountIn += currentOrder
-                            .quantity;
+                            ///@notice Add the order to the current batch order.
+                            currentTokenToTokenBatchOrder
+                                .amountIn += currentOrder.quantity;
 
-                        ///@notice Add the amountOutMin to the batch order.
-                        currentTokenToTokenBatchOrder
-                            .amountOutMin += currentOrder.amountOutMin;
+                            ///@notice Add the amountOutMin to the batch order.
+                            currentTokenToTokenBatchOrder
+                                .amountOutMin += currentOrder.amountOutMin;
 
-                        ///@notice Add the owner of the order to the batchOwners.
-                        currentTokenToTokenBatchOrder.batchOwners[
-                                batchLength
-                            ] = currentOrder.owner;
+                            ///@notice Add the owner of the order to the batchOwners.
+                            currentTokenToTokenBatchOrder.batchOwners[
+                                    batchLength
+                                ] = currentOrder.owner;
 
-                        ///@notice Add the order quantity of the order to ownerShares.
-                        currentTokenToTokenBatchOrder.ownerShares[
-                                batchLength
-                            ] = currentOrder.quantity;
+                            ///@notice Add the order quantity of the order to ownerShares.
+                            currentTokenToTokenBatchOrder.ownerShares[
+                                    batchLength
+                                ] = currentOrder.quantity;
 
-                        ///@notice Add the orderId to the batch order.
-                        currentTokenToTokenBatchOrder.orderIds[
-                            batchLength
-                        ] = currentOrder.orderId;
+                            ///@notice Add the orderId to the batch order.
+                            currentTokenToTokenBatchOrder.orderIds[
+                                    batchLength
+                                ] = currentOrder.orderId;
 
-                        ///@notice Increment the batch length.
-                        ++currentTokenToTokenBatchOrder.batchLength;
+                            ///@notice Increment the batch length.
+                            ++currentTokenToTokenBatchOrder.batchLength;
 
-                        ///@notice Update the best execution price.
-                        (
-                            executionPrices[bestPriceIndex]
-                        ) = simulateTokenToTokenPriceChange(
-                            uint128(currentTokenToTokenBatchOrder.amountIn),
-                            executionPrices[bestPriceIndex]
-                        );
+                            ///@notice Update the best execution price.
+                            (
+                                executionPrices[bestPriceIndex]
+                            ) = simulateTokenToTokenPriceChange(
+                                uint128(currentTokenToTokenBatchOrder.amountIn),
+                                executionPrices[bestPriceIndex]
+                            );
+                        }
                     } else {
                         ///@notice If the order can not execute due to slippage, revert to notify the off-chain executor.
                         revert OrderHasInsufficientSlippage(
                             currentOrder.orderId
                         );
                     }
+                } else {
                     ///@notice Revert if Order does not meet execution price.
                     revert OrderDoesNotMeetExecutionPrice(currentOrder.orderId);
                 }
@@ -172,7 +183,6 @@ contract LimitOrderBatcher {
             currentTokenToTokenBatchOrdersIndex
         ] = currentTokenToTokenBatchOrder;
     }
-
 
     ///@notice Function to batch multiple token to weth orders together.
     ///@param orders - Array of orders to be batched into the most efficient ordering.
@@ -263,7 +273,8 @@ contract LimitOrderBatcher {
                     )
                 ) {
                     ///@notice Transfer the tokenIn from the user's wallet to the contract. If the transfer fails, cancel the order.
-                    bool success = transferTokensToContract(currentOrder);
+                    bool success = IOrderRouter(orderRouter)
+                        .transferTokensToContract(currentOrder);
 
                     if (success) {
                         ///@notice Get the batch length of the current batch order.
@@ -308,7 +319,7 @@ contract LimitOrderBatcher {
                     ///@notice If the order can not execute due to slippage, revert to notify the off-chain executor.
                     revert OrderHasInsufficientSlippage(currentOrder.orderId);
                 }
-
+            } else {
                 revert OrderDoesNotMeetExecutionPrice(currentOrder.orderId);
             }
 
@@ -323,25 +334,6 @@ contract LimitOrderBatcher {
         ] = currentTokenToWethBatchOrder;
 
         return tokenToWethBatchOrders;
-    }
-
-    ///@notice Transfer the order quantity to the contract.
-    ///@return success - Boolean to indicate if the transfer was successful.
-    function transferTokensToContract(OrderBook.Order memory order)
-        internal
-        returns (bool success)
-    {
-        try
-            IERC20(order.tokenIn).transferFrom(
-                order.owner,
-                address(orderRouter),
-                order.quantity
-            )
-        {} catch {
-            ///@notice Revert on token transfer failure.
-            revert TokenTransferFailed(order.orderId);
-        }
-        return true;
     }
 
     ///@notice Function to return the index of the best price in the executionPrices array.
@@ -389,8 +381,6 @@ contract LimitOrderBatcher {
         }
     }
 
-
-
     ///@notice Initialize a new token to weth batch order
     /**@param initArrayLength - The maximum amount of orders that will be included in the batch. This is used to initalize
     arrays in the token to weth batch order struct. */
@@ -423,7 +413,6 @@ contract LimitOrderBatcher {
                 new bytes32[](initArrayLength)
             );
     }
-
 
     ///@notice Function to simulate the price change from TokanA to Weth on an amount into the pool
     ///@param alphaX The amount supplied to the TokenA reserves of the pool.
@@ -465,7 +454,6 @@ contract LimitOrderBatcher {
 
         return executionPrice;
     }
-
 
     ///@notice Function to return the index of the best price in the executionPrices array.
     ///@param executionPrices - Array of execution prices to evaluate.
@@ -518,7 +506,6 @@ contract LimitOrderBatcher {
             return false;
         }
     }
-
 
     /// @notice Function to determine if an order meets the execution price.
     ///@param orderPrice The Spot price for execution of the order.

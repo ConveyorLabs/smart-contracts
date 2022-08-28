@@ -195,9 +195,9 @@ contract OrderRouterTest is DSTest {
     }
 
     //==================================Uni V2/V3 Spot Price Calculation Tests========================================
-    receive() external payable {
-        // console.log("receive invoked");
-    }
+    // receive() external payable {
+    //     // console.log("receive invoked");
+    // }
 
     ///@notice Test calculate V2 spot price on sushi
     function testCalculateV2SpotSushiTest1() public {
@@ -1180,7 +1180,7 @@ contract OrderRouterWrapper is OrderRouter {
         return _lpIsNotUniV3(lp);
     }
 
-    receive() external payable {}
+    // receive() external payable {}
 
     function swapV2(
         address _tokenIn,

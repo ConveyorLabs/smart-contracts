@@ -688,7 +688,7 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
                         )
                     ) {
                         ///@notice Transfer the tokenIn from the user's wallet to the contract. If the transfer fails, cancel the order.
-                        bool success = transferTokensToContract(currentOrder);
+                        bool success = IOrderRouter(ORDER_ROUTER).transferTokensToContract(currentOrder);
 
                         if (success) {
                             ///@notice Get the batch length of the current batch order.

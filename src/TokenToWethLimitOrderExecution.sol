@@ -177,8 +177,6 @@ contract TokenToWethExecution is LimitOrderBatcher {
         OrderBook.Order memory order,
         OrderRouter.TokenToWethExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
-        ///@notice Get the Uniswap V3 pool fee on the lp address for the batch.
-        uint24 fee = _getUniV3Fee(executionPrice.lpAddressAToWeth);
 
         ///@notice Swap the batch amountIn on the batch lp address and send the weth back to the contract.
         uint128 amountOutWeth = uint128(
