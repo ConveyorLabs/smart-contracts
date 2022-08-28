@@ -7,9 +7,11 @@ import "./IOrderRouter.sol";
 contract LimitOrderBatcher {
     address immutable WETH;
     IQuoter immutable QUOTER;
-    constructor(address weth, address quoterAddress) {
+    address immutable orderRouter;
+    constructor(address weth, address quoterAddress, address orderRouterAddress) {
         WETH = weth;
         QUOTER = IQuoter(quoterAddress);
+        orderRouter= orderRouterAddress;
     }
 
     ///@notice Function to batch multiple token to weth orders together.
@@ -332,7 +334,7 @@ contract LimitOrderBatcher {
         try
             IERC20(order.tokenIn).transferFrom(
                 order.owner,
-                address(this),
+                address(orderRouter),
                 order.quantity
             )
         {} catch {

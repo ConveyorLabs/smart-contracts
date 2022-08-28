@@ -104,6 +104,7 @@ contract LimitOrderRouterTest is DSTest {
     address swapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
 
+    
     function setUp() public {
         scriptRunner = new ScriptRunner();
         cheatCodes = CheatCodes(HEVM_ADDRESS);
@@ -111,26 +112,22 @@ contract LimitOrderRouterTest is DSTest {
         swapHelperUniV2 = new Swap(uniV2Addr, WETH);
 
         orderBook = new OrderBook(aggregatorV3Address);
-        initializeExecutionContracts();
+
+        //Initialize swap router in constructor
+        orderRouter = new OrderRouter(
+            _hexDems,
+            _dexFactories,
+            _isUniV2,
+            alphaXDivergenceThreshold
+        );
+        console.logAddress(address(orderRouter));
+
         limitOrderBatcher = new LimitOrderBatcher(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
+            0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6,
+            address(orderRouter)
         );
 
-        limitOrderRouter = new LimitOrderRouterWrapper(
-            0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
-            3000000,
-            address(tokenToTokenExecution),
-            address(taxedTokenExecution),
-            address(tokenToWethExecution)
-        );
-
-        
-    }
-
-    function initializeExecutionContracts() public {
         tokenToTokenExecution = new TokenToTokenExecution(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
@@ -139,7 +136,7 @@ contract LimitOrderRouterTest is DSTest {
             300000,
             address(orderRouter)
         );
-
+        
         taxedTokenExecution = new TaxedTokenToTokenExecution(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
@@ -154,7 +151,18 @@ contract LimitOrderRouterTest is DSTest {
             0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6,
             address(orderRouter)
         );
+
+        limitOrderRouter = new LimitOrderRouterWrapper(
+            0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
+            3000000,
+            address(tokenToTokenExecution),
+            address(taxedTokenExecution),
+            address(tokenToWethExecution)
+        );  
     }
+
 
     function testOnlyEOA() public {
         cheatCodes.prank(tx.origin);
@@ -286,7 +294,7 @@ contract LimitOrderRouterTest is DSTest {
         require(depositSuccess, "failure when depositing ether into weth");
 
         IERC20(WETH).approve(address(tokenToTokenExecution), MAX_UINT);
-
+        IERC20(WETH).approve(address(orderRouter), MAX_UINT);
         //Create a new mock order
         OrderBook.Order memory order = newMockOrder(
             WETH,
@@ -2344,7 +2352,7 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
 
     function invokeOnlyEOA() public onlyEOA {}
 
-    function validateOrderSequencing(Order[] memory orders) public {
+    function validateOrderSequencing(Order[] memory orders) public pure {
         _validateOrderSequencing(orders);
     }
 

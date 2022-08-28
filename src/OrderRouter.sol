@@ -668,6 +668,7 @@ contract OrderRouter {
         ///@notice Get the balance before the swap to know how much was received from swapping.
         uint256 balanceBefore = IERC20(_tokenOut).balanceOf(_reciever);
 
+        
         ///@notice Execute the swap on the lp for the amounts specified.
         try
             IUniswapV2Pair(_lp).swap(
@@ -679,13 +680,13 @@ contract OrderRouter {
         {} catch Error(string memory reason) {
             ///@notice If there was an error during the swap, emit an event.
             emit UniV2SwapError(reason);
-
+            
             return 0;
         }
 
         ///@notice calculate the amount recieved
         amountRecieved = IERC20(_tokenOut).balanceOf(_reciever) - balanceBefore;
-
+        
         ///@notice if the amount recieved is less than the amount out min, revert
         if (amountRecieved < _amountOutMin) {
             revert InsufficientOutputAmount();

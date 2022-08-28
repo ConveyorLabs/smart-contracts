@@ -63,7 +63,7 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
         address _quoterAddress,
         address _orderRouter,
         address _orderBookAddress
-    ) LimitOrderBatcher(_weth, _quoterAddress)
+    ) LimitOrderBatcher(_weth, _quoterAddress, _orderRouter)
     {
         orderBookAddress = _orderBookAddress;
         iQuoter = IQuoter(_quoterAddress);

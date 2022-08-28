@@ -17,7 +17,7 @@ import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/ConveyorTickMath.sol";
 import "./IOrderRouter.sol";
 import "./LimitOrderBatcher.sol";
-
+import "./test/utils/Console.sol";
 /// @title OrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
@@ -76,7 +76,7 @@ contract TokenToTokenExecution is LimitOrderBatcher {
         uint256 _executionCost,
         address _orderRouter
     )
-       LimitOrderBatcher(_weth, _quoterAddress)
+       LimitOrderBatcher(_weth, _quoterAddress, _orderRouter)
     {
         iQuoter = IQuoter(_quoterAddress);
         USDC = _usdc;
@@ -227,21 +227,12 @@ contract TokenToTokenExecution is LimitOrderBatcher {
         uint128 maxBeaconReward,
         OrderRouter.TokenToTokenExecutionPrice memory executionPrice
     ) internal {
-        ///@notice Cache the owner address in memory.
-        address owner = order.owner;
-
-        ///@notice Create an array of orderOwners of length 1 and set the owner to the 0th index.
-        address[] memory orderOwners = new address[](1);
-        orderOwners[0] = owner;
 
         ///@notice Execute the order.
-        (uint256 amountOut, uint256 beaconReward) = _executeTokenToTokenOrder(
+        (, uint256 beaconReward) = _executeTokenToTokenOrder(
             order,
             executionPrice
         );
-
-        ///@notice Send the order payout to the order owner.
-        IERC20(order.tokenOut).transfer(owner, amountOut);
 
         ///@notice Adjust the beaconReward according to the maxBeaconReward.
         beaconReward = beaconReward < maxBeaconReward
@@ -254,6 +245,8 @@ contract TokenToTokenExecution is LimitOrderBatcher {
         ///@notice Transfer the unwrapped ether to the tx origin.
         safeTransferETH(tx.origin, beaconReward);
     }
+
+    receive() external payable {}
 
     ///@notice Function to execute a swap from TokenToWeth for an order.
     ///@param executionPrice - The best priced TokenToTokenExecutionPrice for the order to be executed on.
@@ -335,9 +328,10 @@ contract TokenToTokenExecution is LimitOrderBatcher {
                     revert InsufficientOutputAmount();
                 }
             } else {
+                
                 ///@notice Transfer the TokenIn to the contract.
                 transferTokensToContract(order);
-
+                
                 uint256 amountIn = order.quantity;
                 ///@notice Take out fees from the batch amountIn since token0 is weth.
                 uint128 protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(
@@ -359,7 +353,7 @@ contract TokenToTokenExecution is LimitOrderBatcher {
                 amountInWethToB = amountIn - (beaconReward + conveyorReward);
             }
         }
-
+        
         ///@notice Swap Weth for tokenB.
         uint256 amountOutInB = IOrderRouter(ORDER_ROUTER).swap(
             WETH,
@@ -369,8 +363,10 @@ contract TokenToTokenExecution is LimitOrderBatcher {
             amountInWethToB,
             order.amountOutMin,
             order.owner,
-            address(this)
+            address(ORDER_ROUTER)
         );
+
+        
 
         if (amountOutInB == 0) {
             revert InsufficientOutputAmount();
