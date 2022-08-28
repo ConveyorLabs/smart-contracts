@@ -120,48 +120,50 @@ contract LimitOrderBatcher {
                             currentOrder.amountOutMin
                         )
                     ) {
-                        ///@notice Transfer the tokenIn from the user's wallet to the contract. If the transfer fails, cancel the order.
-                        bool success = IOrderRouter(orderRouter)
-                            .transferTokensToContract(currentOrder);
-                        if (success) {
-                            ///@notice Get the batch length of the current batch order.
-                            uint256 batchLength = currentTokenToTokenBatchOrder
-                                .batchLength;
-
-                            ///@notice Add the order to the current batch order.
-                            currentTokenToTokenBatchOrder
-                                .amountIn += currentOrder.quantity;
-
-                            ///@notice Add the amountOutMin to the batch order.
-                            currentTokenToTokenBatchOrder
-                                .amountOutMin += currentOrder.amountOutMin;
-
-                            ///@notice Add the owner of the order to the batchOwners.
-                            currentTokenToTokenBatchOrder.batchOwners[
-                                    batchLength
-                                ] = currentOrder.owner;
-
-                            ///@notice Add the order quantity of the order to ownerShares.
-                            currentTokenToTokenBatchOrder.ownerShares[
-                                    batchLength
-                                ] = currentOrder.quantity;
-
-                            ///@notice Add the orderId to the batch order.
-                            currentTokenToTokenBatchOrder.orderIds[
-                                    batchLength
-                                ] = currentOrder.orderId;
-
-                            ///@notice Increment the batch length.
-                            ++currentTokenToTokenBatchOrder.batchLength;
-
-                            ///@notice Update the best execution price.
-                            (
-                                executionPrices[bestPriceIndex]
-                            ) = simulateTokenToTokenPriceChange(
-                                uint128(currentTokenToTokenBatchOrder.amountIn),
-                                executionPrices[bestPriceIndex]
+                        if (!currentOrder.taxed) {
+                            ///@notice Transfer the tokenIn from the user's wallet to the contract. If the transfer fails, cancel the order.
+                            IOrderRouter(orderRouter).transferTokensToContract(
+                                currentOrder
                             );
                         }
+
+                        ///@notice Get the batch length of the current batch order.
+                        uint256 batchLength = currentTokenToTokenBatchOrder
+                            .batchLength;
+
+                        ///@notice Add the order to the current batch order.
+                        currentTokenToTokenBatchOrder.amountIn += currentOrder
+                            .quantity;
+
+                        ///@notice Add the amountOutMin to the batch order.
+                        currentTokenToTokenBatchOrder
+                            .amountOutMin += currentOrder.amountOutMin;
+
+                        ///@notice Add the owner of the order to the batchOwners.
+                        currentTokenToTokenBatchOrder.batchOwners[
+                                batchLength
+                            ] = currentOrder.owner;
+
+                        ///@notice Add the order quantity of the order to ownerShares.
+                        currentTokenToTokenBatchOrder.ownerShares[
+                                batchLength
+                            ] = currentOrder.quantity;
+
+                        ///@notice Add the orderId to the batch order.
+                        currentTokenToTokenBatchOrder.orderIds[
+                            batchLength
+                        ] = currentOrder.orderId;
+
+                        ///@notice Increment the batch length.
+                        ++currentTokenToTokenBatchOrder.batchLength;
+
+                        ///@notice Update the best execution price.
+                        (
+                            executionPrices[bestPriceIndex]
+                        ) = simulateTokenToTokenPriceChange(
+                            uint128(currentTokenToTokenBatchOrder.amountIn),
+                            executionPrices[bestPriceIndex]
+                        );
                     } else {
                         ///@notice If the order can not execute due to slippage, revert to notify the off-chain executor.
                         revert OrderHasInsufficientSlippage(
@@ -272,49 +274,50 @@ contract LimitOrderBatcher {
                         currentOrder.amountOutMin
                     )
                 ) {
-                    ///@notice Transfer the tokenIn from the user's wallet to the contract. If the transfer fails, cancel the order.
-                    bool success = IOrderRouter(orderRouter)
-                        .transferTokensToContract(currentOrder);
-
-                    if (success) {
-                        ///@notice Get the batch length of the current batch order.
-                        uint256 batchLength = currentTokenToWethBatchOrder
-                            .batchLength;
-
-                        ///@notice Add the order to the current batch order.
-                        currentTokenToWethBatchOrder.amountIn += currentOrder
-                            .quantity;
-
-                        ///@notice Add the owner of the order to the batchOwners.
-                        currentTokenToWethBatchOrder.batchOwners[
-                            batchLength
-                        ] = currentOrder.owner;
-
-                        ///@notice Add the order quantity of the order to ownerShares.
-                        currentTokenToWethBatchOrder.ownerShares[
-                            batchLength
-                        ] = currentOrder.quantity;
-
-                        ///@notice Add the orderId to the batch order.
-                        currentTokenToWethBatchOrder.orderIds[
-                            batchLength
-                        ] = currentOrder.orderId;
-
-                        ///@notice Add the amountOutMin to the batch order.
-                        currentTokenToWethBatchOrder
-                            .amountOutMin += currentOrder.amountOutMin;
-
-                        ///@notice Increment the batch length.
-                        ++currentTokenToWethBatchOrder.batchLength;
-
-                        ///@notice Update the best execution price.
-                        (
-                            executionPrices[bestPriceIndex]
-                        ) = simulateTokenToWethPriceChange(
-                            uint128(currentOrder.quantity),
-                            executionPrices[bestPriceIndex]
+                    if (!currentOrder.taxed) {
+                        ///@notice Transfer the tokenIn from the user's wallet to the contract. If the transfer fails, cancel the order.
+                        IOrderRouter(orderRouter).transferTokensToContract(
+                            currentOrder
                         );
                     }
+
+                    ///@notice Get the batch length of the current batch order.
+                    uint256 batchLength = currentTokenToWethBatchOrder
+                        .batchLength;
+
+                    ///@notice Add the order to the current batch order.
+                    currentTokenToWethBatchOrder.amountIn += currentOrder
+                        .quantity;
+
+                    ///@notice Add the owner of the order to the batchOwners.
+                    currentTokenToWethBatchOrder.batchOwners[
+                        batchLength
+                    ] = currentOrder.owner;
+
+                    ///@notice Add the order quantity of the order to ownerShares.
+                    currentTokenToWethBatchOrder.ownerShares[
+                        batchLength
+                    ] = currentOrder.quantity;
+
+                    ///@notice Add the orderId to the batch order.
+                    currentTokenToWethBatchOrder.orderIds[
+                        batchLength
+                    ] = currentOrder.orderId;
+
+                    ///@notice Add the amountOutMin to the batch order.
+                    currentTokenToWethBatchOrder.amountOutMin += currentOrder
+                        .amountOutMin;
+
+                    ///@notice Increment the batch length.
+                    ++currentTokenToWethBatchOrder.batchLength;
+
+                    ///@notice Update the best execution price.
+                    (
+                        executionPrices[bestPriceIndex]
+                    ) = simulateTokenToWethPriceChange(
+                        uint128(currentOrder.quantity),
+                        executionPrices[bestPriceIndex]
+                    );
                 } else {
                     ///@notice If the order can not execute due to slippage, revert to notify the off-chain executor.
                     revert OrderHasInsufficientSlippage(currentOrder.orderId);

@@ -299,11 +299,7 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
                 ? totalBeaconReward
                 : maxBeaconReward;
 
-            ///@notice Unwrap the total beacon reward.
-            IWETH(WETH).withdraw(totalBeaconReward);
-
-            ///@notice Send the reward to the off-chain executor.
-            safeTransferETH(msg.sender, totalBeaconReward);
+            IOrderRouter(ORDER_ROUTER).transferBeaconReward(totalBeaconReward, tx.origin, WETH);
 
             unchecked {
                 ++i;
@@ -408,7 +404,7 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
             amountInWethToB,
             order.amountOutMin,
             order.owner,
-            address(this)
+            address(ORDER_ROUTER)
         );
 
         ///@notice If the swap failed revert the tx.
@@ -433,7 +429,7 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
 
         ///@notice Batch the orders into optimized quantities to result in the best execution price and gas cost for each order.
         OrderRouter.TokenToTokenBatchOrder[]
-            memory tokenToTokenBatchOrders = _batchTokenToTokenOrders(
+            memory tokenToTokenBatchOrders = batchTokenToTokenOrders(
                 orders,
                 executionPrices
             );
@@ -480,7 +476,7 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
                 feeIn,
                 order.quantity,
                 batchAmountOutMinAToWeth,
-                address(this),
+                address(ORDER_ROUTER),
                 order.owner
             )
         );
@@ -588,167 +584,6 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
         return (executionPrices, maxBeaconReward);
     }
 
-
-
-    ///@notice Function to batch multiple token to weth orders together.
-    ///@param orders - Array of orders to be batched into the most efficient ordering.
-    ///@param executionPrices - Array of execution prices available to the batch orders. The batch order will be placed on the best execution price.
-    ///@return  tokenToTokenBatchOrders - Returns an array of TokenToWethBatchOrder.
-    function _batchTokenToTokenOrders(
-        OrderBook.Order[] memory orders,
-        OrderRouter.TokenToTokenExecutionPrice[] memory executionPrices
-    )
-        internal
-        returns (OrderRouter.TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders)
-    {
-        ///@notice Create a new token to weth batch order.
-        tokenToTokenBatchOrders = new OrderRouter.TokenToTokenBatchOrder[](orders.length);
-
-        ///@notice Cache the first order in the array.
-        OrderBook.Order memory firstOrder = orders[0];
-
-        ///@notice Check if the order is a buy or sell to assign the buy/sell status for the batch.
-        bool buyOrder = _buyOrSell(firstOrder);
-
-        ///@notice Assign the batch's tokenIn.
-        address batchOrderTokenIn = firstOrder.tokenIn;
-
-        ///@notice Assign the batch's tokenOut.
-        address batchOrderTokenOut = firstOrder.tokenOut;
-
-        ///@notice Create a variable to track the best execution price in the array of execution prices.
-        uint256 currentBestPriceIndex = _findBestTokenToTokenExecutionPrice(
-            executionPrices,
-            buyOrder
-        );
-
-        ///@notice Initialize a new token to token batch order.
-        OrderRouter.TokenToTokenBatchOrder
-            memory currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
-                orders.length,
-                batchOrderTokenIn,
-                batchOrderTokenOut,
-                executionPrices[currentBestPriceIndex].lpAddressAToWeth,
-                executionPrices[currentBestPriceIndex].lpAddressWethToB
-            );
-
-        ///@notice Initialize a variable to keep track of how many batch orders there are.
-        uint256 currentTokenToTokenBatchOrdersIndex = 0;
-
-        ///@notice Scope to prevent stack too deep.
-        {
-            ///@notice For each order in the orders array.
-            for (uint256 i = 0; i < orders.length; ) {
-                ///@notice Get the index of the best exectuion price.
-                uint256 bestPriceIndex = _findBestTokenToTokenExecutionPrice(
-                    executionPrices,
-                    buyOrder
-                );
-
-                ///@notice if the best price has changed since the last order, add the batch order to the array and update the best price index.
-                if (i > 0 && currentBestPriceIndex != bestPriceIndex) {
-                    ///@notice add the current batch order to the batch orders array
-                    tokenToTokenBatchOrders[
-                        currentTokenToTokenBatchOrdersIndex
-                    ] = currentTokenToTokenBatchOrder;
-
-                    ///@notice Increment the amount of to current token to weth batch orders index
-                    currentTokenToTokenBatchOrdersIndex++;
-
-                    ///@notice Update the index of the best execution price.
-                    currentBestPriceIndex = bestPriceIndex;
-
-                    ///@notice Initialize a new batch order.
-                    currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
-                        orders.length,
-                        batchOrderTokenIn,
-                        batchOrderTokenOut,
-                        executionPrices[bestPriceIndex].lpAddressAToWeth,
-                        executionPrices[bestPriceIndex].lpAddressWethToB
-                    );
-                }
-
-                ///@notice Get the current order.
-                OrderBook.Order memory currentOrder = orders[i];
-
-                ///@notice Check that the order meets execution price.
-                if (
-                    _orderMeetsExecutionPrice(
-                        currentOrder.price,
-                        executionPrices[bestPriceIndex].price,
-                        buyOrder
-                    )
-                ) {
-                    ///@notice Check that the order can execute without hitting slippage.
-                    if (
-                        _orderCanExecute(
-                            executionPrices[bestPriceIndex].price,
-                            currentOrder.quantity,
-                            currentOrder.amountOutMin
-                        )
-                    ) {
-                        ///@notice Transfer the tokenIn from the user's wallet to the contract. If the transfer fails, cancel the order.
-                        bool success = IOrderRouter(ORDER_ROUTER).transferTokensToContract(currentOrder);
-
-                        if (success) {
-                            ///@notice Get the batch length of the current batch order.
-                            uint256 batchLength = currentTokenToTokenBatchOrder
-                                .batchLength;
-
-                            ///@notice Add the order to the current batch order.
-                            currentTokenToTokenBatchOrder
-                                .amountIn += currentOrder.quantity;
-
-                            ///@notice Add the amountOutMin to the batch order.
-                            currentTokenToTokenBatchOrder
-                                .amountOutMin += currentOrder.amountOutMin;
-
-                            ///@notice Add the owner of the order to the batchOwners.
-                            currentTokenToTokenBatchOrder.batchOwners[
-                                    batchLength
-                                ] = currentOrder.owner;
-
-                            ///@notice Add the order quantity of the order to ownerShares.
-                            currentTokenToTokenBatchOrder.ownerShares[
-                                    batchLength
-                                ] = currentOrder.quantity;
-
-                            ///@notice Add the orderId to the batch order.
-                            currentTokenToTokenBatchOrder.orderIds[
-                                    batchLength
-                                ] = currentOrder.orderId;
-
-                            ///@notice Increment the batch length.
-                            ++currentTokenToTokenBatchOrder.batchLength;
-
-                            ///@notice Update the best execution price.
-                            (
-                                executionPrices[bestPriceIndex]
-                            ) = simulateTokenToTokenPriceChange(
-                                uint128(currentTokenToTokenBatchOrder.amountIn),
-                                executionPrices[bestPriceIndex]
-                            );
-                        }
-                    } else {
-                        ///@notice If the order can not execute due to slippage, revert to notify the off-chain executor.
-                        revert OrderHasInsufficientSlippage(
-                            currentOrder.orderId
-                        );
-                    }
-                    ///@notice Revert if Order does not meet execution price.
-                    revert OrderDoesNotMeetExecutionPrice(currentOrder.orderId);
-                }
-                unchecked {
-                    ++i;
-                }
-            }
-        }
-
-        ///@notice add the last batch to the tokenToWethBatchOrders array
-        tokenToTokenBatchOrders[
-            currentTokenToTokenBatchOrdersIndex
-        ] = currentTokenToTokenBatchOrder;
-    }
 
     ///@notice Function to withdraw owner fee's accumulated
     function withdrawConveyorFees() external onlyOwner {
