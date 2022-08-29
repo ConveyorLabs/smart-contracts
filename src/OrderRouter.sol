@@ -20,7 +20,7 @@ import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 
 /// @title OrderRouter
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
-/// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures. 
+/// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures.
 contract OrderRouter {
     //----------------------Structs------------------------------------//
 
@@ -125,7 +125,7 @@ contract OrderRouter {
     //----------------------State Variables------------------------------------//
 
     ///@notice The owner of the Order Router contract
-    ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract. 
+    ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
     address owner;
 
     uint256 uniV3AmountOut;
@@ -157,9 +157,8 @@ contract OrderRouter {
 
     //======================Constants================================
 
-    IQuoter constant Quoter = IQuoter(
-                0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
-            );
+    IQuoter constant Quoter =
+        IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
     uint128 constant MIN_FEE_64x64 = 18446744073709552;
     uint128 constant MAX_UINT_128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
     uint128 constant UNI_V2_FEE = 5534023222112865000;
@@ -180,12 +179,6 @@ contract OrderRouter {
     ///@notice Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     uint256 immutable alphaXDivergenceThreshold;
 
-    ///@notice Instance of the UniV3 swap router.
-    ISwapRouter public immutable swapRouter;
-
-    ///@notice The wrapped native token address for the chain.
-    address immutable _WETH;
-
     //======================Constructor================================
 
     /**@dev It is important to note that a univ2 compatible DEX must be initialized in the 0th index.
@@ -193,16 +186,12 @@ contract OrderRouter {
     ///@param _deploymentByteCodes - Array of DEX creation init bytecodes.
     ///@param _dexFactories - Array of DEX factory addresses.
     ///@param _isUniV2 - Array of booleans indicating if the DEX is UniV2 compatible.
-    ///@param _swapRouterAddress - The UniV3 swap router address for the network.
     ///@param _alphaXDivergenceThreshold - Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
-    ///@param _weth - The wrapped native token address for the chain.
     constructor(
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
-        address _swapRouterAddress,
-        uint256 _alphaXDivergenceThreshold,
-        address _weth
+        uint256 _alphaXDivergenceThreshold
     ) {
         ///@notice Initialize DEXs and other variables
         for (uint256 i = 0; i < _deploymentByteCodes.length; ++i) {
@@ -215,9 +204,7 @@ contract OrderRouter {
             );
         }
         alphaXDivergenceThreshold = _alphaXDivergenceThreshold;
-        swapRouter = ISwapRouter(_swapRouterAddress);
         owner = msg.sender;
-        _WETH = _weth;
     }
 
     //======================Functions================================
@@ -245,11 +232,11 @@ contract OrderRouter {
     ///@param usdc - Address of USDC
     ///@param weth - Address of Weth
     /// @return calculated_fee_64x64 -  Returns the fee percent that is applied to the amountOut realized from an executed.
-    function _calculateFee(
+    function calculateFee(
         uint128 amountIn,
         address usdc,
         address weth
-    ) internal view returns (uint128) {
+    ) external view returns (uint128) {
         uint128 calculated_fee_64x64;
 
         ///@notice Initialize spot reserve structure to retrive the spot price from uni v2
@@ -316,8 +303,8 @@ contract OrderRouter {
     /// @param wethValue - Total order value at execution price, represented in wei.
     /// @return conveyorReward - Conveyor reward, represented in wei.
     /// @return beaconReward - Beacon reward, represented in wei.
-    function _calculateReward(uint128 percentFee, uint128 wethValue)
-        internal
+    function calculateReward(uint128 percentFee, uint128 wethValue)
+        external
         pure
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
@@ -373,7 +360,7 @@ contract OrderRouter {
         SpotReserve[] memory spotReserves,
         OrderBook.Order[] memory orders,
         bool wethIsToken0
-    ) internal view returns (uint128 maxBeaconReward) {
+    ) external view returns (uint128 maxBeaconReward) {
         ///@notice Cache the first order buy status.
         bool buy = orders[0].buy;
 
@@ -488,6 +475,47 @@ contract OrderRouter {
         }
 
         return maxBeaconReward;
+    }
+
+    ///@notice Transfer the order quantity to the contract.
+    ///@return success - Boolean to indicate if the transfer was successful.
+    function transferTokensToContract(OrderBook.Order memory order)
+        external
+        returns (bool success)
+    {
+        try
+            IERC20(order.tokenIn).transferFrom(
+                order.owner,
+                address(this),
+                order.quantity
+            )
+        {} catch {
+            ///@notice Revert on token transfer failure.
+            revert TokenTransferFailed(order.orderId);
+        }
+        return true;
+    }
+
+    function transferTokensOutToOwner(
+        address orderOwner,
+        uint256 amount,
+        address tokenOut
+    ) external {
+        try IERC20(tokenOut).transfer(orderOwner, amount) {} catch {
+            revert TokenTransferFailed(bytes32(0));
+        }
+    }
+
+    function transferBeaconReward(
+        uint256 totalBeaconReward,
+        address executorAddress,
+        address weth
+    ) external {
+        ///@notice Unwrap the total reward.
+        IWETH(weth).withdraw(totalBeaconReward);
+
+        ///@notice Send the off-chain executor their reward.
+        safeTransferETH(executorAddress, totalBeaconReward);
     }
 
     ///@notice Helper function to calculate the alphaXDivergenceThreshold using the price that is the maximum distance from the v2Outlier.
@@ -680,19 +708,12 @@ contract OrderRouter {
         uint256 balanceBefore = IERC20(_tokenOut).balanceOf(_reciever);
 
         ///@notice Execute the swap on the lp for the amounts specified.
-        try
-            IUniswapV2Pair(_lp).swap(
-                amount0Out,
-                amount1Out,
-                _reciever,
-                new bytes(0)
-            )
-        {} catch Error(string memory reason) {
-            ///@notice If there was an error during the swap, emit an event.
-            emit UniV2SwapError(reason);
-           
-            return 0;
-        }
+        IUniswapV2Pair(_lp).swap(
+            amount0Out,
+            amount1Out,
+            _reciever,
+            new bytes(0)
+        );
 
         ///@notice calculate the amount recieved
         amountRecieved = IERC20(_tokenOut).balanceOf(_reciever) - balanceBefore;
@@ -705,7 +726,7 @@ contract OrderRouter {
         return amountRecieved;
     }
 
-    // receive() external payable {}
+    receive() external payable {}
 
     ///@notice Agnostic swap function that determines whether or not to swap on univ2 or univ3
     ///@param _tokenIn - Address of the tokenIn.
@@ -717,7 +738,7 @@ contract OrderRouter {
     ///@param _reciever - Address to receive the amountOut.
     ///@param _sender - Address to send the tokenIn.
     ///@return amountRecieved - Amount received from the swap.
-    function _swap(
+    function swap(
         address _tokenIn,
         address _tokenOut,
         address _lp,
@@ -726,7 +747,7 @@ contract OrderRouter {
         uint256 _amountOutMin,
         address _reciever,
         address _sender
-    ) internal returns (uint256 amountRecieved) {
+    ) external returns (uint256 amountRecieved) {
         if (_lpIsNotUniV3(_lp)) {
             amountRecieved = _swapV2(
                 _tokenIn,
@@ -749,15 +770,16 @@ contract OrderRouter {
             );
         }
     }
+
     ///@notice Function to swap two tokens on a Uniswap V3 pool.
     ///@param _lp - Address of the liquidity pool to execute the swap on.
     ///@param _tokenIn - Address of the TokenIn on the swap.
-    ///@param _fee - The swap fee on the liquiditiy pool. 
-    ///@param _amountIn The amount in for the swap. 
-    ///@param _amountOutMin The minimum amount out in TokenOut post swap. 
-    ///@param _reciever The receiver of the tokens post swap. 
-    ///@param _sender The sender of TokenIn on the swap. 
-    ///@return amountRecieved The amount of TokenOut received post swap. 
+    ///@param _fee - The swap fee on the liquiditiy pool.
+    ///@param _amountIn The amount in for the swap.
+    ///@param _amountOutMin The minimum amount out in TokenOut post swap.
+    ///@param _reciever The receiver of the tokens post swap.
+    ///@param _sender The sender of TokenIn on the swap.
+    ///@return amountRecieved The amount of TokenOut received post swap.
     function _swapV3(
         address _lp,
         address _tokenIn,
@@ -767,62 +789,69 @@ contract OrderRouter {
         address _reciever,
         address _sender
     ) internal returns (uint256 amountRecieved) {
-        ///@notice Initialize variables to prevent stack too deep. 
+        ///@notice Initialize variables to prevent stack too deep.
         uint160 _sqrtPriceLimitX96;
         bool _zeroForOne;
 
-        ///@notice Scope out logic to prevent stack too deep. 
+        ///@notice Scope out logic to prevent stack too deep.
         {
-            ///@notice Get the sqrtPriceLimitX96 and zeroForOne on the swap. 
-            (_sqrtPriceLimitX96, _zeroForOne) = getNextSqrtPriceV3(_lp, _amountIn, _tokenIn, _fee);
+            ///@notice Get the sqrtPriceLimitX96 and zeroForOne on the swap.
+            (_sqrtPriceLimitX96, _zeroForOne) = getNextSqrtPriceV3(
+                _lp,
+                _amountIn,
+                _tokenIn,
+                _fee
+            );
         }
 
-        ///@notice Pack the relevant data to be retrieved in the swap callback. 
-        bytes memory data = abi.encode(_amountOutMin, _zeroForOne, _lp, _tokenIn, _sender);
+        ///@notice Pack the relevant data to be retrieved in the swap callback.
+        bytes memory data = abi.encode(
+            _amountOutMin,
+            _zeroForOne,
+            _lp,
+            _tokenIn,
+            _sender
+        );
 
-        ///@notice Initialize Storage variable uniV3AmountOut to 0 prior to the swap. 
+        ///@notice Initialize Storage variable uniV3AmountOut to 0 prior to the swap.
         uniV3AmountOut = 0;
 
         ///@notice Execute the swap on the lp for the amounts specified.
-        try IUniswapV3Pool(_lp).swap(
+        IUniswapV3Pool(_lp).swap(
             _reciever,
             _zeroForOne,
             int256(_amountIn),
             _sqrtPriceLimitX96,
             data
-        )
-        {} catch Error(string memory reason) {
-            ///@notice If there was an error during the swap, emit an event.
-            emit UniV2SwapError(reason);
-           
-            return 0;
-        }
+        );
 
-        ///@notice Return the amountOut yielded from the swap. 
+        ///@notice Return the amountOut yielded from the swap.
         return uniV3AmountOut;
     }
 
     ///@notice Function to calculate the nextSqrtPriceX96 for a Uniswap V3 swap.
     ///@param _lp - Address of the liquidity pool to execute the swap on.
     ///@param _alphaX - The input amount to calculate the nextSqrtPriceX96.
-    ///@param _tokenIn - The address of TokenIn. 
-    ///@param _fee - The swap fee on the liquiditiy pool. 
+    ///@param _tokenIn - The address of TokenIn.
+    ///@param _fee - The swap fee on the liquiditiy pool.
     ///@return _sqrtPriceLimitX96 - The nextSqrtPriceX96 after alphaX amount of TokenIn is introduced to the pool.
-    ///@return  _zeroForOne - Boolean indicating whether Token0 is being swapped for Token1 on the liquidity pool. 
-    function getNextSqrtPriceV3(address _lp, uint256 _alphaX, address _tokenIn, uint24 _fee)
-        internal
-        returns (uint160 _sqrtPriceLimitX96, bool _zeroForOne)
-    {
-        ///@notice Initialize token0 & token1 to prevent stack too deep. 
+    ///@return  _zeroForOne - Boolean indicating whether Token0 is being swapped for Token1 on the liquidity pool.
+    function getNextSqrtPriceV3(
+        address _lp,
+        uint256 _alphaX,
+        address _tokenIn,
+        uint24 _fee
+    ) internal returns (uint160 _sqrtPriceLimitX96, bool _zeroForOne) {
+        ///@notice Initialize token0 & token1 to prevent stack too deep.
         address token0;
         address token1;
-        ///@notice Scope out logic to prevent stack too deep. 
+        ///@notice Scope out logic to prevent stack too deep.
         {
             ///@notice Retrieve token0 & token1 from the liquidity pool.
             token0 = IUniswapV3Pool(_lp).token0();
             token1 = IUniswapV3Pool(_lp).token1();
 
-            ///@notice Set boolean _zeroForOne. 
+            ///@notice Set boolean _zeroForOne.
             _zeroForOne = token0 == _tokenIn ? true : false;
         }
 
@@ -832,9 +861,9 @@ contract OrderRouter {
         ///@notice Get the liquditity from the liquidity pool.
         uint128 liquidity = IUniswapV3Pool(_lp).liquidity();
 
-        ///@notice If swapping token1 for token0. 
+        ///@notice If swapping token1 for token0.
         if (!_zeroForOne) {
-            ///@notice Get the nextSqrtPrice after introducing alphaX into the token1 reserves. 
+            ///@notice Get the nextSqrtPrice after introducing alphaX into the token1 reserves.
             _sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
                 _srtPriceX96,
                 liquidity,
@@ -842,12 +871,12 @@ contract OrderRouter {
                 _zeroForOne
             );
         } else {
-            ///@notice Quote the amountOut from _alphaX swapped into the token0 reserves. 
+            ///@notice Quote the amountOut from _alphaX swapped into the token0 reserves.
             uint128 amountOut = uint128(
                 Quoter.quoteExactInputSingle(token0, token1, _fee, _alphaX, 0)
             );
 
-            ///@notice Get the nextSqrtPrice after introducing amountOut into the token1 reserves. 
+            ///@notice Get the nextSqrtPrice after introducing amountOut into the token1 reserves.
             _sqrtPriceLimitX96 = SqrtPriceMath
                 .getNextSqrtPriceFromAmount1RoundingDown(
                     _srtPriceX96,
@@ -857,44 +886,51 @@ contract OrderRouter {
                 );
         }
     }
+
     ///@notice Uniswap V3 callback function called during a swap on a v3 liqudity pool.
     ///@param amount0Delta - The change in token0 reserves from the swap.
-    ///@param amount1Delta - The change in token1 reserves from the swap. 
-    ///@param data - The data packed into the swap. 
+    ///@param amount1Delta - The change in token1 reserves from the swap.
+    ///@param data - The data packed into the swap.
     function uniswapV3SwapCallback(
         int256 amount0Delta,
         int256 amount1Delta,
         bytes memory data
     ) external {
-        ///@notice Decode all of the swap data. 
-        (uint256 amountOutMin, bool _zeroForOne, address _lp, address tokenIn, address _sender) = abi.decode(data, (uint256, bool, address, address, address));
+        ///@notice Decode all of the swap data.
+        (
+            uint256 amountOutMin,
+            bool _zeroForOne,
+            address _lp,
+            address tokenIn,
+            address _sender
+        ) = abi.decode(data, (uint256, bool, address, address, address));
         ///@notice If swapping token0 for token1.
         if (_zeroForOne) {
-            ///@notice Set contract storage variable to the amountOut from the swap. 
+            ///@notice Set contract storage variable to the amountOut from the swap.
             uniV3AmountOut = uint256(-amount1Delta);
 
-        ///@notice If swapping token1 for token0.
+            ///@notice If swapping token1 for token0.
         } else {
-
-            ///@notice Set contract storage variable to the amountOut from the swap. 
+            ///@notice Set contract storage variable to the amountOut from the swap.
             uniV3AmountOut = uint256(-amount0Delta);
         }
 
-        ///@notice Require the amountOut from the swap is greater than or equal to the amountOutMin. 
-        if(uniV3AmountOut<amountOutMin){
+        ///@notice Require the amountOut from the swap is greater than or equal to the amountOutMin.
+        if (uniV3AmountOut < amountOutMin) {
             revert InsufficientOutputAmount();
         }
 
-        ///@notice Set amountIn to the amountInDelta depending on boolean zeroForOne. 
-        uint256 amountIn = _zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta);
-        
-        if(!(_sender == address(this))){
-            ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender. 
+        ///@notice Set amountIn to the amountInDelta depending on boolean zeroForOne.
+        uint256 amountIn = _zeroForOne
+            ? uint256(amount0Delta)
+            : uint256(amount1Delta);
+
+        if (!(_sender == address(this))) {
+            ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender.
             IERC20(tokenIn).transferFrom(_sender, _lp, amountIn);
-        }else{
+        } else {
             IERC20(tokenIn).transfer(_lp, amountIn);
         }
-        
     }
 
     /// @notice Helper function to get Uniswap V2 spot price of pair token0/token1.
@@ -1161,12 +1197,12 @@ contract OrderRouter {
     /// @param FEE - The Uniswap V3 pool fee on the token pair.
     /// @return prices - SpotReserve array holding the reserves and spot prices across all dexes.
     /// @return lps - Pool address's on the token pair across all dexes.
-    function _getAllPrices(
+    function getAllPrices(
         address token0,
         address token1,
         uint24 FEE
     )
-        internal
+        external
         view
         returns (SpotReserve[] memory prices, address[] memory lps)
     {
@@ -1359,152 +1395,5 @@ contract OrderRouter {
                             targetDecimalsQuote));
             }
         }
-    }
-
-   //------------Single Swap Best Dex price Aggregation---------------------------------
-
-    function swapTokenToTokenOnBestDex(
-        address[] memory path,
-        address[] memory tokenPath,
-        uint256 amountIn,
-        uint256[] memory amountOutMin,
-        uint24[] memory FEE,
-        address reciever,
-        address sender
-    ) public returns (uint256 amountInS) {
-        address tokenIn;
-        address tokenOut;
-        address dynamicSender;
-        address dynamicReceiver;
-        amountInS = amountIn;
-        for (uint256 i = 0; i < path.length; ++i) {
-            ///@notice If there is more than one hop. Set the dynamic sender to address(this).
-            dynamicSender = i == 0 ? sender : address(this);
-            ///@notice If the swap is a multihop & we are in the middle, send the tokens to the contract.
-            dynamicReceiver = (path.length != 1 && i != path.length - 1)
-                ? address(this)
-                : reciever;
-            ///@notice Get tokenIn and tokenOut from the tokenPath.
-            (tokenIn, tokenOut) = (tokenPath[i], tokenPath[i + 1]);
-            ///@notice Cache the lp in memory.
-            address lp = path[i];
-            ///@notice If the liquidity pool is not Uniswap V3.
-            if (_lpIsNotUniV3(lp)) {
-                ///@notice Call Swap V2 on the Token pair.
-                amountInS = _swapV2(
-                    tokenIn,
-                    tokenOut,
-                    lp,
-                    amountInS,
-                    amountOutMin[i],
-                    dynamicReceiver,
-                    dynamicSender
-                );
-                ///@notice If the liqudiity pool is Uniswap V3.
-            } else {
-                ///@notice Call Swap V3 on the Token pair.
-                amountInS = _swapV3(
-                    lp,
-                    tokenIn,
-                    FEE[i],
-                    amountInS,
-                    amountOutMin[i],
-                    dynamicReceiver,
-                    dynamicSender
-                );
-            }
-        }
-
-        ///@notice Revert the tx if the amount received is less than the amountOutMin.
-        if (amountIn < amountOutMin[path.length - 1]) {
-            revert InsufficientOutputAmount();
-        }
-    }
-
-    ///@notice Function to make a swap from Eth to Token B.
-    ///@param path - The path the execute the swap over.
-    ///@param tokenPath - An array of token address's holding the tokens on the swap.
-    ///@param amountIn - The amountIn on the swap.
-    ///@param amountOutMin - An array of amountOutMins over the swap.
-    ///@param FEE - An array of V3 fee's for each liquidity pool in the swap.
-    ///@param reciever - The receiver of the tokens out from the swap.
-    ///@param sender - The sender of the tokens on the swap.
-    function swapETHToTokenOnBestDex(
-        address[] memory path,
-        address[] memory tokenPath,
-        uint256 amountIn,
-        uint256[] memory amountOutMin,
-        uint24[] memory FEE,
-        address reciever,
-        address sender
-    ) external payable returns (uint256 amountOut) {
-        ///@notice Revert if the message value != amountIn.
-        if (msg.value != amountIn) {
-            revert InsufficientDepositAmount();
-        }
-
-        ///@notice Deposit the ETH to receive WETH.
-        (bool success, ) = _WETH.call{value: amountIn}(
-            abi.encodeWithSignature("deposit()")
-        );
-
-        ///@notice If the WETH was succesfully received.
-        if (success) {
-            ///@notice Call swapTokenToTokenOnBestDex for the pair WETH to TokenOut.
-            amountOut = swapTokenToTokenOnBestDex(
-                path,
-                tokenPath,
-                amountIn,
-                amountOutMin,
-                FEE,
-                reciever,
-                address(this)
-            );
-        }
-    }
-
-    ///@notice Function to make a swap from TokenA to Eth.
-    ///@param path - The path the execute the swap over.
-    ///@param tokenPath - An array of token address's holding the tokens on the swap.
-    ///@param amountIn - The amountIn on the swap.
-    ///@param amountOutMin - An array of amountOutMins over the swap.
-    ///@param FEE - An array of V3 fee's for each liquidity pool in the swap.
-    ///@param reciever - The receiver of the tokens out from the swap.
-    ///@param sender - The sender of the tokens on the swap.
-    function swapTokenToETHOnBestDex(
-        address[] memory path,
-        address[] memory tokenPath,
-        uint256 amountIn,
-        uint256[] memory amountOutMin,
-        uint24[] memory FEE,
-        address reciever,
-        address sender
-    ) external returns (uint256) {
-        ///@notice Call swapTokenToTokenOnBestDex for TokenIn To WETH.
-        uint256 amountOutWeth = swapTokenToTokenOnBestDex(
-            path,
-            tokenPath,
-            amountIn,
-            amountOutMin,
-            FEE,
-            address(this),
-            sender
-        );
-
-        ///@notice Cache the balance of the contract.
-        uint256 balanceBefore = address(this).balance;
-
-        ///@notice Withdraw the WETH to receive ETH in the contract.
-        IWETH(_WETH).withdraw(amountOutWeth);
-
-        ///@notice Require the difference between the current balance and the old balance is amountOutWeth.
-        if ((address(this).balance - balanceBefore != amountOutWeth)) {
-            revert WethWithdrawUnsuccessful();
-        }
-
-        ///@notice Transfer the ETH to the sender.
-        safeTransferETH(reciever, amountOutWeth);
-
-        return amountOutWeth;
     }
 }
