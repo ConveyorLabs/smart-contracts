@@ -242,7 +242,6 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
         );
     }
 
-    receive() external payable {}
 
     ///@notice Function to execute a swap from TokenToWeth for an order.
     ///@param executionPrice - The best priced TokenToTokenExecutionPrice for the order to be executed on.
