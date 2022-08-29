@@ -372,6 +372,7 @@ contract TaxedTokenToTokenExecution is LimitOrderBatcher {
             amountInWethToB = _executeSwapTokenToWeth(batch, order);
             
         } else {
+            IOrderRouter(ORDER_ROUTER).transferTokensToContract(order);
             ///@notice Otherwise, if the tokenIn is weth, calculate the reward first.
             protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(uint128(order.quantity), USDC, WETH);
 
