@@ -10,7 +10,7 @@ import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
 import "./utils/Swap.sol";
 import "../LimitOrderRouter.sol";
-import "../OrderRouter.sol";
+import "../SwapRouter.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -30,7 +30,7 @@ contract OrderBookTest is DSTest {
     OrderBookWrapper orderBook;
     Swap swapHelper;
     LimitOrderRouter limitOrderRouter;
-    OrderRouter orderRouter;
+    SwapRouter orderRouter;
     event OrderPlaced(bytes32[] indexed orderIds);
     event OrderCancelled(bytes32[] indexed orderIds);
     event OrderUpdated(bytes32[] indexed orderIds);
@@ -70,7 +70,7 @@ contract OrderBookTest is DSTest {
         address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
         
         //Initialize swap router in constructor
-        orderRouter = new OrderRouter(
+        orderRouter = new SwapRouter(
             _hexDems,
             _dexFactories,
             _isUniV2,

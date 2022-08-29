@@ -39,7 +39,7 @@ contract LimitOrderRouterTest is DSTest {
     TaxedTokenLimitOrderExecution taxedTokenExecution;
     TokenToWethLimitOrderExecution tokenToWethExecution;
 
-    OrderRouter orderRouter;
+    SwapRouter orderRouter;
     //Initialize OrderBook
     OrderBook orderBook;
 
@@ -111,7 +111,7 @@ contract LimitOrderRouterTest is DSTest {
         swapHelperUniV2 = new Swap(uniV2Addr, WETH);
 
         //Initialize swap router in constructor
-        orderRouter = new OrderRouter(
+        orderRouter = new SwapRouter(
             _hexDems,
             _dexFactories,
             _isUniV2,

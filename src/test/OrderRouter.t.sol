@@ -9,7 +9,7 @@ import "../../lib/interfaces/uniswap-v3/ISwapRouter.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
-import "../OrderRouter.sol";
+import "../SwapRouter.sol";
 import "./utils/ScriptRunner.sol";
 import "../../lib/libraries/Uniswap/LowGasSafeMath.sol";
 import "../../lib/libraries/Uniswap/FullMath.sol";
@@ -31,7 +31,7 @@ contract OrderRouterTest is DSTest {
     IUniswapV2Router02 uniV2Router;
     IUniswapV2Factory uniV2Factory;
     ScriptRunner scriptRunner;
-    OrderRouter orderRouterContract;
+    SwapRouter orderRouterContract;
 
     OrderRouterWrapper orderRouter;
 
@@ -217,7 +217,7 @@ contract OrderRouterTest is DSTest {
             uint256(reserve1Weth) << 128
         );
         (
-            OrderRouter.SpotReserve memory priceWethUsdc,
+            SwapRouter.SpotReserve memory priceWethUsdc,
             address poolAddressWethUsdc
         ) = orderRouter.calculateV2SpotPrice(
                 weth,
@@ -243,7 +243,7 @@ contract OrderRouterTest is DSTest {
             uint256(reserve1Weth1) << 128,
             uint256(reserve0Kope) << 128
         );
-        (OrderRouter.SpotReserve memory priceWethKope, ) = orderRouter
+        (SwapRouter.SpotReserve memory priceWethKope, ) = orderRouter
             .calculateV2SpotPrice(
                 kope,
                 weth,
@@ -269,7 +269,7 @@ contract OrderRouterTest is DSTest {
             uint256(reserve0OhmCommon) << 128,
             uint256(reserve1Dai) << 128
         );
-        (OrderRouter.SpotReserve memory priceOhmDai, ) = orderRouter
+        (SwapRouter.SpotReserve memory priceOhmDai, ) = orderRouter
             .calculateV2SpotPrice(dai, ohm, _sushiFactoryAddress, _sushiHexDem);
 
         assertEq(priceOhmDai.spotPrice, expectedOhmDai);
@@ -295,7 +295,7 @@ contract OrderRouterTest is DSTest {
         );
 
         (
-            OrderRouter.SpotReserve memory priceDaiWeth,
+            SwapRouter.SpotReserve memory priceDaiWeth,
             address poolAddressDaiWeth
         ) = orderRouter.calculateV3SpotPrice(
                 dai,
@@ -327,7 +327,7 @@ contract OrderRouterTest is DSTest {
             usdc
         );
 
-        (OrderRouter.SpotReserve memory priceDaiUsdc, ) = orderRouter
+        (SwapRouter.SpotReserve memory priceDaiUsdc, ) = orderRouter
             .calculateV3SpotPrice(dai, usdc, 3000, _uniV3FactoryAddress);
 
         assertEq(priceDaiUsdc.spotPrice, expectedDaiUsdc);
@@ -351,7 +351,7 @@ contract OrderRouterTest is DSTest {
         );
 
         (
-            OrderRouter.SpotReserve memory price1,
+            SwapRouter.SpotReserve memory price1,
             address poolAddress0
         ) = orderRouter.calculateV2SpotPrice(
                 usdc,
@@ -380,7 +380,7 @@ contract OrderRouterTest is DSTest {
             uint256(reserve1UsdcCommon) << 128
         );
         (
-            OrderRouter.SpotReserve memory spotPriceDaiUsdc,
+            SwapRouter.SpotReserve memory spotPriceDaiUsdc,
             address poolAddress1
         ) = orderRouter.calculateV2SpotPrice(
                 usdc,
@@ -407,7 +407,7 @@ contract OrderRouterTest is DSTest {
             uint256(reserve0WaxCommon) << 128
         );
         (
-            OrderRouter.SpotReserve memory spotPriceWethWax,
+            SwapRouter.SpotReserve memory spotPriceWethWax,
             address poolAddress2
         ) = orderRouter.calculateV2SpotPrice(
                 wax,
@@ -424,12 +424,12 @@ contract OrderRouterTest is DSTest {
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
         (
-            OrderRouter.SpotReserve[] memory pricesWethUsdc,
+            SwapRouter.SpotReserve[] memory pricesWethUsdc,
             address[] memory lps
         ) = orderRouter.getAllPrices(weth, usdc, 3000);
 
         (
-            OrderRouter.SpotReserve[] memory pricesUsdcWeth,
+            SwapRouter.SpotReserve[] memory pricesUsdcWeth,
             address[] memory lps1
         ) = orderRouter.getAllPrices(usdc, weth, 3000);
 
@@ -452,7 +452,7 @@ contract OrderRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         if (_amount > 0) {
-            (OrderRouter.SpotReserve memory price1, ) = orderRouter
+            (SwapRouter.SpotReserve memory price1, ) = orderRouter
                 .calculateV2SpotPrice(
                     weth,
                     usdc,
@@ -575,7 +575,7 @@ contract OrderRouterTest is DSTest {
     // function testCalculateMaxBeaconRewardTopLevel() public {
     //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    //     (OrderRouter.SpotReserve[] memory pricesUsdcWeth, ) = orderRouter
+    //     (SwapRouter.SpotReserve[] memory pricesUsdcWeth, ) = orderRouter
     //         .getAllPrices(usdc, weth, 3000);
 
     //     //Sell order ==> High price more advantagous
@@ -1124,15 +1124,15 @@ contract OrderRouterTest is DSTest {
     //================================================================================================
 }
 
-//wrapper around OrderRouter to expose internal functions for testing
-contract OrderRouterWrapper is OrderRouter {
+//wrapper around SwapRouter to expose internal functions for testing
+contract OrderRouterWrapper is SwapRouter {
     constructor(
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
         uint256 _alphaXDivergenceThreshold
     )
-        OrderRouter(
+        SwapRouter(
             _initBytecodes,
             _dexFactories,
             _isUniV2,

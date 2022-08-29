@@ -39,7 +39,7 @@ contract LimitOrderBatcherTest is DSTest {
     TaxedTokenLimitOrderExecution taxedTokenExecution;
     TokenToWethLimitOrderExecution tokenToWethExecution;
 
-    OrderRouter orderRouter;
+    SwapRouter orderRouter;
     //Initialize OrderBook
     OrderBook orderBook;
 
@@ -125,8 +125,8 @@ contract LimitOrderBatcherTest is DSTest {
         decimals[0] = 18;
         decimals[1] = 18;
 
-        OrderRouter.TokenToTokenExecutionPrice
-            memory tokenToTokenExecutionPrice = OrderRouter
+        SwapRouter.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice = SwapRouter
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
@@ -137,8 +137,8 @@ contract LimitOrderBatcherTest is DSTest {
                     lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
                 });
 
-        OrderRouter.TokenToTokenExecutionPrice
-            memory tokenToTokenExecutionPrice1 = OrderRouter
+        SwapRouter.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice1 = SwapRouter
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
@@ -149,8 +149,8 @@ contract LimitOrderBatcherTest is DSTest {
                     lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
                 });
 
-        OrderRouter.TokenToTokenExecutionPrice[]
-            memory executionPrices = new OrderRouter.TokenToTokenExecutionPrice[](
+        SwapRouter.TokenToTokenExecutionPrice[]
+            memory executionPrices = new SwapRouter.TokenToTokenExecutionPrice[](
                 2
             );
         executionPrices[0] = tokenToTokenExecutionPrice;
@@ -263,8 +263,8 @@ contract LimitOrderBatcherTest is DSTest {
     //     decimals[0] = 18;
     //     decimals[1] = 18;
     //     //Weth/Uni
-    //     OrderRouter.TokenToTokenExecutionPrice
-    //         memory tokenToTokenExecutionPrice = OrderRouter
+    //     SwapRouter.TokenToTokenExecutionPrice
+    //         memory tokenToTokenExecutionPrice = SwapRouter
     //             .TokenToTokenExecutionPrice({
     //                 aToWethReserve0: 0,
     //                 aToWethReserve1: 0,
@@ -292,8 +292,8 @@ contract LimitOrderBatcherTest is DSTest {
     //     decimals[0] = 18;
     //     decimals[1] = 18;
     //     //Weth/Uni
-    //     OrderRouter.TokenToTokenExecutionPrice
-    //         memory tokenToTokenExecutionPrice = OrderRouter
+    //     SwapRouter.TokenToTokenExecutionPrice
+    //         memory tokenToTokenExecutionPrice = SwapRouter
     //             .TokenToTokenExecutionPrice({
     //                 aToWethReserve0: 0,
     //                 aToWethReserve1: 0,
@@ -322,8 +322,8 @@ contract LimitOrderBatcherTest is DSTest {
         decimals[0] = 18;
         decimals[1] = 18;
         //Weth/Uni
-        OrderRouter.TokenToTokenExecutionPrice
-            memory tokenToTokenExecutionPrice = OrderRouter
+        SwapRouter.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice = SwapRouter
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
@@ -349,8 +349,8 @@ contract LimitOrderBatcherTest is DSTest {
         decimals[0] = 18;
         decimals[1] = 18;
         //Weth/Uni
-        OrderRouter.TokenToTokenExecutionPrice
-            memory tokenToTokenExecutionPrice = OrderRouter
+        SwapRouter.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice = SwapRouter
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
@@ -1598,7 +1598,7 @@ contract ExecutionWrapper is LimitOrderBatcher {
 
     function simulateAToWethPriceChange(
         uint128 alphaX,
-        OrderRouter.TokenToTokenExecutionPrice memory executionPrice
+        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
     )
         public
         returns (
@@ -1612,7 +1612,7 @@ contract ExecutionWrapper is LimitOrderBatcher {
     }
 
     function findBestTokenToTokenExecutionPrice(
-        OrderRouter.TokenToTokenExecutionPrice[] memory executionPrices,
+        SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) public returns (uint256 bestPriceIndex) {
         return _findBestTokenToTokenExecutionPrice(executionPrices, buyOrder);
@@ -1620,7 +1620,7 @@ contract ExecutionWrapper is LimitOrderBatcher {
 
     function simulateWethToBPriceChange(
         uint128 alphaX,
-        OrderRouter.TokenToTokenExecutionPrice memory executionPrice
+        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
     )
         public
         returns (
