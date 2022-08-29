@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-import "./OrderRouter.sol";
+import "./SwapRouter.sol";
 import "./interfaces/IOrderRouter.sol";
 
 contract LimitOrderBatcher {
@@ -25,15 +25,15 @@ contract LimitOrderBatcher {
     ///@return  tokenToTokenBatchOrders - Returns an array of TokenToWethBatchOrder.
     function batchTokenToTokenOrders(
         OrderBook.Order[] memory orders,
-        OrderRouter.TokenToTokenExecutionPrice[] memory executionPrices
+        SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices
     )
         internal
         returns (
-            OrderRouter.TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders
+            SwapRouter.TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders
         )
     {
         ///@notice Create a new token to weth batch order.
-        tokenToTokenBatchOrders = new OrderRouter.TokenToTokenBatchOrder[](
+        tokenToTokenBatchOrders = new SwapRouter.TokenToTokenBatchOrder[](
             orders.length
         );
 
@@ -56,7 +56,7 @@ contract LimitOrderBatcher {
         );
 
         ///@notice Initialize a new token to token batch order.
-        OrderRouter.TokenToTokenBatchOrder
+        SwapRouter.TokenToTokenBatchOrder
             memory currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
                 orders.length,
                 batchOrderTokenIn,
@@ -192,11 +192,11 @@ contract LimitOrderBatcher {
     ///@return  tokenToWethBatchOrders - Returns an array of TokenToWethBatchOrder.
     function _batchTokenToWethOrders(
         OrderBook.Order[] memory orders,
-        OrderRouter.TokenToWethExecutionPrice[] memory executionPrices
-    ) internal returns (OrderRouter.TokenToWethBatchOrder[] memory) {
+        SwapRouter.TokenToWethExecutionPrice[] memory executionPrices
+    ) internal returns (SwapRouter.TokenToWethBatchOrder[] memory) {
         ///@notice Create a new token to weth batch order.
-        OrderRouter.TokenToWethBatchOrder[]
-            memory tokenToWethBatchOrders = new OrderRouter.TokenToWethBatchOrder[](
+        SwapRouter.TokenToWethBatchOrder[]
+            memory tokenToWethBatchOrders = new SwapRouter.TokenToWethBatchOrder[](
                 orders.length
             );
 
@@ -216,7 +216,7 @@ contract LimitOrderBatcher {
         );
 
         ///@notice Initialize a new token to weth batch order.
-        OrderRouter.TokenToWethBatchOrder
+        SwapRouter.TokenToWethBatchOrder
             memory currentTokenToWethBatchOrder = _initializeNewTokenToWethBatchOrder(
                 orders.length,
                 batchOrderTokenIn,
@@ -344,7 +344,7 @@ contract LimitOrderBatcher {
     ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
     ///@return bestPriceIndex - Index of the best price in the executionPrices array.
     function _findBestTokenToWethExecutionPrice(
-        OrderRouter.TokenToWethExecutionPrice[] memory executionPrices,
+        SwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) internal pure returns (uint256 bestPriceIndex) {
         ///@notice If the order is a buy order, set the initial best price at 0.
@@ -394,10 +394,10 @@ contract LimitOrderBatcher {
         uint256 initArrayLength,
         address tokenIn,
         address lpAddressAToWeth
-    ) internal pure returns (OrderRouter.TokenToWethBatchOrder memory) {
+    ) internal pure returns (SwapRouter.TokenToWethBatchOrder memory) {
         ///@notice initialize a new batch order
         return
-            OrderRouter.TokenToWethBatchOrder(
+            SwapRouter.TokenToWethBatchOrder(
                 ///@notice initialize batch length to 0
                 0,
                 ///@notice initialize amountIn
@@ -422,8 +422,8 @@ contract LimitOrderBatcher {
     ///@param executionPrice The TokenToWethExecutionPrice to simulate the price change on.
     function simulateTokenToWethPriceChange(
         uint128 alphaX,
-        OrderRouter.TokenToWethExecutionPrice memory executionPrice
-    ) internal returns (OrderRouter.TokenToWethExecutionPrice memory) {
+        SwapRouter.TokenToWethExecutionPrice memory executionPrice
+    ) internal returns (SwapRouter.TokenToWethExecutionPrice memory) {
         ///@notice Cache the liquidity pool address
         address pool = executionPrice.lpAddressAToWeth;
 
@@ -463,7 +463,7 @@ contract LimitOrderBatcher {
     ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
     ///@return bestPriceIndex - Index of the best price in the executionPrices array.
     function _findBestTokenToTokenExecutionPrice(
-        OrderRouter.TokenToTokenExecutionPrice[] memory executionPrices,
+        SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) internal pure returns (uint256 bestPriceIndex) {
         ///@notice If the order is a buy order, set the initial best price at 0.
@@ -543,8 +543,8 @@ contract LimitOrderBatcher {
     ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
     function simulateTokenToTokenPriceChange(
         uint128 alphaX,
-        OrderRouter.TokenToTokenExecutionPrice memory executionPrice
-    ) internal returns (OrderRouter.TokenToTokenExecutionPrice memory) {
+        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
+    ) internal returns (SwapRouter.TokenToTokenExecutionPrice memory) {
         ///@notice Check if the reserves are set to 0. This indicated the tokenPair is Weth to TokenOut if true.
         if (
             executionPrice.aToWethReserve0 != 0 &&
@@ -633,11 +633,11 @@ contract LimitOrderBatcher {
         address tokenOut,
         address lpAddressAToWeth,
         address lpAddressWethToB
-    ) internal pure returns (OrderRouter.TokenToTokenBatchOrder memory) {
+    ) internal pure returns (SwapRouter.TokenToTokenBatchOrder memory) {
         ///@notice initialize a new batch order
 
         return (
-            OrderRouter.TokenToTokenBatchOrder(
+            SwapRouter.TokenToTokenBatchOrder(
                 ///@notice initialize batch length to 0
                 0,
                 ///@notice initialize amountIn
@@ -667,8 +667,8 @@ contract LimitOrderBatcher {
     ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
     function _simulateTokenToTokenPriceChange(
         uint128 alphaX,
-        OrderRouter.TokenToTokenExecutionPrice memory executionPrice
-    ) internal returns (OrderRouter.TokenToTokenExecutionPrice memory) {
+        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
+    ) internal returns (SwapRouter.TokenToTokenExecutionPrice memory) {
         ///@notice Retrive the new simulated spot price, reserve values, and amount out on the TokenIn To Weth pool
         (
             uint256 newSpotPriceA,
@@ -709,7 +709,7 @@ contract LimitOrderBatcher {
     ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
     function _simulateAToWethPriceChange(
         uint128 alphaX,
-        OrderRouter.TokenToTokenExecutionPrice memory executionPrice
+        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
     )
         internal
         returns (
@@ -744,8 +744,8 @@ contract LimitOrderBatcher {
     ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
     function _simulateWethToTokenPriceChange(
         uint128 alphaX,
-        OrderRouter.TokenToTokenExecutionPrice memory executionPrice
-    ) internal returns (OrderRouter.TokenToTokenExecutionPrice memory) {
+        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
+    ) internal returns (SwapRouter.TokenToTokenExecutionPrice memory) {
         ///@notice Cache the Weth and TokenOut reserves
         uint128 reserveBWeth = executionPrice.wethToBReserve0;
         uint128 reserveBToken = executionPrice.wethToBReserve1;
@@ -782,7 +782,7 @@ contract LimitOrderBatcher {
     ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
     function _simulateWethToBPriceChange(
         uint128 alphaX,
-        OrderRouter.TokenToTokenExecutionPrice memory executionPrice
+        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
     )
         internal
         returns (

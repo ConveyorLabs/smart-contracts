@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-import "../OrderRouter.sol";
+import "../SwapRouter.sol";
 import "../OrderBook.sol";
 
 interface IOrderRouter {
@@ -12,10 +12,10 @@ interface IOrderRouter {
     )
         external
         view
-        returns (OrderRouter.SpotReserve[] memory prices, address[] memory lps);
+        returns (SwapRouter.SpotReserve[] memory prices, address[] memory lps);
 
     function calculateMaxBeaconReward(
-        OrderRouter.SpotReserve[] memory spotReserves,
+        SwapRouter.SpotReserve[] memory spotReserves,
         OrderBook.Order[] memory orders,
         bool wethIsToken0
     ) external view returns (uint128 maxBeaconReward);

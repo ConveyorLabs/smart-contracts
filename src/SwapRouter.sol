@@ -18,10 +18,10 @@ import "../lib/libraries/QuadruplePrecision.sol";
 import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 
-/// @title OrderRouter
+/// @title SwapRouter
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures.
-contract OrderRouter {
+contract SwapRouter {
     //----------------------Structs------------------------------------//
 
     ///@notice Struct to store DEX details

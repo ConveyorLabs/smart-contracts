@@ -9,7 +9,7 @@ import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../lib/libraries/ConveyorMath.sol";
 import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "./OrderBook.sol";
-import "./OrderRouter.sol";
+import "./SwapRouter.sol";
 import "./ConveyorErrors.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/interfaces/token/IWETH.sol";
@@ -18,7 +18,7 @@ import "../lib/libraries/ConveyorTickMath.sol";
 import "./interfaces/IOrderRouter.sol";
 import "./LimitOrderBatcher.sol";
 
-/// @title OrderRouter
+/// @title SwapRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
 contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
@@ -60,7 +60,7 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
     ///@param _weth - Address of the wrapped native token for the chain.
     ///@param _usdc - Address of the USD pegged token for the chain.
     ///@param _quoterAddress - Address for the IQuoter instance.
-    ///@param _orderRouter - The OrderRouter contract address. 
+    ///@param _orderRouter - The SwapRouter contract address. 
     constructor(
         address _weth,
         address _usdc,
@@ -84,12 +84,12 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
     {
         ///@notice Get all execution prices.
         (
-            OrderRouter.TokenToTokenExecutionPrice[] memory executionPrices,
+            SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
             uint128 maxBeaconReward
         ) = initializeTokenToTokenExecutionPrices(orders);
 
         ///@notice Batch the orders into optimized quantities to result in the best execution price and gas cost for each order.
-        OrderRouter.TokenToTokenBatchOrder[]
+        SwapRouter.TokenToTokenBatchOrder[]
             memory tokenToTokenBatchOrders = batchTokenToTokenOrders(
                 orders,
                 executionPrices
@@ -109,7 +109,7 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
     {
         ///@notice Get all execution prices.
         (
-            OrderRouter.TokenToTokenExecutionPrice[] memory executionPrices,
+            SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
             uint128 maxBeaconReward
         ) = initializeTokenToTokenExecutionPrices(orders);
 
@@ -131,7 +131,7 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
     ///@param tokenToTokenBatchOrders - Array of token to token batch orders.
     ///@param maxBeaconReward - Max beacon reward for the batch.
     function _executeTokenToTokenBatchOrders(
-        OrderRouter.TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders,
+        SwapRouter.TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders,
         uint128 maxBeaconReward
     ) internal {
         ///@notice Initialize totalBeaconReward. 
@@ -139,7 +139,7 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
 
         ///@notice For each batch order in the array.
         for (uint256 i = 0; i < tokenToTokenBatchOrders.length; ) {
-            OrderRouter.TokenToTokenBatchOrder
+            SwapRouter.TokenToTokenBatchOrder
                 memory batch = tokenToTokenBatchOrders[i];
 
             ///@notice Execute the batch order
@@ -221,7 +221,7 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
     function _executeTokenToTokenSingle(
         OrderBook.Order memory order,
         uint128 maxBeaconReward,
-        OrderRouter.TokenToTokenExecutionPrice memory executionPrice
+        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
     ) internal {
         ///@notice Execute the order.
         (, uint256 beaconReward) = _executeTokenToTokenOrder(
@@ -248,7 +248,7 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
     ///@param order - The order to be executed.
     ///@return amountOutWeth - The amountOut in Weth after the swap.
     function _executeSwapTokenToWethOrder(
-        OrderRouter.TokenToTokenExecutionPrice memory executionPrice,
+        SwapRouter.TokenToTokenExecutionPrice memory executionPrice,
         OrderBook.Order memory order
     ) internal returns (uint128 amountOutWeth) {
         ///@notice Cache the liquidity pool address.
@@ -322,7 +322,7 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
     ///@param executionPrice - The best priced TokenToTokenExecution price to execute the order on.
     function _executeTokenToTokenOrder(
         OrderBook.Order memory order,
-        OrderRouter.TokenToTokenExecutionPrice memory executionPrice
+        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
         ///@notice Initialize variables to prevent stack too deep.
         uint256 amountInWethToB;
@@ -397,7 +397,7 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
     ///@return amountOut - The amount out recevied from the swap.
     ///@return beaconReward - Compensation reward amount to be sent to the off-chain logic executor.
     function _executeTokenToTokenBatch(
-        OrderRouter.TokenToTokenBatchOrder memory batch
+        SwapRouter.TokenToTokenBatchOrder memory batch
     ) internal returns (uint256, uint256) {
         ///@notice Initialize variables used throughout the function.
         uint128 protocolFee;
@@ -525,12 +525,12 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
     )
         internal
         view
-        returns (OrderRouter.TokenToTokenExecutionPrice[] memory, uint128)
+        returns (SwapRouter.TokenToTokenExecutionPrice[] memory, uint128)
     {
         address tokenIn = orders[0].tokenIn;
         ///@notice Get all prices for the pairing tokenIn to Weth
         (
-            OrderRouter.SpotReserve[] memory spotReserveAToWeth,
+            SwapRouter.SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
         ) = IOrderRouter(ORDER_ROUTER).getAllPrices(
                 tokenIn,
@@ -540,7 +540,7 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
 
         ///@notice Get all prices for the pairing Weth to tokenOut
         (
-            OrderRouter.SpotReserve[] memory spotReserveWethToB,
+            SwapRouter.SpotReserve[] memory spotReserveWethToB,
             address[] memory lpAddressWethToB
         ) = IOrderRouter(ORDER_ROUTER).getAllPrices(
                 WETH,
@@ -549,8 +549,8 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
             );
 
         ///@notice Initialize a new TokenToTokenExecutionPrice array to store prices.
-        OrderRouter.TokenToTokenExecutionPrice[]
-            memory executionPrices = new OrderRouter.TokenToTokenExecutionPrice[](
+        SwapRouter.TokenToTokenExecutionPrice[]
+            memory executionPrices = new SwapRouter.TokenToTokenExecutionPrice[](
                 spotReserveAToWeth.length * spotReserveWethToB.length
             );
 
@@ -559,7 +559,7 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
             ///@notice Iterate through each SpotReserve on Weth to TokenB
             for (uint256 i = 0; i < spotReserveWethToB.length; ++i) {
                 ///@notice Then set res0, and res1 for tokenInToWeth to 0 and lpAddressAToWeth to the 0 address
-                executionPrices[i] = OrderRouter.TokenToTokenExecutionPrice(
+                executionPrices[i] = SwapRouter.TokenToTokenExecutionPrice(
                     0,
                     0,
                     spotReserveWethToB[i].res0,
@@ -585,7 +585,7 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
                     ) << 64;
 
                     ///@notice Set the executionPrices at index to TokenToTokenExecutionPrice
-                    executionPrices[index] = OrderRouter
+                    executionPrices[index] = SwapRouter
                         .TokenToTokenExecutionPrice(
                             spotReserveAToWeth[i].res0,
                             spotReserveAToWeth[i].res1,
