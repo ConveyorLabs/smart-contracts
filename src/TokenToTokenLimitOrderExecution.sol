@@ -37,16 +37,10 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
     ///@notice Conveyor funds balance in the contract.
     uint256 conveyorBalance;
 
-    // ========================================= Constants  =============================================
+    // ========================================= Immutables  =============================================
 
     ///@notice The USD pegged token address for the chain.
     address immutable USDC;
-
-    ///@notice TODO:
-    address immutable LIMIT_ORDER_BATCHER;
-
-    ///@notice The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
-    uint256 immutable ORDER_EXECUTION_GAS_COST;
 
     ///@notice IQuoter instance to quote the amountOut for a given amountIn on a UniV3 pool.
     IQuoter immutable iQuoter;
@@ -57,29 +51,24 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
     ///@notice State variable to track the amount of gas initally alloted during executeOrders.
     uint256 initialTxGas;
 
+    ///@notice The owner of the contract. 
     address owner;
 
-    OrderRouter.TokenToTokenBatchOrder[] batchOrders;
 
     // ========================================= Constructor =============================================
 
     ///@param _weth - Address of the wrapped native token for the chain.
     ///@param _usdc - Address of the USD pegged token for the chain.
     ///@param _quoterAddress - Address for the IQuoter instance.
-    //TODO: limit order batcher
-    ///@param _executionCost - The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
+    ///@param _orderRouter - The OrderRouter contract address. 
     constructor(
         address _weth,
         address _usdc,
         address _quoterAddress,
-        address _limitOrderBatcher,
-        uint256 _executionCost,
         address _orderRouter
     ) LimitOrderBatcher(_weth, _quoterAddress, _orderRouter) {
         iQuoter = IQuoter(_quoterAddress);
         USDC = _usdc;
-        LIMIT_ORDER_BATCHER = _limitOrderBatcher;
-        ORDER_EXECUTION_GAS_COST = _executionCost;
         ORDER_ROUTER = _orderRouter;
         owner = msg.sender;
     }
@@ -99,7 +88,6 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
             uint128 maxBeaconReward
         ) = initializeTokenToTokenExecutionPrices(orders);
 
-        //TODO: external call to the lib and then if everything goes through, then transfer all tokes to the current contract context
         ///@notice Batch the orders into optimized quantities to result in the best execution price and gas cost for each order.
         OrderRouter.TokenToTokenBatchOrder[]
             memory tokenToTokenBatchOrders = batchTokenToTokenOrders(
@@ -125,6 +113,7 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
             uint128 maxBeaconReward
         ) = initializeTokenToTokenExecutionPrices(orders);
 
+        ///@notice Set bestPriceIndex to the index of the best execution price. 
         uint256 bestPriceIndex = _findBestTokenToTokenExecutionPrice(
             executionPrices,
             orders[0].buy
@@ -145,6 +134,7 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
         OrderRouter.TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders,
         uint128 maxBeaconReward
     ) internal {
+        ///@notice Initialize totalBeaconReward. 
         uint256 totalBeaconReward;
 
         ///@notice For each batch order in the array.
@@ -200,6 +190,7 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
             ? totalBeaconReward
             : maxBeaconReward;
 
+        ///@notice Transfer the reward to the off-chain executor. 
         IOrderRouter(ORDER_ROUTER).transferBeaconReward(
             totalBeaconReward,
             tx.origin,
@@ -243,6 +234,7 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
             ? beaconReward
             : maxBeaconReward;
 
+        ///@notice Transfer the reward to the off-chain executor. 
         IOrderRouter(ORDER_ROUTER).transferBeaconReward(
             beaconReward,
             tx.origin,
@@ -347,10 +339,12 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
                     IOrderRouter(ORDER_ROUTER).transferTokensToContract(order);
                 }
 
+                ///@notice Execute the first swap from tokenIn to weth. 
                 amountInWethToB = _executeSwapTokenToWethOrder(
                     executionPrice,
                     order
                 );
+
                 if (amountInWethToB == 0) {
                     revert InsufficientOutputAmount();
                 }
@@ -358,7 +352,9 @@ contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
                 ///@notice Transfer the TokenIn to the contract.
                 IOrderRouter(ORDER_ROUTER).transferTokensToContract(order);
 
+                ///@notice Cache the order quantity. 
                 uint256 amountIn = order.quantity;
+
                 ///@notice Take out fees from the batch amountIn since token0 is weth.
                 uint128 protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(
                     uint128(amountIn),

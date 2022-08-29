@@ -38,16 +38,13 @@ contract TokenToWethLimitOrderExecution is LimitOrderBatcher {
     ///@notice Conveyor funds balance in the contract.
     uint256 conveyorBalance;
 
-    // ========================================= Constants  =============================================
+    // ========================================= Immutables  =============================================
 
     ///@notice The USD pegged token address for the chain.
     address immutable USDC;
 
     ///@notice IQuoter instance to quote the amountOut for a given amountIn on a UniV3 pool.
     IQuoter immutable iQuoter;
-
-    ///@notice State variable to track the amount of gas initally alloted during executeOrders.
-    uint256 initialTxGas;
 
     address immutable ORDER_ROUTER;
 
@@ -133,6 +130,7 @@ contract TokenToWethLimitOrderExecution is LimitOrderBatcher {
             executionPrice
         );
 
+        ///@notice Transfer the tokenOut amount to the order owner.
         IOrderRouter(ORDER_ROUTER).transferTokensOutToOwner(
             order.owner,
             amountOut,
@@ -146,6 +144,7 @@ contract TokenToWethLimitOrderExecution is LimitOrderBatcher {
             ? beaconReward
             : maxBeaconReward;
 
+        ///@notice Transfer the accumulated reward to the off-chain executor.
         IOrderRouter(ORDER_ROUTER).transferBeaconReward(
             beaconReward,
             tx.origin,
@@ -296,6 +295,7 @@ contract TokenToWethLimitOrderExecution is LimitOrderBatcher {
             ? totalBeaconReward
             : maxBeaconReward;
 
+        ///@notice Transfer the accumulated reward to the off-chain executor.
         IOrderRouter(ORDER_ROUTER).transferBeaconReward(
             totalBeaconReward,
             tx.origin,

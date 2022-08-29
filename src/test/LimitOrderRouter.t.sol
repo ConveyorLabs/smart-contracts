@@ -1024,7 +1024,7 @@ contract LimitOrderRouterTest is DSTest {
         depositGasCreditsForMockOrders(100);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-        IERC20(DAI).approve(address(tokenToTokenExecution), MAX_UINT);
+        IERC20(DAI).approve(address(orderRouter), MAX_UINT);
         //Initialize a new order
         OrderBook.Order memory order = newMockOrder(
             DAI,
@@ -1074,7 +1074,7 @@ contract LimitOrderRouterTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-        IERC20(DAI).approve(address(tokenToTokenExecution), MAX_UINT);
+        IERC20(DAI).approve(address(orderRouter), MAX_UINT);
 
         //Initialize a new order
         OrderBook.Order memory order = newMockOrder(
@@ -1125,7 +1125,7 @@ contract LimitOrderRouterTest is DSTest {
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-        IERC20(DAI).approve(address(tokenToTokenExecution), MAX_UINT);
+        IERC20(DAI).approve(address(orderRouter), MAX_UINT);
         console.log(block.timestamp);
         OrderBook.Order memory order = newMockOrder(
             DAI,

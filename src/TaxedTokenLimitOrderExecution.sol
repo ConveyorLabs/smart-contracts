@@ -18,9 +18,6 @@ import "./interfaces/IOrderBook.sol";
 import "./interfaces/IOrderRouter.sol";
 import "./LimitOrderBatcher.sol";
 
-//TODO: remove console from all contracts
-import "./test/utils/Console.sol";
-
 /// @title OrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
@@ -40,7 +37,7 @@ contract TaxedTokenLimitOrderExecution is LimitOrderBatcher {
     ///@notice Conveyor funds balance in the contract.
     uint256 conveyorBalance;
 
-    // ========================================= Constants  =============================================
+    // ========================================= Immutables  =============================================
 
     ///@notice The USD pegged token address for the chain.
     address immutable USDC;
@@ -48,8 +45,10 @@ contract TaxedTokenLimitOrderExecution is LimitOrderBatcher {
     ///@notice IQuoter instance to quote the amountOut for a given amountIn on a UniV3 pool.
     IQuoter immutable iQuoter;
 
+    ///@notice Address of the OrderRouter contract.
     address immutable ORDER_ROUTER;
 
+    ///@notice Owner of the contract.
     address owner;
 
     // ========================================= Constructor =============================================
@@ -87,6 +86,7 @@ contract TaxedTokenLimitOrderExecution is LimitOrderBatcher {
 
         uint256 totalBeaconReward = 0;
 
+        ///@notice Loop through each Order.
         for (uint256 i = 0; i < orders.length; ) {
             ///@notice Create a variable to track the best execution price in the array of execution prices.
             uint256 bestPriceIndex = _findBestTokenToWethExecutionPrice(
@@ -112,6 +112,7 @@ contract TaxedTokenLimitOrderExecution is LimitOrderBatcher {
             }
         }
 
+        ///@notice Transfer the accumulated reward to the off-chain executor.
         IOrderRouter(ORDER_ROUTER).transferBeaconReward(
             totalBeaconReward,
             tx.origin,
@@ -134,6 +135,7 @@ contract TaxedTokenLimitOrderExecution is LimitOrderBatcher {
             executionPrice
         );
 
+        ///@notice Transfer the tokenOut amount to the order owner.
         IOrderRouter(ORDER_ROUTER).transferTokensOutToOwner(
             order.owner,
             amountOut,
@@ -250,7 +252,9 @@ contract TaxedTokenLimitOrderExecution is LimitOrderBatcher {
 
         uint256 totalBeaconReward = 0;
 
+        ///@notice Loop through each order.
         for (uint256 i = 0; i < orders.length; ) {
+            ///@notice Get the index of the best price in the executionPrices array.
             uint256 bestPriceIndex = _findBestTokenToTokenExecutionPrice(
                 executionPrices,
                 orders[i].buy
@@ -274,6 +278,7 @@ contract TaxedTokenLimitOrderExecution is LimitOrderBatcher {
             }
         }
 
+        ///@notice Transfer the total reward to the off-chain executor.
         IOrderRouter(ORDER_ROUTER).transferBeaconReward(
             totalBeaconReward,
             tx.origin,
@@ -320,10 +325,12 @@ contract TaxedTokenLimitOrderExecution is LimitOrderBatcher {
                     IOrderRouter(ORDER_ROUTER).transferTokensToContract(order);
                 }
 
+                ///@notice Execute the first swap from tokenIn to weth.
                 amountInWethToB = _executeSwapTokenToWethOrder(
                     executionPrice,
                     order
                 );
+
                 if (amountInWethToB == 0) {
                     revert InsufficientOutputAmount();
                 }
