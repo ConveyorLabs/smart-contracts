@@ -124,7 +124,6 @@ contract OrderRouter {
 
     //----------------------State Variables------------------------------------//
 
-    //TODO: Change this to contractOwner to not get mixed up with orderOwner
     ///@notice The owner of the Order Router contract
     ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
     address owner;
@@ -709,19 +708,12 @@ contract OrderRouter {
         uint256 balanceBefore = IERC20(_tokenOut).balanceOf(_reciever);
 
         ///@notice Execute the swap on the lp for the amounts specified.
-
         IUniswapV2Pair(_lp).swap(
             amount0Out,
             amount1Out,
             _reciever,
             new bytes(0)
         );
-        // {} catch Error(string memory reason) {
-        //     ///@notice If there was an error during the swap, emit an event.
-        //     emit UniV2SwapError(reason);
-
-        //     revert
-        // }
 
         ///@notice calculate the amount recieved
         amountRecieved = IERC20(_tokenOut).balanceOf(_reciever) - balanceBefore;
@@ -825,7 +817,6 @@ contract OrderRouter {
         uniV3AmountOut = 0;
 
         ///@notice Execute the swap on the lp for the amounts specified.
-
         IUniswapV3Pool(_lp).swap(
             _reciever,
             _zeroForOne,
@@ -833,13 +824,6 @@ contract OrderRouter {
             _sqrtPriceLimitX96,
             data
         );
-        // {} catch Error(string memory reason) {
-        //     ///@notice If there was an error during the swap, emit an event.
-        //     ///TODO: Change this
-        //     emit UniV2SwapError(reason);
-
-        //     return 0;
-        // }
 
         ///@notice Return the amountOut yielded from the swap.
         return uniV3AmountOut;

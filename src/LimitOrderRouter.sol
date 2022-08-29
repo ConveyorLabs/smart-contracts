@@ -19,7 +19,7 @@ import "./interfaces/ITokenToTokenLimitOrderExecution.sol";
 import "./interfaces/ITaxedLimitOrderExecution.sol";
 import "./interfaces/ITokenToWethLimitOrderExecution.sol";
 
-///FIXME: Change msg.sender to tx.origin for all execution contracts to pay out the beacon reward
+
 /// @title OrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
@@ -88,7 +88,6 @@ contract LimitOrderRouter is OrderBook {
     ///@notice Temporary owner storage variable when transferring ownership of the contract.
     address tempOwner;
 
-    //TODO: Change this to contractOwner to not get mixed up with orderOwner
     ///@notice The owner of the Order Router contract
     ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
     address owner;
