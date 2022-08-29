@@ -180,7 +180,6 @@ contract OrderRouter {
     ///@notice Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     uint256 immutable alphaXDivergenceThreshold;
 
-
     //======================Constructor================================
 
     /**@dev It is important to note that a univ2 compatible DEX must be initialized in the 0th index.
@@ -498,21 +497,27 @@ contract OrderRouter {
         return true;
     }
 
-    function transferTokensOutToOwner(address orderOwner, uint256 amount, address tokenOut) external {
-        try IERC20(tokenOut).transfer(orderOwner, amount)
-        {} catch {
+    function transferTokensOutToOwner(
+        address orderOwner,
+        uint256 amount,
+        address tokenOut
+    ) external {
+        try IERC20(tokenOut).transfer(orderOwner, amount) {} catch {
             revert TokenTransferFailed(bytes32(0));
         }
     }
 
-    function transferBeaconReward(uint256 totalBeaconReward, address executorAddress, address weth) external {
+    function transferBeaconReward(
+        uint256 totalBeaconReward,
+        address executorAddress,
+        address weth
+    ) external {
         ///@notice Unwrap the total reward.
         IWETH(weth).withdraw(totalBeaconReward);
 
         ///@notice Send the off-chain executor their reward.
         safeTransferETH(executorAddress, totalBeaconReward);
     }
-
 
     ///@notice Helper function to calculate the alphaXDivergenceThreshold using the price that is the maximum distance from the v2Outlier.
     ///@param v2Outlier - SpotPrice of the v2Outlier used to cross reference against the alphaXDivergenceThreshold.
@@ -703,25 +708,24 @@ contract OrderRouter {
         ///@notice Get the balance before the swap to know how much was received from swapping.
         uint256 balanceBefore = IERC20(_tokenOut).balanceOf(_reciever);
 
-        
         ///@notice Execute the swap on the lp for the amounts specified.
-      
-            IUniswapV2Pair(_lp).swap(
-                amount0Out,
-                amount1Out,
-                _reciever,
-                new bytes(0)
-            );
+
+        IUniswapV2Pair(_lp).swap(
+            amount0Out,
+            amount1Out,
+            _reciever,
+            new bytes(0)
+        );
         // {} catch Error(string memory reason) {
         //     ///@notice If there was an error during the swap, emit an event.
         //     emit UniV2SwapError(reason);
-            
-        //     revert 
+
+        //     revert
         // }
 
         ///@notice calculate the amount recieved
         amountRecieved = IERC20(_tokenOut).balanceOf(_reciever) - balanceBefore;
-        
+
         ///@notice if the amount recieved is less than the amount out min, revert
         if (amountRecieved < _amountOutMin) {
             revert InsufficientOutputAmount();
@@ -753,7 +757,6 @@ contract OrderRouter {
         address _sender
     ) external returns (uint256 amountRecieved) {
         if (_lpIsNotUniV3(_lp)) {
-            
             amountRecieved = _swapV2(
                 _tokenIn,
                 _tokenOut,
@@ -764,7 +767,6 @@ contract OrderRouter {
                 _sender
             );
         } else {
-            
             amountRecieved = _swapV3(
                 _lp,
                 _tokenIn,
@@ -823,22 +825,22 @@ contract OrderRouter {
         uniV3AmountOut = 0;
 
         ///@notice Execute the swap on the lp for the amounts specified.
-        
-            IUniswapV3Pool(_lp).swap(
-                _reciever,
-                _zeroForOne,
-                int256(_amountIn),
-                _sqrtPriceLimitX96,
-                data
-            );
+
+        IUniswapV3Pool(_lp).swap(
+            _reciever,
+            _zeroForOne,
+            int256(_amountIn),
+            _sqrtPriceLimitX96,
+            data
+        );
         // {} catch Error(string memory reason) {
         //     ///@notice If there was an error during the swap, emit an event.
         //     ///TODO: Change this
         //     emit UniV2SwapError(reason);
-            
+
         //     return 0;
         // }
-        
+
         ///@notice Return the amountOut yielded from the swap.
         return uniV3AmountOut;
     }
@@ -943,9 +945,7 @@ contract OrderRouter {
             ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender.
             IERC20(tokenIn).transferFrom(_sender, _lp, amountIn);
         } else {
-            
             IERC20(tokenIn).transfer(_lp, amountIn);
-            
         }
     }
 

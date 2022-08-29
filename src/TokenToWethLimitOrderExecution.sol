@@ -15,18 +15,18 @@ import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/ConveyorTickMath.sol";
-import "./IOrderRouter.sol";
+import "./interfaces/IOrderRouter.sol";
 import "./LimitOrderBatcher.sol";
 
 /// @title OrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
-contract TokenToWethExecution is LimitOrderBatcher {
+contract TokenToWethLimitOrderExecution is LimitOrderBatcher {
     // ========================================= Modifiers =============================================
     address owner;
 
     ///@notice Modifier function to only allow the owner of the contract to call specific functions
-    ///@dev Functions with onlyOwner: withdrawConveyorFees, transferOwnership.
+    ///@dev Functions with onlyOwner: withd rawConveyorFees, transferOwnership.
     modifier onlyOwner() {
         if (msg.sender != owner) {
             revert MsgSenderIsNotOwner();
@@ -56,16 +56,14 @@ contract TokenToWethExecution is LimitOrderBatcher {
     ///@param _weth - Address of the wrapped native token for the chain.
     ///@param _usdc - Address of the USD pegged token for the chain.
     ///@param _quoterAddress - Address for the IQuoter instance.
-    ///@param _orderRouter - Address of the OrderRouter contract. 
+    ///@param _orderRouter - Address of the OrderRouter contract.
     constructor(
         address _weth,
         address _usdc,
         address _quoterAddress,
         address _orderRouter
-    )
-        LimitOrderBatcher(_weth, _quoterAddress, _orderRouter)
-    {
-        ORDER_ROUTER=_orderRouter;
+    ) LimitOrderBatcher(_weth, _quoterAddress, _orderRouter) {
+        ORDER_ROUTER = _orderRouter;
         iQuoter = IQuoter(_quoterAddress);
         USDC = _usdc;
         owner = msg.sender;
@@ -129,15 +127,17 @@ contract TokenToWethExecution is LimitOrderBatcher {
         uint128 maxBeaconReward,
         OrderRouter.TokenToWethExecutionPrice memory executionPrice
     ) internal {
-
         ///@notice Execute the TokenIn to Weth order.
         (uint256 amountOut, uint256 beaconReward) = _executeTokenToWethOrder(
             order,
             executionPrice
         );
 
-
-        IOrderRouter(ORDER_ROUTER).transferTokensOutToOwner(order.owner, amountOut, WETH);
+        IOrderRouter(ORDER_ROUTER).transferTokensOutToOwner(
+            order.owner,
+            amountOut,
+            WETH
+        );
 
         /**@notice If the maxBeaconReward is greater than the beaconReward then keep the beaconReward else set beaconReward
         to the maxBeaconReward
@@ -146,7 +146,11 @@ contract TokenToWethExecution is LimitOrderBatcher {
             ? beaconReward
             : maxBeaconReward;
 
-        IOrderRouter(ORDER_ROUTER).transferBeaconReward(beaconReward, tx.origin, WETH);
+        IOrderRouter(ORDER_ROUTER).transferBeaconReward(
+            beaconReward,
+            tx.origin,
+            WETH
+        );
     }
 
     ///@notice Transfer ETH to a specific address and require that the call was successful.
@@ -172,7 +176,6 @@ contract TokenToWethExecution is LimitOrderBatcher {
         OrderBook.Order memory order,
         OrderRouter.TokenToWethExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
-
         ///@notice Swap the batch amountIn on the batch lp address and send the weth back to the contract.
         uint128 amountOutWeth = uint128(
             IOrderRouter(ORDER_ROUTER).swap(
@@ -188,13 +191,16 @@ contract TokenToWethExecution is LimitOrderBatcher {
         );
 
         ///@notice Retrieve the protocol fee for the total amount out.
-        uint128 protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(amountOutWeth, USDC, WETH);
+        uint128 protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(
+            amountOutWeth,
+            USDC,
+            WETH
+        );
 
         ///@notice Get the conveyor and beacon reward from the total amount out.
-        (uint128 conveyorReward, uint128 beaconReward) = IOrderRouter(ORDER_ROUTER).calculateReward(
-            protocolFee,
-            amountOutWeth
-        );
+        (uint128 conveyorReward, uint128 beaconReward) = IOrderRouter(
+            ORDER_ROUTER
+        ).calculateReward(protocolFee, amountOutWeth);
 
         ///@notice Increment the conveyor balance by the conveyor reward
         conveyorBalance += conveyorReward;
@@ -229,7 +235,8 @@ contract TokenToWethExecution is LimitOrderBatcher {
         ///@notice Iterate through each tokenToWethBatchOrder
         for (uint256 i = 0; i < tokenToWethBatchOrders.length; ) {
             ///@notice Set batch to the i'th batch order
-            OrderRouter.TokenToWethBatchOrder memory batch = tokenToWethBatchOrders[i];
+            OrderRouter.TokenToWethBatchOrder
+                memory batch = tokenToWethBatchOrders[i];
             ///@notice If 0 order's exist in the batch continue
             if (batch.batchLength > 0) {
                 ///@notice Execute the TokenIn to Weth batch
@@ -265,7 +272,11 @@ contract TokenToWethExecution is LimitOrderBatcher {
                     );
 
                     ///@notice Send the order owner their orderPayout
-                    IOrderRouter(ORDER_ROUTER).transferTokensOutToOwner(batch.batchOwners[j], orderPayout, WETH);
+                    IOrderRouter(ORDER_ROUTER).transferTokensOutToOwner(
+                        batch.batchOwners[j],
+                        orderPayout,
+                        WETH
+                    );
 
                     unchecked {
                         ++j;
@@ -284,16 +295,19 @@ contract TokenToWethExecution is LimitOrderBatcher {
         totalBeaconReward = maxBeaconReward > totalBeaconReward
             ? totalBeaconReward
             : maxBeaconReward;
-        
-       IOrderRouter(ORDER_ROUTER).transferBeaconReward(totalBeaconReward, tx.origin, WETH);
+
+        IOrderRouter(ORDER_ROUTER).transferBeaconReward(
+            totalBeaconReward,
+            tx.origin,
+            WETH
+        );
     }
 
     ///@notice Function to Execute a single batch of TokenIn to Weth Orders.
     ///@param batch A single batch of TokenToWeth orders
-    function _executeTokenToWethBatch(OrderRouter.TokenToWethBatchOrder memory batch)
-        internal
-        returns (uint256, uint256)
-    {
+    function _executeTokenToWethBatch(
+        OrderRouter.TokenToWethBatchOrder memory batch
+    ) internal returns (uint256, uint256) {
         ///@notice Get the Uniswap V3 pool fee on the lp address for the batch.
         uint24 fee = _getUniV3Fee(batch.lpAddress);
 
@@ -312,13 +326,16 @@ contract TokenToWethExecution is LimitOrderBatcher {
         );
 
         ///@notice Retrieve the protocol fee for the total amount out.
-        uint128 protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(amountOutWeth, USDC, WETH);
+        uint128 protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(
+            amountOutWeth,
+            USDC,
+            WETH
+        );
 
         ///@notice Get the conveyor and beacon reward from the total amount out.
-        (uint128 conveyorReward, uint128 beaconReward) = IOrderRouter(ORDER_ROUTER).calculateReward(
-            protocolFee,
-            amountOutWeth
-        );
+        (uint128 conveyorReward, uint128 beaconReward) = IOrderRouter(
+            ORDER_ROUTER
+        ).calculateReward(protocolFee, amountOutWeth);
 
         ///@notice Increment the conveyor balance by the conveyor reward
         conveyorBalance += conveyorReward;
@@ -333,12 +350,20 @@ contract TokenToWethExecution is LimitOrderBatcher {
     ///@param orders - Array of orders that are being evaluated for execution.
     function _initializeTokenToWethExecutionPrices(
         OrderBook.Order[] memory orders
-    ) internal view returns (OrderRouter.TokenToWethExecutionPrice[] memory, uint128) {
+    )
+        internal
+        view
+        returns (OrderRouter.TokenToWethExecutionPrice[] memory, uint128)
+    {
         ///@notice Get all prices for the pairing
         (
             OrderRouter.SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = IOrderRouter(ORDER_ROUTER).getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn);
+        ) = IOrderRouter(ORDER_ROUTER).getAllPrices(
+                orders[0].tokenIn,
+                WETH,
+                orders[0].feeIn
+            );
 
         ///@notice Initialize a new TokenToWethExecutionPrice array to store prices.
         OrderRouter.TokenToWethExecutionPrice[]
@@ -360,15 +385,11 @@ contract TokenToWethExecution is LimitOrderBatcher {
         }
 
         ///@notice Calculate the max beacon reward from the spot reserves.
-        uint128 maxBeaconReward = IOrderRouter(ORDER_ROUTER).calculateMaxBeaconReward(
-            spotReserveAToWeth,
-            orders,
-            false
-        );
+        uint128 maxBeaconReward = IOrderRouter(ORDER_ROUTER)
+            .calculateMaxBeaconReward(spotReserveAToWeth, orders, false);
 
         return (executionPrices, maxBeaconReward);
     }
-
 
     ///@notice Function to execute a swap from TokenToWeth for an order.
     ///@param executionPrice - The best priced TokenToTokenExecutionPrice for the order to be executed on.
@@ -411,13 +432,16 @@ contract TokenToWethExecution is LimitOrderBatcher {
         );
 
         ///@notice Take out fees from the amountOut.
-        uint128 protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(amountOutWeth, USDC, WETH);
+        uint128 protocolFee = IOrderRouter(ORDER_ROUTER).calculateFee(
+            amountOutWeth,
+            USDC,
+            WETH
+        );
 
         ///@notice Calculate the conveyorReward and executor reward.
-        (uint128 conveyorReward, uint128 beaconReward) = IOrderRouter(ORDER_ROUTER).calculateReward(
-            protocolFee,
-            amountOutWeth
-        );
+        (uint128 conveyorReward, uint128 beaconReward) = IOrderRouter(
+            ORDER_ROUTER
+        ).calculateReward(protocolFee, amountOutWeth);
 
         ///@notice Increment the conveyor protocol's balance of ether in the contract by the conveyorReward.
         conveyorBalance += conveyorReward;

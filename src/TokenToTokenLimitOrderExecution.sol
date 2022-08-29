@@ -15,14 +15,13 @@ import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/ConveyorTickMath.sol";
-import "./IOrderRouter.sol";
+import "./interfaces/IOrderRouter.sol";
 import "./LimitOrderBatcher.sol";
-import "./test/utils/Console.sol";
 
 /// @title OrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
-contract TokenToTokenExecution is LimitOrderBatcher {
+contract TokenToTokenLimitOrderExecution is LimitOrderBatcher {
     // ========================================= Modifiers =============================================
 
     ///@notice Modifier function to only allow the owner of the contract to call specific functions
@@ -180,7 +179,6 @@ contract TokenToTokenExecution is LimitOrderBatcher {
                 );
 
                 ///@notice Send the order payout to the order owner.
-                ///FIXME: Fix
                 IOrderRouter(ORDER_ROUTER).transferTokensOutToOwner(
                     batch.batchOwners[j],
                     orderPayout,
@@ -293,7 +291,7 @@ contract TokenToTokenExecution is LimitOrderBatcher {
                     ORDER_ROUTER
                 )
             );
-        }else{
+        } else {
             ///@notice Swap from tokenA to Weth.
             amountOutWeth = uint128(
                 IOrderRouter(ORDER_ROUTER).swap(

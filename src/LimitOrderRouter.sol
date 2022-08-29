@@ -15,10 +15,10 @@ import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/ConveyorTickMath.sol";
-import "./ITokenToTokenLimitOrderExecution.sol";
-import "./ITaxedLimitOrderExecution.sol";
-import "./ITokenToWethLimitOrderExecution.sol";
-import "./test/utils/Console.sol";
+import "./interfaces/ITokenToTokenLimitOrderExecution.sol";
+import "./interfaces/ITaxedLimitOrderExecution.sol";
+import "./interfaces/ITokenToWethLimitOrderExecution.sol";
+
 ///FIXME: Change msg.sender to tx.origin for all execution contracts to pay out the beacon reward
 /// @title OrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
@@ -436,7 +436,7 @@ contract LimitOrderRouter is OrderBook {
         Order[] memory orders = new Order[](orderIds.length);
         for (uint256 i = 0; i < orderIds.length; ) {
             orders[i] = getOrderById(orderIds[i]);
-            
+
             unchecked {
                 ++i;
             }

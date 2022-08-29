@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-import "./OrderRouter.sol";
-import "./OrderBook.sol";
+import "../OrderRouter.sol";
+import "../OrderBook.sol";
 
 interface IOrderRouter {
     function getAllPrices(
@@ -46,7 +46,15 @@ interface IOrderRouter {
         external
         returns (bool success);
 
-    function transferTokensOutToOwner(address owner, uint256 amount, address tokenOut) external;
+    function transferTokensOutToOwner(
+        address owner,
+        uint256 amount,
+        address tokenOut
+    ) external;
 
-     function transferBeaconReward(uint256 totalBeaconReward, address executorAddress, address weth) external;
+    function transferBeaconReward(
+        uint256 totalBeaconReward,
+        address executorAddress,
+        address weth
+    ) external;
 }
