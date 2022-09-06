@@ -129,7 +129,6 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
     event GasCreditEvent(
-        bool indexed deposit,
         address indexed sender,
         uint256 indexed balance
     );
@@ -155,7 +154,7 @@ contract LimitOrderRouter is OrderBook {
         gasCreditBalance[msg.sender] = newBalance;
 
         ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
-        emit GasCreditEvent(true, msg.sender, newBalance);
+        emit GasCreditEvent(msg.sender, newBalance);
 
         return true;
     }
@@ -199,7 +198,7 @@ contract LimitOrderRouter is OrderBook {
         gasCreditBalance[msg.sender] = newBalance;
 
         ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
-        emit GasCreditEvent(false, msg.sender, newBalance);
+        emit GasCreditEvent(msg.sender, newBalance);
 
         ///@notice Transfer the withdraw amount to the account.
         safeTransferETH(msg.sender, value);
