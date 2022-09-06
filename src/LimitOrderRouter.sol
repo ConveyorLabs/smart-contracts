@@ -131,7 +131,7 @@ contract LimitOrderRouter is OrderBook {
     event GasCreditEvent(
         bool indexed deposit,
         address indexed sender,
-        uint256 indexed amount
+        uint256 indexed balance
     );
 
     ///@notice Event that notifies off-chain executors when an order has been refreshed.
@@ -149,10 +149,13 @@ contract LimitOrderRouter is OrderBook {
     /// @return success - Boolean that indicates if the deposit completed successfully.
     function depositGasCredits() public payable returns (bool success) {
         ///@notice Increment the gas credit balance for the user by the msg.value
-        gasCreditBalance[msg.sender] += msg.value;
+        uint256 newBalance = gasCreditBalance[msg.sender] + msg.value;
+
+        ///@notice Set the gas credit balance of the sender to the new balance.
+        gasCreditBalance[msg.sender] = newBalance;
 
         ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
-        emit GasCreditEvent(true, msg.sender, msg.value);
+        emit GasCreditEvent(true, msg.sender, newBalance);
 
         return true;
     }
@@ -190,7 +193,13 @@ contract LimitOrderRouter is OrderBook {
         }
 
         ///@notice Decrease the account's gas credit balance
-        gasCreditBalance[msg.sender] = gasCreditBalance[msg.sender] - value;
+        uint256 newBalance = gasCreditBalance[msg.sender] - value;
+
+        ///@notice Set the senders new gas credit balance.
+        gasCreditBalance[msg.sender] = newBalance;
+
+        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
+        emit GasCreditEvent(false, msg.sender, newBalance);
 
         ///@notice Transfer the withdraw amount to the account.
         safeTransferETH(msg.sender, value);
