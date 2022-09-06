@@ -31,9 +31,9 @@ contract OrderBookTest is DSTest {
     Swap swapHelper;
     LimitOrderRouter limitOrderRouter;
     SwapRouter orderRouter;
-    event OrderPlaced(bytes32[] indexed orderIds);
-    event OrderCancelled(bytes32[] indexed orderIds);
-    event OrderUpdated(bytes32[] indexed orderIds);
+    event OrderPlaced(bytes32[] orderIds);
+    event OrderCancelled(bytes32[] orderIds);
+    event OrderUpdated(bytes32[] orderIds);
 
     //----------------State variables for testing--------------------
     ///@notice initialize swap helper
@@ -64,11 +64,11 @@ contract OrderBookTest is DSTest {
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
-        
+
         swapHelper = new Swap(_sushiSwapRouterAddress, wnato);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
-        
+
         //Initialize swap router in constructor
         orderRouter = new SwapRouter(
             _hexDems,
@@ -77,7 +77,10 @@ contract OrderBookTest is DSTest {
             alphaXDivergenceThreshold
         );
 
-        orderBook = new OrderBookWrapper(aggregatorV3Address, address(orderRouter));
+        orderBook = new OrderBookWrapper(
+            aggregatorV3Address,
+            address(orderRouter)
+        );
 
         limitOrderRouter = new LimitOrderRouter(
             0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
@@ -108,9 +111,7 @@ contract OrderBookTest is DSTest {
         //place a mock order
         bytes32 orderId = placeMockOrder(order);
 
-        OrderBook.Order memory returnedOrder = orderBook.getOrderById(
-            orderId
-        );
+        OrderBook.Order memory returnedOrder = orderBook.getOrderById(orderId);
 
         // assert that the two orders are the same
         assertEq(returnedOrder.tokenIn, order.tokenIn);
@@ -156,8 +157,7 @@ contract OrderBookTest is DSTest {
             );
 
             //create a new array of orders
-            OrderBook.Order[]
-                memory orderGroup = new OrderBook.Order[](1);
+            OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
             //add the order to the arrOrder and add the arrOrder to the orderGroup
             orderGroup[0] = order;
 
@@ -199,8 +199,7 @@ contract OrderBookTest is DSTest {
             );
 
             //create a new array of orders
-            OrderBook.Order[]
-                memory orderGroup = new OrderBook.Order[](1);
+            OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
             //add the order to the arrOrder and add the arrOrder to the orderGroup
             orderGroup[0] = order;
 
@@ -237,8 +236,7 @@ contract OrderBookTest is DSTest {
         );
 
         //create a new array of orders
-        OrderBook.Order[]
-            memory orderGroup = new OrderBook.Order[](1);
+        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
 
@@ -281,8 +279,7 @@ contract OrderBookTest is DSTest {
                 );
 
                 //create a new array of orders
-                OrderBook.Order[]
-                    memory orderGroup = new OrderBook.Order[](2);
+                OrderBook.Order[] memory orderGroup = new OrderBook.Order[](2);
                 //add the order to the arrOrder and add the arrOrder to the orderGroup
                 orderGroup[0] = order1;
                 orderGroup[1] = order2;
@@ -482,8 +479,7 @@ contract OrderBookTest is DSTest {
         );
 
         //create a new array of orders
-        OrderBook.Order[]
-            memory orderGroup = new OrderBook.Order[](2);
+        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](2);
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order1;
         orderGroup[1] = order2;
@@ -682,8 +678,7 @@ contract OrderBookTest is DSTest {
         returns (bytes32 orderId)
     {
         //create a new array of orders
-        OrderBook.Order[]
-            memory orderGroup = new OrderBook.Order[](1);
+        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
 
@@ -696,7 +691,9 @@ contract OrderBookTest is DSTest {
 
 ///@notice wrapper around the OrderBook contract to expose internal functions for testing
 contract OrderBookWrapper is DSTest, OrderBook {
-    constructor(address _gasOracle, address _orderRouter) OrderBook(_gasOracle, _orderRouter) {}
+    constructor(address _gasOracle, address _orderRouter)
+        OrderBook(_gasOracle, _orderRouter)
+    {}
 
     function calculateMinGasCredits(
         uint256 gasPrice,

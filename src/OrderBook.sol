@@ -20,22 +20,22 @@ contract OrderBook is GasOracle {
     /**@notice Event that is emitted when a new order is placed. For each order that is placed, the corresponding orderId is added
     to the orderIds param. 
      */
-    event OrderPlaced(bytes32[] indexed orderIds);
+    event OrderPlaced(bytes32[] orderIds);
 
     /**@notice Event that is emitted when an order is cancelled. For each order that is cancelled, the corresponding orderId is added
     to the orderIds param. 
      */
-    event OrderCancelled(bytes32[] indexed orderIds);
+    event OrderCancelled(bytes32[] orderIds);
 
     /**@notice Event that is emitted when a new order is update. For each order that is updated, the corresponding orderId is added
     to the orderIds param. 
      */
-    event OrderUpdated(bytes32[] indexed orderIds);
+    event OrderUpdated(bytes32[] orderIds);
 
     /**@notice Event that is emitted when an order is filled. For each order that is filled, the corresponding orderId is added
     to the orderIds param. 
      */
-    event OrderFufilled(bytes32[] indexed orderIds);
+    event OrderFufilled(bytes32[] orderIds);
 
     //----------------------Structs------------------------------------//
 
