@@ -19,7 +19,6 @@ import "./interfaces/ITokenToTokenLimitOrderExecution.sol";
 import "./interfaces/ITaxedLimitOrderExecution.sol";
 import "./interfaces/ITokenToWethLimitOrderExecution.sol";
 
-
 /// @title SwapRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
@@ -132,14 +131,14 @@ contract LimitOrderRouter is OrderBook {
     event GasCreditEvent(
         bool indexed deposit,
         address indexed sender,
-        uint256 amount
+        uint256 indexed amount
     );
 
     ///@notice Event that notifies off-chain executors when an order has been refreshed.
     event OrderRefreshed(
         bytes32 indexed orderId,
-        uint32 lastRefreshTimestamp,
-        uint32 expirationTimestamp
+        uint32 indexed lastRefreshTimestamp,
+        uint32 indexed expirationTimestamp
     );
 
     // ========================================= FUNCTIONS =============================================
