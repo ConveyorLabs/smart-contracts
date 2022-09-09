@@ -191,6 +191,9 @@ contract OrderBook is GasOracle {
             orderIds[orderIdIndex] = orderId;
             ++orderIdIndex;
 
+            ///@notice Add the orderId to the addressToAllOrderIds structure
+            addressToAllOrderIds[msg.sender].push(orderId);
+
             unchecked {
                 ++i;
             }
