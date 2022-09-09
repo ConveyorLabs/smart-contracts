@@ -464,7 +464,9 @@ contract OrderBook is GasOracle {
     /// @param gasPrice - The Current gas price in gwei
     /// @param executionCost - The total execution cost for each order.
     /// @param userAddress - The account address that will be checked for minimum gas credits.
-    /// @param multiplier - Margin multiplier to account for gas volatility.
+    /** @param multiplier - Multiplier value represented in e^3 to adjust the minimum gas requirement to 
+        fulfill an order, accounting for potential fluctuations in gas price. For example, a multiplier of `1.5` 
+        will be represented as `150` in the contract. **/
     /// @return minGasCredits - Total ETH required to cover the minimum gas credits for order execution.
     function _calculateMinGasCredits(
         uint256 gasPrice,
@@ -481,8 +483,8 @@ contract OrderBook is GasOracle {
                 gasPrice *
                 executionCost *
                 multiplier;
-
-            return minimumGasCredits;
+            ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
+            return minimumGasCredits / 100;
         }
     }
 
@@ -500,7 +502,7 @@ contract OrderBook is GasOracle {
     ) internal view returns (bool) {
         return
             gasCreditBalance >=
-            _calculateMinGasCredits(gasPrice, executionCost, userAddress, 5);
+            _calculateMinGasCredits(gasPrice, executionCost, userAddress, 150);
     }
 
     ///@notice Get all of the order Ids for a given address
