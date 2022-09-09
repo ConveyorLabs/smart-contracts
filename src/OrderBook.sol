@@ -7,13 +7,15 @@ import "./ConveyorErrors.sol";
 
 /// @title OrderBook
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
-/// @notice Contract to maintain active orders in limit order system. 
+/// @notice Contract to maintain active orders in limit order system.
 contract OrderBook is GasOracle {
     //----------------------Constructor------------------------------------//
     address immutable ORDER_ROUTER;
 
-    constructor(address _gasOracle, address _orderRouter) GasOracle(_gasOracle) {
-        ORDER_ROUTER= _orderRouter;
+    constructor(address _gasOracle, address _orderRouter)
+        GasOracle(_gasOracle)
+    {
+        ORDER_ROUTER = _orderRouter;
     }
 
     //----------------------Events------------------------------------//
@@ -85,6 +87,13 @@ contract OrderBook is GasOracle {
 
     ///@notice Mapping to store the number of total orders for an individual account
     mapping(address => uint256) public totalOrdersPerAddress;
+
+    ///@notice Mapping to store all of the orderIds for a given address including cancelled, pending and fuilled orders.
+    mapping(address => bytes32[]) public addressToAllOrderIds;
+
+    ///@notice Mapping to store all of the fufilled orderIds for a given address.
+    mapping(address => mapping(bytes32 => bool))
+        public addressToFufilledOrderIds;
 
     ///@notice The orderNonce is a unique value is used to create orderIds and increments every time a new order is placed.
     uint256 orderNonce;
@@ -489,5 +498,55 @@ contract OrderBook is GasOracle {
         return
             gasCreditBalance >=
             _calculateMinGasCredits(gasPrice, executionCost, userAddress, 5);
+    }
+
+    ///@notice Get all of the order Ids for a given address
+    ///@param owner - Target address to get all order Ids for.
+    /**@return - Nested array of order Ids organized by status. 
+    The first array represents pending orders.
+    The second array represents fufilled orders.
+    The third array represents cancelled orders.
+    **/
+    function getAllOrderIds(address owner)
+        public
+        view
+        returns (bytes32[][] memory)
+    {
+        bytes32[] memory allOrderIds = addressToAllOrderIds[owner];
+
+        bytes32[][] memory orderIdsStatus = new bytes32[][](3);
+
+        bytes32[] memory fufilledOrderIds = new bytes32[](allOrderIds.length);
+        uint256 fufilledOrderIdsIndex = 0;
+
+        bytes32[] memory pendingOrderIds = new bytes32[](allOrderIds.length);
+        uint256 pendingOrderIdsIndex = 0;
+
+        bytes32[] memory cancelledOrderIds = new bytes32[](allOrderIds.length);
+        uint256 cancelledOrderIdsIndex = 0;
+
+        for (uint256 i = 0; i < allOrderIds.length; ++i) {
+            bytes32 orderId = allOrderIds[i];
+
+            //If it is fufilled
+            if (addressToFufilledOrderIds[owner][orderId]) {
+                fufilledOrderIds[fufilledOrderIdsIndex] = orderId;
+                ++fufilledOrderIdsIndex;
+            } else if (addressToOrderIds[owner][orderId]) {
+                //Else if the order is pending
+                pendingOrderIds[pendingOrderIdsIndex] = orderId;
+                ++pendingOrderIdsIndex;
+            } else {
+                //Else if the order has been cancelled
+                cancelledOrderIds[cancelledOrderIdsIndex] = orderId;
+                ++cancelledOrderIdsIndex;
+            }
+        }
+
+        orderIdsStatus[0] = pendingOrderIds;
+        orderIdsStatus[1] = fufilledOrderIds;
+        orderIdsStatus[2] = cancelledOrderIds;
+
+        return orderIdsStatus;
     }
 }
