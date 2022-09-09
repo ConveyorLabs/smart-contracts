@@ -240,6 +240,38 @@ contract LimitOrderRouterTest is DSTest {
         limitOrderRouter.validateOrderSequencing(orderBatch);
     }
 
+    function testGetAllOrderIds() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        IERC20(DAI).approve(address(orderRouter), MAX_UINT);
+        bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethBatch();
+        
+        //Cache the cancelled order and the placed order that hasn't been fulfilled
+        bytes32 cancelledOrder = tokenToWethOrderBatch[0];
+      
+        bytes32 placedOrder = tokenToWethOrderBatch[tokenToWethOrderBatch.length-1];
+        limitOrderRouter.cancelOrder(tokenToWethOrderBatch[0]);
+
+        bytes32[] memory fulfilledOrders = new bytes32[](2);
+    
+        fulfilledOrders[0]= tokenToWethOrderBatch[1];
+        fulfilledOrders[1]= tokenToWethOrderBatch[2];
+
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.executeOrders(fulfilledOrders);
+
+        bytes32[][] memory allOrderIds = limitOrderRouter.getAllOrderIds(address(this));
+       
+        assertEq(allOrderIds[0][0], placedOrder);
+        assertEq(allOrderIds[2][0], cancelledOrder);
+        assertEq(allOrderIds[1][0], fulfilledOrders[0]);
+        assertEq(allOrderIds[1][1], fulfilledOrders[1]);
+
+
+    }
+
     //================================================================
     //==================== Execution Tests ===========================
     //================================================================
