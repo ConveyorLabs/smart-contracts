@@ -246,30 +246,32 @@ contract LimitOrderRouterTest is DSTest {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         IERC20(DAI).approve(address(orderRouter), MAX_UINT);
+
+        //Place a new batch of orders
         bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethBatch();
-        
-        //Cache the cancelled order and the placed order that hasn't been fulfilled
-        bytes32 cancelledOrder = tokenToWethOrderBatch[0];
-      
-        bytes32 placedOrder = tokenToWethOrderBatch[tokenToWethOrderBatch.length-1];
-        limitOrderRouter.cancelOrder(tokenToWethOrderBatch[0]);
 
-        bytes32[] memory fulfilledOrders = new bytes32[](2);
-    
-        fulfilledOrders[0]= tokenToWethOrderBatch[1];
-        fulfilledOrders[1]= tokenToWethOrderBatch[2];
+        bytes32 cancelledOrderId = tokenToWethOrderBatch[0];
+        limitOrderRouter.cancelOrder(cancelledOrderId);
 
+        bytes32[] memory fufilledOrderIds = new bytes32[](2);
+        fufilledOrderIds[0] = tokenToWethOrderBatch[1];
+        fufilledOrderIds[1] = tokenToWethOrderBatch[2];
+
+        //Keep track of the order that is still pending
+        bytes32 pendingOrderId = tokenToWethOrderBatch[3];
+
+        //Execute the the orders that will be marked as fufilled
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(fulfilledOrders);
+        limitOrderRouter.executeOrders(fufilledOrderIds);
 
-        bytes32[][] memory allOrderIds = limitOrderRouter.getAllOrderIds(address(this));
-       
-        assertEq(allOrderIds[0][0], placedOrder);
-        assertEq(allOrderIds[2][0], cancelledOrder);
-        assertEq(allOrderIds[1][0], fulfilledOrders[0]);
-        assertEq(allOrderIds[1][1], fulfilledOrders[1]);
+        bytes32[][] memory allOrderIds = limitOrderRouter.getAllOrderIds(
+            address(this)
+        );
 
-
+        assertEq(allOrderIds[0][0], pendingOrderId);
+        assertEq(allOrderIds[2][0], cancelledOrderId);
+        assertEq(allOrderIds[1][0], fufilledOrderIds[0]);
+        assertEq(allOrderIds[1][1], fufilledOrderIds[1]);
     }
 
     //================================================================
