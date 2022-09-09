@@ -128,10 +128,7 @@ contract LimitOrderRouter is OrderBook {
     // ========================================= Events  =============================================
 
     ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
-    event GasCreditEvent(
-        address indexed sender,
-        uint256 indexed balance
-    );
+    event GasCreditEvent(address indexed sender, uint256 indexed balance);
 
     ///@notice Event that notifies off-chain executors when an order has been refreshed.
     event OrderRefreshed(
@@ -505,20 +502,25 @@ contract LimitOrderRouter is OrderBook {
             }
         }
 
+        ///@notice Get the array of order owners.
+        address[] memory orderOwners = getOrderOwners(orders);
+
         ///@notice Iterate through all orderIds in the batch and delete the orders from queue post execution.
         for (uint256 i = 0; i < orderIds.length; ) {
             bytes32 orderId = orderIds[i];
             ///@notice Mark the order as resolved from the system.
             _resolveCompletedOrder(orderIdToOrder[orderId]);
+
+            ///@notice Mark order as fulfilled in addressToFufilledOrderIds mapping
+            addressToFufilledOrderIds[orderOwners[i]][orderIds[i]] = true;
+
             unchecked {
                 ++i;
             }
         }
+
         ///@notice Emit an order fufilled event to notify the off-chain executors.
         emit OrderFufilled(orderIds);
-
-        ///@notice Get the array of order owners.
-        address[] memory orderOwners = getOrderOwners(orders);
 
         ///@notice Calculate the execution gas compensation.
         uint256 executionGasCompensation = calculateExecutionGasCompensation(

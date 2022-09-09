@@ -506,7 +506,7 @@ contract OrderBookTest is DSTest {
     }
 
     ///@notice Test calculate min gas credits
-    function testCalculateMinGasCredits(uint256 _amount) public {
+    function testCalculateMinGasCredits(uint128 _amount) public {
         swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
         IERC20(swapToken).approve(address(orderRouter), MAX_UINT);
 
@@ -636,12 +636,12 @@ contract OrderBookTest is DSTest {
         placeMockOrder(order);
 
         bool hasMinGasCredits = orderBook.hasMinGasCredits(
-            1000000,
-            300000,
+            50000000000,
+            250000,
             address(this),
-            1000000000000
+            150
         );
-        //Asser
+
         assertTrue(hasMinGasCredits);
     }
 
