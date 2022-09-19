@@ -775,17 +775,20 @@ contract OrderRouterTest is DSTest {
     }
 
     ///@notice Test Calculate AlphaX
+    ///@notice Test Calculate AlphaX
     function testCalculateAlphaX(
-        uint32 _alphaX,
+        uint112 _alphaX,
         uint112 _reserve0,
         uint112 _reserve1
     ) public {
         bool run = false;
         ///Conditions to mimic an execution environment
         if (
-            _alphaX > 1500 &&
+            _alphaX > 10000000000 &&
             _alphaX % 10 == 0 &&
             _reserve0 > 10000000000000000000 &&
+            _reserve0 % 10 ==0 &&
+            _reserve1 % 10 ==0 &&
             _reserve1 > 100000000000000000010 &&
             _reserve0 != _reserve1 &&
             _alphaX < _reserve0
@@ -839,8 +842,8 @@ contract OrderRouterTest is DSTest {
                         uint128(_reserve1)
                     );
 
-                    ///This assertion will sometimes fail becaus of 1 decimal precision errors, I believe this has to do with the reserve1Snapshot derivation in the test
-                    assertEq(uint256(alphaX) / 100, uint256(_alphaX) / 100);
+                    
+                    assertEq(uint256(alphaX), uint256(_alphaX));
                 }
             }
         }
