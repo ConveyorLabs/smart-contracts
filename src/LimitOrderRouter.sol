@@ -2,29 +2,19 @@
 pragma solidity ^0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
-import "../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
-import "../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
-import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
-import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
-import "../lib/libraries/ConveyorMath.sol";
-import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "./OrderBook.sol";
-import "./SwapRouter.sol";
 import "./ConveyorErrors.sol";
-import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/interfaces/token/IWETH.sol";
-import "../lib/interfaces/uniswap-v3/IQuoter.sol";
-import "../lib/libraries/ConveyorTickMath.sol";
-import "./interfaces/ITokenToTokenLimitOrderExecution.sol";
-import "./interfaces/ITaxedLimitOrderExecution.sol";
-import "./interfaces/ITokenToWethLimitOrderExecution.sol";
-
-/// @title SwapRouter
+import "./SwapRouter.sol";
+import "./interfaces/ILimitOrderQuoter.sol";
+import "./interfaces/ILimitOrderExecutor.sol";
+/// @title LimitOrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
 contract LimitOrderRouter is OrderBook {
+    
     // ========================================= Modifiers =============================================
-
+    
     ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlyEOA() {
         if (msg.sender != tx.origin) {
@@ -43,8 +33,6 @@ contract LimitOrderRouter is OrderBook {
         _;
     }
 
-    ///@notice Conveyor funds balance in the contract.
-    uint256 conveyorBalance;
 
     ///@notice Modifier to restrict reentrancy into a function.
     modifier nonReentrant() {
@@ -72,14 +60,8 @@ contract LimitOrderRouter is OrderBook {
     ///@notice Mapping to hold gas credit balances for accounts.
     mapping(address => uint256) public gasCreditBalance;
 
-    ///@notice The wrapped native token address for the chain.
-    address immutable WETH;
-
-    ///@notice The USD pegged token address for the chain.
-    address immutable USDC;
-
     ///@notice The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
-    uint256 immutable ORDER_EXECUTION_GAS_COST;
+    uint256 constant ORDER_EXECUTION_GAS_COST=300000;
 
     ///@notice State variable to track the amount of gas initally alloted during executeOrders.
     uint256 initialTxGas;
@@ -91,38 +73,28 @@ contract LimitOrderRouter is OrderBook {
     ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
     address owner;
 
-    ///@notice TokenToTokenExecution contract address.
-    address immutable tokenToTokenExecutionAddress;
+    address immutable WETH;
 
-    ///@notice TaxedExecution contract address.
-    address immutable taxedExecutionAddress;
+    address immutable LIMIT_ORDER_EXECUTOR;
 
-    ///@notice TokenToWethExecution contract address.
-    address immutable tokenToWethExecutionAddress;
 
     // ========================================= Constructor =============================================
 
     ///@param _gasOracle - Address of the ChainLink fast gas oracle.
     ///@param _weth - Address of the wrapped native token for the chain.
-    ///@param _usdc - Address of the USD pegged token for the chain.
-    ///@param _executionCost - The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
+    ///@param _limitOrderExecutor - Address of the USD pegged token for the chain.
     constructor(
         address _gasOracle,
         address _weth,
-        address _usdc,
-        uint256 _executionCost,
-        address _tokenToTokenExecutionAddress,
-        address _taxedExecutionAddress,
-        address _tokenToWethExecutionAddress,
-        address _orderRouter
-    ) OrderBook(_gasOracle, _orderRouter) {
-        WETH = _weth;
-        USDC = _usdc;
-        ORDER_EXECUTION_GAS_COST = _executionCost;
+        address _limitOrderExecutor
+    )
+        OrderBook(_gasOracle)
+    {
+       
+        WETH=_weth;
         owner = msg.sender;
-        tokenToTokenExecutionAddress = _tokenToTokenExecutionAddress;
-        taxedExecutionAddress = _taxedExecutionAddress;
-        tokenToWethExecutionAddress = _tokenToWethExecutionAddress;
+
+        LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
     }
 
     // ========================================= Events  =============================================
@@ -298,6 +270,22 @@ contract LimitOrderRouter is OrderBook {
         }
     }
 
+    ///@notice Transfer ETH to a specific address and require that the call was successful.
+    ///@param to - The address that should be sent Ether.
+    ///@param amount - The amount of Ether that should be sent.
+    function safeTransferETH(address to, uint256 amount) public {
+        bool success;
+
+        assembly {
+            // Transfer the ETH and store if it succeeded or not.
+            success := call(gas(), to, amount, 0, 0, 0, 0)
+        }
+
+        if (!success) {
+            revert ETHTransferFailed();
+        }
+    }
+
     /// @notice Function for off-chain executors to cancel an Order that does not have the minimum gas credit balance for order execution.
     /// @param orderId - Order Id of the order to cancel.
     /// @return success - Boolean to indicate if the order was successfully cancelled and compensation was sent to the off-chain executor.
@@ -451,56 +439,25 @@ contract LimitOrderRouter is OrderBook {
             _validateOrderSequencing(orders);
         }
 
-        ///@notice Check if the order contains any taxed tokens.
-        if (orders[0].taxed == true) {
-            ///@notice If the tokenOut on the order is Weth
-            if (orders[0].tokenOut == WETH) {
-                ///@notice If the length of the orders array > 1, execute multiple TokenToWeth taxed orders.
-                if (orders.length > 1) {
-                    ITaxedLimitOrderExecution(taxedExecutionAddress)
-                        .executeTokenToWethTaxedOrders(orders);
-                    ///@notice If the length ==1, execute a single TokenToWeth taxed order.
-                } else {
-                    ITokenToWethLimitOrderExecution(tokenToWethExecutionAddress)
-                        .executeTokenToWethOrderSingle(orders);
-                }
-            } else {
-                ///@notice If the length of the orders array > 1, execute multiple TokenToToken taxed orders.
-                if (orders.length > 1) {
-                    ///@notice Otherwise, if the tokenOut is not Weth and the order is a taxed order.
-                    ITaxedLimitOrderExecution(taxedExecutionAddress)
-                        .executeTokenToTokenTaxedOrders(orders);
-                    ///@notice If the length ==1, execute a single TokenToToken taxed order.
-                } else {
-                    ITokenToTokenExecution(tokenToTokenExecutionAddress)
-                        .executeTokenToTokenOrderSingle(orders);
-                }
-            }
+        uint256 totalBeaconReward;
+        uint256 totalConveyorReward;
+
+        ///@notice If the order is not taxed and the tokenOut on the order is Weth
+        if (orders[0].tokenOut == WETH) {
+            (totalBeaconReward, totalConveyorReward) = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeTokenToWethOrders(
+                orders
+            );
         } else {
-            ///@notice If the order is not taxed and the tokenOut on the order is Weth
-            if (orders[0].tokenOut == WETH) {
-                ///@notice If the length of the orders array > 1, execute multiple TokenToWeth taxed orders.
-                if (orders.length > 1) {
-                    ITokenToWethLimitOrderExecution(tokenToWethExecutionAddress)
-                        .executeTokenToWethOrders(orders);
-                    ///@notice If the length ==1, execute a single TokenToWeth taxed order.
-                } else {
-                    ITokenToWethLimitOrderExecution(tokenToWethExecutionAddress)
-                        .executeTokenToWethOrderSingle(orders);
-                }
-            } else {
-                ///@notice If the length of the orders array > 1, execute multiple TokenToToken orders.
-                if (orders.length > 1) {
-                    ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
-                    ITokenToTokenExecution(tokenToTokenExecutionAddress)
-                        .executeTokenToTokenOrders(orders);
-                    ///@notice If the length ==1, execute a single TokenToToken order.
-                } else {
-                    ITokenToTokenExecution(tokenToTokenExecutionAddress)
-                        .executeTokenToTokenOrderSingle(orders);
-                }
-            }
+            ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
+            (
+                totalBeaconReward,
+                totalConveyorReward
+            ) = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeTokenToTokenOrders(orders);
         }
+
+
+        
+
 
         ///@notice Get the array of order owners.
         address[] memory orderOwners = getOrderOwners(orders);
@@ -548,11 +505,8 @@ contract LimitOrderRouter is OrderBook {
         }
     }
 
-    ///@notice Function to withdraw owner fee's accumulated
-    function withdrawConveyorFees() external onlyOwner nonReentrant {
-        safeTransferETH(owner, conveyorBalance);
-        conveyorBalance = 0;
-    }
+   
+
 
     ///@notice Function to confirm ownership transfer of the contract.
     function confirmTransferOwnership() external {
@@ -616,19 +570,4 @@ contract LimitOrderRouter is OrderBook {
         }
     }
 
-    ///@notice Transfer ETH to a specific address and require that the call was successful.
-    ///@param to - The address that should be sent Ether.
-    ///@param amount - The amount of Ether that should be sent.
-    function safeTransferETH(address to, uint256 amount) public {
-        bool success;
-
-        assembly {
-            // Transfer the ETH and store if it succeeded or not.
-            success := call(gas(), to, amount, 0, 0, 0, 0)
-        }
-
-        if (!success) {
-            revert ETHTransferFailed();
-        }
-    }
 }

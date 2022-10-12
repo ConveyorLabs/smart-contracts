@@ -124,9 +124,6 @@ contract SwapRouter {
 
     //----------------------State Variables------------------------------------//
 
-    ///@notice The owner of the Order Router contract
-    ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
-    address owner;
 
     uint256 uniV3AmountOut;
 
@@ -140,15 +137,7 @@ contract SwapRouter {
 
     //----------------------Modifiers------------------------------------//
 
-    ///@notice Modifier function to only allow the owner of the contract to call specific functions
-    ///@dev Functions with onlyOwner: withdrawConveyorFees, transferOwnership.
-    modifier onlyOwner() {
-        if (msg.sender != owner) {
-            revert MsgSenderIsNotOwner();
-        }
-
-        _;
-    }
+  
 
     //======================Events==================================
 
@@ -177,7 +166,7 @@ contract SwapRouter {
     //======================Immutables================================
 
     ///@notice Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
-    uint256 immutable alphaXDivergenceThreshold;
+    uint256 constant alphaXDivergenceThreshold=3402823669209385000000000000000000;
 
     //======================Constructor================================
 
@@ -186,12 +175,10 @@ contract SwapRouter {
     ///@param _deploymentByteCodes - Array of DEX creation init bytecodes.
     ///@param _dexFactories - Array of DEX factory addresses.
     ///@param _isUniV2 - Array of booleans indicating if the DEX is UniV2 compatible.
-    ///@param _alphaXDivergenceThreshold - Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     constructor(
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
-        bool[] memory _isUniV2,
-        uint256 _alphaXDivergenceThreshold
+        bool[] memory _isUniV2
     ) {
         ///@notice Initialize DEXs and other variables
         for (uint256 i = 0; i < _deploymentByteCodes.length; ++i) {
@@ -203,8 +190,8 @@ contract SwapRouter {
                 })
             );
         }
-        alphaXDivergenceThreshold = _alphaXDivergenceThreshold;
-        owner = msg.sender;
+      
+      
     }
 
     //======================Functions================================
@@ -236,7 +223,7 @@ contract SwapRouter {
         uint128 amountIn,
         address usdc,
         address weth
-    ) external view returns (uint128) {
+    ) internal view returns (uint128) {
         uint128 calculated_fee_64x64;
 
         ///@notice Initialize spot reserve structure to retrive the spot price from uni v2
@@ -304,7 +291,7 @@ contract SwapRouter {
     /// @return conveyorReward - Conveyor reward, represented in wei.
     /// @return beaconReward - Beacon reward, represented in wei.
     function calculateReward(uint128 percentFee, uint128 wethValue)
-        external
+        internal
         pure
         returns (uint128 conveyorReward, uint128 beaconReward)
     {
@@ -360,7 +347,7 @@ contract SwapRouter {
         SpotReserve[] memory spotReserves,
         OrderBook.Order[] memory orders,
         bool wethIsToken0
-    ) external view returns (uint128 maxBeaconReward) {
+    ) internal view returns (uint128 maxBeaconReward) {
         ///@notice Cache the first order buy status.
         bool buy = orders[0].buy;
 
@@ -480,7 +467,7 @@ contract SwapRouter {
     ///@notice Transfer the order quantity to the contract.
     ///@return success - Boolean to indicate if the transfer was successful.
     function transferTokensToContract(OrderBook.Order memory order)
-        external
+        internal
         returns (bool success)
     {
         try
@@ -500,7 +487,7 @@ contract SwapRouter {
         address orderOwner,
         uint256 amount,
         address tokenOut
-    ) external {
+    ) internal {
         try IERC20(tokenOut).transfer(orderOwner, amount) {} catch {
             revert TokenTransferFailed(bytes32(0));
         }
@@ -510,7 +497,7 @@ contract SwapRouter {
         uint256 totalBeaconReward,
         address executorAddress,
         address weth
-    ) external {
+    ) internal {
         ///@notice Unwrap the total reward.
         IWETH(weth).withdraw(totalBeaconReward);
 
@@ -747,7 +734,7 @@ contract SwapRouter {
         uint256 _amountOutMin,
         address _reciever,
         address _sender
-    ) external returns (uint256 amountRecieved) {
+    ) internal returns (uint256 amountRecieved) {
         if (_lpIsNotUniV3(_lp)) {
             amountRecieved = _swapV2(
                 _tokenIn,
@@ -1141,20 +1128,11 @@ contract SwapRouter {
             )
         }
         ///@notice return the opposite of success, meaning if the call succeeded, the address is univ3, and we should
-        ///@notice indicate that _lpIsNotUniV3 is false
+        ///@notice indicate that lpIsNotUniV3 is false
         return !success;
     }
 
-    ///@notice Helper function to get Uniswap V3 fee from a pool address.
-    ///@param lpAddress - Address of the lp.
-    ///@return fee The fee on the lp.
-    function _getUniV3Fee(address lpAddress) internal returns (uint24 fee) {
-        if (!_lpIsNotUniV3(lpAddress)) {
-            return IUniswapV3Pool(lpAddress).fee();
-        } else {
-            return ZERO_UINT24;
-        }
-    }
+    
 
     ///@notice Helper function to get arithmetic mean tick from Uniswap V3 Pool.
     ///@param pool - Address of the pool.
@@ -1202,7 +1180,7 @@ contract SwapRouter {
         address token1,
         uint24 FEE
     )
-        external
+        internal
         view
         returns (SpotReserve[] memory prices, address[] memory lps)
     {
