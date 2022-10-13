@@ -125,7 +125,7 @@ contract SwapRouter {
     ///@param _deploymentByteCodes - Array of DEX creation init bytecodes.
     ///@param _dexFactories - Array of DEX factory addresses.
     ///@param _isUniV2 - Array of booleans indicating if the DEX is UniV2 compatible.
-    constructor (
+    constructor(
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2
@@ -308,7 +308,7 @@ contract SwapRouter {
         ///@notice Initialize variables involved in conditional logic.
         ///@dev This is separate from the previous logic to keep the stack lean and avoid stack overflows.
         uint256 priceDivergence;
-        
+
         maxBeaconReward = MAX_UINT_128;
 
         ///@dev Scoping to avoid stack too deep errors.
@@ -316,18 +316,21 @@ contract SwapRouter {
             ///@notice If a v3Pair exists for the order
             if (v3PairExists) {
                 ///@notice Calculate proportional difference between the v3 and v2Outlier price
-                priceDivergence = ConveyorFeeMath._calculatePriceDivergence(v3Spot, v2Outlier);
+                priceDivergence = ConveyorFeeMath._calculatePriceDivergence(
+                    v3Spot,
+                    v2Outlier
+                );
 
                 ///@notice If the difference crosses the alphaXDivergenceThreshold, then calulate the max beacon fee.
                 if (priceDivergence > alphaXDivergenceThreshold) {
                     maxBeaconReward = ConveyorFeeMath._calculateMaxBeaconReward(
-                        priceDivergence,
-                        spotReserves[v2OutlierIndex].res0,
-                        spotReserves[v2OutlierIndex].res1,
-                        UNI_V2_FEE
-                    );
+                            priceDivergence,
+                            spotReserves[v2OutlierIndex].res0,
+                            spotReserves[v2OutlierIndex].res1,
+                            UNI_V2_FEE
+                        );
                 }
-            } 
+            }
         }
 
         ///@notice If weth is not token0, then convert the maxBeaconValue into Weth.
@@ -362,11 +365,6 @@ contract SwapRouter {
         ///@notice Send the off-chain executor their reward.
         safeTransferETH(executorAddress, totalBeaconReward);
     }
-
-
-    
-
-    
 
     //------------------------Admin Functions----------------------------
 
@@ -564,29 +562,14 @@ contract SwapRouter {
         uint128 liquidity = IUniswapV3Pool(_lp).liquidity();
 
         ///@notice If swapping token1 for token0.
-        if (!_zeroForOne) {
-            ///@notice Get the nextSqrtPrice after introducing alphaX into the token1 reserves.
-            _sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
-                _srtPriceX96,
-                liquidity,
-                _alphaX,
-                _zeroForOne
-            );
-        } else {
-            ///@notice Quote the amountOut from _alphaX swapped into the token0 reserves.
-            uint128 amountOut = uint128(
-                Quoter.quoteExactInputSingle(token0, token1, _fee, _alphaX, 0)
-            );
 
-            ///@notice Get the nextSqrtPrice after introducing amountOut into the token1 reserves.
-            _sqrtPriceLimitX96 = SqrtPriceMath
-                .getNextSqrtPriceFromAmount1RoundingDown(
-                    _srtPriceX96,
-                    liquidity,
-                    amountOut,
-                    false
-                );
-        }
+        ///@notice Get the nextSqrtPrice after introducing alphaX into the token1 reserves.
+        _sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
+            _srtPriceX96,
+            liquidity,
+            _alphaX,
+            _zeroForOne
+        );
     }
 
     ///@notice Uniswap V3 callback function called during a swap on a v3 liqudity pool.
@@ -719,7 +702,6 @@ contract SwapRouter {
         (spRes, poolAddress) = (_spRes, pairAddress);
     }
 
-
     ///@notice Helper function to convert reserve values to common 18 decimal base.
     ///@param tok0 - Address of token0.
     ///@param tok1 - Address of token1.
@@ -736,8 +718,12 @@ contract SwapRouter {
         uint8 token1Decimals = IERC20(tok1).decimals();
 
         ///@notice Retrieve the common 18 decimal reserve values.
-        uint128 commonReserve0 = token0Decimals <= 18  ? uint128(reserve0*(10**(18-token0Decimals))) :  uint128(reserve0*(10**(token0Decimals-18)));
-        uint128 commonReserve1 = token1Decimals <= 18  ? uint128(reserve1*(10**(18-token1Decimals))) :  uint128(reserve1*(10**(token1Decimals-18)));
+        uint128 commonReserve0 = token0Decimals <= 18
+            ? uint128(reserve0 * (10**(18 - token0Decimals)))
+            : uint128(reserve0 * (10**(token0Decimals - 18)));
+        uint128 commonReserve1 = token1Decimals <= 18
+            ? uint128(reserve1 * (10**(18 - token1Decimals)))
+            : uint128(reserve1 * (10**(token1Decimals - 18)));
         return (commonReserve0, commonReserve1);
     }
 
@@ -758,7 +744,10 @@ contract SwapRouter {
         int24 tick;
 
         uint32 tickSecond = 1; //Instantaneous price to use as baseline for maxBeaconReward analysis
-        uint8 targetDecimals = IERC20(token0).decimals() >= IERC20(token1).decimals() ? IERC20(token0).decimals() : IERC20(token1).decimals(); 
+        uint8 targetDecimals = IERC20(token0).decimals() >=
+            IERC20(token1).decimals()
+            ? IERC20(token0).decimals()
+            : IERC20(token1).decimals();
         ///@notice Set amountIn to the amountIn value in the the max token decimals of token0/token1.
         uint112 amountIn = uint112(10**targetDecimals);
 

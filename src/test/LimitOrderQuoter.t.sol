@@ -28,7 +28,7 @@ interface CheatCodes {
     ) external;
 }
 
-contract LimitOrderBatcherTest is DSTest {
+contract LimitOrderQuoterTest is DSTest {
     //Initialize limit-v0 contract for testing
     LimitOrderRouter limitOrderRouter;
     ExecutionWrapper limitOrderQuoter;
@@ -238,16 +238,15 @@ contract LimitOrderBatcherTest is DSTest {
     }
 
     //Block # 15233771
-    // function testSimulateAToBPriceChangeV3() public {
-    //     address poolAddress = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
-    //     uint128 alphaX = 5000000000000000000000;
+    function testCalculateAmountOutMinV3() public {
+        address poolAddress = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
+        address tokenIn = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+        uint128 alphaX = 500000000000;
 
-    //     (uint256 spotPrice, , , uint128 amountOut) = limitOrderRouter
-    //         .simulateAToBPriceChange(alphaX, 0, 0, poolAddress, true);
+        uint256 amountOutMin = limitOrderQuoter.calculateAmountOutMinAToWeth(poolAddress, alphaX, 0, 3000, tokenIn);
 
-    //     assertEq(spotPrice, 179570008050006124574493135473737728);
-    //     assertEq(amountOut, 2630889035305553500);
-    // }
+        console.log(amountOutMin);
+    }
 
     //Block # 15233771
     //Test simulate weth to b price change V3 test

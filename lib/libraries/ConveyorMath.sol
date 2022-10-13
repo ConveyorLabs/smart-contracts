@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.16;
 
+import "./Uniswap/FullMath.sol";
 library ConveyorMath {
     /// @notice maximum uint128 64.64 fixed point number
     uint128 private constant MAX_64x64 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
@@ -20,6 +21,10 @@ library ConveyorMath {
             require(x <= 0x7FFFFFFFFFFFFFFF);
             return uint128(x << 64);
         }
+    }
+
+    function _calculateNextSqrtPriceX96Precise(uint256 numerator1,uint160 sqrtPX96,uint256 denominator) external returns (uint160) {
+        return uint160(FullMath.mulDivRoundingUp(numerator1, sqrtPX96, denominator));
     }
 
     /// @notice helper function to transform 64.64 fixed point uint128 to uint64 integer number

@@ -1093,7 +1093,7 @@ contract OrderRouterTest is DSTest {
             _lp,
             tokenIn,
             3000,
-            10000000000,
+            amountReceived,
             1,
             reciever,
             address(this)

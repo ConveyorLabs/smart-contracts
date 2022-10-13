@@ -2,16 +2,14 @@
 pragma solidity >=0.8.16;
 
 import "./interfaces/IOrderRouter.sol";
-import "../lib/interfaces/uniswap-v3/IQuoter.sol";
-
-contract LimitOrderQuoter  {
+import "../lib/libraries/ConveyorTickMath.sol";
+import "./test/utils/Console.sol";
+contract LimitOrderQuoter is ConveyorTickMath {
 
     address immutable WETH;
-    IQuoter immutable QUOTER;
 
     constructor(address _weth, address _quoterAddress) {
         WETH=_weth;
-        QUOTER= IQuoter(_quoterAddress);
     }
 
 
@@ -660,12 +658,7 @@ contract LimitOrderQuoter  {
         ///@notice Conditional whether swap is happening from tokenToWeth or wethToToken
         if (isTokenToWeth) {
             if (wethIsToken0) {
-                ///@notice If weth is token0 and swap is happening from tokenToWeth ==> token1 = token & alphaX is in token1
-                ///@notice Assign amountOut to hold output amount in Weth for subsequent simulation calls
-                amountOut = uint128(
-                    QUOTER.quoteExactInputSingle(token1, WETH, fee, alphaX, 0)
-                );
-
+                
                 ///@notice tokenIn is token1 therefore 0for1 is false & alphaX is input into tokenIn liquidity ==> rounding down
                 nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
                     sqrtPriceX96,
@@ -675,7 +668,7 @@ contract LimitOrderQuoter  {
                 );
 
                 ///@notice Convert output to 64.64 fixed point representation
-                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
+                uint128 sqrtSpotPrice64x64 = fromX96(
                     nextSqrtPriceX96
                 );
 
@@ -685,18 +678,14 @@ contract LimitOrderQuoter  {
                     ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64)
                 );
             } else {
-                ///@notice weth is token1 therefore tokenIn is token0, assign amountOut to wethOut value for subsequent simulations
-                amountOut = uint128(
-                    QUOTER.quoteExactInputSingle(token0, WETH, fee, alphaX, 0)
-                );
-
+                
                 ///@notice calculate nextSqrtPriceX96 price change on wethOutAmount add false since we are removing the weth liquidity from the pool
                 nextSqrtPriceX96 = SqrtPriceMath
-                    .getNextSqrtPriceFromAmount1RoundingDown(
+                    .getNextSqrtPriceFromInput(
                         sqrtPriceX96,
                         liquidity,
-                        amountOut,
-                        false
+                        alphaX,
+                        true
                     );
 
                 ///@notice Since weth is token1 we have the correct form of sqrtPrice i.e token1/token0 spot, so just convert to 64.64 and square it
@@ -713,19 +702,15 @@ contract LimitOrderQuoter  {
         } else {
             ///@notice isTokenToWeth =false ==> we are exchanging weth -> token
             if (wethIsToken0) {
-                ///@notice since weth is token0 set amountOut to token quoted amount out on alphaX Weth into the pool
-                amountOut = uint128(
-                    QUOTER.quoteExactInputSingle(WETH, token1, fee, alphaX, 0)
-                );
-
+                
                 ///@notice amountOut is in our out token, so set nextSqrtPriceX96 to change in price on amountOut value
                 ///@notice weth is token 0 so set add to false since we are removing token1 liquidity from the pool
                 nextSqrtPriceX96 = SqrtPriceMath
-                    .getNextSqrtPriceFromAmount1RoundingDown(
+                    .getNextSqrtPriceFromInput(
                         sqrtPriceX96,
                         liquidity,
-                        amountOut,
-                        false
+                        alphaX,
+                        true
                     );
                 ///@notice Since token0 = weth token1/token0 is the proper exchange rate so convert to 64.64 and square to yield the spot price
                 uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
@@ -738,11 +723,7 @@ contract LimitOrderQuoter  {
                     sqrtSpotPrice64x64
                 );
             } else {
-                ///@notice weth == token1 so initialize amountOut on weth-token0
-                amountOut = uint128(
-                    QUOTER.quoteExactInputSingle(WETH, token0, fee, alphaX, 0)
-                );
-
+                
                 ///@notice set nextSqrtPriceX96 to change on Input alphaX which will be in Weth, since weth is token1 0To1=false
                 nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
                     sqrtPriceX96,
@@ -752,7 +733,7 @@ contract LimitOrderQuoter  {
                 );
 
                 ///@notice Convert to 64.64.
-                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
+                uint128 sqrtSpotPrice64x64 = fromX96(
                     nextSqrtPriceX96
                 );
 
@@ -784,15 +765,17 @@ contract LimitOrderQuoter  {
             ///@notice 1000==100% so divide amountInOrder *taxIn by 10**5 to adjust to correct base
             uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
             uint256 amountIn = amountInOrder - amountInBuffer;
+            address token0 = IUniswapV3Pool(lpAddressAToWeth).token0();
+
+            uint128 liquidity = IUniswapV3Pool(lpAddressAToWeth).liquidity();
+            int24 tickSpacing = IUniswapV3Pool(lpAddressAToWeth).tickSpacing();
+            
 
             ///@notice Calculate the amountOutMin for the swap.
-            amountOutMinAToWeth = QUOTER.quoteExactInputSingle(
-                tokenIn,
-                WETH,
-                feeIn,
-                amountIn,
-                0
-            );
+            int256 mountOutMinAToWeth = ConveyorTickMath.simulateAmountOutWethOnSqrtPriceX96(token0, lpAddressAToWeth, amountIn, tickSpacing, liquidity);
+            console.log("AmountOutMinAToWeth");
+            console.logInt(mountOutMinAToWeth);
+            
         } else {
             ///@notice Otherwise if the lp is a UniV2 LP.
 
