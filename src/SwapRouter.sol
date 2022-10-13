@@ -7,14 +7,12 @@ import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../lib/libraries/ConveyorMath.sol";
-import "../lib/libraries/ConveyorTickMath.sol";
 import "./OrderBook.sol";
+import "../lib/libraries/ConveyorTickMath.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/libraries/Uniswap/TickMath.sol";
-import "../lib/interfaces/uniswap-v3/ISwapRouter.sol";
 import "../lib/interfaces/token/IWETH.sol";
-import "../lib/libraries/Uniswap/LowGasSafeMath.sol";
-import "../lib/libraries/QuadruplePrecision.sol";
+import "../lib/libraries/ConveyorFeeMath.sol";
 import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 
@@ -64,52 +62,6 @@ contract SwapRouter {
         address lpAddressAToWeth;
     }
 
-    ///@notice Struct to represent a batch order from tokenIn/Weth
-    ///@dev A batch order takes many elligible orders and combines the amountIn to execute one swap instead of many.
-    ///@param batchLength - Amount of orders that were combined into the batch.
-    ///@param amountIn - The aggregated amountIn quantity from all orders in the batch.
-    ///@param amountOutMin - The aggregated amountOut quantity from all orders in the batch.
-    ///@param tokenIn - The tokenIn for the batch order.
-    ///@param lpAddress - The LP address that the batch order will be executed on.
-    ///@param batchOwners - Array of account addresses representing the owners of the orders that were aggregated into the batch.
-    ///@param ownerShares - Array of values representing the individual order's amountIn. Each index corresponds to the owner at index in orderOwners.
-    ///@param orderIds - Array of values representing the individual order's orderIds. Each index corresponds to the owner at index in orderOwners.
-    struct TokenToWethBatchOrder {
-        uint256 batchLength;
-        uint256 amountIn;
-        uint256 amountOutMin;
-        address tokenIn;
-        address lpAddress;
-        address[] batchOwners;
-        uint256[] ownerShares;
-        bytes32[] orderIds;
-    }
-
-    ///@notice Struct to represent a batch order from tokenIn/tokenOut
-    ///@dev A batch order takes many elligible orders and combines the amountIn to execute one swap instead of many.
-    ///@param batchLength - Amount of orders that were combined into the batch.
-    ///@param amountIn - The aggregated amountIn quantity from all orders in the batch.
-    ///@param amountOutMin - The aggregated amountOut quantity from all orders in the batch.
-    ///@param tokenIn - The tokenIn for the batch order.
-    ///@param tokenIn - The tokenOut for the batch order.
-    ///@param lpAddressAToWeth - The LP address that the first hop of the batch order will be executed on.
-    ///@param lpAddressWethToB - The LP address that the second hop of the batch order will be executed on.
-    ///@param batchOwners - Array of account addresses representing the owners of the orders that were aggregated into the batch.
-    ///@param ownerShares - Array of values representing the individual order's amountIn. Each index corresponds to the owner at index in orderOwners.
-    ///@param orderIds - Array of values representing the individual order's orderIds. Each index corresponds to the owner at index in orderOwners.
-    struct TokenToTokenBatchOrder {
-        uint256 batchLength;
-        uint256 amountIn;
-        uint256 amountOutMin;
-        address tokenIn;
-        address tokenOut;
-        address lpAddressAToWeth;
-        address lpAddressWethToB;
-        address[] batchOwners;
-        uint256[] ownerShares;
-        bytes32[] orderIds;
-    }
-
     ///@notice Struct to represent the spot price and reserve values on a given LP address
     ///@param spotPrice - Spot price of the LP address represented as a 128x128 fixed point number.
     ///@param res0 - The amount of reserves for the tokenIn.
@@ -124,7 +76,6 @@ contract SwapRouter {
 
     //----------------------State Variables------------------------------------//
 
-
     uint256 uniV3AmountOut;
 
     //----------------------State Structures------------------------------------//
@@ -136,8 +87,6 @@ contract SwapRouter {
     mapping(address => uint256) dexToIndex;
 
     //----------------------Modifiers------------------------------------//
-
-  
 
     //======================Events==================================
 
@@ -166,7 +115,8 @@ contract SwapRouter {
     //======================Immutables================================
 
     ///@notice Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
-    uint256 constant alphaXDivergenceThreshold=3402823669209385000000000000000000;
+    uint256 constant alphaXDivergenceThreshold =
+        3402823669209385000000000000000000;
 
     //======================Constructor================================
 
@@ -175,7 +125,7 @@ contract SwapRouter {
     ///@param _deploymentByteCodes - Array of DEX creation init bytecodes.
     ///@param _dexFactories - Array of DEX factory addresses.
     ///@param _isUniV2 - Array of booleans indicating if the DEX is UniV2 compatible.
-    constructor(
+    constructor (
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2
@@ -190,8 +140,6 @@ contract SwapRouter {
                 })
             );
         }
-      
-      
     }
 
     //======================Functions================================
@@ -285,56 +233,6 @@ contract SwapRouter {
         return calculated_fee_64x64;
     }
 
-    /// @notice Helper function to calculate beacon and conveyor reward on transaction execution.
-    /// @param percentFee - Percentage of order size to be taken from user order size.
-    /// @param wethValue - Total order value at execution price, represented in wei.
-    /// @return conveyorReward - Conveyor reward, represented in wei.
-    /// @return beaconReward - Beacon reward, represented in wei.
-    function calculateReward(uint128 percentFee, uint128 wethValue)
-        internal
-        pure
-        returns (uint128 conveyorReward, uint128 beaconReward)
-    {
-        ///@notice Compute wethValue * percentFee
-        uint256 totalWethReward = ConveyorMath.mul64I(
-            percentFee,
-            uint256(wethValue)
-        );
-
-        ///@notice Initialize conveyorPercent to hold conveyors portion of the reward
-        uint128 conveyorPercent;
-
-        ///@notice This is to prevent over flow initialize the fee to fee+ (0.005-fee)/2+0.001*10**2
-        if (percentFee <= ZERO_POINT_ZERO_ZERO_FIVE) {
-            int256 innerPartial = int256(uint256(ZERO_POINT_ZERO_ZERO_FIVE)) -
-                int128(percentFee);
-
-            conveyorPercent =
-                (percentFee +
-                    ConveyorMath.div64x64(
-                        uint128(uint256(innerPartial)),
-                        uint128(2) << 64
-                    ) +
-                    uint128(ZERO_POINT_ZERO_ZERO_ONE)) *
-                10**2;
-        } else {
-            conveyorPercent = MAX_CONVEYOR_PERCENT;
-        }
-
-        if (conveyorPercent < MIN_CONVEYOR_PERCENT) {
-            conveyorPercent = MIN_CONVEYOR_PERCENT;
-        }
-
-        ///@notice Multiply conveyorPercent by total reward to retrive conveyorReward
-        conveyorReward = uint128(
-            ConveyorMath.mul64I(conveyorPercent, totalWethReward)
-        );
-
-        beaconReward = uint128(totalWethReward) - conveyorReward;
-
-        return (conveyorReward, beaconReward);
-    }
-
     ///@notice Function that determines if the max beacon reward should be applied to a batch.
     /**@dev The max beacon reward is determined by the alpha x calculation in order to prevent profit derrived 
     from price manipulation. This function determines if the max beacon reward must be used.*/
@@ -410,7 +308,7 @@ contract SwapRouter {
         ///@notice Initialize variables involved in conditional logic.
         ///@dev This is separate from the previous logic to keep the stack lean and avoid stack overflows.
         uint256 priceDivergence;
-        uint256 snapShotSpot;
+        
         maxBeaconReward = MAX_UINT_128;
 
         ///@dev Scoping to avoid stack too deep errors.
@@ -418,39 +316,18 @@ contract SwapRouter {
             ///@notice If a v3Pair exists for the order
             if (v3PairExists) {
                 ///@notice Calculate proportional difference between the v3 and v2Outlier price
-                priceDivergence = _calculatePriceDivergence(v3Spot, v2Outlier);
+                priceDivergence = ConveyorFeeMath._calculatePriceDivergence(v3Spot, v2Outlier);
 
                 ///@notice If the difference crosses the alphaXDivergenceThreshold, then calulate the max beacon fee.
                 if (priceDivergence > alphaXDivergenceThreshold) {
-                    maxBeaconReward = _calculateMaxBeaconReward(
+                    maxBeaconReward = ConveyorFeeMath._calculateMaxBeaconReward(
                         priceDivergence,
                         spotReserves[v2OutlierIndex].res0,
                         spotReserves[v2OutlierIndex].res1,
                         UNI_V2_FEE
                     );
                 }
-            } else {
-                ///@notice If v3 pair does not exist then calculate the alphaXDivergenceThreshold
-                ///@dev The alphaXDivergenceThreshold is calculated from the price that is the maximum distance from the v2Outlier.
-                (
-                    priceDivergence,
-                    snapShotSpot
-                ) = _calculatePriceDivergenceFromBatchMin(
-                    v2Outlier,
-                    orders,
-                    buy
-                );
-
-                ///@notice If the difference crosses the alphaXDivergenceThreshold, then calulate the max beacon fee.
-                if (priceDivergence > alphaXDivergenceThreshold) {
-                    maxBeaconReward = _calculateMaxBeaconReward(
-                        snapShotSpot,
-                        spotReserves[v2OutlierIndex].res0,
-                        spotReserves[v2OutlierIndex].res1,
-                        UNI_V2_FEE
-                    );
-                }
-            }
+            } 
         }
 
         ///@notice If weth is not token0, then convert the maxBeaconValue into Weth.
@@ -462,25 +339,6 @@ contract SwapRouter {
         }
 
         return maxBeaconReward;
-    }
-
-    ///@notice Transfer the order quantity to the contract.
-    ///@return success - Boolean to indicate if the transfer was successful.
-    function transferTokensToContract(OrderBook.Order memory order)
-        internal
-        returns (bool success)
-    {
-        try
-            IERC20(order.tokenIn).transferFrom(
-                order.owner,
-                address(this),
-                order.quantity
-            )
-        {} catch {
-            ///@notice Revert on token transfer failure.
-            revert TokenTransferFailed(order.orderId);
-        }
-        return true;
     }
 
     function transferTokensOutToOwner(
@@ -505,153 +363,10 @@ contract SwapRouter {
         safeTransferETH(executorAddress, totalBeaconReward);
     }
 
-    ///@notice Helper function to calculate the alphaXDivergenceThreshold using the price that is the maximum distance from the v2Outlier.
-    ///@param v2Outlier - SpotPrice of the v2Outlier used to cross reference against the alphaXDivergenceThreshold.
-    ///@param orders - Array of orders used compare spot prices against.
-    ///@param buy - Boolean indicating the buy/sell status of the batch.
-    ///@return priceDivergence - Proportional difference between the target spot price and the v2Outlier.
-    ///@return targetSpot - The price with the maximum distance from the v2Outlier.
-    function _calculatePriceDivergenceFromBatchMin(
-        uint256 v2Outlier,
-        OrderBook.Order[] memory orders,
-        bool buy
-    ) internal pure returns (uint256 priceDivergence, uint256 targetSpot) {
-        ///@notice If the order is a buy, set the initial targetSpot to 0, else set it to MAX_UINT_256.
-        targetSpot = buy ? 0 : MAX_UINT_256;
 
-        ///@notice For each order in the orders array
-        for (uint256 i = 0; i < orders.length; ) {
-            ///@notice Initialize the orderPrice
-            uint256 orderPrice = orders[i].price;
+    
 
-            ///@notice If the order is a buy order, and the orderPrice is greater than the targetSpot, set the targetSpot to the orderPrice
-            if (buy) {
-                if (orderPrice > targetSpot) {
-                    targetSpot = orderPrice;
-                }
-            } else {
-                ///@notice If the order is a sell order, and the orderPrice is greater than the targetSpot, set the targetSpot to the orderPrice
-                if (orderPrice < targetSpot) {
-                    targetSpot = orderPrice;
-                }
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        ///@notice Calculate the proportionalSpotChange and priceDivergence, returning the priceDivergence and targetSpot
-        if (targetSpot > v2Outlier) {
-            uint256 proportionalSpotChange = ConveyorMath.div128x128(
-                v2Outlier,
-                targetSpot
-            );
-
-            priceDivergence = ONE_128x128 - proportionalSpotChange;
-
-            return (priceDivergence, targetSpot);
-        } else {
-            uint256 proportionalSpotChange = ConveyorMath.div128x128(
-                targetSpot,
-                v2Outlier
-            );
-
-            priceDivergence = ONE_128x128 - proportionalSpotChange;
-
-            return (priceDivergence, targetSpot);
-        }
-    }
-
-    ///@notice Helper function to determine the proportional difference between two spot prices
-    ///@param v3Spot - spotPrice from UniV3.
-    ///@param v2Outlier - SpotPrice of the v2Outlier used to cross reference against the alphaXDivergenceThreshold.
-    ///@return priceDivergence - Porportional difference between the v3Spot and v2Outlier
-    function _calculatePriceDivergence(uint256 v3Spot, uint256 v2Outlier)
-        internal
-        pure
-        returns (uint256 priceDivergence)
-    {
-        ///@notice If the v3Spot equals the v2Outlier, there is no price divergence, so return 0.
-        if (v3Spot == v2Outlier) {
-            return 0;
-        }
-
-        uint256 proportionalSpotChange;
-
-        ///@notice if the v3Spot is greater than the v2Outlier
-        if (v3Spot > v2Outlier) {
-            ///@notice Divide the v2Outlier by the v3Spot and subtract the result from 1.
-            proportionalSpotChange = ConveyorMath.div128x128(v2Outlier, v3Spot);
-            priceDivergence = ONE_128x128 - proportionalSpotChange;
-        } else {
-            ///@notice Divide the v3Spot by the v2Outlier and subtract the result from 1.
-            proportionalSpotChange = ConveyorMath.div128x128(v3Spot, v2Outlier);
-            priceDivergence = ONE_128x128 - proportionalSpotChange;
-        }
-
-        return priceDivergence;
-    }
-
-    /// @notice Helper function to calculate the max beacon reward for a group of orders
-    /// @param reserve0 - Reserve0 of lp at execution time
-    /// @param reserve1 - Reserve1 of lp at execution time
-    /// @param fee - The fee to swap on the lp.
-    /// @return maxReward - Maximum safe beacon reward to protect against flash loan price manipulation on the lp
-    function _calculateMaxBeaconReward(
-        uint256 delta,
-        uint128 reserve0,
-        uint128 reserve1,
-        uint128 fee
-    ) public pure returns (uint128) {
-        uint128 maxReward = uint128(
-            ConveyorMath.mul64I(
-                fee,
-                _calculateAlphaX(delta, reserve0, reserve1)
-            )
-        );
-        return maxReward;
-    }
-
-    /// @notice Helper function to calculate the input amount needed to manipulate the spot price of the pool from snapShot to executionPrice
-    /// @param reserve0Execution - snapShot of reserve0 at execution time
-    /// @param reserve1Execution - snapShot of reserve1 at execution time
-    /// @return alphaX - The input amount needed to manipulate the spot price of the respective lp to the amount delta.
-    function _calculateAlphaX(
-        uint256 delta,
-        uint128 reserve0Execution,
-        uint128 reserve1Execution
-    ) internal pure returns (uint256) {
-        ///@notice alphaX = (r1 * r0 - sqrtK * sqrtr0 * sqrt(delta * r1 + r1)) / r1
-        uint256 _k = uint256(reserve0Execution) * reserve1Execution;
-        bytes16 k = QuadruplePrecision.fromInt(int256(_k));
-        bytes16 sqrtK = QuadruplePrecision.sqrt(k);
-        bytes16 deltaQuad = QuadruplePrecision.from128x128(int256(delta));
-        bytes16 reserve1Quad = QuadruplePrecision.fromUInt(reserve1Execution);
-        bytes16 reserve0Quad = QuadruplePrecision.fromUInt(reserve0Execution);
-        bytes16 numeratorPartial = QuadruplePrecision.add(
-            QuadruplePrecision.mul(deltaQuad, reserve1Quad),
-            reserve1Quad
-        );
-        bytes16 sqrtNumPartial = QuadruplePrecision.sqrt(numeratorPartial);
-        bytes16 sqrtReserve0 = QuadruplePrecision.sqrt(reserve0Quad);
-        bytes16 numerator = QuadruplePrecision.abs(
-            QuadruplePrecision.sub(
-                k,
-                QuadruplePrecision.mul(
-                    sqrtReserve0,
-                    QuadruplePrecision.mul(sqrtNumPartial, sqrtK)
-                )
-            )
-        );
-        uint256 alphaX = uint256(
-            QuadruplePrecision.toUInt(
-                QuadruplePrecision.div(numerator, reserve1Quad)
-            )
-        );
-
-        return alphaX;
-    }
+    
 
     //------------------------Admin Functions----------------------------
 
@@ -684,7 +399,7 @@ contract SwapRouter {
         }
 
         ///@notice Get token0 from the pairing.
-        (address token0, ) = _sortTokens(_tokenIn, _tokenOut);
+        (address token0, ) = ConveyorFeeMath._sortTokens(_tokenIn, _tokenOut);
 
         ///@notice Intialize the amountOutMin value
         (uint256 amount0Out, uint256 amount1Out) = _tokenIn == token0
@@ -938,14 +653,14 @@ contract SwapRouter {
         address tok1;
 
         {
-            (tok0, tok1) = _sortTokens(token0, token1);
+            (tok0, tok1) = ConveyorFeeMath._sortTokens(token0, token1);
         }
 
         ///@notice SpotReserve struct to hold the reserve values and spot price of the dex.
         SpotReserve memory _spRes;
 
         ///@notice Get pool address on the token pair.
-        address pairAddress = _getV2PairAddress(
+        address pairAddress = ConveyorFeeMath._getV2PairAddress(
             _factory,
             tok0,
             tok1,
@@ -1004,32 +719,6 @@ contract SwapRouter {
         (spRes, poolAddress) = (_spRes, pairAddress);
     }
 
-    ///@notice Helper function to derive the token pair address on a Dex from the factory address and initialization bytecode.
-    ///@param _factory - Factory address of the Dex.
-    ///@param token0 - Token0 address.
-    ///@param token1 - Token1 address.
-    ///@param _initBytecode - Initialization bytecode of the factory contract.
-    function _getV2PairAddress(
-        address _factory,
-        address token0,
-        address token1,
-        bytes32 _initBytecode
-    ) internal pure returns (address pairAddress) {
-        pairAddress = address(
-            uint160(
-                uint256(
-                    keccak256(
-                        abi.encodePacked(
-                            hex"ff",
-                            _factory,
-                            keccak256(abi.encodePacked(token0, token1)),
-                            _initBytecode
-                        )
-                    )
-                )
-            )
-        );
-    }
 
     ///@notice Helper function to convert reserve values to common 18 decimal base.
     ///@param tok0 - Address of token0.
@@ -1043,17 +732,12 @@ contract SwapRouter {
         uint128 reserve1
     ) internal view returns (uint128, uint128) {
         ///@notice Get target decimals for token0 & token1
-        uint8 token0Decimals = _getTargetDecimals(tok0);
-        uint8 token1Decimals = _getTargetDecimals(tok1);
+        uint8 token0Decimals = IERC20(tok0).decimals();
+        uint8 token1Decimals = IERC20(tok1).decimals();
 
         ///@notice Retrieve the common 18 decimal reserve values.
-        (uint128 commonReserve0, uint128 commonReserve1) = _convertToCommonBase(
-            reserve0,
-            token0Decimals,
-            reserve1,
-            token1Decimals
-        );
-
+        uint128 commonReserve0 = token0Decimals <= 18  ? uint128(reserve0*(10**(18-token0Decimals))) :  uint128(reserve0*(10**(token0Decimals-18)));
+        uint128 commonReserve1 = token1Decimals <= 18  ? uint128(reserve1*(10**(18-token1Decimals))) :  uint128(reserve1*(10**(token1Decimals-18)));
         return (commonReserve0, commonReserve1);
     }
 
@@ -1074,9 +758,9 @@ contract SwapRouter {
         int24 tick;
 
         uint32 tickSecond = 1; //Instantaneous price to use as baseline for maxBeaconReward analysis
-
+        uint8 targetDecimals = IERC20(token0).decimals() >= IERC20(token1).decimals() ? IERC20(token0).decimals() : IERC20(token1).decimals(); 
         ///@notice Set amountIn to the amountIn value in the the max token decimals of token0/token1.
-        uint112 amountIn = _getGreatestTokenDecimalsAmountIn(token0, token1);
+        uint112 amountIn = uint112(10**targetDecimals);
 
         ///@notice Scope to prevent stack too deep error.
         {
@@ -1131,8 +815,6 @@ contract SwapRouter {
         ///@notice indicate that lpIsNotUniV3 is false
         return !success;
     }
-
-    
 
     ///@notice Helper function to get arithmetic mean tick from Uniswap V3 Pool.
     ///@param pool - Address of the pool.
@@ -1242,74 +924,6 @@ contract SwapRouter {
         }
     }
 
-    /// @notice Helper to get amountIn value in the base of max decimals between token0 and token1.
-    /// @param token0 - Address of token0.
-    /// @param token1 - Address of token1.
-    ///@return amountIn - AmountIn value in the decimals of max decimals of token0/token1.
-    function _getGreatestTokenDecimalsAmountIn(address token0, address token1)
-        internal
-        view
-        returns (uint112 amountIn)
-    {
-        ///@notice Get target decimals for token0, token1.
-        uint8 token0Target = _getTargetDecimals(token0);
-        uint8 token1Target = _getTargetDecimals(token1);
-
-        ///@notice Set targetDec to max decimals of token0 and token1.
-        uint8 targetDec = (token0Target < token1Target)
-            ? (token1Target)
-            : (token0Target);
-
-        ///@notice Return 1 of amountIn in the max decimals of token0/token1.
-        amountIn = uint112(10**targetDec);
-    }
-
-    /// @notice Helper function to convert reserve values to common 18 decimal base.
-    /// @param reserve0 - Reserve0 liquidity in pool
-    /// @param token0Decimals - Decimals of token0.
-    /// @param reserve1 - Reserve1 liquidity in pool.
-    /// @param token1Decimals - Decimals of token1.
-    function _convertToCommonBase(
-        uint128 reserve0,
-        uint8 token0Decimals,
-        uint128 reserve1,
-        uint8 token1Decimals
-    ) internal pure returns (uint128, uint128) {
-        uint128 reserve0Common18 = token0Decimals <= 18
-            ? uint128(reserve0 * 10**(18 - token0Decimals))
-            : uint128(reserve0 / (10**(token0Decimals - 18)));
-        uint128 reserve1Common18 = token1Decimals <= 18
-            ? uint128(reserve1 * 10**(18 - token1Decimals))
-            : uint128(reserve1 / (10**(token1Decimals - 18)));
-        return (reserve0Common18, reserve1Common18);
-    }
-
-    /// @notice Helper function to get target decimals of ERC20 token.
-    /// @param token - Address of token to get target decimals.
-    /// @return targetDecimals Target decimals of token.
-    function _getTargetDecimals(address token)
-        internal
-        view
-        returns (uint8 targetDecimals)
-    {
-        return IERC20(token).decimals();
-    }
-
-    /// @notice Helper function to return sorted token addresses.
-    /// @param tokenA - Address of tokenA.
-    /// @param tokenB - Address of tokenB.
-    function _sortTokens(address tokenA, address tokenB)
-        internal
-        pure
-        returns (address token0, address token1)
-    {
-        require(tokenA != tokenB, "UniswapV2Library: IDENTICAL_ADDRESSES");
-        (token0, token1) = tokenA < tokenB
-            ? (tokenA, tokenB)
-            : (tokenB, tokenA);
-        require(token0 != address(0), "UniswapV2Library: ZERO_ADDRESS");
-    }
-
     /// @notice Helper function to calculate the the quote amount recieved for the base amount of the base token at a certain tick.
     /// @param tick - Tick value used to calculate the quote.
     /// @param baseAmount - Amount of tokenIn to be converted.
@@ -1326,8 +940,8 @@ contract SwapRouter {
         uint160 sqrtRatioX96 = TickMath.getSqrtRatioAtTick(tick);
 
         ///@notice Get the target decimals of the quote and base token.
-        uint8 targetDecimalsQuote = _getTargetDecimals(quoteToken);
-        uint8 targetDecimalsBase = _getTargetDecimals(baseToken);
+        uint8 targetDecimalsQuote = IERC20(quoteToken).decimals();
+        uint8 targetDecimalsBase = IERC20(baseToken).decimals();
 
         ///@notice Initialize Adjusted quote amount to hold the quote amount represented as a 128.128 fixed point number.
         uint256 adjustedFixed128x128Quote;

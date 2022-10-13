@@ -8,6 +8,7 @@ import "../lib/interfaces/token/IWETH.sol";
 import "./SwapRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
+
 /// @title LimitOrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
@@ -88,7 +89,7 @@ contract LimitOrderRouter is OrderBook {
         address _weth,
         address _limitOrderExecutor
     )
-        OrderBook(_gasOracle)
+        OrderBook(_gasOracle,_limitOrderExecutor)
     {
        
         WETH=_weth;

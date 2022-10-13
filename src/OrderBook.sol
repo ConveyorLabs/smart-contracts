@@ -9,12 +9,15 @@ import "./ConveyorErrors.sol";
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
 contract OrderBook is GasOracle {
+    address immutable EXECUTOR_ADDRESS;
     //----------------------Constructor------------------------------------//
     
 
-    constructor(address _gasOracle)
+    constructor(address _gasOracle, address _limitOrderExecutor)
         GasOracle(_gasOracle)
-    {}
+    {
+        EXECUTOR_ADDRESS=_limitOrderExecutor;
+    }
 
     //----------------------Events------------------------------------//
     /**@notice Event that is emitted when a new order is placed. For each order that is placed, the corresponding orderId is added
@@ -207,7 +210,7 @@ contract OrderBook is GasOracle {
         ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
         uint256 totalApprovedQuantity = IERC20(orderToken).allowance(
             msg.sender,
-            address(this)
+            address(EXECUTOR_ADDRESS)
         );
 
         ///@notice If the total approved quantity is less than the updatedTotalOrdersValue, revert.

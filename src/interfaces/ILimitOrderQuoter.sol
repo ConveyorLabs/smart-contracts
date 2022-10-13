@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
+
 import "../SwapRouter.sol";
 interface ILimitOrderQuoter {
     function _findBestTokenToTokenExecutionPrice(
@@ -31,15 +32,20 @@ interface ILimitOrderQuoter {
     ) external returns (uint256 amountOutMinAToWeth);
 
     function _initializeTokenToWethExecutionPrices(
-        OrderBook.Order[] memory orders
+        SwapRouter.SpotReserve[] memory spotReserveAToWeth,
+        address[] memory lpAddressesAToWeth
     )
         external
         view
-        returns (SwapRouter.TokenToWethExecutionPrice[] memory, uint128);
-    function initializeTokenToTokenExecutionPrices(
-        OrderBook.Order[] memory orders
+        returns (SwapRouter.TokenToWethExecutionPrice[] memory);
+    function _initializeTokenToTokenExecutionPrices(
+        address tokenIn,
+        SwapRouter.SpotReserve[] memory spotReserveAToWeth,
+        address[] memory lpAddressesAToWeth,
+        SwapRouter.SpotReserve[] memory spotReserveWethToB,
+        address[] memory lpAddressWethToB
     )
         external
         view
-        returns (SwapRouter.TokenToTokenExecutionPrice[] memory, uint128);
+        returns (SwapRouter.TokenToTokenExecutionPrice[] memory);
 }   

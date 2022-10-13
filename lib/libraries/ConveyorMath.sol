@@ -601,24 +601,5 @@ library ConveyorMath {
         }
     }
 
-    function sqrt128(uint256 x) internal pure returns (uint256) {
-        unchecked {
-            require(x >= 0);
-            return uint256(sqrtu(x) << 64);
-        }
-    }
-
-    function sqrt(int128 x) internal pure returns (int128) {
-        unchecked {
-            require(x >= 0);
-            return int128(sqrtu(uint256(int256(x)) << 64));
-        }
-    }
-
-    function sqrtBig(uint256 x) internal pure returns (uint256) {
-        unchecked {
-            require(x >= 0);
-            return uint256(sqrtu(x)) << 128;
-        }
-    }
+   
 }
