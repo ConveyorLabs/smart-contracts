@@ -69,7 +69,7 @@ contract ConveyorTickMath {
         uint128 liquidity,
         uint24 fee
     ) internal returns (int256 amountOut) {
-        Tick.Info memory tickInfo;
+   
 
         bool zeroForOne = token0 !=
             address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)

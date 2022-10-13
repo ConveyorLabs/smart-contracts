@@ -35,7 +35,7 @@ library SwapMath {
         )
     {
         bool zeroForOne = sqrtRatioCurrentX96 >= sqrtRatioTargetX96;
-        require(zeroForOne, "here");
+        
         bool exactIn = amountRemaining >= 0;
 
         if (exactIn) {

@@ -772,9 +772,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
             
 
             ///@notice Calculate the amountOutMin for the swap.
-            int256 mountOutMinAToWeth = ConveyorTickMath.simulateAmountOutWethOnSqrtPriceX96(token0, lpAddressAToWeth, amountIn, tickSpacing, liquidity);
-            console.log("AmountOutMinAToWeth");
-            console.logInt(mountOutMinAToWeth);
+            int256 _amountOutMinAToWeth = ConveyorTickMath.simulateAmountOutWethOnSqrtPriceX96(token0, lpAddressAToWeth, amountIn, tickSpacing, liquidity, feeIn);
+            amountOutMinAToWeth = uint256(-_amountOutMinAToWeth);
             
         } else {
             ///@notice Otherwise if the lp is a UniV2 LP.
