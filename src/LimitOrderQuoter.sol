@@ -654,7 +654,17 @@ contract LimitOrderQuoter is ConveyorTickMath {
 
         ///@notice Cache pool fee
         uint24 fee = IUniswapV3Pool(pool).fee();
-
+        
+        {
+            int24 tickSpacing = IUniswapV3Pool(pool).tickSpacing();
+            
+            if(isTokenToWeth){
+                amountOut = uint128(uint256(-simulateAmountOutOnSqrtPriceX96(wethIsToken0 ? token0 : token1, wethIsToken0 ? token1 : token0 , pool, alphaX,tickSpacing, liquidity, fee)));
+            }else{
+                amountOut = uint128(uint256(-simulateAmountOutOnSqrtPriceX96(wethIsToken0 ? token1 : token0, wethIsToken0 ? token0 : token1, pool, alphaX,tickSpacing, liquidity, fee)));
+            }
+        }
+        
         ///@notice Conditional whether swap is happening from tokenToWeth or wethToToken
         if (isTokenToWeth) {
             if (wethIsToken0) {
@@ -772,7 +782,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
             
 
             ///@notice Calculate the amountOutMin for the swap.
-            int256 _amountOutMinAToWeth = ConveyorTickMath.simulateAmountOutWethOnSqrtPriceX96(token0, lpAddressAToWeth, amountIn, tickSpacing, liquidity, feeIn);
+            int256 _amountOutMinAToWeth = ConveyorTickMath.simulateAmountOutOnSqrtPriceX96(tokenIn, token0, lpAddressAToWeth, amountIn, tickSpacing, liquidity, feeIn);
             amountOutMinAToWeth = uint256(-_amountOutMinAToWeth);
             
         } else {

@@ -12,6 +12,7 @@ import "../interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "./Uniswap/LowGasSafeMath.sol";
 import "./Uniswap/Tick.sol";
 import "../../src/test/utils/Console.sol";
+
 contract ConveyorTickMath {
     using LowGasSafeMath for uint256;
     using LowGasSafeMath for int256;
@@ -61,30 +62,20 @@ contract ConveyorTickMath {
         }
     }
 
-    function simulateAmountOutWethOnSqrtPriceX96(
+    function simulateAmountOutOnSqrtPriceX96(
         address token0,
+        address tokenIn,
         address lpAddressAToWeth,
         uint256 amountIn,
         int24 tickSpacing,
         uint128 liquidity,
         uint24 fee
     ) internal returns (int256 amountOut) {
-   
+        bool zeroForOne = token0 == tokenIn ? true : false;
 
-        bool zeroForOne = token0 !=
-            address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)
-            ? true
-            : false;
-
-        (
-            uint160 sqrtPriceX96,
-            int24 initialTick,
-            ,
-            ,
-            ,
-            ,
-
-        ) = IUniswapV3Pool(lpAddressAToWeth).slot0();
+        (uint160 sqrtPriceX96, int24 initialTick, , , , , ) = IUniswapV3Pool(
+            lpAddressAToWeth
+        ).slot0();
 
         ///@notice Initialize the initial simulation state
         CurrentState memory currentState = CurrentState({
@@ -95,11 +86,15 @@ contract ConveyorTickMath {
             liquidity: liquidity
         });
 
-        uint160 sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(sqrtPriceX96, liquidity, amountIn, zeroForOne);
+        uint160 sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
+            sqrtPriceX96,
+            liquidity,
+            amountIn,
+            zeroForOne
+        );
 
         ///@notice While the current state still has an amount to swap continue.
         while (currentState.amountSpecifiedRemaining != 0) {
-            
             StepComputations memory step;
 
             step.sqrtPriceStartX96 = currentState.sqrtPriceX96;
@@ -118,7 +113,7 @@ contract ConveyorTickMath {
             }
 
             step.sqrtPriceNextX96 = TickMath.getSqrtRatioAtTick(step.tickNext);
-            
+
             (
                 currentState.sqrtPriceX96,
                 step.amountIn,
@@ -126,7 +121,11 @@ contract ConveyorTickMath {
                 step.feeAmount
             ) = SwapMath.computeSwapStep(
                 currentState.sqrtPriceX96,
-                (zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)
+                (
+                    zeroForOne
+                        ? step.sqrtPriceNextX96 < sqrtPriceLimitX96
+                        : step.sqrtPriceNextX96 > sqrtPriceLimitX96
+                )
                     ? sqrtPriceLimitX96
                     : step.sqrtPriceNextX96,
                 currentState.liquidity,
@@ -145,16 +144,21 @@ contract ConveyorTickMath {
                 if (step.initialized) {
                     int128 liquidityNet = ticks.cross(step.tickNext);
 
-                    
                     if (zeroForOne) liquidityNet = -liquidityNet;
 
-                    currentState.liquidity = LiquidityMath.addDelta(currentState.liquidity, liquidityNet);
+                    currentState.liquidity = LiquidityMath.addDelta(
+                        currentState.liquidity,
+                        liquidityNet
+                    );
                 }
-                currentState.tick = zeroForOne ? step.tickNext - 1 : step.tickNext;
-            }else if (currentState.sqrtPriceX96 != step.sqrtPriceStartX96) {
+                currentState.tick = zeroForOne
+                    ? step.tickNext - 1
+                    : step.tickNext;
+            } else if (currentState.sqrtPriceX96 != step.sqrtPriceStartX96) {
                 // recompute unless we're on a lower tick boundary (i.e. already transitioned ticks), and haven't moved
-                currentState.tick = TickMath.getTickAtSqrtRatio(currentState.sqrtPriceX96);
-
+                currentState.tick = TickMath.getTickAtSqrtRatio(
+                    currentState.sqrtPriceX96
+                );
             }
         }
         return int256(currentState.amountCalculated);
