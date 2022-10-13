@@ -641,4 +641,97 @@ library QuadruplePrecision {
             return result;
         }
     }
+
+     /**
+     * Calculate binary logarithm of x.  Return NaN on negative x excluding -0.
+     *
+     * @param x quadruple precision number
+     * @return quadruple precision number
+     */
+    function log_2(bytes16 x) internal pure returns (bytes16) {
+        unchecked {
+            if (uint128(x) > 0x80000000000000000000000000000000) return NaN;
+            else if (x == 0x3FFF0000000000000000000000000000)
+                return POSITIVE_ZERO;
+            else {
+                uint256 xExponent = (uint128(x) >> 112) & 0x7FFF;
+                if (xExponent == 0x7FFF) return x;
+                else {
+                    uint256 xSignifier = uint128(x) &
+                        0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+                    if (xExponent == 0) xExponent = 1;
+                    else xSignifier |= 0x10000000000000000000000000000;
+
+                    if (xSignifier == 0) return NEGATIVE_INFINITY;
+
+                    bool resultNegative;
+                    uint256 resultExponent = 16495;
+                    uint256 resultSignifier;
+
+                    if (xExponent >= 0x3FFF) {
+                        resultNegative = false;
+                        resultSignifier = xExponent - 0x3FFF;
+                        xSignifier <<= 15;
+                    } else {
+                        resultNegative = true;
+                        if (xSignifier >= 0x10000000000000000000000000000) {
+                            resultSignifier = 0x3FFE - xExponent;
+                            xSignifier <<= 15;
+                        } else {
+                            uint256 msb = mostSignificantBit(xSignifier);
+                            resultSignifier = 16493 - msb;
+                            xSignifier <<= 127 - msb;
+                        }
+                    }
+
+                    if (xSignifier == 0x80000000000000000000000000000000) {
+                        if (resultNegative) resultSignifier += 1;
+                        uint256 shift = 112 -
+                            mostSignificantBit(resultSignifier);
+                        resultSignifier <<= shift;
+                        resultExponent -= shift;
+                    } else {
+                        uint256 bb = resultNegative ? 1 : 0;
+                        while (
+                            resultSignifier < 0x10000000000000000000000000000
+                        ) {
+                            resultSignifier <<= 1;
+                            resultExponent -= 1;
+
+                            xSignifier *= xSignifier;
+                            uint256 b = xSignifier >> 255;
+                            resultSignifier += b ^ bb;
+                            xSignifier >>= 127 + b;
+                        }
+                    }
+
+                    return
+                        bytes16(
+                            uint128(
+                                (
+                                    resultNegative
+                                        ? 0x80000000000000000000000000000000
+                                        : 0
+                                ) |
+                                    (resultExponent << 112) |
+                                    (resultSignifier &
+                                        0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
+                            )
+                        );
+                }
+            }
+        }
+    }
+
+     /**
+     * Calculate natural logarithm of x.  Return NaN on negative x excluding -0.
+     *
+     * @param x quadruple precision number
+     * @return quadruple precision number
+     */
+    function ln(bytes16 x) internal pure returns (bytes16) {
+        unchecked {
+            return mul(log_2(x), 0x3FFE62E42FEFA39EF35793C7673007E5);
+        }
+    }
 }

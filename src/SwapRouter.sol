@@ -167,7 +167,7 @@ contract SwapRouter {
     ///@param usdc - Address of USDC
     ///@param weth - Address of Weth
     /// @return calculated_fee_64x64 -  Returns the fee percent that is applied to the amountOut realized from an executed.
-    function calculateFee(
+    function _calculateFee(
         uint128 amountIn,
         address usdc,
         address weth
@@ -857,7 +857,7 @@ contract SwapRouter {
     /// @param FEE - The Uniswap V3 pool fee on the token pair.
     /// @return prices - SpotReserve array holding the reserves and spot prices across all dexes.
     /// @return lps - Pool address's on the token pair across all dexes.
-    function getAllPrices(
+    function _getAllPrices(
         address token0,
         address token1,
         uint24 FEE

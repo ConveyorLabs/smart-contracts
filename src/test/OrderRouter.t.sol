@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.16;
 
+import "../../lib/libraries/ConveyorFeeMath.sol";
 import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Utils.sol";
@@ -16,6 +17,7 @@ import "../../lib/libraries/Uniswap/FullMath.sol";
 import "../OrderBook.sol";
 import "../LimitOrderQuoter.sol";
 import "../LimitOrderExecutor.sol";
+
 //import "../../scripts/logistic_curve.py";
 
 interface CheatCodes {
@@ -34,7 +36,6 @@ contract OrderRouterTest is DSTest {
     IUniswapV2Factory uniV2Factory;
     ScriptRunner scriptRunner;
 
-    
     LimitOrderExecutorWrapper limitOrderExecutor;
     LimitOrderQuoter limitOrderQuoter;
 
@@ -105,6 +106,7 @@ contract OrderRouterTest is DSTest {
         assert(!limitOrderExecutor.lpIsNotUniV3(uniV3LPAddress));
     }
 
+    ///@notice Deprecated, this has been inlined to save space in bytecode size
     // ///@notice Test getTargetAmountIn
     // function testGetTargetAmountIn() public {
     //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -126,6 +128,7 @@ contract OrderRouterTest is DSTest {
     //     assertEq(amountInOhmUsdc, 10**9);
     // }
 
+    ///@notice Deprecated, this has been inlined to save space in bytecode size
     // ///@notice Test convertToCommonBase should convert outputs to common 18 decimals
     // function testChangeBase() public {
     //     //----------Test 1 setup----------------------//
@@ -159,7 +162,7 @@ contract OrderRouterTest is DSTest {
     //     assertEq(r0_out1, 131610640170334000000000000); //12 decimals added
     //     assertEq(r1_out1, 47925919677616776812811); //No change
     // }
-
+    ///@notice Deprecated, this has been inlined to save space in bytecode size
     // ///@notice Test getTargetDecimals
     // function testGetTargetDecimals() public {
     //     //Test Tokens
@@ -425,69 +428,69 @@ contract OrderRouterTest is DSTest {
         assertEq(spotPriceWethWax.spotPrice, expectedWaxeWeth);
     }
 
-    // function testGetAllPrices2() public {
-    //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    function testGetAllPrices2() public {
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-    //     (
-    //         SwapRouter.SpotReserve[] memory pricesWethUsdc,
-    //         address[] memory lps
-    //     ) = limitOrderExecutor.getAllPrices(weth, usdc, 3000);
+        (
+            SwapRouter.SpotReserve[] memory pricesWethUsdc,
+            address[] memory lps
+        ) = limitOrderExecutor.getAllPrices(weth, usdc, 3000);
 
-    //     (
-    //         SwapRouter.SpotReserve[] memory pricesUsdcWeth,
-    //         address[] memory lps1
-    //     ) = limitOrderExecutor.getAllPrices(usdc, weth, 3000);
+        (
+            SwapRouter.SpotReserve[] memory pricesUsdcWeth,
+            address[] memory lps1
+        ) = limitOrderExecutor.getAllPrices(usdc, weth, 3000);
 
-    //     console.log("weth/usdc");
-    //     console.log(pricesWethUsdc[0].spotPrice);
-    //     console.log(pricesWethUsdc[1].spotPrice);
-    //     console.log(pricesWethUsdc[2].spotPrice);
+        console.log("weth/usdc");
+        console.log(pricesWethUsdc[0].spotPrice);
+        console.log(pricesWethUsdc[1].spotPrice);
+        console.log(pricesWethUsdc[2].spotPrice);
 
-    //     console.log("usdc/weth");
-    //     console.log(pricesUsdcWeth[0].spotPrice);
-    //     console.log(pricesUsdcWeth[1].spotPrice);
-    //     console.log(pricesUsdcWeth[2].spotPrice);
-    // }
+        console.log("usdc/weth");
+        console.log(pricesUsdcWeth[0].spotPrice);
+        console.log(pricesUsdcWeth[1].spotPrice);
+        console.log(pricesUsdcWeth[2].spotPrice);
+    }
 
     //================================================================================================
 
     // //=========================================Fee Helper Functions============================================
-    // ///@notice Test calculate Fee
-    // function testCalculateFee(uint112 _amount) public {
-    //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    //     if (_amount > 0) {
-    //         (SwapRouter.SpotReserve memory price1, ) = limitOrderExecutor
-    //             .calculateV2SpotPrice(
-    //                 weth,
-    //                 usdc,
-    //                 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
-    //                 _uniswapV2HexDem
-    //             );
-    //         uint256 spotPrice = price1.spotPrice;
+    ///@notice Test calculate Fee
+    function testCalculateFee(uint112 _amount) public {
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        if (_amount > 0) {
+            (SwapRouter.SpotReserve memory price1, ) = limitOrderExecutor
+                .calculateV2SpotPrice(
+                    weth,
+                    usdc,
+                    0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
+                    _uniswapV2HexDem
+                );
+            uint256 spotPrice = price1.spotPrice;
 
-    //         ///@notice Calculate the weth amount in usd
-    //         uint256 amountInUsdcDollarValue = uint256(
-    //             ConveyorMath.mul128I(spotPrice, uint256(_amount)) /
-    //                 uint256(10**18)
-    //         );
-    //         console.logUint(amountInUsdcDollarValue);
+            ///@notice Calculate the weth amount in usd
+            uint256 amountInUsdcDollarValue = uint256(
+                ConveyorMath.mul128I(spotPrice, uint256(_amount)) /
+                    uint256(10**18)
+            );
+            console.logUint(amountInUsdcDollarValue);
 
-    //         ///@notice Pack the args
-    //         string memory path = "scripts/logistic_curve.py";
-    //         string memory args = uint2str(amountInUsdcDollarValue);
+            ///@notice Pack the args
+            string memory path = "scripts/logistic_curve.py";
+            string memory args = uint2str(amountInUsdcDollarValue);
 
-    //         //Expected output in bytes
-    //         bytes memory output = scriptRunner.runPythonScript(path, args);
+            //Expected output in bytes
+            bytes memory output = scriptRunner.runPythonScript(path, args);
 
-    //         uint256 fee = limitOrderExecutor.calculateFee(_amount, usdc, weth);
+            uint256 fee = limitOrderExecutor.calculateFee(_amount, usdc, weth);
 
-    //         uint256 expected = bytesToUint(output);
-    //         //Assert the outputs, provide a small buffer of precision on the python output as this is 64.64 fixed point
-    //         assertEq(fee / 10000, expected / 10000);
-    //     }
-    // }
+            uint256 expected = bytesToUint(output);
+            //Assert the outputs, provide a small buffer of precision on the python output as this is 64.64 fixed point
+            assertEq(fee / 10000, expected / 10000);
+        }
+    }
 
     ///@notice Helper function to convert bytes to uint
     function bytesToUint(bytes memory b) internal pure returns (uint256) {
@@ -502,58 +505,66 @@ contract OrderRouterTest is DSTest {
     }
 
     // ///@notice Test to calculate the Order Reward beacon
-    // function testCalculateOrderRewardBeacon(uint64 wethValue) public {
-    //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    //     if (!(wethValue < 10**18)) {
-    //         uint128 fee = limitOrderExecutor.calculateFee(wethValue, usdc, weth);
-    //         //1.8446744073709550
-    //         (, uint128 rewardBeacon) = limitOrderExecutor.calculateReward(
-    //             fee,
-    //             wethValue
-    //         );
+    function testCalculateOrderRewardBeacon(uint64 wethValue) public {
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        if (!(wethValue < 10**18)) {
+            uint128 fee = limitOrderExecutor.calculateFee(
+                wethValue,
+                usdc,
+                weth
+            );
+            //1.8446744073709550
+            (, uint128 rewardBeacon) = ConveyorFeeMath.calculateReward(
+                fee,
+                wethValue
+            );
 
-    //         //Pack the args
-    //         string memory path = "scripts/calculateRewardBeacon.py";
-    //         string[] memory args = new string[](3);
-    //         args[0] = uint2str(fee);
-    //         args[1] = uint2str(wethValue);
+            //Pack the args
+            string memory path = "scripts/calculateRewardBeacon.py";
+            string[] memory args = new string[](3);
+            args[0] = uint2str(fee);
+            args[1] = uint2str(wethValue);
 
-    //         //Python script output, off by a small decimals precision
-    //         bytes memory spotOut = scriptRunner.runPythonScript(path, args);
-    //         uint256 beaconRewardExpected = bytesToUint(spotOut);
+            //Python script output, off by a small decimals precision
+            bytes memory spotOut = scriptRunner.runPythonScript(path, args);
+            uint256 beaconRewardExpected = bytesToUint(spotOut);
 
-    //         //Assert the values
-    //         assertEq(rewardBeacon / 10**3, beaconRewardExpected / 10**3);
-    //     }
-    // }
+            //Assert the values
+            assertEq(rewardBeacon / 10**3, beaconRewardExpected / 10**3);
+        }
+    }
 
     // ///@notice Test calculate Conveyor Reward
-    // function testCalculateOrderRewardConveyor(uint64 wethValue) public {
-    //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    //     if (!(wethValue < 10**18)) {
-    //         uint128 fee = limitOrderExecutor.calculateFee(wethValue, usdc, weth);
-    //         //1.8446744073709550
-    //         (uint128 rewardConveyor, ) = limitOrderExecutor.calculateReward(
-    //             fee,
-    //             wethValue
-    //         );
+    function testCalculateOrderRewardConveyor(uint64 wethValue) public {
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        if (!(wethValue < 10**18)) {
+            uint128 fee = limitOrderExecutor.calculateFee(
+                wethValue,
+                usdc,
+                weth
+            );
+            //1.8446744073709550
+            (uint128 rewardConveyor, ) = ConveyorFeeMath.calculateReward(
+                fee,
+                wethValue
+            );
 
-    //         //Pack the arguments
-    //         string memory path = "scripts/calculateRewardConveyor.py";
-    //         string[] memory args = new string[](3);
-    //         args[0] = uint2str(fee);
-    //         args[1] = uint2str(wethValue);
+            //Pack the arguments
+            string memory path = "scripts/calculateRewardConveyor.py";
+            string[] memory args = new string[](3);
+            args[0] = uint2str(fee);
+            args[1] = uint2str(wethValue);
 
-    //         //Get the bytes out from the python script
-    //         bytes memory spotOut = scriptRunner.runPythonScript(path, args);
-    //         uint256 conveyorRewardExpected = bytesToUint(spotOut);
+            //Get the bytes out from the python script
+            bytes memory spotOut = scriptRunner.runPythonScript(path, args);
+            uint256 conveyorRewardExpected = bytesToUint(spotOut);
 
-    //         //Assert the outputs with a precision buffer on fuzz
-    //         assertEq(rewardConveyor / 10**3, conveyorRewardExpected / 10**3);
-    //     }
-    // }
+            //Assert the outputs with a precision buffer on fuzz
+            assertEq(rewardConveyor / 10**3, conveyorRewardExpected / 10**3);
+        }
+    }
 
     ///@notice Helper function to convert a uint to a string
     function uint2str(uint256 _i) internal pure returns (string memory str) {
@@ -578,58 +589,82 @@ contract OrderRouterTest is DSTest {
 
     //15233771
     ///@notice Test calculate Max beacon reward top level function
-    // function testCalculateMaxBeaconRewardTopLevel() public {
-    //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    //     (SwapRouter.SpotReserve[] memory pricesUsdcWeth, ) = limitOrderExecutor
-    //         .getAllPrices(usdc, weth, 3000);
+    function testCalculateMaxBeaconRewardTopLevel() public {
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        (SwapRouter.SpotReserve[] memory pricesUsdcWeth, ) = limitOrderExecutor
+            .getAllPrices(usdc, weth, 3000);
+        
+        // console.log("Price V3");
+        // console.logUint(pricesUsdcWeth[2].spotPrice);
+        // console.log("v2 uni/v2 sushi");
+        // console.logUint(pricesUsdcWeth[0].spotPrice);
+        // console.log(pricesUsdcWeth[0].res0);
+        // console.log(pricesUsdcWeth[0].res1);
+        // console.logUint(pricesUsdcWeth[1].spotPrice);
+        // v2 uni -> v3 
+        //>>> 195241231237093697621340806139528792/195097921519758036482852264177188530
+        //
+        // 1.0007345527631424
+        // >>> 1.0007345527631424*2**128
+        // 3.405323222738089e+38 > alphaXThreshold
+        //Sell order ==> High price more advantagous
+        OrderBook.Order memory order1 = newMockOrder(
+            usdc,
+            weth,
+            1,
+            false,
+            false,
+            0,
+            1,
+            10000000,
+            3000,
+            0,
+            0,
+            0
+        );
 
-    //     //Sell order ==> High price more advantagous
-    //     OrderBook.Order memory order1 = newMockOrder(
-    //         usdc,
-    //         weth,
-    //         1,
-    //         false,
-    //         false,
-    //         0,
-    //         1,
-    //         10000000,
-    //         3000,
-    //         0,
-    //         0,
-    //         0
-    //     );
+        OrderBook.Order memory order2 = newMockOrder(
+            usdc,
+            weth,
+            1,
+            false,
+            false,
+            0,
+            1,
+            10000000,
+            3000,
+            0,
+            0,
+            0
+        );
 
-    //     OrderBook.Order memory order2 = newMockOrder(
-    //         usdc,
-    //         weth,
-    //         1,
-    //         false,
-    //         false,
-    //         0,
-    //         1,
-    //         10000000,
-    //         3000,
-    //         0,
-    //         0,
-    //         0
-    //     );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
 
-    //     OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
-    //     orderBatch[0] = order1;
-    //     orderBatch[1] = order2;
+        uint128 maxReward = limitOrderExecutor._calculateMaxBeaconReward(
+            pricesUsdcWeth,
+            orderBatch,
+            false
+        );
 
-    //     uint128 maxReward = limitOrderExecutor.calculateMaxBeaconRewardTop(
-    //         pricesUsdcWeth,
-    //         orderBatch,
-    //         false
-    //     );
+        uint256 alphaX = ConveyorFeeMath._calculateAlphaX(249955352870405250000000000000000000, pricesUsdcWeth[0].res1, pricesUsdcWeth[0].res0);
+        uint256 projectedSnapshot = FullMath.mulDiv((pricesUsdcWeth[0].res1-alphaX), 2**128,(FullMath.mulDiv(pricesUsdcWeth[0].res1, pricesUsdcWeth[0].res0, pricesUsdcWeth[0].res1-alphaX)));
+        
+        bytes16 max128= QuadruplePrecision.fromUInt(340282366920938463463374607431768211455);
+        bytes16 TEN= QuadruplePrecision.fromUInt(10);
 
-    //     ///@notice Max reward is MAX_UINT 128
-    //     assertEq(maxReward, 340282366920938463463374607431768211455);
- 
-    // }
+        ///@notice Convert 2**128-1 to base 10 decimals i.e log_10(2**128-1)=x s.t 10^x=2**128-1
+        uint256 decimalsBase10 = QuadruplePrecision.toUInt(QuadruplePrecision.div(QuadruplePrecision.ln(max128), QuadruplePrecision.ln(TEN)));
+        
+        ///@notice 10**8 precision after the decimal point
+        assertEqDecimal(projectedSnapshot/(10**(decimalsBase10-8)), pricesUsdcWeth[2].spotPrice/(10**(decimalsBase10-8)), decimalsBase10);
+        
+        assertEq(maxReward,3829877604957868988);
+    }
 
+    ///@notice Deprecated as there are no longer batches to measure the price divergence
     // ///@notice Test Calculate Price Divergence from batch min
     // function testCalculatePriceDivergenceFromBatchMin() public {
     //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -693,164 +728,166 @@ contract OrderRouterTest is DSTest {
     //     assertEq(targetSpot, targetSpotExpected);
     // }
 
-    // ///@notice Test to calculate the price divergence between two spot prices
-    // function testCalculatePriceDivergence(uint128 _v3Spot, uint128 _v2Outlier)
-    //     public
-    // {
-    //     if (_v3Spot != 0 && _v2Outlier != 0 && _v2Outlier != _v3Spot) {
-    //         //Pack the args for fuzzing
-    //         string memory path = "scripts/calculatePriceDivergence.py";
-    //         string[] memory args = new string[](3);
-    //         uint256 _v3Base128 = ConveyorMath.fromUInt128(_v3Spot);
-    //         uint256 _v2Base128 = ConveyorMath.fromUInt128(_v2Outlier);
-    //         args[0] = uint2str(_v3Base128);
-    //         args[1] = uint2str(_v2Base128);
+    ///@notice Test to calculate the price divergence between two spot prices
+    function testCalculatePriceDivergence(uint128 _v3Spot, uint128 _v2Outlier)
+        public
+    {
+        if (_v3Spot != 0 && _v2Outlier != 0 && _v2Outlier != _v3Spot) {
+            //Pack the args for fuzzing
+            string memory path = "scripts/calculatePriceDivergence.py";
+            string[] memory args = new string[](3);
+            uint256 _v3Base128 = ConveyorMath.fromUInt128(_v3Spot);
+            uint256 _v2Base128 = ConveyorMath.fromUInt128(_v2Outlier);
+            args[0] = uint2str(_v3Base128);
+            args[1] = uint2str(_v2Base128);
 
-    //         //run the script and get the expected divergence
-    //         bytes memory priceDivergenceExpected = scriptRunner.runPythonScript(
-    //             path,
-    //             args
-    //         );
+            //run the script and get the expected divergence
+            bytes memory priceDivergenceExpected = scriptRunner.runPythonScript(
+                path,
+                args
+            );
 
-    //         uint256 priceDivergenceExpectedInt = bytesToUint(
-    //             priceDivergenceExpected
-    //         );
+            uint256 priceDivergenceExpectedInt = bytesToUint(
+                priceDivergenceExpected
+            );
 
-    //         //Get the price divergence from the contract
-    //         uint256 priceDivergence = limitOrderExecutor.calculatePriceDivergence(
-    //             _v2Base128,
-    //             _v2Base128
-    //         );
-    //         //Assert the outputs
-    //         assertEq(priceDivergence, priceDivergenceExpectedInt);
-    //     }
-    // }
+            //Get the price divergence from the contract
+            uint256 priceDivergence = ConveyorFeeMath._calculatePriceDivergence(
+                _v2Base128,
+                _v2Base128
+            );
+            //Assert the outputs
+            assertEq(priceDivergence, priceDivergenceExpectedInt);
+        }
+    }
 
-    // function testCalculateMaxBeaconReward(
-    //     uint64 _alphaX,
-    //     uint128 _reserve0,
-    //     uint128 _reserve1,
-    //     uint128 _fee
-    // ) public {
-    //     bool run = false;
+    function testCalculateMaxBeaconReward(
+        uint64 _alphaX,
+        uint128 _reserve0,
+        uint128 _reserve1,
+        uint128 _fee
+    ) public {
+        bool run = false;
 
-    //     //Conditional checks to help with precision of the output and test setup
-    //     if (
-    //         _alphaX > 0 &&
-    //         _alphaX % 10 == 0 &&
-    //         _reserve0 > 100 &&
-    //         _reserve1 > 100 &&
-    //         _alphaX < _reserve0 &&
-    //         uint128(553402322211286500) <= _fee &&
-    //         _fee <= uint128(922337203685477600)
-    //     ) {
-    //         run = true;
-    //     }
+        //Conditional checks to help with precision of the output and test setup
+        if (
+            _alphaX > 0 &&
+            _alphaX % 10 == 0 &&
+            _reserve0 > 100 &&
+            _reserve1 > 100 &&
+            _alphaX < _reserve0 &&
+            uint128(553402322211286500) <= _fee &&
+            _fee <= uint128(922337203685477600)
+        ) {
+            run = true;
+        }
 
-    //     if (run == true) {
-    //         uint128 k = _reserve0 * _reserve1;
-    //         unchecked {
-    //             //Set execution reserve to alphaX + reserve0
-    //             uint128 reserve0Execution = _alphaX + _reserve0;
-    //             if (reserve0Execution <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF) {
-    //                 //Reserve1 execution
-    //                 uint128 reserve1Execution = k / reserve0Execution;
-    //                 //Snapshot spot price
-    //                 uint256 snapShotSpotPrice = uint256(
-    //                     ConveyorMath.divUI(_reserve1, _reserve0) << 64
-    //                 );
-    //                 //Get the max beacon reward
-    //                 uint128 maxBeaconReward = limitOrderExecutor
-    //                     .__calculateMaxBeaconReward(
-    //                         snapShotSpotPrice,
-    //                         reserve0Execution,
-    //                         reserve1Execution,
-    //                         _fee
-    //                     );
-    //                 //Expected == uni v2 fee * alphaX
-    //                 uint128 expected = ConveyorMath.mul64x64(
-    //                     _fee,
-    //                     uint128(_alphaX) << 64
-    //                 );
+        if (run == true) {
+            uint128 k = _reserve0 * _reserve1;
+            unchecked {
+                //Set execution reserve to alphaX + reserve0
+                uint128 reserve0Execution = _alphaX + _reserve0;
+                if (reserve0Execution <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF) {
+                    //Reserve1 execution
+                    uint128 reserve1Execution = k / reserve0Execution;
+                    //Snapshot spot price
+                    uint256 snapShotSpotPrice = uint256(
+                        ConveyorMath.divUI(_reserve1, _reserve0) << 64
+                    );
+                    //Get the max beacon reward
+                    uint128 maxBeaconReward = ConveyorFeeMath
+                        ._calculateMaxBeaconReward(
+                            snapShotSpotPrice,
+                            reserve0Execution,
+                            reserve1Execution,
+                            _fee
+                        );
+                    //Expected == uni v2 fee * alphaX
+                    uint128 expected = ConveyorMath.mul64x64(
+                        _fee,
+                        uint128(_alphaX) << 64
+                    );
 
-    //                 //Assert the outputs
-    //                 assertEq(maxBeaconReward, expected);
-    //             }
-    //         }
-    //     }
-    // }
+                    //Assert the outputs
+                    assertEq(maxBeaconReward, expected);
+                }
+            }
+        }
+    }
 
-    // ///@notice Test Calculate AlphaX
-    // function testCalculateAlphaX(
-    //     uint32 _alphaX,
-    //     uint112 _reserve0,
-    //     uint112 _reserve1
-    // ) public {
-    //     bool run = false;
-    //     ///Conditions to mimic an execution environment
-    //     if (
-    //         _alphaX > 1500 &&
-    //         _alphaX % 10 == 0 &&
-    //         _reserve0 > 10000000000000000000 &&
-    //         _reserve1 > 100000000000000000010 &&
-    //         _reserve0 != _reserve1 &&
-    //         _alphaX < _reserve0
-    //     ) {
-    //         run = true;
-    //     }
+    ///@notice Test Calculate AlphaX
+    function testCalculateAlphaX(
+        uint32 _alphaX,
+        uint112 _reserve0,
+        uint112 _reserve1
+    ) public {
+       bool run = false;
+        ///Conditions to mimic an execution environment
+        if (
+            _alphaX > 10000000000 &&
+            _alphaX % 10 == 0 &&
+            _reserve0 > 10000000000000000000 &&
+            _reserve0 % 10 ==0 &&
+            _reserve1 % 10 ==0 &&
+            _reserve1 > 100000000000000000010 &&
+            _reserve0 != _reserve1 &&
+            _alphaX < _reserve0
+        ) {
+            run = true;
+        }
 
-    //     if (run == true) {
-    //         unchecked {
-    //             ///@notice Reserve0SnapShot = reserve0-alphaX
-    //             uint128 reserve0Snapshot = _reserve0 - _alphaX;
-    //             if (0 < reserve0Snapshot) {
-    //                 //Reserve 1 snapshot = k/(reserve0Snapshot)
-    //                 uint128 reserve1Snapshot = uint128(
-    //                     FullMath.mulDivRoundingUp(
-    //                         uint256(_reserve0),
-    //                         uint256(_reserve1),
-    //                         reserve0Snapshot
-    //                     )
-    //                 );
+        if (run == true) {
+            unchecked {
+                ///@notice Reserve0SnapShot = reserve0-alphaX
+                uint128 reserve0Snapshot = _reserve0 - _alphaX;
+                if (0 < reserve0Snapshot) {
+                    //Reserve 1 snapshot = k/(reserve0Snapshot)
+                    uint128 reserve1Snapshot = uint128(
+                        FullMath.mulDivRoundingUp(
+                            uint256(_reserve0),
+                            uint256(_reserve1),
+                            reserve0Snapshot
+                        )
+                    );
 
-    //                 //Snapshot spot price == reserve1Snapshot/reserve0Snapshot
-    //                 uint128 snapShotSpotPrice = ConveyorMath.divUI(
-    //                     uint256(reserve1Snapshot),
-    //                     uint256(reserve0Snapshot)
-    //                 );
+                    //Snapshot spot price == reserve1Snapshot/reserve0Snapshot
+                    uint128 snapShotSpotPrice = ConveyorMath.divUI(
+                        uint256(reserve1Snapshot),
+                        uint256(reserve0Snapshot)
+                    );
 
-    //                 //Execution spot price == reserve1/reserve0
-    //                 uint128 executionSpotPrice = ConveyorMath.divUI(
-    //                     uint256(_reserve1),
-    //                     uint256(_reserve0)
-    //                 );
+                    //Execution spot price == reserve1/reserve0
+                    uint128 executionSpotPrice = ConveyorMath.divUI(
+                        uint256(_reserve1),
+                        uint256(_reserve0)
+                    );
 
-    //                 //Delta == executionSpot/snapShotSpot
-    //                 uint256 delta_temp = ConveyorMath.div128x128(
-    //                     uint256(executionSpotPrice) << 64,
-    //                     uint256(snapShotSpotPrice) << 64
-    //                 );
+                    //Delta == executionSpot/snapShotSpot
+                    uint256 delta_temp = ConveyorMath.div128x128(
+                        uint256(executionSpotPrice) << 64,
+                        uint256(snapShotSpotPrice) << 64
+                    );
 
-    //                 //Delta = delta_temp -1
-    //                 uint256 delta = uint256(
-    //                     ConveyorMath.abs(
-    //                         (int256(delta_temp) - (int256(1) << 128))
-    //                     )
-    //                 );
+                    //Delta = delta_temp -1
+                    uint256 delta = uint256(
+                        ConveyorMath.abs(
+                            (int256(delta_temp) - (int256(1) << 128))
+                        )
+                    );
 
-    //                 //Get alphaX value from contract on delta
-    //                 uint256 alphaX = limitOrderExecutor.calculateAlphaX(
-    //                     delta,
-    //                     uint128(_reserve0),
-    //                     uint128(_reserve1)
-    //                 );
+                    //Get alphaX value from contract on delta
+                    uint256 alphaX = ConveyorFeeMath._calculateAlphaX(
+                        delta,
+                        uint128(_reserve0),
+                        uint128(_reserve1)
+                    );
 
-    //                 ///This assertion will sometimes fail becaus of 1 decimal precision errors, I believe this has to do with the reserve1Snapshot derivation in the test
-    //                 assertEq(uint256(alphaX) / 100, uint256(_alphaX) / 100);
-    //             }
-    //         }
-    //     }
-    // }
+                    
+                    assertEq(uint256(alphaX), uint256(_alphaX));
+                }
+            }
+        }
+    }
 
     //================================================================
     //======================= Helper functions =======================
@@ -1009,7 +1046,6 @@ contract OrderRouterTest is DSTest {
     function testSwapV3_1() public {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-        
         //get the token in
         cheatCodes.deal(address(this), MAX_UINT);
 
@@ -1017,13 +1053,15 @@ contract OrderRouterTest is DSTest {
             abi.encodeWithSignature("deposit()")
         );
         address tokenIn = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        IERC20(tokenIn).approve(address(limitOrderExecutor), 1000000000000000000);
-        
+        IERC20(tokenIn).approve(
+            address(limitOrderExecutor),
+            1000000000000000000
+        );
+
         //address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
         address _lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
-        
-        
+
         address reciever = address(this);
         limitOrderExecutor.swapV3(
             _lp,
@@ -1041,14 +1079,14 @@ contract OrderRouterTest is DSTest {
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-                1000 ether,
-                tokenIn
-            );
-        
+            1000 ether,
+            tokenIn
+        );
+
         IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
-    
+
         address _lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
-        
+
         address reciever = address(this);
 
         limitOrderExecutor.swapV3(
@@ -1061,89 +1099,81 @@ contract OrderRouterTest is DSTest {
             address(this)
         );
     }
-    
-    // function testSwap() public {
-    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-    //     address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    //     //get the token in
-    //     uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-    //         1000000000000000,
-    //         tokenIn
-    //     );
+    function testSwap() public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-    //     IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        //get the token in
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+            1000000000000000,
+            tokenIn
+        );
 
-    //     address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
 
-    //     address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    //     uint256 amountInMaximum = amountReceived - 1;
-    //     address reciever = address(this);
+        address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
 
-    //     limitOrderExecutor.swap(
-    //         tokenIn,
-    //         tokenOut,
-    //         lp,
-    //         3000,
-    //         amountReceived,
-    //         amountInMaximum,
-    //         reciever,
-    //         address(this)
-    //     );
-    // }
+        uint256 amountInMaximum = amountReceived - 1;
+        address reciever = address(this);
 
-    // function testFailSwap_InsufficientOutputAmount() public {
-    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
+        limitOrderExecutor._swap(
+            tokenIn,
+            tokenOut,
+            lp,
+            3000,
+            amountReceived,
+            amountInMaximum,
+            reciever,
+            address(this)
+        );
+    }
 
-    //     address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    //     //get the token in
-    //     uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-    //         1000000000000000,
-    //         tokenIn
-    //     );
-    
-    //     IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
+    function testFailSwap_InsufficientOutputAmount() public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-    //     address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        //get the token in
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+            1000000000000000,
+            tokenIn
+        );
 
-    //     address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+        IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
 
-    //     uint256 amountInMaximum = amountReceived;
-    //     address reciever = address(this);
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    //     uint256 amountOut = limitOrderExecutor.swap(
-    //         tokenIn,
-    //         tokenOut,
-    //         lp,
-    //         300,
-    //         amountReceived,
-    //         amountInMaximum,
-    //         reciever,
-    //         address(this)
-    //     );
+        address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
 
-    //     require(amountOut != 0, "InsufficientOutputAmount");
-    // }
+        uint256 amountInMaximum = amountReceived;
+        address reciever = address(this);
 
-    
+        uint256 amountOut = limitOrderExecutor._swap(
+            tokenIn,
+            tokenOut,
+            lp,
+            300,
+            amountReceived,
+            amountInMaximum,
+            reciever,
+            address(this)
+        );
+
+        require(amountOut != 0, "InsufficientOutputAmount");
+    }
+
     //================================================================================================
 }
 
 //wrapper around SwapRouter to expose internal functions for testing
 contract LimitOrderExecutorWrapper is SwapRouter {
     constructor(
-        
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2
-        
-    ) SwapRouter(_initBytecodes, _dexFactories, _isUniV2)
-        
-    {}
-
-   
-
+    ) SwapRouter(_initBytecodes, _dexFactories, _isUniV2) {}
 
     function getV3PoolFee(address pairAddress)
         public
@@ -1153,30 +1183,13 @@ contract LimitOrderExecutorWrapper is SwapRouter {
         return getV3PoolFee(pairAddress);
     }
 
-
-    // function __calculateMaxBeaconReward(
-    //     uint256 delta,
-    //     uint128 reserve0,
-    //     uint128 reserve1,
-    //     uint128 fee
-    // ) public returns (uint128) {
-    //     return _calculateMaxBeaconReward(delta, reserve0, reserve1, fee);
-    // }
-
-    // function calculatePriceDivergence(uint256 v3Spot, uint256 v2Outlier)
-    //     public
-    //     returns (uint256)
-    // {
-    //     return _calculatePriceDivergence(v3Spot, v2Outlier);
-    // }
-
-    // function calculateAlphaX(
-    //     uint256 delta,
-    //     uint128 reserve0Execution,
-    //     uint128 reserve1Execution
-    // ) public returns (uint256) {
-    //     return _calculateAlphaX(delta, reserve0Execution, reserve1Execution);
-    // }
+    function _calculateMaxBeaconReward(
+        SpotReserve[] memory spotReserves,
+        OrderBook.Order[] memory orders,
+        bool wethIsToken0
+    ) public view returns (uint128 maxBeaconReward) {
+        return calculateMaxBeaconReward(spotReserves, orders, wethIsToken0);
+    }
 
     function lpIsNotUniV3(address lp) public returns (bool) {
         return _lpIsNotUniV3(lp);
@@ -1226,13 +1239,13 @@ contract LimitOrderExecutorWrapper is SwapRouter {
             );
     }
 
-    // function calculatePriceDivergenceFromBatchMin(
-    //     uint256 v2Outlier,
-    //     OrderBook.Order[] memory orders,
-    //     bool buy
-    // ) public pure returns (uint256, uint256) {
-    //     return _calculatePriceDivergenceFromBatchMin(v2Outlier, orders, buy);
-    // }
+    function getAllPrices(
+        address token0,
+        address token1,
+        uint24 FEE
+    ) public view returns (SpotReserve[] memory prices, address[] memory lps) {
+        return _getAllPrices(token0, token1, FEE);
+    }
 
     function calculateV2SpotPrice(
         address token0,
@@ -1252,9 +1265,36 @@ contract LimitOrderExecutorWrapper is SwapRouter {
         return _calculateV3SpotPrice(token0, token1, FEE, _factory);
     }
 
+    function calculateFee(
+        uint128 amountIn,
+        address usdc,
+        address weth
+    ) public view returns (uint128) {
+        return _calculateFee(amountIn, usdc, weth);
+    }
 
-
-   
+    function _swap(
+        address _tokenIn,
+        address _tokenOut,
+        address _lp,
+        uint24 _fee,
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        address _reciever,
+        address _sender
+    ) public returns (uint256 amountRecieved) {
+        return
+            swap(
+                _tokenIn,
+                _tokenOut,
+                _lp,
+                _fee,
+                _amountIn,
+                _amountOutMin,
+                _reciever,
+                _sender
+            );
+    }
 
     function getQuoteAtTick(
         int24 tick,

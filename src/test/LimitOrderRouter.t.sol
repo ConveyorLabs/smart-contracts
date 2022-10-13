@@ -29,7 +29,7 @@ interface CheatCodes {
 
 contract LimitOrderRouterTest is DSTest {
     //Initialize limit-v0 contract for testing
-    LimitOrderRouter limitOrderRouter;
+    LimitOrderRouterWrapper limitOrderRouter;
     LimitOrderExecutor limitOrderExecutor;
     LimitOrderQuoter limitOrderQuoter;
 
@@ -118,7 +118,7 @@ contract LimitOrderRouterTest is DSTest {
             _isUniV2
         );
 
-        limitOrderRouter = new LimitOrderRouter(
+        limitOrderRouter = new LimitOrderRouterWrapper(
             aggregatorV3Address,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             address(limitOrderExecutor)
@@ -139,74 +139,74 @@ contract LimitOrderRouterTest is DSTest {
     //================= Validate Order Sequence Tests ================
     //================================================================
 
-    // function testValidateOrderSequence() public {
-    //     cheatCodes.deal(address(this), MAX_UINT);
-    //     depositGasCreditsForMockOrders(MAX_UINT);
+    function testValidateOrderSequence() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
 
-    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-    //     OrderBook.Order[] memory orderBatch = newMockTokenToTokenBatch();
+        OrderBook.Order[] memory orderBatch = newMockTokenToTokenBatch();
 
-    //     limitOrderRouter.validateOrderSequencing(orderBatch);
-    // }
+        limitOrderRouter.validateOrderSequencing(orderBatch);
+    }
 
-    // function testFailValidateOrderSequence_InvalidBatchOrder() public {
-    //     cheatCodes.deal(address(this), MAX_UINT);
-    //     depositGasCreditsForMockOrders(MAX_UINT);
-    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
+    function testFailValidateOrderSequence_InvalidBatchOrder() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-    //     OrderBook.Order[]
-    //         memory orderBatch = newMockTokenToWethBatch_InvalidBatchOrdering();
+        OrderBook.Order[]
+            memory orderBatch = newMockTokenToWethBatch_InvalidBatchOrdering();
 
-    //     limitOrderRouter.validateOrderSequencing(orderBatch);
-    // }
+        limitOrderRouter.validateOrderSequencing(orderBatch);
+    }
 
-    // function testFailValidateOrderSequence_IncongruentInputTokenInBatch()
-    //     public
-    // {
-    //     cheatCodes.deal(address(this), MAX_UINT);
-    //     depositGasCreditsForMockOrders(MAX_UINT);
-    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
+    function testFailValidateOrderSequence_IncongruentInputTokenInBatch()
+        public
+    {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-    //     OrderBook.Order[]
-    //         memory orderBatch = newMockTokenToWethBatch_IncongruentTokenIn();
+        OrderBook.Order[]
+            memory orderBatch = newMockTokenToWethBatch_IncongruentTokenIn();
 
-    //     limitOrderRouter.validateOrderSequencing(orderBatch);
-    // }
+        limitOrderRouter.validateOrderSequencing(orderBatch);
+    }
 
-    // function testFailValidateOrderSequence_IncongruentTokenOut() public {
-    //     cheatCodes.deal(address(this), MAX_UINT);
-    //     depositGasCreditsForMockOrders(MAX_UINT);
-    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
+    function testFailValidateOrderSequence_IncongruentTokenOut() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-    //     OrderBook.Order[]
-    //         memory orderBatch = newMockTokenToWethBatch_IncongruentTokenOut();
-    //     limitOrderRouter.validateOrderSequencing(orderBatch);
-    // }
+        OrderBook.Order[]
+            memory orderBatch = newMockTokenToWethBatch_IncongruentTokenOut();
+        limitOrderRouter.validateOrderSequencing(orderBatch);
+    }
 
-    // function testFailValidateOrderSequence_IncongruentBuySellStatusInBatch()
-    //     public
-    // {
-    //     cheatCodes.deal(address(this), MAX_UINT);
-    //     depositGasCreditsForMockOrders(MAX_UINT);
-    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
+    function testFailValidateOrderSequence_IncongruentBuySellStatusInBatch()
+        public
+    {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-    //     OrderBook.Order[]
-    //         memory orderBatch = newMockTokenToWethBatch_IncongruentBuySellStatus();
-    //     limitOrderRouter.validateOrderSequencing(orderBatch);
-    // }
+        OrderBook.Order[]
+            memory orderBatch = newMockTokenToWethBatch_IncongruentBuySellStatus();
+        limitOrderRouter.validateOrderSequencing(orderBatch);
+    }
 
-    // function testFailValidateOrderSequence_IncongruentTaxedTokenInBatch()
-    //     public
-    // {
-    //     cheatCodes.deal(address(this), MAX_UINT);
-    //     depositGasCreditsForMockOrders(MAX_UINT);
-    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
+    function testFailValidateOrderSequence_IncongruentTaxedTokenInBatch()
+        public
+    {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-    //     OrderBook.Order[]
-    //         memory orderBatch = newMockTokenToWethBatch_IncongruentTaxedTokenInBatch();
-    //     limitOrderRouter.validateOrderSequencing(orderBatch);
-    // }
+        OrderBook.Order[]
+            memory orderBatch = newMockTokenToWethBatch_IncongruentTaxedTokenInBatch();
+        limitOrderRouter.validateOrderSequencing(orderBatch);
+    }
 
     function testGetAllOrderIds() public {
         cheatCodes.deal(address(this), MAX_UINT);
@@ -433,7 +433,7 @@ contract LimitOrderRouterTest is DSTest {
             false,
             0,
             1,
-            500000000000000000000000, //5000 DAI
+            5000000000000000000000, //5000 DAI
             3000,
             3000,
             0,

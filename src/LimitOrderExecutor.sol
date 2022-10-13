@@ -41,7 +41,7 @@ contract LimitOrderExecutor is SwapRouter {
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn);
+        ) = _getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn);
 
         TokenToWethExecutionPrice[] memory executionPrices = ILimitOrderQuoter(
             LIMIT_ORDER_QUOTER
@@ -182,7 +182,7 @@ contract LimitOrderExecutor is SwapRouter {
         );
 
         ///@notice Take out fees from the amountOut.
-        uint128 protocolFee = calculateFee(amountOutWeth, USDC, WETH);
+        uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
 
         ///@notice Calculate the conveyorReward and executor reward.
         (conveyorReward, beaconReward) = ConveyorFeeMath.calculateReward(
@@ -209,13 +209,13 @@ contract LimitOrderExecutor is SwapRouter {
             (
                 SpotReserve[] memory spotReserveAToWeth,
                 address[] memory lpAddressesAToWeth
-            ) = getAllPrices(tokenIn, WETH, orders[0].feeIn);
+            ) = _getAllPrices(tokenIn, WETH, orders[0].feeIn);
 
             ///@notice Get all prices for the pairing Weth to tokenOut
             (
                 SpotReserve[] memory spotReserveWethToB,
                 address[] memory lpAddressWethToB
-            ) = getAllPrices(WETH, orders[0].tokenOut, orders[0].feeOut);
+            ) = _getAllPrices(WETH, orders[0].tokenOut, orders[0].feeOut);
 
             executionPrices = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
                 ._initializeTokenToTokenExecutionPrices(
@@ -318,7 +318,7 @@ contract LimitOrderExecutor is SwapRouter {
                 uint256 amountIn = order.quantity;
 
                 ///@notice Take out fees from the batch amountIn since token0 is weth.
-                uint128 protocolFee = calculateFee(
+                uint128 protocolFee = _calculateFee(
                     uint128(amountIn),
                     USDC,
                     WETH
