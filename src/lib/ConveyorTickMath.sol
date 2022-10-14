@@ -15,6 +15,7 @@ import "../../src/test/utils/Console.sol";
 import "../../lib/libraries/Uniswap/SafeCast.sol";
 
 contract ConveyorTickMath {
+    ///@notice Initialize all libraries. 
     using SafeCast for uint256;
     using LowGasSafeMath for int256;
     using Tick for mapping(int24 => Tick.Info);
@@ -60,6 +61,7 @@ contract ConveyorTickMath {
         uint256 feeAmount;
     }
 
+    ///@notice Function to convers a Q96.64 fixed point to a 64.64 fixed point resolution. 
     function fromX96(uint160 x) internal pure returns (uint128) {
         unchecked {
             require(uint128(x >> 32) <= MAX_64x64);
@@ -86,8 +88,7 @@ contract ConveyorTickMath {
     ) internal returns (int256 amountOut) {
         ///@notice If token0 in the pool is tokenIn then set zeroForOne to true.
         bool zeroForOne = token0 == tokenIn ? true : false;
-        int256 amount0;
-        int256 amount1;
+
         ///@notice Grab the current price and the current tick in the pool.
         (uint160 sqrtPriceX96, int24 initialTick, , , , , ) = IUniswapV3Pool(
             lpAddressAToWeth
@@ -102,24 +103,22 @@ contract ConveyorTickMath {
             liquidity: liquidity
         });
 
-        
         ///@notice While the current state still has an amount to swap continue.
         while (currentState.amountSpecifiedRemaining > 0) {
-            
+            ///@notice Initialize step structure.
             StepComputations memory step;
+            ///@notice Set sqrtPriceStartX96.
             step.sqrtPriceStartX96 = currentState.sqrtPriceX96;
-
+            ///@notice Set the tickNext, and if the tick is initialized.
             (step.tickNext, step.initialized) = tickBitmap
                 .nextInitializedTickWithinOneWord(
                     currentState.tick,
                     tickSpacing,
                     zeroForOne
                 );
-            console.logInt(step.tickNext);
-            
-
+            ///@notice Set the next sqrtPrice of the step.
             step.sqrtPriceNextX96 = TickMath.getSqrtRatioAtTick(step.tickNext);
-
+            ///@notice Perform the swap step on the current tick.
             (
                 currentState.sqrtPriceX96,
                 step.amountIn,
@@ -130,49 +129,41 @@ contract ConveyorTickMath {
                 step.sqrtPriceNextX96,
                 currentState.liquidity,
                 currentState.amountSpecifiedRemaining,
-                uint8(fee)
+                fee
             );
-            
+            ///@notice Decrement the remaining amount to be swapped by the amount available within the tick range.
             currentState.amountSpecifiedRemaining -= (step.amountIn +
-                    step.feeAmount).toInt256();
-            
+                step.feeAmount).toInt256();
+            ///@notice Increment amountCalculated by the amount recieved in the tick range.
             currentState.amountCalculated -= step.amountOut.toInt256();
-
+            ///@notice If the swap step crossed into the next tick, and that tick is initialized.
             if (currentState.sqrtPriceX96 == step.sqrtPriceNextX96) {
                 if (step.initialized) {
+                    ///@notice Get the net liquidity after crossing the tick.
                     int128 liquidityNet = ticks.cross(step.tickNext);
+                    ///@notice If swapping token0 for token1 then negate the liquidtyNet.
                     unchecked {
                         if (zeroForOne) liquidityNet = -liquidityNet;
                     }
-
+                    ///@notice Update the current states liquidity based on liquidityNet in the new tick range.
                     currentState.liquidity = liquidityNet < 0
                         ? currentState.liquidity - uint128(-liquidityNet)
                         : currentState.liquidity + uint128(liquidityNet);
                 }
-
+                ///@notice Update the currentStates tick.
                 unchecked {
                     currentState.tick = zeroForOne
                         ? step.tickNext - 1
                         : step.tickNext;
                 }
+                ///@notice If sqrtPriceX96 in the currentState is not equal to the projected next tick, then recompute the currentStates tick.
             } else if (currentState.sqrtPriceX96 != step.sqrtPriceStartX96) {
-                // recompute unless we're on a lower tick boundary (i.e. already transitioned ticks), and haven't moved
                 currentState.tick = TickMath.getTickAtSqrtRatio(
                     currentState.sqrtPriceX96
                 );
             }
         }
-
-        unchecked {
-            (amount0, amount1) = zeroForOne
-                ? (int256(amountIn) - currentState.amountSpecifiedRemaining, currentState.amountCalculated)
-                : (currentState.amountCalculated, int256(amountIn) - currentState.amountSpecifiedRemaining);
-                console.logInt(amount0);
-        console.logInt(amount1);
-        }
-        
-
-        console.logInt(int256(currentState.amountSpecifiedRemaining));
-        return int256(currentState.amountSpecifiedRemaining);
+        ///@notice Return the simulated amount out as a negative value representing the amount recieved in the swap.
+        return currentState.amountCalculated;
     }
 }

@@ -13,6 +13,7 @@ import "./utils/ScriptRunner.sol";
 import "../OrderBook.sol";
 import "../LimitOrderRouter.sol";
 import "../LimitOrderQuoter.sol";
+import "../../lib/interfaces/uniswap-v3/IQuoter.sol";
 
 
 interface CheatCodes {
@@ -37,7 +38,7 @@ contract LimitOrderQuoterTest is DSTest {
     SwapRouter orderRouter;
     //Initialize OrderBook
     OrderBook orderBook;
-
+    IQuoter iQuoter;
     ScriptRunner scriptRunner;
 
     Swap swapHelper;
@@ -109,6 +110,7 @@ contract LimitOrderQuoterTest is DSTest {
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
         );
+        iQuoter = IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
     }
 
     //================================================================
@@ -238,75 +240,18 @@ contract LimitOrderQuoterTest is DSTest {
     }
 
     //Block # 15233771
-    function testCalculateAmountOutMinV3() public {
+    function testSimulateAmountOutV3() public {
         address poolAddress = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
         address tokenIn = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         uint128 alphaX = 500000000000;
-
+        (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(poolAddress).slot0();
+        uint128 liquidity = IUniswapV3Pool(poolAddress).liquidity();
+        uint160 sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(sqrtPriceX96, liquidity, alphaX, true);
+        uint256 amountOut =iQuoter.quoteExactInputSingle(tokenIn, WETH, 3000, alphaX, sqrtPriceLimitX96);
         uint256 amountOutMin = limitOrderQuoter.calculateAmountOutMinAToWeth(poolAddress, alphaX, 0, 3000, tokenIn);
 
-        console.log(amountOutMin);
+        assertEq(amountOut,amountOutMin);
     }
-
-    //Block # 15233771
-    //Test simulate weth to b price change V3 test
-
-    // function testSimulateWethToBPriceChangeV3() public {
-    //     uint8[] memory decimals = new uint8[](2);
-    //     decimals[0] = 18;
-    //     decimals[1] = 18;
-    //     //Weth/Uni
-    //     SwapRouter.TokenToTokenExecutionPrice
-    //         memory tokenToTokenExecutionPrice = SwapRouter
-    //             .TokenToTokenExecutionPrice({
-    //                 aToWethReserve0: 0,
-    //                 aToWethReserve1: 0,
-    //                 wethToBReserve0: 0,
-    //                 wethToBReserve1: 0,
-    //                 price: 0,
-    //                 lpAddressAToWeth: address(0),
-    //                 lpAddressWethToB: 0x1d42064Fc4Beb5F8aAF85F4617AE8b3b5B8Bd801
-    //             });
-
-    //     (uint256 newSpotPriceB, , ) = limitOrderRouter
-    //         .simulateWethToBPriceChange(
-    //             5000000000000000000000,
-    //             tokenToTokenExecutionPrice
-    //         );
-    //     assertEq(38416481291436668068511433527512398823424, newSpotPriceB);
-    // }
-
-    //Block # 15233771
-
-    ///@notice Simulate AToWeth Price change V3 test
-
-    // function testSimulateAToWethPriceChangeV3() public {
-    //     uint8[] memory decimals = new uint8[](2);
-    //     decimals[0] = 18;
-    //     decimals[1] = 18;
-    //     //Weth/Uni
-    //     SwapRouter.TokenToTokenExecutionPrice
-    //         memory tokenToTokenExecutionPrice = SwapRouter
-    //             .TokenToTokenExecutionPrice({
-    //                 aToWethReserve0: 0,
-    //                 aToWethReserve1: 0,
-    //                 wethToBReserve0: 0,
-    //                 wethToBReserve1: 0,
-    //                 price: 0,
-    //                 lpAddressAToWeth: 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8,
-    //                 lpAddressWethToB: address(0)
-    //             });
-
-    //     (uint256 newSpotPriceA, , , uint128 amountOut) = limitOrderRouter
-    //         .simulateAToWethPriceChange(
-    //             5000000000000000000000,
-    //             tokenToTokenExecutionPrice
-    //         );
-
-    //     assertEq(newSpotPriceA, 179260530996058765835863903453577216);
-    //     assertEq(amountOut, 2626349041956157673);
-
-    // }
 
     //Block # 15233771
     ///@notice Simulate WethToB price change v2 test
