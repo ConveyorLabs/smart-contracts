@@ -12,9 +12,10 @@ import "../../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../../lib/libraries//Uniswap/LowGasSafeMath.sol";
 import "../../lib/libraries/Uniswap/Tick.sol";
 import "../../src/test/utils/Console.sol";
+import "../../lib/libraries/Uniswap/SafeCast.sol";
 
 contract ConveyorTickMath {
-    using LowGasSafeMath for uint256;
+    using SafeCast for uint256;
     using LowGasSafeMath for int256;
     using Tick for mapping(int24 => Tick.Info);
     using TickBitmap for mapping(int16 => uint256);
@@ -28,7 +29,7 @@ contract ConveyorTickMath {
     /// @notice maximum uint128 64.64 fixed point number
     uint128 private constant MAX_64x64 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
 
-    ///@notice Struct holding the current simulated swap state. 
+    ///@notice Struct holding the current simulated swap state.
     struct CurrentState {
         ///@notice Amount remaining to be swapped upon cross tick simulation.
         int256 amountSpecifiedRemaining;
@@ -59,8 +60,6 @@ contract ConveyorTickMath {
         uint256 feeAmount;
     }
 
-    
-
     function fromX96(uint160 x) internal pure returns (uint128) {
         unchecked {
             require(uint128(x >> 32) <= MAX_64x64);
@@ -68,12 +67,12 @@ contract ConveyorTickMath {
         }
     }
 
-    ///@notice Function to simulate the change in sqrt price on a uniswap v3 swap. 
-    ///@param token0 Token 0 in the v3 pool. 
-    ///@param tokenIn Token 0 in the v3 pool. 
-    ///@param lpAddressAToWeth The tokenA to weth liquidity pool address. 
+    ///@notice Function to simulate the change in sqrt price on a uniswap v3 swap.
+    ///@param token0 Token 0 in the v3 pool.
+    ///@param tokenIn Token 0 in the v3 pool.
+    ///@param lpAddressAToWeth The tokenA to weth liquidity pool address.
     ///@param amountIn The amount in to simulate the price change on.
-    ///@param tickSpacing The tick spacing on the pool. 
+    ///@param tickSpacing The tick spacing on the pool.
     ///@param liquidity The liquidity in the pool.
     ///@param fee The swap fee in the pool.
     function simulateAmountOutOnSqrtPriceX96(
@@ -85,9 +84,10 @@ contract ConveyorTickMath {
         uint128 liquidity,
         uint24 fee
     ) internal returns (int256 amountOut) {
-        ///@notice If token0 in the pool is tokenIn then set zeroForOne to true. 
+        ///@notice If token0 in the pool is tokenIn then set zeroForOne to true.
         bool zeroForOne = token0 == tokenIn ? true : false;
-
+        int256 amount0;
+        int256 amount1;
         ///@notice Grab the current price and the current tick in the pool.
         (uint160 sqrtPriceX96, int24 initialTick, , , , , ) = IUniswapV3Pool(
             lpAddressAToWeth
@@ -102,18 +102,11 @@ contract ConveyorTickMath {
             liquidity: liquidity
         });
 
-        ///@notice Set the sqrt price limit on the swap to the calculated price change of the swap. 
-        uint160 sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
-            sqrtPriceX96,
-            liquidity,
-            amountIn,
-            zeroForOne
-        );
-
+        
         ///@notice While the current state still has an amount to swap continue.
-        while (currentState.amountSpecifiedRemaining <=0) {
+        while (currentState.amountSpecifiedRemaining > 0) {
+            
             StepComputations memory step;
-
             step.sqrtPriceStartX96 = currentState.sqrtPriceX96;
 
             (step.tickNext, step.initialized) = tickBitmap
@@ -123,14 +116,10 @@ contract ConveyorTickMath {
                     zeroForOne
                 );
             console.logInt(step.tickNext);
-            if (step.tickNext < TickMath.MIN_TICK) {
-                step.tickNext = TickMath.MIN_TICK;
-            } else if (step.tickNext > TickMath.MAX_TICK) {
-                step.tickNext = TickMath.MAX_TICK;
-            }
+            
 
             step.sqrtPriceNextX96 = TickMath.getSqrtRatioAtTick(step.tickNext);
-            require(false, "Here");
+
             (
                 currentState.sqrtPriceX96,
                 step.amountIn,
@@ -143,25 +132,29 @@ contract ConveyorTickMath {
                 currentState.amountSpecifiedRemaining,
                 uint8(fee)
             );
-
-            currentState.amountSpecifiedRemaining -= int256(
-                step.amountIn + step.feeAmount
-            );
-            currentState.amountCalculated = currentState.amountCalculated.sub(
-                int256(step.amountOut)
-            );
+            
+            currentState.amountSpecifiedRemaining -= (step.amountIn +
+                    step.feeAmount).toInt256();
+            
+            currentState.amountCalculated -= step.amountOut.toInt256();
 
             if (currentState.sqrtPriceX96 == step.sqrtPriceNextX96) {
                 if (step.initialized) {
                     int128 liquidityNet = ticks.cross(step.tickNext);
+                    unchecked {
+                        if (zeroForOne) liquidityNet = -liquidityNet;
+                    }
 
-                    if (zeroForOne) liquidityNet = -liquidityNet;
-
-                    ticks.update(step.tickNext, liquidityNet, zeroForOne);
+                    currentState.liquidity = liquidityNet < 0
+                        ? currentState.liquidity - uint128(-liquidityNet)
+                        : currentState.liquidity + uint128(liquidityNet);
                 }
-                currentState.tick = zeroForOne
-                    ? step.tickNext - 1
-                    : step.tickNext;
+
+                unchecked {
+                    currentState.tick = zeroForOne
+                        ? step.tickNext - 1
+                        : step.tickNext;
+                }
             } else if (currentState.sqrtPriceX96 != step.sqrtPriceStartX96) {
                 // recompute unless we're on a lower tick boundary (i.e. already transitioned ticks), and haven't moved
                 currentState.tick = TickMath.getTickAtSqrtRatio(
@@ -169,7 +162,17 @@ contract ConveyorTickMath {
                 );
             }
         }
-        console.logInt(int256(currentState.amountCalculated));
-        return int256(currentState.amountCalculated);
+
+        unchecked {
+            (amount0, amount1) = zeroForOne
+                ? (int256(amountIn) - currentState.amountSpecifiedRemaining, currentState.amountCalculated)
+                : (currentState.amountCalculated, int256(amountIn) - currentState.amountSpecifiedRemaining);
+                console.logInt(amount0);
+        console.logInt(amount1);
+        }
+        
+
+        console.logInt(int256(currentState.amountSpecifiedRemaining));
+        return int256(currentState.amountSpecifiedRemaining);
     }
 }

@@ -433,7 +433,7 @@ contract LimitOrderRouterTest is DSTest {
             false,
             0,
             1,
-            5000000000000000000000, //5000 DAI
+            500000000000000000000, //5000 DAI
             3000,
             3000,
             0,
