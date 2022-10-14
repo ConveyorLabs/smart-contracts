@@ -23,9 +23,6 @@ library ConveyorMath {
         }
     }
 
-    function _calculateNextSqrtPriceX96Precise(uint256 numerator1,uint160 sqrtPX96,uint256 denominator) external returns (uint160) {
-        return uint160(FullMath.mulDivRoundingUp(numerator1, sqrtPX96, denominator));
-    }
 
     /// @notice helper function to transform 64.64 fixed point uint128 to uint64 integer number
     /// @param x unsigned 64.64 fixed point number

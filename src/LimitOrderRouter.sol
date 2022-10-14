@@ -456,10 +456,6 @@ contract LimitOrderRouter is OrderBook {
             ) = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeTokenToTokenOrders(orders);
         }
 
-
-        
-
-
         ///@notice Get the array of order owners.
         address[] memory orderOwners = getOrderOwners(orders);
 

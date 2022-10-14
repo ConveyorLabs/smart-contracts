@@ -4,14 +4,13 @@ pragma solidity >=0.8.16;
 import "./interfaces/IOrderRouter.sol";
 import "./lib/ConveyorTickMath.sol";
 import "./test/utils/Console.sol";
-contract LimitOrderQuoter is ConveyorTickMath {
 
+contract LimitOrderQuoter is ConveyorTickMath {
     address immutable WETH;
 
     constructor(address _weth, address _quoterAddress) {
-        WETH=_weth;
+        WETH = _weth;
     }
-
 
     ///@notice Helper function to determine if a pool address is Uni V2 compatible.
     ///@param lp - Pair address.
@@ -40,7 +39,6 @@ contract LimitOrderQuoter is ConveyorTickMath {
         return !success;
     }
 
-    
     ///@notice Function to return the index of the best price in the executionPrices array.
     ///@param executionPrices - Array of execution prices to evaluate.
     ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
@@ -127,12 +125,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     function _initializeTokenToWethExecutionPrices(
         SwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth
-    )
-        external
-        pure
-        returns (SwapRouter.TokenToWethExecutionPrice[] memory)
-    {
-       
+    ) external pure returns (SwapRouter.TokenToWethExecutionPrice[] memory) {
         ///@notice Initialize a new TokenToWethExecutionPrice array to store prices.
         SwapRouter.TokenToWethExecutionPrice[]
             memory executionPrices = new SwapRouter.TokenToWethExecutionPrice[](
@@ -152,8 +145,6 @@ contract LimitOrderQuoter is ConveyorTickMath {
             }
         }
 
-        
-
         return (executionPrices);
     }
 
@@ -164,12 +155,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
         address[] memory lpAddressesAToWeth,
         SwapRouter.SpotReserve[] memory spotReserveWethToB,
         address[] memory lpAddressWethToB
-    )
-        external
-        view
-        returns (SwapRouter.TokenToTokenExecutionPrice[] memory)
-    {
-
+    ) external view returns (SwapRouter.TokenToTokenExecutionPrice[] memory) {
         ///@notice Initialize a new TokenToTokenExecutionPrice array to store prices.
         SwapRouter.TokenToTokenExecutionPrice[]
             memory executionPrices = new SwapRouter.TokenToTokenExecutionPrice[](
@@ -233,11 +219,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
             }
         }
 
-        
-
         return (executionPrices);
     }
-
 
     ///@notice Function to retrieve the buy/sell status of a single order.
     ///@param order Order to determine buy/sell status on.
@@ -654,21 +637,44 @@ contract LimitOrderQuoter is ConveyorTickMath {
 
         ///@notice Cache pool fee
         uint24 fee = IUniswapV3Pool(pool).fee();
-        
+
         {
             int24 tickSpacing = IUniswapV3Pool(pool).tickSpacing();
-            
-            if(isTokenToWeth){
-                amountOut = uint128(uint256(-simulateAmountOutOnSqrtPriceX96(wethIsToken0 ? token0 : token1, wethIsToken0 ? token1 : token0 , pool, alphaX,tickSpacing, liquidity, fee)));
-            }else{
-                amountOut = uint128(uint256(-simulateAmountOutOnSqrtPriceX96(wethIsToken0 ? token0 : token1, wethIsToken0 ? token0 : token1, pool, alphaX,tickSpacing, liquidity, fee)));
+
+            if (isTokenToWeth) {
+                amountOut = uint128(
+                    uint256(
+                        -simulateAmountOutOnSqrtPriceX96(
+                            wethIsToken0 ? token0 : token1,
+                            wethIsToken0 ? token1 : token0,
+                            pool,
+                            alphaX,
+                            tickSpacing,
+                            liquidity,
+                            fee
+                        )
+                    )
+                );
+            } else {
+                amountOut = uint128(
+                    uint256(
+                        -simulateAmountOutOnSqrtPriceX96(
+                            wethIsToken0 ? token0 : token1,
+                            wethIsToken0 ? token0 : token1,
+                            pool,
+                            alphaX,
+                            tickSpacing,
+                            liquidity,
+                            fee
+                        )
+                    )
+                );
             }
         }
-        
+
         ///@notice Conditional whether swap is happening from tokenToWeth or wethToToken
         if (isTokenToWeth) {
             if (wethIsToken0) {
-                
                 ///@notice tokenIn is token1 therefore 0for1 is false & alphaX is input into tokenIn liquidity ==> rounding down
                 nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
                     sqrtPriceX96,
@@ -678,9 +684,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
                 );
 
                 ///@notice Convert output to 64.64 fixed point representation
-                uint128 sqrtSpotPrice64x64 = fromX96(
-                    nextSqrtPriceX96
-                );
+                uint128 sqrtSpotPrice64x64 = fromX96(nextSqrtPriceX96);
 
                 ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
                 spotPrice = ConveyorMath.mul64x64(
@@ -688,15 +692,13 @@ contract LimitOrderQuoter is ConveyorTickMath {
                     ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64)
                 );
             } else {
-                
                 ///@notice calculate nextSqrtPriceX96 price change on wethOutAmount add false since we are removing the weth liquidity from the pool
-                nextSqrtPriceX96 = SqrtPriceMath
-                    .getNextSqrtPriceFromInput(
-                        sqrtPriceX96,
-                        liquidity,
-                        alphaX,
-                        true
-                    );
+                nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
+                    sqrtPriceX96,
+                    liquidity,
+                    alphaX,
+                    true
+                );
 
                 ///@notice Since weth is token1 we have the correct form of sqrtPrice i.e token1/token0 spot, so just convert to 64.64 and square it
                 uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
@@ -712,16 +714,14 @@ contract LimitOrderQuoter is ConveyorTickMath {
         } else {
             ///@notice isTokenToWeth =false ==> we are exchanging weth -> token
             if (wethIsToken0) {
-                
                 ///@notice amountOut is in our out token, so set nextSqrtPriceX96 to change in price on amountOut value
                 ///@notice weth is token 0 so set add to false since we are removing token1 liquidity from the pool
-                nextSqrtPriceX96 = SqrtPriceMath
-                    .getNextSqrtPriceFromInput(
-                        sqrtPriceX96,
-                        liquidity,
-                        alphaX,
-                        true
-                    );
+                nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
+                    sqrtPriceX96,
+                    liquidity,
+                    alphaX,
+                    true
+                );
                 ///@notice Since token0 = weth token1/token0 is the proper exchange rate so convert to 64.64 and square to yield the spot price
                 uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
                     nextSqrtPriceX96
@@ -733,7 +733,6 @@ contract LimitOrderQuoter is ConveyorTickMath {
                     sqrtSpotPrice64x64
                 );
             } else {
-                
                 ///@notice set nextSqrtPriceX96 to change on Input alphaX which will be in Weth, since weth is token1 0To1=false
                 nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
                     sqrtPriceX96,
@@ -743,9 +742,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
                 );
 
                 ///@notice Convert to 64.64.
-                uint128 sqrtSpotPrice64x64 = fromX96(
-                    nextSqrtPriceX96
-                );
+                uint128 sqrtSpotPrice64x64 = fromX96(nextSqrtPriceX96);
 
                 ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
                 spotPrice = ConveyorMath.mul64x64(
@@ -754,7 +751,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
                 );
             }
         }
-        amountOut = amountOut / 10**2;
+        
     }
 
     ///@notice Helper function to calculate amountOutMin value agnostically across dexes on the first hop from tokenA to WETH.
@@ -774,18 +771,29 @@ contract LimitOrderQuoter is ConveyorTickMath {
         ///@notice Check if the lp is UniV3
         if (!_lpIsNotUniV3(lpAddressAToWeth)) {
             ///@notice 1000==100% so divide amountInOrder *taxIn by 10**5 to adjust to correct base
+            ///@dev If the token is taxed there will be a transfer fee when the tokens are sent to the pool. So, decrement the amountIn on the swap by the amountIn - tokenTax
             uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
             uint256 amountIn = amountInOrder - amountInBuffer;
+            ///@notice Get token0 in the pool.
             address token0 = IUniswapV3Pool(lpAddressAToWeth).token0();
 
+            ///@notice Get the liqudiity and tick spacing storage variables from the pool.
             uint128 liquidity = IUniswapV3Pool(lpAddressAToWeth).liquidity();
             int24 tickSpacing = IUniswapV3Pool(lpAddressAToWeth).tickSpacing();
-            
 
             ///@notice Calculate the amountOutMin for the swap.
-            int256 _amountOutMinAToWeth = ConveyorTickMath.simulateAmountOutOnSqrtPriceX96(token0, tokenIn,lpAddressAToWeth, amountIn, tickSpacing, liquidity, feeIn);
+            int256 _amountOutMinAToWeth = ConveyorTickMath
+                .simulateAmountOutOnSqrtPriceX96(
+                    token0,
+                    tokenIn,
+                    lpAddressAToWeth,
+                    amountIn,
+                    tickSpacing,
+                    liquidity,
+                    feeIn
+                );
+            ///@notice Negate the simulated amount and convert to an unsigned integer.
             amountOutMinAToWeth = uint256(-_amountOutMinAToWeth);
-            
         } else {
             ///@notice Otherwise if the lp is a UniV2 LP.
 
@@ -830,5 +838,4 @@ contract LimitOrderQuoter is ConveyorTickMath {
             uint128(spotPriceWethToB >> 64)
         );
     }
-
 }

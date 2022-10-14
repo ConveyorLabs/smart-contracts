@@ -5,10 +5,12 @@ import "./SwapRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "../lib/libraries/ConveyorFeeMath.sol";
 contract LimitOrderExecutor is SwapRouter {
+    ///====================================Immutable Storage Variables==============================================//
     address immutable WETH;
     address immutable USDC;
     address immutable LIMIT_ORDER_QUOTER;
-
+    
+    ///@notice The contract owner. 
     address owner;
 
     ///@notice Conveyor funds balance in the contract.
@@ -17,6 +19,12 @@ contract LimitOrderExecutor is SwapRouter {
     ///@notice Boolean responsible for indicating if a function has been entered when the nonReentrant modifier is used.
     bool reentrancyStatus = false;
 
+    ///@param _weth The wrapped native token on the chain. 
+    ///@param _usdc Pegged stable token on the chain. 
+    ///@param _limitOrderQuoterAddress The address of the LimitOrderQuoter contract.
+    ///@param _deploymentByteCodes The deployment bytecodes of all dex factory contracts.
+    ///@param _dexFactories The Dex factory addresses. 
+    ///@param _isUniV2 Array of booleans indication whether the Dex is V2 architecture.
     constructor(
         address _weth,
         address _usdc,
