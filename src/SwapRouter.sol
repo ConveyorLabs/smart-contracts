@@ -8,7 +8,7 @@ import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../lib/libraries/ConveyorMath.sol";
 import "./OrderBook.sol";
-import "../lib/libraries/ConveyorTickMath.sol";
+import "./lib/ConveyorTickMath.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/libraries/Uniswap/TickMath.sol";
 import "../lib/interfaces/token/IWETH.sol";

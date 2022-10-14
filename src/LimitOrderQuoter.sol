@@ -2,7 +2,7 @@
 pragma solidity >=0.8.16;
 
 import "./interfaces/IOrderRouter.sol";
-import "../lib/libraries/ConveyorTickMath.sol";
+import "./lib/ConveyorTickMath.sol";
 import "./test/utils/Console.sol";
 contract LimitOrderQuoter is ConveyorTickMath {
 
@@ -661,7 +661,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
             if(isTokenToWeth){
                 amountOut = uint128(uint256(-simulateAmountOutOnSqrtPriceX96(wethIsToken0 ? token0 : token1, wethIsToken0 ? token1 : token0 , pool, alphaX,tickSpacing, liquidity, fee)));
             }else{
-                amountOut = uint128(uint256(-simulateAmountOutOnSqrtPriceX96(wethIsToken0 ? token1 : token0, wethIsToken0 ? token0 : token1, pool, alphaX,tickSpacing, liquidity, fee)));
+                amountOut = uint128(uint256(-simulateAmountOutOnSqrtPriceX96(wethIsToken0 ? token0 : token1, wethIsToken0 ? token0 : token1, pool, alphaX,tickSpacing, liquidity, fee)));
             }
         }
         
@@ -754,6 +754,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
                 );
             }
         }
+        amountOut = amountOut / 10**2;
     }
 
     ///@notice Helper function to calculate amountOutMin value agnostically across dexes on the first hop from tokenA to WETH.
@@ -782,7 +783,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
             
 
             ///@notice Calculate the amountOutMin for the swap.
-            int256 _amountOutMinAToWeth = ConveyorTickMath.simulateAmountOutOnSqrtPriceX96(tokenIn, token0, lpAddressAToWeth, amountIn, tickSpacing, liquidity, feeIn);
+            int256 _amountOutMinAToWeth = ConveyorTickMath.simulateAmountOutOnSqrtPriceX96(token0, tokenIn,lpAddressAToWeth, amountIn, tickSpacing, liquidity, feeIn);
             amountOutMinAToWeth = uint256(-_amountOutMinAToWeth);
             
         } else {

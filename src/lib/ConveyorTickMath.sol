@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.16;
 
-import "./Uniswap/FullMath.sol";
-import "./Uniswap/LowGasSafeMath.sol";
-import "./Uniswap/SafeCast.sol";
-import "./Uniswap/SqrtPriceMath.sol";
-import "./Uniswap/TickMath.sol";
-import "./Uniswap/TickBitmap.sol";
-import "./Uniswap/SwapMath.sol";
-import "../interfaces/uniswap-v3/IUniswapV3Pool.sol";
-import "./Uniswap/LowGasSafeMath.sol";
-import "./Uniswap/Tick.sol";
+import "../../lib/libraries/Uniswap/FullMath.sol";
+import "../../lib/libraries/Uniswap/LowGasSafeMath.sol";
+import "../../lib/libraries/Uniswap/SafeCast.sol";
+import "../../lib/libraries/Uniswap/SqrtPriceMath.sol";
+import "../../lib/libraries/Uniswap/TickMath.sol";
+import "../../lib/libraries/Uniswap/TickBitmap.sol";
+import "../../lib/libraries/Uniswap/SwapMath.sol";
+import "../../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
+import "../../lib/libraries//Uniswap/LowGasSafeMath.sol";
+import "../../lib/libraries/Uniswap/Tick.sol";
 import "../../src/test/utils/Console.sol";
 
 contract ConveyorTickMath {
@@ -19,27 +19,34 @@ contract ConveyorTickMath {
     using Tick for mapping(int24 => Tick.Info);
     using TickBitmap for mapping(int16 => uint256);
 
+    ///@notice Storage mapping to hold the tickBitmap for a v3 pool.
     mapping(int16 => uint256) public tickBitmap;
+
+    ///@notice Storage mapping to map a tick to the relevant liquidity data on that tick in a pool.
     mapping(int24 => Tick.Info) public ticks;
 
-    // the top level state of the swap, the results of which are recorded in storage at the end
+    /// @notice maximum uint128 64.64 fixed point number
+    uint128 private constant MAX_64x64 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+
+    ///@notice Struct holding the current simulated swap state. 
     struct CurrentState {
-        // the amount remaining to be swapped in/out of the input/output asset
+        ///@notice Amount remaining to be swapped upon cross tick simulation.
         int256 amountSpecifiedRemaining;
-        // the amount already swapped out/in of the output/input asset
+        ///@notice The amount that has already been simulated over the whole swap.
         int256 amountCalculated;
-        // current sqrt(price)
+        ///@notice Current price on the tick.
         uint160 sqrtPriceX96;
-        // the tick associated with the current price
+        ///@notice The current tick.
         int24 tick;
-        // the current liquidity in range
+        ///@notice The liquidity on the current tick.
         uint128 liquidity;
     }
 
+    ///@notice Struct holding the simulated swap state across swap steps.
     struct StepComputations {
-        // the price at the beginning of the step
+        ///@notice The price at the beginning of the state.
         uint160 sqrtPriceStartX96;
-        // the next tick to swap to from the current tick in the swap direction
+        ///@notice The adjacent tick from the current tick in the swap simulation.
         int24 tickNext;
         // whether tickNext is initialized or not
         bool initialized;
@@ -52,8 +59,7 @@ contract ConveyorTickMath {
         uint256 feeAmount;
     }
 
-    /// @notice maximum uint128 64.64 fixed point number
-    uint128 private constant MAX_64x64 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+    
 
     function fromX96(uint160 x) internal pure returns (uint128) {
         unchecked {
@@ -62,6 +68,14 @@ contract ConveyorTickMath {
         }
     }
 
+    ///@notice Function to simulate the change in sqrt price on a uniswap v3 swap. 
+    ///@param token0 Token 0 in the v3 pool. 
+    ///@param tokenIn Token 0 in the v3 pool. 
+    ///@param lpAddressAToWeth The tokenA to weth liquidity pool address. 
+    ///@param amountIn The amount in to simulate the price change on.
+    ///@param tickSpacing The tick spacing on the pool. 
+    ///@param liquidity The liquidity in the pool.
+    ///@param fee The swap fee in the pool.
     function simulateAmountOutOnSqrtPriceX96(
         address token0,
         address tokenIn,
@@ -71,8 +85,10 @@ contract ConveyorTickMath {
         uint128 liquidity,
         uint24 fee
     ) internal returns (int256 amountOut) {
+        ///@notice If token0 in the pool is tokenIn then set zeroForOne to true. 
         bool zeroForOne = token0 == tokenIn ? true : false;
 
+        ///@notice Grab the current price and the current tick in the pool.
         (uint160 sqrtPriceX96, int24 initialTick, , , , , ) = IUniswapV3Pool(
             lpAddressAToWeth
         ).slot0();
@@ -86,6 +102,7 @@ contract ConveyorTickMath {
             liquidity: liquidity
         });
 
+        ///@notice Set the sqrt price limit on the swap to the calculated price change of the swap. 
         uint160 sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
             sqrtPriceX96,
             liquidity,
@@ -94,7 +111,7 @@ contract ConveyorTickMath {
         );
 
         ///@notice While the current state still has an amount to swap continue.
-        while (currentState.amountSpecifiedRemaining != 0) {
+        while (currentState.amountSpecifiedRemaining <=0) {
             StepComputations memory step;
 
             step.sqrtPriceStartX96 = currentState.sqrtPriceX96;
@@ -113,7 +130,7 @@ contract ConveyorTickMath {
             }
 
             step.sqrtPriceNextX96 = TickMath.getSqrtRatioAtTick(step.tickNext);
-
+            require(false, "Here");
             (
                 currentState.sqrtPriceX96,
                 step.amountIn,
@@ -121,13 +138,7 @@ contract ConveyorTickMath {
                 step.feeAmount
             ) = SwapMath.computeSwapStep(
                 currentState.sqrtPriceX96,
-                (
-                    zeroForOne
-                        ? step.sqrtPriceNextX96 < sqrtPriceLimitX96
-                        : step.sqrtPriceNextX96 > sqrtPriceLimitX96
-                )
-                    ? sqrtPriceLimitX96
-                    : step.sqrtPriceNextX96,
+                step.sqrtPriceNextX96,
                 currentState.liquidity,
                 currentState.amountSpecifiedRemaining,
                 uint8(fee)
@@ -146,10 +157,7 @@ contract ConveyorTickMath {
 
                     if (zeroForOne) liquidityNet = -liquidityNet;
 
-                    currentState.liquidity = LiquidityMath.addDelta(
-                        currentState.liquidity,
-                        liquidityNet
-                    );
+                    ticks.update(step.tickNext, liquidityNet, zeroForOne);
                 }
                 currentState.tick = zeroForOne
                     ? step.tickNext - 1
@@ -161,6 +169,7 @@ contract ConveyorTickMath {
                 );
             }
         }
+        console.logInt(int256(currentState.amountCalculated));
         return int256(currentState.amountCalculated);
     }
 }

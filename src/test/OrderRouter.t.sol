@@ -1147,7 +1147,7 @@ contract OrderRouterTest is DSTest {
 
         address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
 
-        uint256 amountInMaximum = amountReceived;
+        
         address reciever = address(this);
 
         uint256 amountOut = limitOrderExecutor._swap(
@@ -1156,7 +1156,7 @@ contract OrderRouterTest is DSTest {
             lp,
             300,
             amountReceived,
-            amountInMaximum,
+            1000000000000000,
             reciever,
             address(this)
         );
