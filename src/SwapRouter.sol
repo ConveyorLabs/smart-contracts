@@ -22,7 +22,6 @@ import "./test/utils/Console.sol";
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures.
 contract SwapRouter is ConveyorTickMath {
-    
     //----------------------Structs------------------------------------//
 
     ///@notice Struct to store DEX details
@@ -654,10 +653,10 @@ contract SwapRouter is ConveyorTickMath {
             _initBytecode
         );
 
-        require(pairAddress != address(0), "Invalid token pair");
+        bool token0IsReserve0 = tok0 == token0 ? true : false;
 
         ///@notice If the token pair does not exist on the dex return empty SpotReserve struct.
-        if (!(IUniswapV2Factory(_factory).getPair(tok0, tok1) == pairAddress)) {
+        if (address(0) == pairAddress) {
             return (_spRes, address(0));
         }
         {
@@ -671,35 +670,23 @@ contract SwapRouter is ConveyorTickMath {
                 uint256 commonReserve1
             ) = _getReservesCommonDecimals(tok0, tok1, reserve0, reserve1);
 
-            ///@notice If tokenIn is token0 on the pair address.
-            ///@notice Always set the tokenIn to _spRes.res0 in the SpotReserve structure
-            if (token0 == tok0) {
-                ///@notice Set spotPrice to the current spot price on the dex represented as 128.128 fixed point.
-                _spRes.spotPrice = ConveyorMath.div128x128(
+            ///@notice Set spotPrice to the current spot price on the dex represented as 128.128 fixed point.
+            _spRes.spotPrice = token0IsReserve0
+                ? ConveyorMath.div128x128(
                     commonReserve1 << 128,
                     commonReserve0 << 128
-                );
-                _spRes.token0IsReserve0 = true;
+                )
+                : _spRes.spotPrice = ConveyorMath.div128x128(
+                commonReserve0 << 128,
+                commonReserve1 << 128
+            );
+            _spRes.token0IsReserve0 = token0IsReserve0;
 
-                ///@notice Set res0, res1 on SpotReserve to commonReserve0, commonReserve1 respectively.
-                (_spRes.res0, _spRes.res1) = (
-                    uint128(commonReserve0),
-                    uint128(commonReserve1)
-                );
-            } else {
-                ///@notice Set spotPrice to the current spot price on the dex represented as 128.128 fixed point.
-                _spRes.spotPrice = ConveyorMath.div128x128(
-                    commonReserve0 << 128,
-                    commonReserve1 << 128
-                );
-                _spRes.token0IsReserve0 = false;
-
-                ///@notice Set spotPrice to the current spot price on the dex represented as 128.128 fixed point.
-                (_spRes.res1, _spRes.res0) = (
-                    uint128(commonReserve0),
-                    uint128(commonReserve1)
-                );
-            }
+            ///@notice Set res0, res1 on SpotReserve to commonReserve0, commonReserve1 respectively.
+            (_spRes.res0, _spRes.res1) = (
+                uint128(commonReserve0),
+                uint128(commonReserve1)
+            );
         }
 
         ///@notice Return pool address and populated SpotReserve struct.
@@ -758,11 +745,11 @@ contract SwapRouter is ConveyorTickMath {
         ///@notice Get the current sqrtPrice ratio.
         (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(pool).slot0();
 
-        ///@notice Boolean indicating whether token0 is token0 in the pool.
-        bool token0IsReserve0 = _tokenX == token0 ? true : false;
         ///@notice Initialize block scoped variables
         uint256 priceX128;
         unchecked {
+            ///@notice Boolean indicating whether token0 is token0 in the pool.
+            bool token0IsReserve0 = _tokenX == token0 ? true : false;
             ///@notice Cache the difference between the input and output token decimals. p=y/x ==> p*10**(x_decimals-y_decimals)>>Q192 will be the proper price in base 10.
             int8 decimalShift = int8(IERC20(token0).decimals()) -
                 int8(IERC20(token1).decimals());
@@ -782,7 +769,6 @@ contract SwapRouter is ConveyorTickMath {
                 ? (uint256(priceSquaredShiftQ96) *
                     0xffffffffffffffffffffffffffffffff) / Q96
                 : priceSquaredShiftQ96;
-            
         }
 
         ///@notice Set the spot price in the spot reserve structure.
