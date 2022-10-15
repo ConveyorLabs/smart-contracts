@@ -4,12 +4,13 @@ pragma solidity ^0.8.16;
 import "./SwapRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "../lib/libraries/ConveyorFeeMath.sol";
+
 contract LimitOrderExecutor is SwapRouter {
     ///====================================Immutable Storage Variables==============================================//
     address immutable WETH;
     address immutable USDC;
     address immutable LIMIT_ORDER_QUOTER;
-    
+
     ///@notice The contract owner. 
     address owner;
 
@@ -51,6 +52,7 @@ contract LimitOrderExecutor is SwapRouter {
             address[] memory lpAddressesAToWeth
         ) = _getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn);
 
+        ///@notice Initialize all execution prices for the token pair.
         TokenToWethExecutionPrice[] memory executionPrices = ILimitOrderQuoter(
             LIMIT_ORDER_QUOTER
         )._initializeTokenToWethExecutionPrices(
@@ -89,6 +91,7 @@ contract LimitOrderExecutor is SwapRouter {
                         maxBeaconReward,
                         executionPrices[bestPriceIndex]
                     );
+                ///@notice Increment the total beacon and conveyor reward. 
                 totalBeaconReward += beaconReward;
                 totalConveyorReward += conveyorReward;
             }
@@ -108,6 +111,7 @@ contract LimitOrderExecutor is SwapRouter {
         ///@notice Transfer the totalBeaconReward to the off chain executor.
         transferBeaconReward(totalBeaconReward, tx.origin, WETH);
 
+        ///@notice Increment the conveyor balance. 
         conveyorBalance += totalConveyorReward;
 
         return (totalBeaconReward, totalConveyorReward);

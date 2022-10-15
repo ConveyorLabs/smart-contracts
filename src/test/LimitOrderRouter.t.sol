@@ -289,7 +289,7 @@ contract LimitOrderRouterTest is DSTest {
         );
 
         require(depositSuccess, "failure when depositing ether into weth");
-
+        
         IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
         //Create a new mock order
         OrderBook.Order memory order = newMockOrder(
@@ -306,6 +306,7 @@ contract LimitOrderRouterTest is DSTest {
             0,
             MAX_U32
         );
+        
 
         bytes32 orderId = placeMockOrder(order);
         bytes32[] memory orderBatch = new bytes32[](1);
@@ -391,12 +392,13 @@ contract LimitOrderRouterTest is DSTest {
         (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
             abi.encodeWithSignature("deposit()")
         );
+    
 
         //require that the deposit was a success
         require(depositSuccess, "testDepositGasCredits: deposit failed");
 
         IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
-
+        
         bytes32[] memory tokenToWethOrderBatch = placeNewMockWethToTokenBatch();
         //Make sure the orders have been placed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {

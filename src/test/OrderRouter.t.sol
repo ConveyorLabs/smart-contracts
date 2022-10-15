@@ -26,7 +26,7 @@ interface CheatCodes {
     function deal(address who, uint256 amount) external;
 }
 
-contract OrderRouterTest is DSTest {
+contract SwapRouterTest is DSTest {
     //Python fuzz test deployer
     Swap swapHelper;
 
@@ -35,9 +35,9 @@ contract OrderRouterTest is DSTest {
     IUniswapV2Router02 uniV2Router;
     IUniswapV2Factory uniV2Factory;
     ScriptRunner scriptRunner;
-
+    
     LimitOrderExecutorWrapper limitOrderExecutor;
-    LimitOrderQuoter limitOrderQuoter;
+   
 
     //Factory and router address's
     address _uniV2Address = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
@@ -78,10 +78,7 @@ contract OrderRouterTest is DSTest {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         scriptRunner = new ScriptRunner();
 
-        limitOrderQuoter = new LimitOrderQuoter(
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
-        );
+        
 
         limitOrderExecutor = new LimitOrderExecutorWrapper(
             _hexDems,
@@ -290,19 +287,6 @@ contract OrderRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
-        address poolDaiWeth = IUniswapV3Factory(_uniV3FactoryAddress).getPool(
-            weth,
-            dai,
-            3000
-        );
-        int24 tickDaiWeth = limitOrderExecutor.getTick(poolDaiWeth, 1);
-        uint256 expectedDaiWeth = limitOrderExecutor.getQuoteAtTick(
-            tickDaiWeth,
-            1 * 10**18,
-            dai,
-            weth
-        );
-
         (
             SwapRouter.SpotReserve memory priceDaiWeth,
             address poolAddressDaiWeth
@@ -313,33 +297,23 @@ contract OrderRouterTest is DSTest {
                 _uniV3FactoryAddress
             );
 
-        assertEq(priceDaiWeth.spotPrice, expectedDaiWeth);
-        // assertEq(priceWethUsdc.spotPrice, expectedWethUsdc);
+       
+        assertEq(priceDaiWeth.spotPrice,195219315785396777134689842776231741);
+        
     }
 
     ///@notice Test calculate V3 spot price usdc/dai
-    function testCalculateV3SpotPrice2() public {
+    function testCalculateV3SpotPrice2() public  {
         //Test token address's
 
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        address poolDaiUsdc = IUniswapV3Factory(_uniV3FactoryAddress).getPool(
-            dai,
-            usdc,
-            3000
-        );
-        int24 tickDaiUsdc = limitOrderExecutor.getTick(poolDaiUsdc, 1);
-        uint256 expectedDaiUsdc = limitOrderExecutor.getQuoteAtTick(
-            tickDaiUsdc,
-            1 * 10**18,
-            dai,
-            usdc
-        );
+        
+        
+       
+        (SwapRouter.SpotReserve memory priceDaiUsdc, ) = limitOrderExecutor.calculateV3SpotPrice(dai, usdc, 3000, _uniV3FactoryAddress);
+        assertEq(priceDaiUsdc.spotPrice, 341140785248087661355983754000000000000);
 
-        (SwapRouter.SpotReserve memory priceDaiUsdc, ) = limitOrderExecutor
-            .calculateV3SpotPrice(dai, usdc, 3000, _uniV3FactoryAddress);
-
-        assertEq(priceDaiUsdc.spotPrice, expectedDaiUsdc);
     }
 
     ///@notice Test calculate v2 spot price Uni
@@ -594,7 +568,7 @@ contract OrderRouterTest is DSTest {
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         (SwapRouter.SpotReserve[] memory pricesUsdcWeth, ) = limitOrderExecutor
             .getAllPrices(usdc, weth, 3000);
-        
+       
         // console.log("Price V3");
         // console.logUint(pricesUsdcWeth[2].spotPrice);
         // console.log("v2 uni/v2 sushi");
@@ -649,7 +623,7 @@ contract OrderRouterTest is DSTest {
             false
         );
 
-        uint256 alphaX = ConveyorFeeMath._calculateAlphaX(249955352870405250000000000000000000, pricesUsdcWeth[0].res1, pricesUsdcWeth[0].res0);
+        uint256 alphaX = ConveyorFeeMath._calculateAlphaX(239580372152757160000000000000000000, pricesUsdcWeth[0].res1, pricesUsdcWeth[0].res0);
         uint256 projectedSnapshot = FullMath.mulDiv((pricesUsdcWeth[0].res1-alphaX), 2**128,(FullMath.mulDiv(pricesUsdcWeth[0].res1, pricesUsdcWeth[0].res0, pricesUsdcWeth[0].res1-alphaX)));
         
         bytes16 max128= QuadruplePrecision.fromUInt(340282366920938463463374607431768211455);
@@ -661,7 +635,7 @@ contract OrderRouterTest is DSTest {
         ///@notice 10**8 precision after the decimal point
         assertEqDecimal(projectedSnapshot/(10**(decimalsBase10-8)), pricesUsdcWeth[2].spotPrice/(10**(decimalsBase10-8)), decimalsBase10);
         
-        assertEq(maxReward,3829877604957868988);
+        assertEq(maxReward,3671040722799248953);
     }
 
     ///@notice Deprecated as there are no longer batches to measure the price divergence
@@ -1296,20 +1270,5 @@ contract LimitOrderExecutorWrapper is SwapRouter {
             );
     }
 
-    function getQuoteAtTick(
-        int24 tick,
-        uint128 baseAmount,
-        address baseToken,
-        address quoteToken
-    ) public returns (uint256 quoteAmount) {
-        return _getQuoteAtTick(tick, baseAmount, baseToken, quoteToken);
-    }
-
-    function getTick(address pool, uint32 tickSecond)
-        public
-        view
-        returns (int24 tick)
-    {
-        return _getTick(pool, tickSecond);
-    }
+    
 }

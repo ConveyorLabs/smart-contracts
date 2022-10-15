@@ -502,9 +502,6 @@ contract LimitOrderRouter is OrderBook {
         }
     }
 
-   
-
-
     ///@notice Function to confirm ownership transfer of the contract.
     function confirmTransferOwnership() external {
         if (msg.sender != tempOwner) {
