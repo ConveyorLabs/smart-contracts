@@ -22,6 +22,7 @@ import "./test/utils/Console.sol";
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures.
 contract SwapRouter is ConveyorTickMath {
+    
     //----------------------Structs------------------------------------//
 
     ///@notice Struct to store DEX details
@@ -100,7 +101,7 @@ contract SwapRouter is ConveyorTickMath {
     IQuoter constant Quoter =
         IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
     uint128 constant MIN_FEE_64x64 = 18446744073709552;
-    uint128 constant MAX_UINT_128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+    uint128 constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
     uint128 constant UNI_V2_FEE = 5534023222112865000;
     uint256 constant MAX_UINT_256 =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
@@ -113,6 +114,7 @@ contract SwapRouter is ConveyorTickMath {
     uint128 constant ZERO_POINT_ZERO_ZERO_ONE = 18446744073709550;
     uint128 constant MAX_CONVEYOR_PERCENT = 110680464442257300 * 10**2;
     uint128 constant MIN_CONVEYOR_PERCENT = 7378697629483821000;
+    uint256 internal constant Q96 = 0x1000000000000000000000000;
 
     //======================Immutables================================
 
@@ -742,34 +744,49 @@ contract SwapRouter is ConveyorTickMath {
         uint24 fee,
         address _factory
     ) internal view returns (SpotReserve memory _spRes, address pool) {
+        ///@notice Sort the tokens to retrieve token0, token1 in the pool.
+        (address _tokenX, address _tokenY) = ConveyorFeeMath._sortTokens(
+            token0,
+            token1
+        );
         ///@notice Get the pool address for token pair.
         pool = IUniswapV3Factory(_factory).getPool(token0, token1, fee);
-
+        ///@notice Return an empty spot reserve if the pool address was not found.
+        if (pool == address(0)) {
+            return (_spRes, address(0));
+        }
         ///@notice Get the current sqrtPrice ratio.
         (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(pool).slot0();
 
-        ///@notice Set token0InPool to token0 in pool.
-        address token0InPool = IUniswapV3Pool(pool).token0();
-
         ///@notice Boolean indicating whether token0 is token0 in the pool.
-        bool token0IsReserve0 = token0InPool == token0 ? true : false;
+        bool token0IsReserve0 = _tokenX == token0 ? true : false;
+        ///@notice Initialize block scoped variables
+        uint256 priceX128;
+        unchecked {
+            ///@notice Cache the difference between the input and output token decimals. p=y/x ==> p*10**(x_decimals-y_decimals)>>Q192 will be the proper price in base 10.
+            int8 decimalShift = int8(IERC20(token0).decimals()) -
+                int8(IERC20(token1).decimals());
+            ///@notice Square the sqrtPrice ratio and normalize the value based on decimalShift.
+            uint256 priceSquaredX96 = decimalShift < 0
+                ? uint256(sqrtPriceX96)**2 / uint256(10)**(uint8(-decimalShift))
+                : uint256(sqrtPriceX96)**2 * 10**uint8(decimalShift);
 
-        ///@notice Cache the difference in decimals for price conversion to fixed point.
-        int8 decimalShift = int8(IERC20(token0).decimals()) - int8(IERC20(token1).decimals());
-           
-        console.log(sqrtPriceX96);
-        ///@notice Convert price to it's square.
-        uint256 priceX96 = token0IsReserve0 ? uint256((uint256(sqrtPriceX96)**2)<<32) / 2**96 : uint256((2**96)<<32) / uint256(sqrtPriceX96)**2;
-        console.log(priceX96);
-        ///@notice Convert the price to 128x128 fixed point.
-        uint256 priceX64 = decimalShift < 0
-            ? (priceX96 << 32) / uint256(10)**(uint8(-decimalShift))
-            : (uint256(priceX96) << 32) * 10**uint8(decimalShift);
+            ///@notice The first value is a Q96 representation of p_token0, the second is 128X fixed point representation of p_token1.
+            uint256 priceSquaredShiftQ96 = token0IsReserve0
+                ? priceSquaredX96 / Q96
+                : (Q96 * 0xffffffffffffffffffffffffffffffff) /
+                    (priceSquaredX96 / Q96);
+
+            ///@notice Convert the first value to 128X fixed point by shifting it left 128 bits and normalizing the value by Q96.
+            priceX128 = token0IsReserve0
+                ? (uint256(priceSquaredShiftQ96) *
+                    0xffffffffffffffffffffffffffffffff) / Q96
+                : priceSquaredShiftQ96;
+            
+        }
 
         ///@notice Set the spot price in the spot reserve structure.
-        
-        _spRes.spotPrice = (priceX64 << 64)/2**96;
-        
+        _spRes.spotPrice = priceX128;
 
         return (_spRes, pool);
     }

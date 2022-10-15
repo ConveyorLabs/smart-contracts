@@ -35,9 +35,8 @@ contract SwapRouterTest is DSTest {
     IUniswapV2Router02 uniV2Router;
     IUniswapV2Factory uniV2Factory;
     ScriptRunner scriptRunner;
-    
+
     LimitOrderExecutorWrapper limitOrderExecutor;
-   
 
     //Factory and router address's
     address _uniV2Address = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
@@ -77,8 +76,6 @@ contract SwapRouterTest is DSTest {
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         scriptRunner = new ScriptRunner();
-
-        
 
         limitOrderExecutor = new LimitOrderExecutorWrapper(
             _hexDems,
@@ -297,23 +294,22 @@ contract SwapRouterTest is DSTest {
                 _uniV3FactoryAddress
             );
 
-       
-        assertEq(priceDaiWeth.spotPrice,195219315785396777134689842776231741);
-        
+        assertEq(priceDaiWeth.spotPrice, 195219315785396777134689842230198271);
     }
 
     ///@notice Test calculate V3 spot price usdc/dai
-    function testCalculateV3SpotPrice2() public  {
+    function testCalculateV3SpotPrice2() public {
         //Test token address's
 
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        
-        
-       
-        (SwapRouter.SpotReserve memory priceDaiUsdc, ) = limitOrderExecutor.calculateV3SpotPrice(dai, usdc, 3000, _uniV3FactoryAddress);
-        assertEq(priceDaiUsdc.spotPrice, 341140785248087661355983754000000000000);
 
+        (SwapRouter.SpotReserve memory priceDaiUsdc, ) = limitOrderExecutor
+            .calculateV3SpotPrice(dai, usdc, 3000, _uniV3FactoryAddress);
+        assertEq(
+            priceDaiUsdc.spotPrice,
+            341140785248087661355983754903316070398
+        );
     }
 
     ///@notice Test calculate v2 spot price Uni
@@ -568,7 +564,7 @@ contract SwapRouterTest is DSTest {
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         (SwapRouter.SpotReserve[] memory pricesUsdcWeth, ) = limitOrderExecutor
             .getAllPrices(usdc, weth, 3000);
-       
+
         // console.log("Price V3");
         // console.logUint(pricesUsdcWeth[2].spotPrice);
         // console.log("v2 uni/v2 sushi");
@@ -576,7 +572,7 @@ contract SwapRouterTest is DSTest {
         // console.log(pricesUsdcWeth[0].res0);
         // console.log(pricesUsdcWeth[0].res1);
         // console.logUint(pricesUsdcWeth[1].spotPrice);
-        // v2 uni -> v3 
+        // v2 uni -> v3
         //>>> 195241231237093697621340806139528792/195097921519758036482852264177188530
         //
         // 1.0007345527631424
@@ -623,19 +619,44 @@ contract SwapRouterTest is DSTest {
             false
         );
 
-        uint256 alphaX = ConveyorFeeMath._calculateAlphaX(239580372152757160000000000000000000, pricesUsdcWeth[0].res1, pricesUsdcWeth[0].res0);
-        uint256 projectedSnapshot = FullMath.mulDiv((pricesUsdcWeth[0].res1-alphaX), 2**128,(FullMath.mulDiv(pricesUsdcWeth[0].res1, pricesUsdcWeth[0].res0, pricesUsdcWeth[0].res1-alphaX)));
-        
-        bytes16 max128= QuadruplePrecision.fromUInt(340282366920938463463374607431768211455);
-        bytes16 TEN= QuadruplePrecision.fromUInt(10);
+        uint256 alphaX = ConveyorFeeMath._calculateAlphaX(
+            239580372152757160000000000000000000,
+            pricesUsdcWeth[0].res1,
+            pricesUsdcWeth[0].res0
+        );
+        uint256 projectedSnapshot = FullMath.mulDiv(
+            (pricesUsdcWeth[0].res1 - alphaX),
+            2**128,
+            (
+                FullMath.mulDiv(
+                    pricesUsdcWeth[0].res1,
+                    pricesUsdcWeth[0].res0,
+                    pricesUsdcWeth[0].res1 - alphaX
+                )
+            )
+        );
+
+        bytes16 max128 = QuadruplePrecision.fromUInt(
+            340282366920938463463374607431768211455
+        );
+        bytes16 TEN = QuadruplePrecision.fromUInt(10);
 
         ///@notice Convert 2**128-1 to base 10 decimals i.e log_10(2**128-1)=x s.t 10^x=2**128-1
-        uint256 decimalsBase10 = QuadruplePrecision.toUInt(QuadruplePrecision.div(QuadruplePrecision.ln(max128), QuadruplePrecision.ln(TEN)));
-        
+        uint256 decimalsBase10 = QuadruplePrecision.toUInt(
+            QuadruplePrecision.div(
+                QuadruplePrecision.ln(max128),
+                QuadruplePrecision.ln(TEN)
+            )
+        );
+
         ///@notice 10**8 precision after the decimal point
-        assertEqDecimal(projectedSnapshot/(10**(decimalsBase10-8)), pricesUsdcWeth[2].spotPrice/(10**(decimalsBase10-8)), decimalsBase10);
-        
-        assertEq(maxReward,3671040722799248953);
+        assertEqDecimal(
+            projectedSnapshot / (10**(decimalsBase10 - 8)),
+            pricesUsdcWeth[2].spotPrice / (10**(decimalsBase10 - 8)),
+            decimalsBase10
+        );
+
+        assertEq(maxReward, 3671040722799248953);
     }
 
     ///@notice Deprecated as there are no longer batches to measure the price divergence
@@ -795,14 +816,14 @@ contract SwapRouterTest is DSTest {
         uint112 _reserve0,
         uint112 _reserve1
     ) public {
-       bool run = false;
+        bool run = false;
         ///Conditions to mimic an execution environment
         if (
             _alphaX > 10000000000 &&
             _alphaX % 10 == 0 &&
             _reserve0 > 10000000000000000000 &&
-            _reserve0 % 10 ==0 &&
-            _reserve1 % 10 ==0 &&
+            _reserve0 % 10 == 0 &&
+            _reserve1 % 10 == 0 &&
             _reserve1 > 100000000000000000010 &&
             _reserve0 != _reserve1 &&
             _alphaX < _reserve0
@@ -856,7 +877,6 @@ contract SwapRouterTest is DSTest {
                         uint128(_reserve1)
                     );
 
-                    
                     assertEq(uint256(alphaX), uint256(_alphaX));
                 }
             }
@@ -1121,7 +1141,6 @@ contract SwapRouterTest is DSTest {
 
         address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
 
-        
         address reciever = address(this);
 
         uint256 amountOut = limitOrderExecutor._swap(
@@ -1269,6 +1288,4 @@ contract LimitOrderExecutorWrapper is SwapRouter {
                 _sender
             );
     }
-
-    
 }

@@ -382,12 +382,15 @@ contract LimitOrderRouterTest is DSTest {
 
     ///@notice Test to execute a batch of Weth to Token orders Weth/Dai
     function testExecuteWethToTokenOrderBatch() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
+        
+        cheatCodes.deal(address(this), 100 ether);
+        
+        depositGasCreditsForMockOrders(100 ether);
+        
         cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        cheatCodes.deal(address(this), MAX_UINT);
-
+        cheatCodes.deal(address(this), 500000000000 ether);
+        
+       
         //Deposit weth to address(this)
         (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
             abi.encodeWithSignature("deposit()")
@@ -469,6 +472,7 @@ contract LimitOrderRouterTest is DSTest {
 
     ///@notice Test To Execute a batch of Token to token orders Usdc/Uni
     function testExecuteTokenToTokenBatch() public {
+        
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
@@ -2376,7 +2380,7 @@ contract LimitOrderRouterTest is DSTest {
     }
 }
 
-contract LimitOrderRouterWrapper is LimitOrderRouter {
+contract LimitOrderRouterWrapper is LimitOrderRouter  {
     constructor(
         address _gasOracle,
         address _weth,
