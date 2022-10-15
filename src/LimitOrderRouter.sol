@@ -439,7 +439,7 @@ contract LimitOrderRouter is OrderBook {
             ///@notice Validate that the orders in the batch are passed in with increasing quantity.
             _validateOrderSequencing(orders);
         }
-
+      
         uint256 totalBeaconReward;
         uint256 totalConveyorReward;
 
@@ -449,6 +449,7 @@ contract LimitOrderRouter is OrderBook {
                 orders
             );
         } else {
+            
             ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
             (
                 totalBeaconReward,
@@ -501,9 +502,6 @@ contract LimitOrderRouter is OrderBook {
             }
         }
     }
-
-   
-
 
     ///@notice Function to confirm ownership transfer of the contract.
     function confirmTransferOwnership() external {

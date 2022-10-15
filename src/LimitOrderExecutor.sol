@@ -4,13 +4,14 @@ pragma solidity ^0.8.16;
 import "./SwapRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "../lib/libraries/ConveyorFeeMath.sol";
+
 contract LimitOrderExecutor is SwapRouter {
     ///====================================Immutable Storage Variables==============================================//
     address immutable WETH;
     address immutable USDC;
     address immutable LIMIT_ORDER_QUOTER;
-    
-    ///@notice The contract owner. 
+
+    ///@notice The contract owner.
     address owner;
 
     ///@notice Conveyor funds balance in the contract.
@@ -19,11 +20,11 @@ contract LimitOrderExecutor is SwapRouter {
     ///@notice Boolean responsible for indicating if a function has been entered when the nonReentrant modifier is used.
     bool reentrancyStatus = false;
 
-    ///@param _weth The wrapped native token on the chain. 
-    ///@param _usdc Pegged stable token on the chain. 
+    ///@param _weth The wrapped native token on the chain.
+    ///@param _usdc Pegged stable token on the chain.
     ///@param _limitOrderQuoterAddress The address of the LimitOrderQuoter contract.
     ///@param _deploymentByteCodes The deployment bytecodes of all dex factory contracts.
-    ///@param _dexFactories The Dex factory addresses. 
+    ///@param _dexFactories The Dex factory addresses.
     ///@param _isUniV2 Array of booleans indication whether the Dex is V2 architecture.
     constructor(
         address _weth,
@@ -51,6 +52,7 @@ contract LimitOrderExecutor is SwapRouter {
             address[] memory lpAddressesAToWeth
         ) = _getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn);
 
+        ///@notice Initialize all execution prices for the token pair.
         TokenToWethExecutionPrice[] memory executionPrices = ILimitOrderQuoter(
             LIMIT_ORDER_QUOTER
         )._initializeTokenToWethExecutionPrices(
@@ -89,6 +91,7 @@ contract LimitOrderExecutor is SwapRouter {
                         maxBeaconReward,
                         executionPrices[bestPriceIndex]
                     );
+                ///@notice Increment the total beacon and conveyor reward.
                 totalBeaconReward += beaconReward;
                 totalConveyorReward += conveyorReward;
             }
@@ -108,6 +111,7 @@ contract LimitOrderExecutor is SwapRouter {
         ///@notice Transfer the totalBeaconReward to the off chain executor.
         transferBeaconReward(totalBeaconReward, tx.origin, WETH);
 
+        ///@notice Increment the conveyor balance.
         conveyorBalance += totalConveyorReward;
 
         return (totalBeaconReward, totalConveyorReward);
@@ -211,19 +215,23 @@ contract LimitOrderExecutor is SwapRouter {
         TokenToTokenExecutionPrice[] memory executionPrices;
         address tokenIn = orders[0].tokenIn;
         uint128 maxBeaconReward;
-        {
-            ///@notice Get all execution prices.
-            ///@notice Get all prices for the pairing tokenIn to Weth
-            (
-                SpotReserve[] memory spotReserveAToWeth,
-                address[] memory lpAddressesAToWeth
-            ) = _getAllPrices(tokenIn, WETH, orders[0].feeIn);
+        uint24 feeIn = orders[0].feeIn;
+        uint24 feeOut = orders[0].feeOut;
 
+        {
+            
+                ///@notice Get all execution prices.
+                ///@notice Get all prices for the pairing tokenIn to Weth
+                (
+                    SpotReserve[] memory spotReserveAToWeth,
+                    address[] memory lpAddressesAToWeth
+                ) = _getAllPrices(tokenIn, WETH, feeIn);
+            
             ///@notice Get all prices for the pairing Weth to tokenOut
             (
                 SpotReserve[] memory spotReserveWethToB,
                 address[] memory lpAddressWethToB
-            ) = _getAllPrices(WETH, orders[0].tokenOut, orders[0].feeOut);
+            ) = _getAllPrices(WETH, orders[0].tokenOut, feeOut);
 
             executionPrices = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
                 ._initializeTokenToTokenExecutionPrices(
@@ -238,7 +246,6 @@ contract LimitOrderExecutor is SwapRouter {
                 ? calculateMaxBeaconReward(spotReserveAToWeth, orders, false)
                 : calculateMaxBeaconReward(spotReserveWethToB, orders, true);
         }
-
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
         ///@notice Set totalConveyorReward to 0
@@ -304,7 +311,6 @@ contract LimitOrderExecutor is SwapRouter {
         {
             ///@notice If the tokenIn is not weth.
             if (order.tokenIn != WETH) {
-                
                 ///@notice Execute the first swap from tokenIn to weth.
                 (
                     amountInWethToB,
@@ -333,10 +339,8 @@ contract LimitOrderExecutor is SwapRouter {
                 );
 
                 ///@notice Calculate the conveyorReward and the off-chain logic executor reward.
-                (conveyorReward, beaconReward) = ConveyorFeeMath.calculateReward(
-                    protocolFee,
-                    uint128(amountIn)
-                );
+                (conveyorReward, beaconReward) = ConveyorFeeMath
+                    .calculateReward(protocolFee, uint128(amountIn));
 
                 ///@notice Get the amountIn for the Weth to tokenB swap.
                 amountInWethToB = amountIn - (beaconReward + conveyorReward);
@@ -363,7 +367,6 @@ contract LimitOrderExecutor is SwapRouter {
         beaconReward = beaconReward < maxBeaconReward
             ? beaconReward
             : maxBeaconReward;
-
 
         return (uint256(conveyorReward), uint256(beaconReward));
     }

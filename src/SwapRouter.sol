@@ -8,18 +8,20 @@ import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../lib/libraries/ConveyorMath.sol";
 import "./OrderBook.sol";
-import "./lib/ConveyorTickMath.sol";
+import "./ConveyorTickMath.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
+import "../lib/libraries/Uniswap/FixedPoint96.sol";
 import "../lib/libraries/Uniswap/TickMath.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "../lib/libraries/ConveyorFeeMath.sol";
 import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
+import "./test/utils/Console.sol";
 
 /// @title SwapRouter
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures.
-contract SwapRouter {
+contract SwapRouter is ConveyorTickMath {
     //----------------------Structs------------------------------------//
 
     ///@notice Struct to store DEX details
@@ -98,7 +100,7 @@ contract SwapRouter {
     IQuoter constant Quoter =
         IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
     uint128 constant MIN_FEE_64x64 = 18446744073709552;
-    uint128 constant MAX_UINT_128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+    uint128 constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
     uint128 constant UNI_V2_FEE = 5534023222112865000;
     uint256 constant MAX_UINT_256 =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
@@ -111,6 +113,7 @@ contract SwapRouter {
     uint128 constant ZERO_POINT_ZERO_ZERO_ONE = 18446744073709550;
     uint128 constant MAX_CONVEYOR_PERCENT = 110680464442257300 * 10**2;
     uint128 constant MIN_CONVEYOR_PERCENT = 7378697629483821000;
+    uint256 internal constant Q96 = 0x1000000000000000000000000;
 
     //======================Immutables================================
 
@@ -650,10 +653,10 @@ contract SwapRouter {
             _initBytecode
         );
 
-        require(pairAddress != address(0), "Invalid token pair");
+        bool token0IsReserve0 = tok0 == token0 ? true : false;
 
         ///@notice If the token pair does not exist on the dex return empty SpotReserve struct.
-        if (!(IUniswapV2Factory(_factory).getPair(tok0, tok1) == pairAddress)) {
+        if (address(0) == pairAddress) {
             return (_spRes, address(0));
         }
         {
@@ -667,35 +670,23 @@ contract SwapRouter {
                 uint256 commonReserve1
             ) = _getReservesCommonDecimals(tok0, tok1, reserve0, reserve1);
 
-            ///@notice If tokenIn is token0 on the pair address.
-            ///@notice Always set the tokenIn to _spRes.res0 in the SpotReserve structure
-            if (token0 == tok0) {
-                ///@notice Set spotPrice to the current spot price on the dex represented as 128.128 fixed point.
-                _spRes.spotPrice = ConveyorMath.div128x128(
+            ///@notice Set spotPrice to the current spot price on the dex represented as 128.128 fixed point.
+            _spRes.spotPrice = token0IsReserve0
+                ? ConveyorMath.div128x128(
                     commonReserve1 << 128,
                     commonReserve0 << 128
-                );
-                _spRes.token0IsReserve0 = true;
+                )
+                : _spRes.spotPrice = ConveyorMath.div128x128(
+                commonReserve0 << 128,
+                commonReserve1 << 128
+            );
+            _spRes.token0IsReserve0 = token0IsReserve0;
 
-                ///@notice Set res0, res1 on SpotReserve to commonReserve0, commonReserve1 respectively.
-                (_spRes.res0, _spRes.res1) = (
-                    uint128(commonReserve0),
-                    uint128(commonReserve1)
-                );
-            } else {
-                ///@notice Set spotPrice to the current spot price on the dex represented as 128.128 fixed point.
-                _spRes.spotPrice = ConveyorMath.div128x128(
-                    commonReserve0 << 128,
-                    commonReserve1 << 128
-                );
-                _spRes.token0IsReserve0 = false;
-
-                ///@notice Set spotPrice to the current spot price on the dex represented as 128.128 fixed point.
-                (_spRes.res1, _spRes.res0) = (
-                    uint128(commonReserve0),
-                    uint128(commonReserve1)
-                );
-            }
+            ///@notice Set res0, res1 on SpotReserve to commonReserve0, commonReserve1 respectively.
+            (_spRes.res0, _spRes.res1) = (
+                uint128(commonReserve0),
+                uint128(commonReserve1)
+            );
         }
 
         ///@notice Return pool address and populated SpotReserve struct.
@@ -740,40 +731,48 @@ contract SwapRouter {
         uint24 fee,
         address _factory
     ) internal view returns (SpotReserve memory _spRes, address pool) {
-        ///@notice Initialize variables to prevent stack too deep.
-        int24 tick;
+        ///@notice Sort the tokens to retrieve token0, token1 in the pool.
+        (address _tokenX, address _tokenY) = ConveyorFeeMath._sortTokens(
+            token0,
+            token1
+        );
+        ///@notice Get the pool address for token pair.
+        pool = IUniswapV3Factory(_factory).getPool(token0, token1, fee);
+        ///@notice Return an empty spot reserve if the pool address was not found.
+        if (pool == address(0)) {
+            return (_spRes, address(0));
+        }
+        ///@notice Get the current sqrtPrice ratio.
+        (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(pool).slot0();
 
-        uint32 tickSecond = 1; //Instantaneous price to use as baseline for maxBeaconReward analysis
-        uint8 targetDecimals = IERC20(token0).decimals() >=
-            IERC20(token1).decimals()
-            ? IERC20(token0).decimals()
-            : IERC20(token1).decimals();
-        ///@notice Set amountIn to the amountIn value in the the max token decimals of token0/token1.
-        uint112 amountIn = uint112(10**targetDecimals);
+        ///@notice Initialize block scoped variables
+        uint256 priceX128;
+        unchecked {
+            ///@notice Boolean indicating whether token0 is token0 in the pool.
+            bool token0IsReserve0 = _tokenX == token0 ? true : false;
+            ///@notice Cache the difference between the input and output token decimals. p=y/x ==> p*10**(x_decimals-y_decimals)>>Q192 will be the proper price in base 10.
+            int8 decimalShift = int8(IERC20(token0).decimals()) -
+                int8(IERC20(token1).decimals());
+            ///@notice Square the sqrtPrice ratio and normalize the value based on decimalShift.
+            uint256 priceSquaredX96 = decimalShift < 0
+                ? uint256(sqrtPriceX96)**2 / uint256(10)**(uint8(-decimalShift))
+                : uint256(sqrtPriceX96)**2 * 10**uint8(decimalShift);
 
-        ///@notice Scope to prevent stack too deep error.
-        {
-            ///@notice Get the pool address for token pair.
-            pool = IUniswapV3Factory(_factory).getPool(token0, token1, fee);
+            ///@notice The first value is a Q96 representation of p_token0, the second is 128X fixed point representation of p_token1.
+            uint256 priceSquaredShiftQ96 = token0IsReserve0
+                ? priceSquaredX96 / Q96
+                : (Q96 * 0xffffffffffffffffffffffffffffffff) /
+                    (priceSquaredX96 / Q96);
 
-            ///@notice If the pool does not exist on the dex, return empty SpotReserve structure and address(0).
-            if (pool == address(0)) {
-                return (_spRes, address(0));
-            }
-
-            ///@notice Notice current tick on the pool.
-            {
-                tick = _getTick(pool, tickSecond);
-            }
+            ///@notice Convert the first value to 128X fixed point by shifting it left 128 bits and normalizing the value by Q96.
+            priceX128 = token0IsReserve0
+                ? (uint256(priceSquaredShiftQ96) *
+                    0xffffffffffffffffffffffffffffffff) / Q96
+                : priceSquaredShiftQ96;
         }
 
-        ///@notice Set token0InPool to token0 in pool.
-        address token0InPool = IUniswapV3Pool(pool).token0();
-
-        _spRes.token0IsReserve0 = token0InPool == token0 ? true : false;
-
-        ///@notice Get the current spot price of the pool.
-        _spRes.spotPrice = _getQuoteAtTick(tick, amountIn, token0, token1);
+        ///@notice Set the spot price in the spot reserve structure.
+        _spRes.spotPrice = priceX128;
 
         return (_spRes, pool);
     }
@@ -803,41 +802,6 @@ contract SwapRouter {
         ///@notice return the opposite of success, meaning if the call succeeded, the address is univ3, and we should
         ///@notice indicate that lpIsNotUniV3 is false
         return !success;
-    }
-
-    ///@notice Helper function to get arithmetic mean tick from Uniswap V3 Pool.
-    ///@param pool - Address of the pool.
-    ///@param tickSecond - The tick range.
-    ///@return tick Arithmetic mean tick over the range tickSeconds.
-    function _getTick(address pool, uint32 tickSecond)
-        internal
-        view
-        returns (int24 tick)
-    {
-        int56 tickCumulativesDelta;
-
-        ///@notice Initialize tickSeconds range.
-        uint32[] memory tickSeconds = new uint32[](2);
-        tickSeconds[0] = tickSecond;
-        tickSeconds[1] = 0;
-
-        {
-            ///@notice Retrieve tickCumulatives from the observation over the pool from tickSeconds[1]-> tickSeconds[0]
-            (int56[] memory tickCumulatives, ) = IUniswapV3Pool(pool).observe(
-                tickSeconds
-            );
-
-            ///@notice Set tickCumulativesDelta to the difference in spot prices from tickCumulatives[1] to the current block.
-            tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
-            tick = int24(tickCumulativesDelta / int32(tickSecond));
-
-            if (
-                tickCumulativesDelta < 0 &&
-                (tickCumulativesDelta % int32(tickSecond) != 0)
-            ) tick--;
-        }
-
-        return tick;
     }
 
     /// @notice Helper function to get all v2/v3 spot prices on a token pair.
@@ -910,71 +874,6 @@ contract SwapRouter {
             SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
             address[] memory _lps = new address[](dexes.length);
             return (_spotPrices, _lps);
-        }
-    }
-
-    /// @notice Helper function to calculate the the quote amount recieved for the base amount of the base token at a certain tick.
-    /// @param tick - Tick value used to calculate the quote.
-    /// @param baseAmount - Amount of tokenIn to be converted.
-    /// @param baseToken - Address of the tokenIn to be quoted.
-    /// @param quoteToken - Address of the token used to quote the base amount of tokenIn.
-    /// @return quoteAmount - Amount of quoteToken received for baseAmount of baseToken.
-    function _getQuoteAtTick(
-        int24 tick,
-        uint128 baseAmount,
-        address baseToken,
-        address quoteToken
-    ) internal view returns (uint256) {
-        ///@notice Get sqrtRatio at tick represented as 64.96 fixed point.
-        uint160 sqrtRatioX96 = TickMath.getSqrtRatioAtTick(tick);
-
-        ///@notice Get the target decimals of the quote and base token.
-        uint8 targetDecimalsQuote = IERC20(quoteToken).decimals();
-        uint8 targetDecimalsBase = IERC20(baseToken).decimals();
-
-        ///@notice Initialize Adjusted quote amount to hold the quote amount represented as a 128.128 fixed point number.
-        uint256 adjustedFixed128x128Quote;
-        uint256 quoteAmount;
-
-        ///@notice Calculate quoteAmount with better precision if it doesn't overflow when multiplied by itself.
-        if (sqrtRatioX96 <= type(uint128).max) {
-            ///@notice Square the sqrt price to get the 64.96 representation of the spot price.
-            uint256 ratioX192 = uint256(sqrtRatioX96) * sqrtRatioX96;
-            quoteAmount = baseToken < quoteToken
-                ? FullMath.mulDiv(ratioX192, baseAmount, 1 << 192)
-                : FullMath.mulDiv(1 << 192, baseAmount, ratioX192);
-
-            adjustedFixed128x128Quote = uint256(quoteAmount) << 128;
-
-            if (targetDecimalsQuote < targetDecimalsBase) {
-                return adjustedFixed128x128Quote / 10**targetDecimalsQuote;
-            } else {
-                return
-                    adjustedFixed128x128Quote /
-                    (10 **
-                        ((targetDecimalsQuote - targetDecimalsBase) +
-                            targetDecimalsQuote));
-            }
-        } else {
-            uint256 ratioX128 = FullMath.mulDiv(
-                sqrtRatioX96,
-                sqrtRatioX96,
-                1 << 64
-            );
-            quoteAmount = baseToken < quoteToken
-                ? FullMath.mulDiv(ratioX128, baseAmount, 1 << 128)
-                : FullMath.mulDiv(1 << 128, baseAmount, ratioX128);
-
-            adjustedFixed128x128Quote = uint256(quoteAmount) << 128;
-            if (targetDecimalsQuote < targetDecimalsBase) {
-                return adjustedFixed128x128Quote / 10**targetDecimalsQuote;
-            } else {
-                return
-                    adjustedFixed128x128Quote /
-                    (10 **
-                        ((targetDecimalsQuote - targetDecimalsBase) +
-                            targetDecimalsQuote));
-            }
         }
     }
 }
