@@ -31,4 +31,4 @@ error InvalidTokenPairIdenticalAddress();
 error InvalidTokenPair();
 error InvalidAddress();
 error UnauthorizedCaller();
-
+error UnauthorizedUniswapV3CallbackCaller();
