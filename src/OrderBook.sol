@@ -228,7 +228,7 @@ contract OrderBook is GasOracle {
     be updated to the newOrder's parameters. */
     /**@param newOrder - Order struct containing the updated order parameters desired. 
     The newOrder should have the orderId that corresponds to the existing order that it should replace. */
-    function updateOrder(Order calldata newOrder) public {
+    function updateOrder(Order memory newOrder) public {
         ///@notice Check if the order exists
         bool orderExists = addressToOrderIds[msg.sender][newOrder.orderId];
 
@@ -240,9 +240,15 @@ contract OrderBook is GasOracle {
         ///@notice Get the existing order that will be replaced with the new order
         Order memory oldOrder = orderIdToOrder[newOrder.orderId];
 
+        if(oldOrder.tokenIn !=newOrder.tokenIn || oldOrder.tokenOut != newOrder.tokenOut){
+            revert InvalidOrderUpdate();
+        }
         ///@notice Get the total orders value for the msg.sender on the tokenIn
         uint256 totalOrdersValue = _getTotalOrdersValue(oldOrder.tokenIn);
 
+        ///@notice Set the lastRefreshTimestamp on the new order to the old orders lastRefreshTimestamp.
+        newOrder.lastRefreshTimestamp=oldOrder.lastRefreshTimestamp;
+        
         ///@notice Update the total orders value
         if (newOrder.quantity > oldOrder.quantity) {
             totalOrdersValue += newOrder.quantity - oldOrder.quantity;

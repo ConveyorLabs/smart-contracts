@@ -32,3 +32,5 @@ error InvalidTokenPair();
 error InvalidAddress();
 error UnauthorizedCaller();
 error UnauthorizedUniswapV3CallbackCaller();
+error InvalidOrderUpdate();
+
