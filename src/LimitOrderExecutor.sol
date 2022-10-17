@@ -219,14 +219,13 @@ contract LimitOrderExecutor is SwapRouter {
         uint24 feeOut = orders[0].feeOut;
 
         {
-            
-                ///@notice Get all execution prices.
-                ///@notice Get all prices for the pairing tokenIn to Weth
-                (
-                    SpotReserve[] memory spotReserveAToWeth,
-                    address[] memory lpAddressesAToWeth
-                ) = _getAllPrices(tokenIn, WETH, feeIn);
-            
+            ///@notice Get all execution prices.
+            ///@notice Get all prices for the pairing tokenIn to Weth
+            (
+                SpotReserve[] memory spotReserveAToWeth,
+                address[] memory lpAddressesAToWeth
+            ) = _getAllPrices(tokenIn, WETH, feeIn);
+
             ///@notice Get all prices for the pairing Weth to tokenOut
             (
                 SpotReserve[] memory spotReserveWethToB,
