@@ -525,7 +525,7 @@ contract SwapRouter is ConveyorTickMath {
 
         ///@notice Initialize Storage variable uniV3AmountOut to 0 prior to the swap.
         uniV3AmountOut = 0;
-        console.log(_lp);
+        
         ///@notice Execute the swap on the lp for the amounts specified.
         IUniswapV3Pool(_lp).swap(
             _reciever,
