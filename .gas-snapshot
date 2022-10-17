@@ -1,4 +1,5 @@
 GasOracleTest:testGetPrice() (gas: 24118)
+
 LimitOrderQuoterTest:testFindBestTokenToTokenExecutionPrice() (gas: 15191)
 LimitOrderQuoterTest:testSimulateAToBPriceChangeV2ReserveOutputs(uint112) (runs: 256, μ: 64332, ~: 85200)
 LimitOrderQuoterTest:testSimulateAToBPriceChangeV2SpotPrice(uint112) (runs: 256, μ: 64264, ~: 85077)
@@ -78,3 +79,4 @@ SwapRouterTest:testSwapV2_2() (gas: 216614)
 SwapRouterTest:testSwapV2_3() (gas: 174967)
 SwapRouterTest:testSwapV3_1() (gas: 176606)
 SwapRouterTest:testSwapV3_2() (gas: 461292)
+
