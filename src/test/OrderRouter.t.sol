@@ -462,6 +462,20 @@ contract SwapRouterTest is DSTest {
         }
     }
 
+    function testFailUniswapV3Callback_UnauthorizedUniswapV3CallbackCaller()
+        public
+    {
+        bytes memory data = abi.encode(
+            100,
+            true,
+            address(this),
+            address(this),
+            address(this)
+        );
+
+        limitOrderExecutor.uniswapV3SwapCallback(0, 0, data);
+    }
+
     ///@notice Helper function to convert bytes to uint
     function bytesToUint(bytes memory b) internal pure returns (uint256) {
         uint256 number;
@@ -823,10 +837,8 @@ contract SwapRouterTest is DSTest {
             _alphaX > 10000000000 &&
             _alphaX % 10 == 0 &&
             _reserve0 > 10000000000000000000 &&
-
             _reserve0 % 10 == 0 &&
             _reserve1 % 10 == 0 &&
-
             _reserve1 > 100000000000000000010 &&
             _reserve0 != _reserve1 &&
             _alphaX < _reserve0
@@ -879,8 +891,6 @@ contract SwapRouterTest is DSTest {
                         uint128(_reserve0),
                         uint128(_reserve1)
                     );
-
-
 
                     assertEq(uint256(alphaX), uint256(_alphaX));
                 }
@@ -1057,7 +1067,7 @@ contract SwapRouterTest is DSTest {
             1000000000000000000
         );
 
-        //address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
         address _lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
 
@@ -1065,7 +1075,8 @@ contract SwapRouterTest is DSTest {
         limitOrderExecutor.swapV3(
             _lp,
             tokenIn,
-            3000,
+            tokenOut,
+            500,
             1000000000000000000,
             1,
             reciever,
@@ -1076,6 +1087,7 @@ contract SwapRouterTest is DSTest {
     //Uniswap V3 SwapRouter Tests
     function testSwapV3_2() public {
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
             1000 ether,
@@ -1091,7 +1103,8 @@ contract SwapRouterTest is DSTest {
         limitOrderExecutor.swapV3(
             _lp,
             tokenIn,
-            3000,
+            tokenOut,
+            500,
             amountReceived,
             1,
             reciever,
@@ -1122,7 +1135,7 @@ contract SwapRouterTest is DSTest {
             tokenIn,
             tokenOut,
             lp,
-            3000,
+            500,
             amountReceived,
             amountInMaximum,
             reciever,
@@ -1219,6 +1232,7 @@ contract LimitOrderExecutorWrapper is SwapRouter {
     function swapV3(
         address _lp,
         address _tokenIn,
+        address _tokenOut,
         uint24 _fee,
         uint256 _amountIn,
         uint256 _amountOutMin,
@@ -1229,6 +1243,7 @@ contract LimitOrderExecutorWrapper is SwapRouter {
             _swapV3(
                 _lp,
                 _tokenIn,
+                _tokenOut,
                 _fee,
                 _amountIn,
                 _amountOutMin,

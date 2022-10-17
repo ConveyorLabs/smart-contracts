@@ -17,6 +17,7 @@ import "./lib/ConveyorFeeMath.sol";
 import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 
+
 /// @title SwapRouter
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures.
@@ -112,11 +113,13 @@ contract SwapRouter is ConveyorTickMath {
     uint128 constant MIN_CONVEYOR_PERCENT = 7378697629483821000;
     uint256 internal constant Q96 = 0x1000000000000000000000000;
 
-    //======================Immutables================================
-
     ///@notice Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     uint256 constant alphaXDivergenceThreshold =
         3402823669209385000000000000000000;
+
+    //======================Immutables================================
+
+    address uniswapV3Factory;
 
     //======================Constructor================================
 
@@ -139,6 +142,11 @@ contract SwapRouter is ConveyorTickMath {
                     isUniV2: _isUniV2[i]
                 })
             );
+
+            //If the dex is a univ3 variant, then update the uniswapV3FactoryAddress
+            if (!_isUniV2[i]) {
+                uniswapV3Factory = _dexFactories[i];
+            }
         }
     }
 
@@ -462,6 +470,7 @@ contract SwapRouter is ConveyorTickMath {
             amountRecieved = _swapV3(
                 _lp,
                 _tokenIn,
+                _tokenOut,
                 _fee,
                 _amountIn,
                 _amountOutMin,
@@ -483,6 +492,7 @@ contract SwapRouter is ConveyorTickMath {
     function _swapV3(
         address _lp,
         address _tokenIn,
+        address _tokenOut,
         uint24 _fee,
         uint256 _amountIn,
         uint256 _amountOutMin,
@@ -507,14 +517,15 @@ contract SwapRouter is ConveyorTickMath {
         bytes memory data = abi.encode(
             _amountOutMin,
             _zeroForOne,
-            _lp,
             _tokenIn,
+            _tokenOut,
+            _fee,
             _sender
         );
 
         ///@notice Initialize Storage variable uniV3AmountOut to 0 prior to the swap.
         uniV3AmountOut = 0;
-
+        
         ///@notice Execute the swap on the lp for the amounts specified.
         IUniswapV3Pool(_lp).swap(
             _reciever,
@@ -582,10 +593,25 @@ contract SwapRouter is ConveyorTickMath {
         (
             uint256 amountOutMin,
             bool _zeroForOne,
-            address _lp,
             address tokenIn,
+            address tokenOut,
+            uint24 fee,
             address _sender
-        ) = abi.decode(data, (uint256, bool, address, address, address));
+        ) = abi.decode(
+                data,
+                (uint256, bool, address, address, uint24, address)
+            );
+
+        address poolAddress = IUniswapV3Factory(uniswapV3Factory).getPool(
+            tokenIn,
+            tokenOut,
+            fee
+        );
+        
+        if (msg.sender != poolAddress) {
+            revert UnauthorizedUniswapV3CallbackCaller();
+        }
+
         ///@notice If swapping token0 for token1.
         if (_zeroForOne) {
             ///@notice Set contract storage variable to the amountOut from the swap.
@@ -609,9 +635,9 @@ contract SwapRouter is ConveyorTickMath {
 
         if (!(_sender == address(this))) {
             ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender.
-            IERC20(tokenIn).transferFrom(_sender, _lp, amountIn);
+            IERC20(tokenIn).transferFrom(_sender, poolAddress, amountIn);
         } else {
-            IERC20(tokenIn).transfer(_lp, amountIn);
+            IERC20(tokenIn).transfer(poolAddress, amountIn);
         }
     }
 
