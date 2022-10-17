@@ -48,7 +48,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ) external pure returns (uint256 bestPriceIndex) {
         ///@notice If the order is a buy order, set the initial best price at 0.
         if (buyOrder) {
-            uint256 bestPrice = 0;
+            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
             ///@notice For each exectution price in the executionPrices array.
             for (uint256 i = 0; i < executionPrices.length; ) {
@@ -66,7 +66,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
             }
         } else {
             ///@notice If the order is a sell order, set the initial best price at max uint256.
-            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+            uint256 bestPrice = 0;
             for (uint256 i = 0; i < executionPrices.length; ) {
                 uint256 executionPrice = executionPrices[i].price;
 

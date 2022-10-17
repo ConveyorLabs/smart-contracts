@@ -300,10 +300,6 @@ contract LimitOrderRouter is OrderBook {
         ///@notice Get the current gas price from the v3 Aggregator.
         uint256 gasPrice = getGasPrice();
 
-        ///@notice Get the minimum gas credits needed for a single order
-        uint256 minimumGasCreditsForSingleOrder = gasPrice *
-            ORDER_EXECUTION_GAS_COST;
-
         ///@notice Check if the account has the minimum gas credits for
         if (
             !(
@@ -317,17 +313,6 @@ contract LimitOrderRouter is OrderBook {
         ) {
             ///@notice Remove the order from the limit order system.
             _cancelOrder(order);
-
-            ///@notice Decrement from the order owner's gas credit balance.
-            gasCreditBalance[order.owner] -= minimumGasCreditsForSingleOrder;
-
-            ///@notice Send the off-chain executor the reward for cancelling the order.
-            safeTransferETH(msg.sender, minimumGasCreditsForSingleOrder);
-
-            ///@notice Emit an order cancelled event to notify the off-chain exectors.
-            bytes32[] memory orderIds = new bytes32[](1);
-            orderIds[0] = order.orderId;
-            emit OrderCancelled(orderIds);
 
             return true;
         }

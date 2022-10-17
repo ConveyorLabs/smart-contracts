@@ -242,6 +242,52 @@ contract LimitOrderRouterTest is DSTest {
         assertEq(allOrderIds[1][1], fufilledOrderIds[1]);
     }
 
+    function testValidateAndCancelOrder() public {
+        OrderBook.Order memory order = newOrder(WETH, USDC, 0, 0, 0);
+        cheatCodes.deal(address(this),MAX_UINT);
+
+        bytes32 orderId  = placeMockOrder(order);
+        uint256 gasPrice = limitOrderRouter.getGasPrice();
+        uint256 minimumGasCredits = (gasPrice*300000*150)/100;
+        uint256 minimumBalanceSubMultiplier= gasPrice*300000;
+
+        depositGasCreditsForMockOrders(minimumGasCredits-1);
+        
+        bool cancelled=limitOrderRouter.validateAndCancelOrder(orderId);
+        assertTrue(cancelled);
+
+        OrderBook.Order memory cancelledOrder = limitOrderRouter.getOrderById(
+                orderId
+            );
+    
+        assert(cancelledOrder.orderId == bytes32(0));
+        assertEq((minimumGasCredits-1)-minimumBalanceSubMultiplier,limitOrderRouter.gasCreditBalance(address(this)));   
+    }
+
+    function testFailValidateAndCancelOrder() public {
+        OrderBook.Order memory order = newOrder(WETH, USDC, 0, 0, 0);
+        cheatCodes.deal(address(this),MAX_UINT);
+
+        bytes32 orderId  = placeMockOrder(order);
+        uint256 gasPrice = limitOrderRouter.getGasPrice();
+        uint256 minimumGasCredits = (gasPrice*300000*150)/100;
+        uint256 minimumBalanceSubMultiplier= gasPrice*300000;
+
+        depositGasCreditsForMockOrders(minimumGasCredits-1);
+        
+        bool cancelled=limitOrderRouter.validateAndCancelOrder(orderId);
+        assertTrue(cancelled);
+
+        OrderBook.Order memory cancelledOrder = limitOrderRouter.getOrderById(
+                orderId
+            );
+    
+        assert(cancelledOrder.orderId == bytes32(0));
+        assertEq(minimumGasCredits-minimumBalanceSubMultiplier,limitOrderRouter.gasCreditBalance(address(this)));   
+    }
+
+
+
     //================================================================
     //==================== Execution Tests ===========================
     //================================================================
@@ -2377,6 +2423,32 @@ contract LimitOrderRouterTest is DSTest {
         orderBatch[2] = order3;
 
         return orderBatch;
+    }
+
+    function newOrder(
+        address tokenIn,
+        address tokenOut,
+        uint128 price,
+        uint128 quantity,
+        uint128 amountOutMin
+    ) internal view returns (OrderBook.Order memory order) {
+        //Initialize mock order
+        order = OrderBook.Order({
+            buy: false,
+            taxed: false,
+            lastRefreshTimestamp: 0,
+            expirationTimestamp: uint32(MAX_UINT),
+            feeIn: 0,
+            feeOut: 0,
+            taxIn: 0,
+            price: price,
+            amountOutMin: amountOutMin,
+            quantity: quantity,
+            owner: address(this),
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            orderId: bytes32(0)
+        });
     }
 }
 
