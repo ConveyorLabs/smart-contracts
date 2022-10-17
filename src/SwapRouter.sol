@@ -17,7 +17,6 @@ import "./lib/ConveyorFeeMath.sol";
 import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 
-
 /// @title SwapRouter
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures.
@@ -148,7 +147,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@notice Transfer ETH to a specific address and require that the call was successful.
     ///@param to - The address that should be sent Ether.
     ///@param amount - The amount of Ether that should be sent.
-    function safeTransferETH(address to, uint256 amount) public {
+    function safeTransferETH(address to, uint256 amount) internal {
         bool success;
 
         assembly {

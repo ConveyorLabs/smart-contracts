@@ -13,9 +13,8 @@ import "./interfaces/ILimitOrderExecutor.sol";
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
 contract LimitOrderRouter is OrderBook {
-    
     // ========================================= Modifiers =============================================
-    
+
     ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlyEOA() {
         if (msg.sender != tx.origin) {
@@ -33,7 +32,6 @@ contract LimitOrderRouter is OrderBook {
 
         _;
     }
-
 
     ///@notice Modifier to restrict reentrancy into a function.
     modifier nonReentrant() {
@@ -62,7 +60,7 @@ contract LimitOrderRouter is OrderBook {
     mapping(address => uint256) public gasCreditBalance;
 
     ///@notice The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
-    uint256 constant ORDER_EXECUTION_GAS_COST=300000;
+    uint256 constant ORDER_EXECUTION_GAS_COST = 300000;
 
     ///@notice State variable to track the amount of gas initally alloted during executeOrders.
     uint256 initialTxGas;
@@ -78,7 +76,6 @@ contract LimitOrderRouter is OrderBook {
 
     address immutable LIMIT_ORDER_EXECUTOR;
 
-
     // ========================================= Constructor =============================================
 
     ///@param _gasOracle - Address of the ChainLink fast gas oracle.
@@ -88,11 +85,8 @@ contract LimitOrderRouter is OrderBook {
         address _gasOracle,
         address _weth,
         address _limitOrderExecutor
-    )
-        OrderBook(_gasOracle,_limitOrderExecutor)
-    {
-       
-        WETH=_weth;
+    ) OrderBook(_gasOracle, _limitOrderExecutor) {
+        WETH = _weth;
         owner = msg.sender;
 
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
@@ -274,7 +268,7 @@ contract LimitOrderRouter is OrderBook {
     ///@notice Transfer ETH to a specific address and require that the call was successful.
     ///@param to - The address that should be sent Ether.
     ///@param amount - The amount of Ether that should be sent.
-    function safeTransferETH(address to, uint256 amount) public {
+    function safeTransferETH(address to, uint256 amount) internal {
         bool success;
 
         assembly {
@@ -439,22 +433,20 @@ contract LimitOrderRouter is OrderBook {
             ///@notice Validate that the orders in the batch are passed in with increasing quantity.
             _validateOrderSequencing(orders);
         }
-      
+
         uint256 totalBeaconReward;
         uint256 totalConveyorReward;
 
         ///@notice If the order is not taxed and the tokenOut on the order is Weth
         if (orders[0].tokenOut == WETH) {
-            (totalBeaconReward, totalConveyorReward) = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeTokenToWethOrders(
-                orders
-            );
+            (totalBeaconReward, totalConveyorReward) = ILimitOrderExecutor(
+                LIMIT_ORDER_EXECUTOR
+            ).executeTokenToWethOrders(orders);
         } else {
-            
             ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
-            (
-                totalBeaconReward,
-                totalConveyorReward
-            ) = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeTokenToTokenOrders(orders);
+            (totalBeaconReward, totalConveyorReward) = ILimitOrderExecutor(
+                LIMIT_ORDER_EXECUTOR
+            ).executeTokenToTokenOrders(orders);
         }
 
         ///@notice Get the array of order owners.
@@ -564,5 +556,4 @@ contract LimitOrderRouter is OrderBook {
             }
         }
     }
-
 }
