@@ -17,6 +17,7 @@ import "./lib/ConveyorFeeMath.sol";
 import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 
+
 /// @title SwapRouter
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures.
@@ -524,7 +525,7 @@ contract SwapRouter is ConveyorTickMath {
 
         ///@notice Initialize Storage variable uniV3AmountOut to 0 prior to the swap.
         uniV3AmountOut = 0;
-
+        console.log(_lp);
         ///@notice Execute the swap on the lp for the amounts specified.
         IUniswapV3Pool(_lp).swap(
             _reciever,
@@ -606,7 +607,7 @@ contract SwapRouter is ConveyorTickMath {
             tokenOut,
             fee
         );
-
+        
         if (msg.sender != poolAddress) {
             revert UnauthorizedUniswapV3CallbackCaller();
         }
