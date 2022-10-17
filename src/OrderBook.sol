@@ -248,7 +248,7 @@ contract OrderBook is GasOracle {
 
         ///@notice Set the lastRefreshTimestamp on the new order to the old orders lastRefreshTimestamp.
         newOrder.lastRefreshTimestamp=oldOrder.lastRefreshTimestamp;
-        
+
         ///@notice Update the total orders value
         if (newOrder.quantity > oldOrder.quantity) {
             totalOrdersValue += newOrder.quantity - oldOrder.quantity;
@@ -401,6 +401,13 @@ contract OrderBook is GasOracle {
     ///@notice Function to resolve an order as completed.
     ///@param order - The order that should be resolved from the system.
     function _resolveCompletedOrder(Order memory order) internal {
+        ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed. 
+        Order memory orderCheck = orderIdToOrder[order.orderId];
+        
+        ///@notice If the order has already been removed from the contract revert.
+        if(orderCheck.orderId==bytes32(0)){
+            revert DuplicateOrdersInExecution();
+        }
         ///@notice Remove the order from the system
         delete orderIdToOrder[order.orderId];
         delete addressToOrderIds[order.owner][order.orderId];
