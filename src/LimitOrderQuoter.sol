@@ -2,7 +2,7 @@
 pragma solidity >=0.8.16;
 
 import "./interfaces/IOrderRouter.sol";
-import "./ConveyorTickMath.sol";
+import "./lib/ConveyorTickMath.sol";
 import "./test/utils/Console.sol";
 
 contract LimitOrderQuoter is ConveyorTickMath {

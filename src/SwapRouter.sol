@@ -6,17 +6,17 @@ import "../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
-import "../lib/libraries/ConveyorMath.sol";
+import "./lib/ConveyorMath.sol";
 import "./OrderBook.sol";
-import "./ConveyorTickMath.sol";
+import "./lib/ConveyorTickMath.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/libraries/Uniswap/FixedPoint96.sol";
 import "../lib/libraries/Uniswap/TickMath.sol";
 import "../lib/interfaces/token/IWETH.sol";
-import "../lib/libraries/ConveyorFeeMath.sol";
+import "./lib/ConveyorFeeMath.sol";
 import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
-import "./test/utils/Console.sol";
+
 
 /// @title SwapRouter
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
@@ -97,8 +97,6 @@ contract SwapRouter is ConveyorTickMath {
 
     //======================Constants================================
 
-    IQuoter constant Quoter =
-        IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
     uint128 constant MIN_FEE_64x64 = 18446744073709552;
     uint128 constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
     uint128 constant UNI_V2_FEE = 5534023222112865000;
@@ -502,8 +500,7 @@ contract SwapRouter is ConveyorTickMath {
             (_sqrtPriceLimitX96, _zeroForOne) = getNextSqrtPriceV3(
                 _lp,
                 _amountIn,
-                _tokenIn,
-                _fee
+                _tokenIn
             );
         }
 
@@ -536,15 +533,13 @@ contract SwapRouter is ConveyorTickMath {
     ///@param _lp - Address of the liquidity pool to execute the swap on.
     ///@param _alphaX - The input amount to calculate the nextSqrtPriceX96.
     ///@param _tokenIn - The address of TokenIn.
-    ///@param _fee - The swap fee on the liquiditiy pool.
     ///@return _sqrtPriceLimitX96 - The nextSqrtPriceX96 after alphaX amount of TokenIn is introduced to the pool.
     ///@return  _zeroForOne - Boolean indicating whether Token0 is being swapped for Token1 on the liquidity pool.
     function getNextSqrtPriceV3(
         address _lp,
         uint256 _alphaX,
-        address _tokenIn,
-        uint24 _fee
-    ) internal returns (uint160 _sqrtPriceLimitX96, bool _zeroForOne) {
+        address _tokenIn
+    ) internal view returns (uint160 _sqrtPriceLimitX96, bool _zeroForOne) {
         ///@notice Initialize token0 & token1 to prevent stack too deep.
         address token0;
         address token1;

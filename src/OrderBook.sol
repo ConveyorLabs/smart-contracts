@@ -76,7 +76,7 @@ contract OrderBook is GasOracle {
     //----------------------State Structures------------------------------------//
 
     ///@notice Mapping from an orderId to its order.
-    mapping(bytes32 => Order) public orderIdToOrder;
+    mapping(bytes32 => Order) internal orderIdToOrder;
 
     ///@notice Mapping to find the total orders quantity for a specific token, for an individual account
     ///@notice The key is represented as: keccak256(abi.encode(owner, token));

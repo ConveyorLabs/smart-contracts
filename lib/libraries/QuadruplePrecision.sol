@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.16;
 
-import "./ConveyorBitMath.sol";
+import "../../src/lib/ConveyorBitMath.sol";
 
 library QuadruplePrecision {
     bytes16 private constant POSITIVE_ZERO = 0x00000000000000000000000000000000;

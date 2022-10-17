@@ -3,7 +3,7 @@ pragma solidity ^0.8.16;
 
 import "./SwapRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
-import "../lib/libraries/ConveyorFeeMath.sol";
+import "./lib/ConveyorFeeMath.sol";
 
 contract LimitOrderExecutor is SwapRouter {
     ///====================================Immutable Storage Variables==============================================//
