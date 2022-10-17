@@ -9,13 +9,14 @@ import "./ConveyorErrors.sol";
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
 contract OrderBook is GasOracle {
+    address immutable EXECUTOR_ADDRESS;
     //----------------------Constructor------------------------------------//
-    address immutable ORDER_ROUTER;
+    
 
-    constructor(address _gasOracle, address _orderRouter)
+    constructor(address _gasOracle, address _limitOrderExecutor)
         GasOracle(_gasOracle)
     {
-        ORDER_ROUTER = _orderRouter;
+        EXECUTOR_ADDRESS=_limitOrderExecutor;
     }
 
     //----------------------Events------------------------------------//
@@ -75,7 +76,7 @@ contract OrderBook is GasOracle {
     //----------------------State Structures------------------------------------//
 
     ///@notice Mapping from an orderId to its order.
-    mapping(bytes32 => Order) public orderIdToOrder;
+    mapping(bytes32 => Order) internal orderIdToOrder;
 
     ///@notice Mapping to find the total orders quantity for a specific token, for an individual account
     ///@notice The key is represented as: keccak256(abi.encode(owner, token));
@@ -209,7 +210,7 @@ contract OrderBook is GasOracle {
         ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
         uint256 totalApprovedQuantity = IERC20(orderToken).allowance(
             msg.sender,
-            ORDER_ROUTER
+            address(EXECUTOR_ADDRESS)
         );
 
         ///@notice If the total approved quantity is less than the updatedTotalOrdersValue, revert.

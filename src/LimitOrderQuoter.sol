@@ -1,342 +1,42 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.16;
+pragma solidity >=0.8.16;
 
-import "./SwapRouter.sol";
 import "./interfaces/IOrderRouter.sol";
+import "./lib/ConveyorTickMath.sol";
+import "./test/utils/Console.sol";
 
-contract LimitOrderBatcher {
+contract LimitOrderQuoter is ConveyorTickMath {
     address immutable WETH;
-    IQuoter immutable QUOTER;
-    address immutable orderRouter;
 
-    constructor(
-        address weth,
-        address quoterAddress,
-        address orderRouterAddress
-    ) {
-        WETH = weth;
-        QUOTER = IQuoter(quoterAddress);
-        orderRouter = orderRouterAddress;
+    constructor(address _weth, address _quoterAddress) {
+        WETH = _weth;
     }
 
-    ///@notice Function to batch multiple token to weth orders together.
-    ///@param orders - Array of orders to be batched into the most efficient ordering.
-    ///@param executionPrices - Array of execution prices available to the batch orders. The batch order will be placed on the best execution price.
-    ///@return  tokenToTokenBatchOrders - Returns an array of TokenToWethBatchOrder.
-    function batchTokenToTokenOrders(
-        OrderBook.Order[] memory orders,
-        SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices
-    )
-        internal
-        returns (
-            SwapRouter.TokenToTokenBatchOrder[] memory tokenToTokenBatchOrders
-        )
-    {
-        ///@notice Create a new token to weth batch order.
-        tokenToTokenBatchOrders = new SwapRouter.TokenToTokenBatchOrder[](
-            orders.length
-        );
+    ///@notice Helper function to determine if a pool address is Uni V2 compatible.
+    ///@param lp - Pair address.
+    ///@return bool Idicator whether the pool is not Uni V3 compatible.
+    function _lpIsNotUniV3(address lp) internal returns (bool) {
+        bool success;
+        assembly {
+            //store the function sig for  "fee()"
+            mstore(
+                0x00,
+                0xddca3f4300000000000000000000000000000000000000000000000000000000
+            )
 
-        ///@notice Cache the first order in the array.
-        OrderBook.Order memory firstOrder = orders[0];
-
-        ///@notice Check if the order is a buy or sell to assign the buy/sell status for the batch.
-        bool buyOrder = _buyOrSell(firstOrder);
-
-        ///@notice Assign the batch's tokenIn.
-        address batchOrderTokenIn = firstOrder.tokenIn;
-
-        ///@notice Assign the batch's tokenOut.
-        address batchOrderTokenOut = firstOrder.tokenOut;
-
-        ///@notice Create a variable to track the best execution price in the array of execution prices.
-        uint256 currentBestPriceIndex = _findBestTokenToTokenExecutionPrice(
-            executionPrices,
-            buyOrder
-        );
-
-        ///@notice Initialize a new token to token batch order.
-        SwapRouter.TokenToTokenBatchOrder
-            memory currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
-                orders.length,
-                batchOrderTokenIn,
-                batchOrderTokenOut,
-                executionPrices[currentBestPriceIndex].lpAddressAToWeth,
-                executionPrices[currentBestPriceIndex].lpAddressWethToB
-            );
-
-        ///@notice Initialize a variable to keep track of how many batch orders there are.
-        uint256 currentTokenToTokenBatchOrdersIndex = 0;
-
-        ///@notice Scope to prevent stack too deep.
-        {
-            ///@notice For each order in the orders array.
-            for (uint256 i = 0; i < orders.length; ) {
-                ///@notice Get the index of the best exectuion price.
-                uint256 bestPriceIndex = _findBestTokenToTokenExecutionPrice(
-                    executionPrices,
-                    buyOrder
-                );
-
-                ///@notice if the best price has changed since the last order, add the batch order to the array and update the best price index.
-                if (i > 0 && currentBestPriceIndex != bestPriceIndex) {
-                    ///@notice add the current batch order to the batch orders array
-                    tokenToTokenBatchOrders[
-                        currentTokenToTokenBatchOrdersIndex
-                    ] = currentTokenToTokenBatchOrder;
-
-                    ///@notice Increment the amount of to current token to weth batch orders index
-                    currentTokenToTokenBatchOrdersIndex++;
-
-                    ///@notice Update the index of the best execution price.
-                    currentBestPriceIndex = bestPriceIndex;
-
-                    ///@notice Initialize a new batch order.
-                    currentTokenToTokenBatchOrder = _initializeNewTokenToTokenBatchOrder(
-                        orders.length,
-                        batchOrderTokenIn,
-                        batchOrderTokenOut,
-                        executionPrices[bestPriceIndex].lpAddressAToWeth,
-                        executionPrices[bestPriceIndex].lpAddressWethToB
-                    );
-                }
-
-                ///@notice Get the current order.
-                OrderBook.Order memory currentOrder = orders[i];
-
-                ///@notice Check that the order meets execution price.
-                if (
-                    _orderMeetsExecutionPrice(
-                        currentOrder.price,
-                        executionPrices[bestPriceIndex].price,
-                        buyOrder
-                    )
-                ) {
-                    ///@notice Check that the order can execute without hitting slippage.
-                    if (
-                        _orderCanExecute(
-                            executionPrices[bestPriceIndex].price,
-                            currentOrder.quantity,
-                            currentOrder.amountOutMin
-                        )
-                    ) {
-                        if (!currentOrder.taxed) {
-                            ///@notice Transfer the tokenIn from the user's wallet to the contract. If the transfer fails, cancel the order.
-                            IOrderRouter(orderRouter).transferTokensToContract(
-                                currentOrder
-                            );
-                        }
-
-                        ///@notice Get the batch length of the current batch order.
-                        uint256 batchLength = currentTokenToTokenBatchOrder
-                            .batchLength;
-
-                        ///@notice Add the order to the current batch order.
-                        currentTokenToTokenBatchOrder.amountIn += currentOrder
-                            .quantity;
-
-                        ///@notice Add the amountOutMin to the batch order.
-                        currentTokenToTokenBatchOrder
-                            .amountOutMin += currentOrder.amountOutMin;
-
-                        ///@notice Add the owner of the order to the batchOwners.
-                        currentTokenToTokenBatchOrder.batchOwners[
-                                batchLength
-                            ] = currentOrder.owner;
-
-                        ///@notice Add the order quantity of the order to ownerShares.
-                        currentTokenToTokenBatchOrder.ownerShares[
-                                batchLength
-                            ] = currentOrder.quantity;
-
-                        ///@notice Add the orderId to the batch order.
-                        currentTokenToTokenBatchOrder.orderIds[
-                            batchLength
-                        ] = currentOrder.orderId;
-
-                        ///@notice Increment the batch length.
-                        ++currentTokenToTokenBatchOrder.batchLength;
-
-                        ///@notice Update the best execution price.
-                        (
-                            executionPrices[bestPriceIndex]
-                        ) = simulateTokenToTokenPriceChange(
-                            uint128(currentTokenToTokenBatchOrder.amountIn),
-                            executionPrices[bestPriceIndex]
-                        );
-                    } else {
-                        ///@notice If the order can not execute due to slippage, revert to notify the off-chain executor.
-                        revert OrderHasInsufficientSlippage(
-                            currentOrder.orderId
-                        );
-                    }
-                } else {
-                    ///@notice Revert if Order does not meet execution price.
-                    revert OrderDoesNotMeetExecutionPrice(currentOrder.orderId);
-                }
-                unchecked {
-                    ++i;
-                }
-            }
+            success := call(
+                gas(), // gas remaining
+                lp, // destination address
+                0, // no ether
+                0x00, // input buffer (starts after the first 32 bytes in the `data` array)
+                0x04, // input length (loaded from the first 32 bytes in the `data` array)
+                0x00, // output buffer
+                0x00 // output length
+            )
         }
-
-        ///@notice add the last batch to the tokenToWethBatchOrders array
-        tokenToTokenBatchOrders[
-            currentTokenToTokenBatchOrdersIndex
-        ] = currentTokenToTokenBatchOrder;
-    }
-
-    ///@notice Function to batch multiple token to weth orders together.
-    ///@param orders - Array of orders to be batched into the most efficient ordering.
-    ///@param executionPrices - Array of execution prices available to the batch orders. The batch order will be placed on the best execution price.
-    ///@return  tokenToWethBatchOrders - Returns an array of TokenToWethBatchOrder.
-    function _batchTokenToWethOrders(
-        OrderBook.Order[] memory orders,
-        SwapRouter.TokenToWethExecutionPrice[] memory executionPrices
-    ) internal returns (SwapRouter.TokenToWethBatchOrder[] memory) {
-        ///@notice Create a new token to weth batch order.
-        SwapRouter.TokenToWethBatchOrder[]
-            memory tokenToWethBatchOrders = new SwapRouter.TokenToWethBatchOrder[](
-                orders.length
-            );
-
-        ///@notice Cache the first order in the array.
-        OrderBook.Order memory firstOrder = orders[0];
-
-        ///@notice Check if the order is a buy or sell to assign the buy/sell status for the batch.
-        bool buyOrder = _buyOrSell(firstOrder);
-
-        ///@notice Assign the batch's tokenIn.
-        address batchOrderTokenIn = firstOrder.tokenIn;
-
-        ///@notice Create a variable to track the best execution price in the array of execution prices.
-        uint256 currentBestPriceIndex = _findBestTokenToWethExecutionPrice(
-            executionPrices,
-            buyOrder
-        );
-
-        ///@notice Initialize a new token to weth batch order.
-        SwapRouter.TokenToWethBatchOrder
-            memory currentTokenToWethBatchOrder = _initializeNewTokenToWethBatchOrder(
-                orders.length,
-                batchOrderTokenIn,
-                executionPrices[currentBestPriceIndex].lpAddressAToWeth
-            );
-
-        ///@notice Initialize a variable to keep track of how many batch orders there are.
-        uint256 currentTokenToWethBatchOrdersIndex = 0;
-
-        ///@notice For each order in the orders array.
-        for (uint256 i = 0; i < orders.length; ) {
-            ///@notice Get the index of the best exectuion price.
-            uint256 bestPriceIndex = _findBestTokenToWethExecutionPrice(
-                executionPrices,
-                buyOrder
-            );
-
-            ///@notice if the best price has changed since the last order, add the batch order to the array and update the best price index.
-            if (i > 0 && currentBestPriceIndex != bestPriceIndex) {
-                ///@notice Add the current batch order to the batch orders array.
-                tokenToWethBatchOrders[
-                    currentTokenToWethBatchOrdersIndex
-                ] = currentTokenToWethBatchOrder;
-
-                ///@notice Increment the amount of to current token to weth batch orders index
-                ++currentTokenToWethBatchOrdersIndex;
-
-                ///@notice Update the index of the best execution price.
-                currentBestPriceIndex = bestPriceIndex;
-
-                ///@notice Initialize a new batch order.
-                currentTokenToWethBatchOrder = _initializeNewTokenToWethBatchOrder(
-                    orders.length,
-                    batchOrderTokenIn,
-                    executionPrices[bestPriceIndex].lpAddressAToWeth
-                );
-            }
-
-            ///@notice Get the current order.
-            OrderBook.Order memory currentOrder = orders[i];
-
-            ///@notice Check that the order meets execution price.
-            if (
-                _orderMeetsExecutionPrice(
-                    currentOrder.price,
-                    executionPrices[bestPriceIndex].price,
-                    buyOrder
-                )
-            ) {
-                ///@notice Check that the order can execute without hitting slippage.
-                if (
-                    _orderCanExecute(
-                        executionPrices[bestPriceIndex].price,
-                        currentOrder.quantity,
-                        currentOrder.amountOutMin
-                    )
-                ) {
-                    if (!currentOrder.taxed) {
-                        ///@notice Transfer the tokenIn from the user's wallet to the contract. If the transfer fails, cancel the order.
-                        IOrderRouter(orderRouter).transferTokensToContract(
-                            currentOrder
-                        );
-                    }
-
-                    ///@notice Get the batch length of the current batch order.
-                    uint256 batchLength = currentTokenToWethBatchOrder
-                        .batchLength;
-
-                    ///@notice Add the order to the current batch order.
-                    currentTokenToWethBatchOrder.amountIn += currentOrder
-                        .quantity;
-
-                    ///@notice Add the owner of the order to the batchOwners.
-                    currentTokenToWethBatchOrder.batchOwners[
-                        batchLength
-                    ] = currentOrder.owner;
-
-                    ///@notice Add the order quantity of the order to ownerShares.
-                    currentTokenToWethBatchOrder.ownerShares[
-                        batchLength
-                    ] = currentOrder.quantity;
-
-                    ///@notice Add the orderId to the batch order.
-                    currentTokenToWethBatchOrder.orderIds[
-                        batchLength
-                    ] = currentOrder.orderId;
-
-                    ///@notice Add the amountOutMin to the batch order.
-                    currentTokenToWethBatchOrder.amountOutMin += currentOrder
-                        .amountOutMin;
-
-                    ///@notice Increment the batch length.
-                    ++currentTokenToWethBatchOrder.batchLength;
-
-                    ///@notice Update the best execution price.
-                    (
-                        executionPrices[bestPriceIndex]
-                    ) = simulateTokenToWethPriceChange(
-                        uint128(currentOrder.quantity),
-                        executionPrices[bestPriceIndex]
-                    );
-                } else {
-                    ///@notice If the order can not execute due to slippage, revert to notify the off-chain executor.
-                    revert OrderHasInsufficientSlippage(currentOrder.orderId);
-                }
-            } else {
-                revert OrderDoesNotMeetExecutionPrice(currentOrder.orderId);
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        ///@notice Add the last batch to the tokenToWethBatchOrders array.
-        tokenToWethBatchOrders[
-            currentTokenToWethBatchOrdersIndex
-        ] = currentTokenToWethBatchOrder;
-
-        return tokenToWethBatchOrders;
+        ///@notice return the opposite of success, meaning if the call succeeded, the address is univ3, and we should
+        ///@notice indicate that lpIsNotUniV3 is false
+        return !success;
     }
 
     ///@notice Function to return the index of the best price in the executionPrices array.
@@ -346,7 +46,7 @@ contract LimitOrderBatcher {
     function _findBestTokenToWethExecutionPrice(
         SwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
         bool buyOrder
-    ) internal pure returns (uint256 bestPriceIndex) {
+    ) external pure returns (uint256 bestPriceIndex) {
         ///@notice If the order is a buy order, set the initial best price at 0.
         if (buyOrder) {
             uint256 bestPrice = 0;
@@ -384,80 +84,6 @@ contract LimitOrderBatcher {
         }
     }
 
-    ///@notice Initialize a new token to weth batch order
-    /**@param initArrayLength - The maximum amount of orders that will be included in the batch. This is used to initalize
-    arrays in the token to weth batch order struct. */
-    ///@param tokenIn - TokenIn for the batch order.
-    ///@param lpAddressAToWeth - LP address for the tokenIn/Weth pairing.
-    ///@return tokenToWethBatchOrder - Returns a new empty token to weth batch order.
-    function _initializeNewTokenToWethBatchOrder(
-        uint256 initArrayLength,
-        address tokenIn,
-        address lpAddressAToWeth
-    ) internal pure returns (SwapRouter.TokenToWethBatchOrder memory) {
-        ///@notice initialize a new batch order
-        return
-            SwapRouter.TokenToWethBatchOrder(
-                ///@notice initialize batch length to 0
-                0,
-                ///@notice initialize amountIn
-                0,
-                ///@notice initialize amountOutMin
-                0,
-                ///@notice add the token in
-                tokenIn,
-                ///@notice initialize A to weth lp
-                lpAddressAToWeth,
-                ///@notice initialize batchOwners
-                new address[](initArrayLength),
-                ///@notice initialize ownerShares
-                new uint256[](initArrayLength),
-                ///@notice initialize orderIds
-                new bytes32[](initArrayLength)
-            );
-    }
-
-    ///@notice Function to simulate the price change from TokanA to Weth on an amount into the pool
-    ///@param alphaX The amount supplied to the TokenA reserves of the pool.
-    ///@param executionPrice The TokenToWethExecutionPrice to simulate the price change on.
-    function simulateTokenToWethPriceChange(
-        uint128 alphaX,
-        SwapRouter.TokenToWethExecutionPrice memory executionPrice
-    ) internal returns (SwapRouter.TokenToWethExecutionPrice memory) {
-        ///@notice Cache the liquidity pool address
-        address pool = executionPrice.lpAddressAToWeth;
-
-        ///@notice Cache token0 and token1 from the pool address
-        address token0 = IUniswapV2Pair(pool).token0();
-        address token1 = IUniswapV2Pair(pool).token1();
-
-        ///@notice Get the decimals of the tokenIn on the swap
-        uint8 tokenInDecimals = token1 == WETH
-            ? IERC20(token0).decimals()
-            : IERC20(token1).decimals();
-
-        ///@notice Convert to 18 decimals to have correct price change on the reserve quantities in common 18 decimal form
-        uint128 amountIn = tokenInDecimals <= 18
-            ? uint128(alphaX * 10**(18 - tokenInDecimals))
-            : uint128(alphaX / (10**(tokenInDecimals - 18)));
-
-        ///@notice Simulate the price change on the 18 decimal amountIn quantity, and set executionPrice struct to the updated quantities.
-        (
-            executionPrice.price,
-            executionPrice.aToWethReserve0,
-            executionPrice.aToWethReserve1,
-
-        ) = _simulateAToBPriceChange(
-            amountIn,
-            executionPrice.aToWethReserve0,
-            executionPrice.aToWethReserve1,
-            pool,
-            true
-        );
-
-        return executionPrice;
-    }
-
     ///@notice Function to return the index of the best price in the executionPrices array.
     ///@param executionPrices - Array of execution prices to evaluate.
     ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
@@ -465,7 +91,7 @@ contract LimitOrderBatcher {
     function _findBestTokenToTokenExecutionPrice(
         SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
-    ) internal pure returns (uint256 bestPriceIndex) {
+    ) external pure returns (uint256 bestPriceIndex) {
         ///@notice If the order is a buy order, set the initial best price at 0.
         if (buyOrder) {
             uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
@@ -493,6 +119,107 @@ contract LimitOrderBatcher {
                 }
             }
         }
+    }
+
+    ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
+    function _initializeTokenToWethExecutionPrices(
+        SwapRouter.SpotReserve[] memory spotReserveAToWeth,
+        address[] memory lpAddressesAToWeth
+    ) external pure returns (SwapRouter.TokenToWethExecutionPrice[] memory) {
+        ///@notice Initialize a new TokenToWethExecutionPrice array to store prices.
+        SwapRouter.TokenToWethExecutionPrice[]
+            memory executionPrices = new SwapRouter.TokenToWethExecutionPrice[](
+                spotReserveAToWeth.length
+            );
+
+        ///@notice Scoping to avoid stack too deep.
+        {
+            ///@notice For each spot reserve, initialize a token to weth execution price.
+            for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
+                executionPrices[i] = SwapRouter.TokenToWethExecutionPrice(
+                    spotReserveAToWeth[i].res0,
+                    spotReserveAToWeth[i].res1,
+                    spotReserveAToWeth[i].spotPrice,
+                    lpAddressesAToWeth[i]
+                );
+            }
+        }
+
+        return (executionPrices);
+    }
+
+    ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
+    function _initializeTokenToTokenExecutionPrices(
+        address tokenIn,
+        SwapRouter.SpotReserve[] memory spotReserveAToWeth,
+        address[] memory lpAddressesAToWeth,
+        SwapRouter.SpotReserve[] memory spotReserveWethToB,
+        address[] memory lpAddressWethToB
+    ) external view returns (SwapRouter.TokenToTokenExecutionPrice[] memory) {
+        ///@notice Initialize a new TokenToTokenExecutionPrice array to store prices.
+        SwapRouter.TokenToTokenExecutionPrice[]
+            memory executionPrices = new SwapRouter.TokenToTokenExecutionPrice[](
+                spotReserveAToWeth.length * spotReserveWethToB.length
+            );
+
+        ///@notice If TokenIn is Weth
+        if (tokenIn == WETH) {
+            ///@notice Iterate through each SpotReserve on Weth to TokenB
+            for (uint256 i = 0; i < spotReserveWethToB.length; ++i) {
+                ///@notice Then set res0, and res1 for tokenInToWeth to 0 and lpAddressAToWeth to the 0 address
+                executionPrices[i] = SwapRouter.TokenToTokenExecutionPrice(
+                    0,
+                    0,
+                    spotReserveWethToB[i].res0,
+                    spotReserveWethToB[i].res1,
+                    spotReserveWethToB[i].spotPrice,
+                    address(0),
+                    lpAddressWethToB[i]
+                );
+            }
+        } else {
+            ///@notice Initialize index to 0
+            uint256 index = 0;
+            ///@notice Iterate through each SpotReserve on TokenA to Weth
+            for (uint256 i = 0; i < spotReserveAToWeth.length; ) {
+                ///@notice Iterate through each SpotReserve on Weth to TokenB
+                for (uint256 j = 0; j < spotReserveWethToB.length; ) {
+                    ///@notice Calculate the spot price from tokenA to tokenB represented as 128.128 fixed point.
+                    uint256 spotPriceFinal = uint256(
+                        _calculateTokenToWethToTokenSpotPrice(
+                            spotReserveAToWeth[i].spotPrice,
+                            spotReserveWethToB[j].spotPrice
+                        )
+                    ) << 64;
+
+                    ///@notice Set the executionPrices at index to TokenToTokenExecutionPrice
+                    executionPrices[index] = SwapRouter
+                        .TokenToTokenExecutionPrice(
+                            spotReserveAToWeth[i].res0,
+                            spotReserveAToWeth[i].res1,
+                            spotReserveWethToB[j].res1,
+                            spotReserveWethToB[j].res0,
+                            spotPriceFinal,
+                            lpAddressesAToWeth[i],
+                            lpAddressWethToB[j]
+                        );
+                    ///@notice Increment the index
+                    unchecked {
+                        ++index;
+                    }
+
+                    unchecked {
+                        ++j;
+                    }
+                }
+
+                unchecked {
+                    ++i;
+                }
+            }
+        }
+
+        return (executionPrices);
     }
 
     ///@notice Function to retrieve the buy/sell status of a single order.
@@ -544,7 +271,7 @@ contract LimitOrderBatcher {
     function simulateTokenToTokenPriceChange(
         uint128 alphaX,
         SwapRouter.TokenToTokenExecutionPrice memory executionPrice
-    ) internal returns (SwapRouter.TokenToTokenExecutionPrice memory) {
+    ) external returns (SwapRouter.TokenToTokenExecutionPrice memory) {
         ///@notice Check if the reserves are set to 0. This indicated the tokenPair is Weth to TokenOut if true.
         if (
             executionPrice.aToWethReserve0 != 0 &&
@@ -591,75 +318,6 @@ contract LimitOrderBatcher {
         }
 
         return executionPrice;
-    }
-
-    ///@notice Helper function to determine if a pool address is Uni V2 compatible.
-    ///@param lp - Pair address.
-    ///@return bool Idicator whether the pool is not Uni V3 compatible.
-    function _lpIsNotUniV3(address lp) internal returns (bool) {
-        bool success;
-        assembly {
-            //store the function sig for  "fee()"
-            mstore(
-                0x00,
-                0xddca3f4300000000000000000000000000000000000000000000000000000000
-            )
-
-            success := call(
-                gas(), // gas remaining
-                lp, // destination address
-                0, // no ether
-                0x00, // input buffer (starts after the first 32 bytes in the `data` array)
-                0x04, // input length (loaded from the first 32 bytes in the `data` array)
-                0x00, // output buffer
-                0x00 // output length
-            )
-        }
-        ///@notice return the opposite of success, meaning if the call succeeded, the address is univ3, and we should
-        ///@notice indicate that _lpIsNotUniV3 is false
-        return !success;
-    }
-
-    ///@notice Helper function to initialize a blank TokenToTokenBatchOrder to be populated
-    ///@param initArrayLength Length of the order's in the batch
-    ///@param tokenIn tokenIn address on the batch
-    ///@param tokenOut tokenOut address on the batch
-    ///@param lpAddressAToWeth lp address of tokenIn to Weth
-    ///@param lpAddressWethToB lp address of Weth to tokenOut
-    ///@return TokenToTokenBatchOrder empty batch to be populated with orders
-    function _initializeNewTokenToTokenBatchOrder(
-        uint256 initArrayLength,
-        address tokenIn,
-        address tokenOut,
-        address lpAddressAToWeth,
-        address lpAddressWethToB
-    ) internal pure returns (SwapRouter.TokenToTokenBatchOrder memory) {
-        ///@notice initialize a new batch order
-
-        return (
-            SwapRouter.TokenToTokenBatchOrder(
-                ///@notice initialize batch length to 0
-                0,
-                ///@notice initialize amountIn
-                0,
-                ///@notice initialize amountOutMin
-                0,
-                ///@notice add the token in
-                tokenIn,
-                ///@notice add the token out
-                tokenOut,
-                ///@notice initialize A to weth lp
-                lpAddressAToWeth,
-                ///@notice initialize weth to B lp
-                lpAddressWethToB,
-                ///@notice initialize batchOwners
-                new address[](initArrayLength),
-                ///@notice initialize ownerShares
-                new uint256[](initArrayLength),
-                ///@notice initialize orderIds
-                new bytes32[](initArrayLength)
-            )
-        );
     }
 
     ///@notice Function to simulate the TokenToToken price change on a pair.
@@ -909,6 +567,47 @@ contract LimitOrderBatcher {
         amountOut = numerator / denominator;
     }
 
+    ///@notice Function to simulate the price change from TokanA to Weth on an amount into the pool
+    ///@param alphaX The amount supplied to the TokenA reserves of the pool.
+    ///@param executionPrice The TokenToWethExecutionPrice to simulate the price change on.
+    function simulateTokenToWethPriceChange(
+        uint128 alphaX,
+        SwapRouter.TokenToWethExecutionPrice memory executionPrice
+    ) external returns (SwapRouter.TokenToWethExecutionPrice memory) {
+        ///@notice Cache the liquidity pool address
+        address pool = executionPrice.lpAddressAToWeth;
+
+        ///@notice Cache token0 and token1 from the pool address
+        address token0 = IUniswapV2Pair(pool).token0();
+        address token1 = IUniswapV2Pair(pool).token1();
+
+        ///@notice Get the decimals of the tokenIn on the swap
+        uint8 tokenInDecimals = token1 == WETH
+            ? IERC20(token0).decimals()
+            : IERC20(token1).decimals();
+
+        ///@notice Convert to 18 decimals to have correct price change on the reserve quantities in common 18 decimal form
+        uint128 amountIn = tokenInDecimals <= 18
+            ? uint128(alphaX * 10**(18 - tokenInDecimals))
+            : uint128(alphaX / (10**(tokenInDecimals - 18)));
+
+        ///@notice Simulate the price change on the 18 decimal amountIn quantity, and set executionPrice struct to the updated quantities.
+        (
+            executionPrice.price,
+            executionPrice.aToWethReserve0,
+            executionPrice.aToWethReserve1,
+
+        ) = _simulateAToBPriceChange(
+            amountIn,
+            executionPrice.aToWethReserve0,
+            executionPrice.aToWethReserve1,
+            pool,
+            true
+        );
+
+        return executionPrice;
+    }
+
     ///@notice Helper function to calculate precise price change in a uni v3 pool after alphaX value is added to the liquidity on either token
     ///@param isTokenToWeth boolean indicating whether swap is happening from token->weth or weth->token respectively
     ///@param pool address of the Uniswap v3 pool to simulate the price change on
@@ -939,15 +638,43 @@ contract LimitOrderBatcher {
         ///@notice Cache pool fee
         uint24 fee = IUniswapV3Pool(pool).fee();
 
+        {
+            int24 tickSpacing = IUniswapV3Pool(pool).tickSpacing();
+
+            if (isTokenToWeth) {
+                amountOut = uint128(
+                    uint256(
+                        -simulateAmountOutOnSqrtPriceX96(
+                            wethIsToken0 ? token0 : token1,
+                            wethIsToken0 ? token1 : token0,
+                            pool,
+                            alphaX,
+                            tickSpacing,
+                            liquidity,
+                            fee
+                        )
+                    )
+                );
+            } else {
+                amountOut = uint128(
+                    uint256(
+                        -simulateAmountOutOnSqrtPriceX96(
+                            wethIsToken0 ? token0 : token1,
+                            wethIsToken0 ? token0 : token1,
+                            pool,
+                            alphaX,
+                            tickSpacing,
+                            liquidity,
+                            fee
+                        )
+                    )
+                );
+            }
+        }
+
         ///@notice Conditional whether swap is happening from tokenToWeth or wethToToken
         if (isTokenToWeth) {
             if (wethIsToken0) {
-                ///@notice If weth is token0 and swap is happening from tokenToWeth ==> token1 = token & alphaX is in token1
-                ///@notice Assign amountOut to hold output amount in Weth for subsequent simulation calls
-                amountOut = uint128(
-                    QUOTER.quoteExactInputSingle(token1, WETH, fee, alphaX, 0)
-                );
-
                 ///@notice tokenIn is token1 therefore 0for1 is false & alphaX is input into tokenIn liquidity ==> rounding down
                 nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
                     sqrtPriceX96,
@@ -957,9 +684,7 @@ contract LimitOrderBatcher {
                 );
 
                 ///@notice Convert output to 64.64 fixed point representation
-                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
-                    nextSqrtPriceX96
-                );
+                uint128 sqrtSpotPrice64x64 = fromX96(nextSqrtPriceX96);
 
                 ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
                 spotPrice = ConveyorMath.mul64x64(
@@ -967,19 +692,13 @@ contract LimitOrderBatcher {
                     ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64)
                 );
             } else {
-                ///@notice weth is token1 therefore tokenIn is token0, assign amountOut to wethOut value for subsequent simulations
-                amountOut = uint128(
-                    QUOTER.quoteExactInputSingle(token0, WETH, fee, alphaX, 0)
-                );
-
                 ///@notice calculate nextSqrtPriceX96 price change on wethOutAmount add false since we are removing the weth liquidity from the pool
-                nextSqrtPriceX96 = SqrtPriceMath
-                    .getNextSqrtPriceFromAmount1RoundingDown(
-                        sqrtPriceX96,
-                        liquidity,
-                        amountOut,
-                        false
-                    );
+                nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
+                    sqrtPriceX96,
+                    liquidity,
+                    alphaX,
+                    true
+                );
 
                 ///@notice Since weth is token1 we have the correct form of sqrtPrice i.e token1/token0 spot, so just convert to 64.64 and square it
                 uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
@@ -995,20 +714,14 @@ contract LimitOrderBatcher {
         } else {
             ///@notice isTokenToWeth =false ==> we are exchanging weth -> token
             if (wethIsToken0) {
-                ///@notice since weth is token0 set amountOut to token quoted amount out on alphaX Weth into the pool
-                amountOut = uint128(
-                    QUOTER.quoteExactInputSingle(WETH, token1, fee, alphaX, 0)
-                );
-
                 ///@notice amountOut is in our out token, so set nextSqrtPriceX96 to change in price on amountOut value
                 ///@notice weth is token 0 so set add to false since we are removing token1 liquidity from the pool
-                nextSqrtPriceX96 = SqrtPriceMath
-                    .getNextSqrtPriceFromAmount1RoundingDown(
-                        sqrtPriceX96,
-                        liquidity,
-                        amountOut,
-                        false
-                    );
+                nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
+                    sqrtPriceX96,
+                    liquidity,
+                    alphaX,
+                    true
+                );
                 ///@notice Since token0 = weth token1/token0 is the proper exchange rate so convert to 64.64 and square to yield the spot price
                 uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
                     nextSqrtPriceX96
@@ -1020,11 +733,6 @@ contract LimitOrderBatcher {
                     sqrtSpotPrice64x64
                 );
             } else {
-                ///@notice weth == token1 so initialize amountOut on weth-token0
-                amountOut = uint128(
-                    QUOTER.quoteExactInputSingle(WETH, token0, fee, alphaX, 0)
-                );
-
                 ///@notice set nextSqrtPriceX96 to change on Input alphaX which will be in Weth, since weth is token1 0To1=false
                 nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
                     sqrtPriceX96,
@@ -1034,9 +742,7 @@ contract LimitOrderBatcher {
                 );
 
                 ///@notice Convert to 64.64.
-                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
-                    nextSqrtPriceX96
-                );
+                uint128 sqrtSpotPrice64x64 = fromX96(nextSqrtPriceX96);
 
                 ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
                 spotPrice = ConveyorMath.mul64x64(
@@ -1045,6 +751,7 @@ contract LimitOrderBatcher {
                 );
             }
         }
+
     }
 
     ///@notice Helper function to calculate amountOutMin value agnostically across dexes on the first hop from tokenA to WETH.
@@ -1060,21 +767,33 @@ contract LimitOrderBatcher {
         uint16 taxIn,
         uint24 feeIn,
         address tokenIn
-    ) internal returns (uint256 amountOutMinAToWeth) {
+    ) external returns (uint256 amountOutMinAToWeth) {
         ///@notice Check if the lp is UniV3
         if (!_lpIsNotUniV3(lpAddressAToWeth)) {
             ///@notice 1000==100% so divide amountInOrder *taxIn by 10**5 to adjust to correct base
+            ///@dev If the token is taxed there will be a transfer fee when the tokens are sent to the pool. So, decrement the amountIn on the swap by the amountIn - tokenTax
             uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
             uint256 amountIn = amountInOrder - amountInBuffer;
+            ///@notice Get token0 in the pool.
+            address token0 = IUniswapV3Pool(lpAddressAToWeth).token0();
+
+            ///@notice Get the liqudiity and tick spacing storage variables from the pool.
+            uint128 liquidity = IUniswapV3Pool(lpAddressAToWeth).liquidity();
+            int24 tickSpacing = IUniswapV3Pool(lpAddressAToWeth).tickSpacing();
 
             ///@notice Calculate the amountOutMin for the swap.
-            amountOutMinAToWeth = QUOTER.quoteExactInputSingle(
-                tokenIn,
-                WETH,
-                feeIn,
-                amountIn,
-                0
-            );
+            int256 _amountOutMinAToWeth = ConveyorTickMath
+                .simulateAmountOutOnSqrtPriceX96(
+                    token0,
+                    tokenIn,
+                    lpAddressAToWeth,
+                    amountIn,
+                    tickSpacing,
+                    liquidity,
+                    feeIn
+                );
+            ///@notice Negate the simulated amount and convert to an unsigned integer.
+            amountOutMinAToWeth = uint256(-_amountOutMinAToWeth);
         } else {
             ///@notice Otherwise if the lp is a UniV2 LP.
 
