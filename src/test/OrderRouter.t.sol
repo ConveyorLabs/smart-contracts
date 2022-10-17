@@ -811,8 +811,9 @@ contract SwapRouterTest is DSTest {
     }
 
     ///@notice Test Calculate AlphaX
+    ///@notice Test Calculate AlphaX
     function testCalculateAlphaX(
-        uint32 _alphaX,
+        uint112 _alphaX,
         uint112 _reserve0,
         uint112 _reserve1
     ) public {
@@ -822,8 +823,10 @@ contract SwapRouterTest is DSTest {
             _alphaX > 10000000000 &&
             _alphaX % 10 == 0 &&
             _reserve0 > 10000000000000000000 &&
+
             _reserve0 % 10 == 0 &&
             _reserve1 % 10 == 0 &&
+
             _reserve1 > 100000000000000000010 &&
             _reserve0 != _reserve1 &&
             _alphaX < _reserve0
@@ -876,6 +879,9 @@ contract SwapRouterTest is DSTest {
                         uint128(_reserve0),
                         uint128(_reserve1)
                     );
+
+
+                    
 
                     assertEq(uint256(alphaX), uint256(_alphaX));
                 }
