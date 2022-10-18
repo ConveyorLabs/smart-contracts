@@ -42,6 +42,9 @@ contract LimitOrderExecutor is SwapRouter {
         bool[] memory _isUniV2,
         address _gasOracle
     ) SwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
+        require(_weth != address(0), "Invalid weth address");
+        require(_usdc != address(0), "Invalid usdc address");
+        require(_limitOrderQuoterAddress != address(0), "Invalid LimitOrderQuoter address");
         USDC = _usdc;
         WETH = _weth;
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
