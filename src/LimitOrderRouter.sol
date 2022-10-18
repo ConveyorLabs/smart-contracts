@@ -113,6 +113,9 @@ contract LimitOrderRouter is OrderBook {
     /// @notice Function to deposit gas credits.
     /// @return success - Boolean that indicates if the deposit completed successfully.
     function depositGasCredits() public payable returns (bool success) {
+        if(msg.value == 0){
+            revert InsufficientMsgValue();
+        }
         ///@notice Increment the gas credit balance for the user by the msg.value
         uint256 newBalance = gasCreditBalance[msg.sender] + msg.value;
 

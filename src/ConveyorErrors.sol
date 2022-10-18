@@ -35,3 +35,4 @@ error UnauthorizedUniswapV3CallbackCaller();
 error InvalidOrderUpdate();
 error DuplicateOrdersInExecution();
 error InvalidCalldata();
+error InsufficientMsgValue();
