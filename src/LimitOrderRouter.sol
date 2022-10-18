@@ -199,6 +199,8 @@ contract LimitOrderRouter is OrderBook {
 
             ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
             if (gasCreditBalance[order.owner] < REFRESH_FEE) {
+                _cancelOrder(order);
+                
                 unchecked {
                     ++i;
                 }

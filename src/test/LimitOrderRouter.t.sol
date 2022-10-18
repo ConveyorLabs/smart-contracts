@@ -1137,7 +1137,7 @@ contract LimitOrderRouterTest is DSTest {
     ///@notice Refresh order test
     function testRefreshOrder() public {
         cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(100);
+        depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
@@ -1233,6 +1233,57 @@ contract LimitOrderRouterTest is DSTest {
             assert(order0.orderId == bytes32(0));
         }
     }
+
+    //Test refresh order with a gas credit balance below the refreshFee
+    function testRefreshOrderWithCancelOrder_GasCreditBalanceLessRefreshFee() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        //Gas credit balance is smaller than the refresh fee
+        depositGasCreditsForMockOrders(1);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
+        //Initialize a new order
+        OrderBook.Order memory order = newMockOrder(
+            DAI,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            MAX_U32
+        );
+
+        bytes32 orderId = placeMockOrder(order);
+
+        bytes32[] memory orderBatch = new bytes32[](1);
+
+        orderBatch[0] = orderId;
+        ///Ensure the order has been placed
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+                orderBatch[i]
+            );
+
+            assert(order0.orderId != bytes32(0));
+        }
+
+        limitOrderRouter.refreshOrder(orderBatch);
+
+        //Ensure the order was cancelled
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+                orderBatch[i]
+            );
+            
+           assert(order0.orderId == bytes32(0));
+        }
+    }
+    
 
     //block 15233771
     ///Test refresh order, Order not refreshable since last refresh timestamp isn't beyond the refresh threshold from the current block.timestamp
