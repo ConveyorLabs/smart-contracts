@@ -200,7 +200,7 @@ contract LimitOrderRouter is OrderBook {
             ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
             if (gasCreditBalance[order.owner] < REFRESH_FEE) {
                 _cancelOrder(order);
-                
+
                 unchecked {
                     ++i;
                 }
@@ -399,17 +399,29 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice This function is called by off-chain executors, passing in an array of orderIds to execute a specific batch of orders.
     /// @param orderIds - Array of orderIds to indicate which orders should be executed.
-    function executeOrders(bytes32[] calldata orderIds) external onlyEOA nonReentrant {
+    function executeOrders(bytes32[] calldata orderIds)
+        external
+        onlyEOA
+        nonReentrant
+    {
         //Update the initial gas balance.
         assembly {
             sstore(initialTxGas.slot, gas())
         }
+        ///@notice Revert if the length of the orderIds array is 0.
+        if (orderIds.length == 0) {
+            revert InvalidCalldata();
+        }
 
         ///@notice Get all of the orders by orderId and add them to a temporary orders array
         Order[] memory orders = new Order[](orderIds.length);
+
         for (uint256 i = 0; i < orderIds.length; ) {
             orders[i] = getOrderById(orderIds[i]);
-
+            ///@notice Revert if the order does not exist in the contract.
+            if (orders[i].orderId == bytes32(0)) {
+                revert OrderDoesNotExist(orderIds[i]);
+            }
             unchecked {
                 ++i;
             }
