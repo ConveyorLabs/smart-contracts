@@ -132,7 +132,7 @@ library ConveyorFeeMath {
     ) internal pure returns (uint256) {
         ///@notice alphaX = (r1 * r0 - sqrtK * sqrtr0 * sqrt(delta * r1 + r1)) / r1
         uint256 _k = uint256(reserve0Execution) * reserve1Execution;
-        bytes16 k = QuadruplePrecision.fromInt(int256(_k));
+        bytes16 k = QuadruplePrecision.fromUInt(_k);
         bytes16 sqrtK = QuadruplePrecision.sqrt(k);
         bytes16 deltaQuad = QuadruplePrecision.from128x128(int256(delta));
         bytes16 reserve1Quad = QuadruplePrecision.fromUInt(reserve1Execution);

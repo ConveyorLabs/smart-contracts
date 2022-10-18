@@ -2,6 +2,7 @@
 pragma solidity >=0.8.16;
 
 import "../../lib/libraries/Uniswap/FullMath.sol";
+
 library ConveyorMath {
     /// @notice maximum uint128 64.64 fixed point number
     uint128 private constant MAX_64x64 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
@@ -22,7 +23,6 @@ library ConveyorMath {
             return uint128(x << 64);
         }
     }
-
 
     /// @notice helper function to transform 64.64 fixed point uint128 to uint64 integer number
     /// @param x unsigned 64.64 fixed point number
@@ -79,18 +79,15 @@ library ConveyorMath {
     function sub(int128 x, int128 y) internal pure returns (int128) {
         unchecked {
             int256 result = int256(x) - y;
-            require(result >= MIN_64x64 && result <= int128(MAX_64x64));
+            require(result >= MIN_64x64 && result <= type(int128).max);
             return int128(result);
         }
     }
 
     function sub64UI(uint128 x, uint256 y) internal pure returns (uint128) {
-        unchecked {
-            uint256 result = x - (y << 64);
+        uint256 result = x - (y << 64);
 
-            require(result >= 0x0 && uint128(result) <= uint128(MAX_64x64));
-            return uint128(result);
-        }
+        return uint128(result);
     }
 
     /// @notice helper to add two unsigened 128.128 fixed point numbers
@@ -98,11 +95,9 @@ library ConveyorMath {
     /// @param y 128.128 unsigned fixed point number
     /// @return unsigned 128.128 unsigned fixed point number
     function add128x128(uint256 x, uint256 y) internal pure returns (uint256) {
-        unchecked {
-            uint256 answer = x + y;
-            require(answer <= MAX_128x128);
-            return answer;
-        }
+        uint256 answer = x + y;
+
+        return answer;
     }
 
     /// @notice helper to add unsigned 128.128 fixed point number with unsigned 64.64 fixed point number
@@ -110,11 +105,9 @@ library ConveyorMath {
     /// @param y 64.64 unsigned fixed point number
     /// @return unsigned 128.128 unsigned fixed point number
     function add128x64(uint256 x, uint128 y) internal pure returns (uint256) {
-        unchecked {
-            uint256 answer = x + (uint256(y) << 64);
-            require(answer <= MAX_128x128);
-            return answer;
-        }
+        uint256 answer = x + (uint256(y) << 64);
+
+        return answer;
     }
 
     /// @notice helper function to multiply two unsigned 64.64 fixed point numbers
@@ -134,14 +127,12 @@ library ConveyorMath {
     /// @param y 64.64 unsigned fixed point number
     /// @return unsigned
     function mul128x64(uint256 x, uint128 y) internal pure returns (uint256) {
-        unchecked {
-            if (x == 0 || y == 0) {
-                return 0;
-            }
-            uint256 answer = (uint256(y) * x) >> 64;
-            require(answer <= MAX_128x128);
-            return answer;
+        if (x == 0 || y == 0) {
+            return 0;
         }
+        uint256 answer = (uint256(y) * x) >> 64;
+
+        return answer;
     }
 
     /// @notice helper function to multiply unsigned 64.64 fixed point number by a unsigned integer
@@ -171,21 +162,11 @@ library ConveyorMath {
     /// @param y uint256 unsigned integer
     /// @return unsigned
     function mul128I(uint256 x, uint256 y) internal pure returns (uint256) {
-        unchecked {
-            if (y == 0 || x == 0) {
-                return 0;
-            }
-
-            uint256 lo = (uint256(x) *
-                (y & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)) >> 64;
-            uint256 hi = uint256(x) * (y >> 128);
-
-            require(hi <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
-            hi <<= 64;
-
-            require(hi <= MAX_128x128 - lo);
-            return (hi + lo) >> 64;
+        if (y == 0 || x == 0) {
+            return 0;
         }
+
+        return (x * y) >> 128;
     }
 
     function abs(int256 x) internal pure returns (int256) {
@@ -223,7 +204,7 @@ library ConveyorMath {
             uint256 hi = xInt * (MAX_128x128 / y);
             uint256 lo = (xDec * (MAX_128x128 / y)) >> 128;
 
-            require(hi + lo <= MAX_128x128);
+            require(hi <= MAX_128x128 -lo);
             return hi + lo;
         }
     }
@@ -309,88 +290,6 @@ library ConveyorMath {
         }
     }
 
-    /// @notice helper function to divide two unsigned 64.64 fixed point numbers
-    /// @param x uint256 unsigned integer number
-    /// @param y uint256 unsigned integer number
-    /// @return unsigned uint128 64.64 unsigned integer
-    function divUI128x128(uint256 x, uint256 y)
-        internal
-        pure
-        returns (uint256)
-    {
-        unchecked {
-            require(y != 0);
-            uint256 answer = divUU128x128(x, y);
-            require(answer <= MAX_128x128, "overflow divUI128x128");
-
-            return answer;
-        }
-    }
-
-    /// @param x uint256 unsigned integer
-    /// @param y uint256 unsigned integer
-    /// @return unsigned 64.64 fixed point number
-    function divUU128x128(uint256 x, uint256 y)
-        internal
-        pure
-        returns (uint256)
-    {
-        unchecked {
-            require(y != 0);
-
-            uint256 answer;
-
-            if (x <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
-                answer = (x << 64) / y;
-            else {
-                uint256 msb = 192;
-                uint256 xc = x >> 192;
-                if (xc >= 0x100000000) {
-                    xc >>= 32;
-                    msb += 32;
-                }
-                if (xc >= 0x10000) {
-                    xc >>= 16;
-                    msb += 16;
-                }
-                if (xc >= 0x100) {
-                    xc >>= 8;
-                    msb += 8;
-                }
-                if (xc >= 0x10) {
-                    xc >>= 4;
-                    msb += 4;
-                }
-                if (xc >= 0x4) {
-                    xc >>= 2;
-                    msb += 2;
-                }
-                if (xc >= 0x2) msb += 1; // No need to shift xc anymore
-
-                answer = (x << (255 - msb)) / (((y - 1) >> (msb - 191)) + 1);
-                require(answer <= MAX_128x128, "overflow in divuu");
-
-                uint256 hi = answer * (y >> 128);
-                uint256 lo = answer * (y & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
-
-                uint256 xh = x >> 192;
-                uint256 xl = x << 64;
-
-                if (xl < lo) xh -= 1;
-                xl -= lo; // We rely on overflow behavior here
-                lo = hi << 128;
-                if (xl < lo) xh -= 1;
-                xl -= lo; // We rely on overflow behavior here
-
-                assert(xh == hi >> 128);
-
-                answer += xl / y;
-            }
-
-            require(answer << 128 <= MAX_128x128, "overflow in divuu last");
-            return answer << 128;
-        }
-    }
 
     /// @notice helper to calculate binary exponent of 64.64 unsigned fixed point number
     /// @param x unsigned 64.64 fixed point number
@@ -602,6 +501,4 @@ library ConveyorMath {
             }
         }
     }
-
-   
 }
