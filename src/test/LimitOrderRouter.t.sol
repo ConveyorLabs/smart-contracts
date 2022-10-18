@@ -215,40 +215,39 @@ contract LimitOrderRouterTest is DSTest {
         limitOrderRouterWrapper.validateOrderSequencing(orderBatch);
     }
 
-    // TODO: update this
-    // function testGetAllOrderIds() public {
-    //     cheatCodes.deal(address(this), MAX_UINT);
-    //     depositGasCreditsForMockOrders(MAX_UINT);
-    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
+    function testGetAllOrderIds() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-    //     IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
+        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
 
-    //     //Place a new batch of orders
-    //     bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethBatch();
+        //Place a new batch of orders
+        bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethBatch();
 
-    //     bytes32 cancelledOrderId = tokenToWethOrderBatch[0];
-    //     limitOrderRouterWrapper.cancelOrder(cancelledOrderId);
+        bytes32 cancelledOrderId = tokenToWethOrderBatch[0];
+        orderBook.cancelOrder(cancelledOrderId);
 
-    //     bytes32[] memory fufilledOrderIds = new bytes32[](2);
-    //     fufilledOrderIds[0] = tokenToWethOrderBatch[1];
-    //     fufilledOrderIds[1] = tokenToWethOrderBatch[2];
+        bytes32[] memory fufilledOrderIds = new bytes32[](2);
+        fufilledOrderIds[0] = tokenToWethOrderBatch[1];
+        fufilledOrderIds[1] = tokenToWethOrderBatch[2];
 
-    //     //Keep track of the order that is still pending
-    //     bytes32 pendingOrderId = tokenToWethOrderBatch[3];
+        //Keep track of the order that is still pending
+        bytes32 pendingOrderId = tokenToWethOrderBatch[3];
 
-    //     //Execute the the orders that will be marked as fufilled
-    //     cheatCodes.prank(tx.origin);
-    //     limitOrderRouter.executeOrders(fufilledOrderIds);
+        //Execute the the orders that will be marked as fufilled
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.executeOrders(fufilledOrderIds);
 
-    //     bytes32[][] memory allOrderIds = limitOrderRouter.getAllOrderIds(
-    //         address(this)
-    //     );
+        bytes32[][] memory allOrderIds = orderBook.getAllOrderIds(
+            address(this)
+        );
 
-    //     assertEq(allOrderIds[0][0], pendingOrderId);
-    //     assertEq(allOrderIds[2][0], cancelledOrderId);
-    //     assertEq(allOrderIds[1][0], fufilledOrderIds[0]);
-    //     assertEq(allOrderIds[1][1], fufilledOrderIds[1]);
-    // }
+        assertEq(allOrderIds[0][0], pendingOrderId);
+        assertEq(allOrderIds[2][0], cancelledOrderId);
+        assertEq(allOrderIds[1][0], fufilledOrderIds[0]);
+        assertEq(allOrderIds[1][1], fufilledOrderIds[1]);
+    }
 
     function testValidateAndCancelOrder() public {
         OrderBook.Order memory order = newOrder(WETH, USDC, 0, 0, 0);
