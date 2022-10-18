@@ -137,6 +137,9 @@ contract SwapRouter is ConveyorTickMath {
     ) {
         ///@notice Initialize DEXs and other variables
         for (uint256 i = 0; i < _deploymentByteCodes.length; ++i) {
+            if(i==0){
+                require(_isUniV2[i], "First Dex must be uniswap v2");
+            }
             dexes.push(
                 Dex({
                     factoryAddress: _dexFactories[i],
