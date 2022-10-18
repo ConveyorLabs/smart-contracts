@@ -13,6 +13,8 @@ import "./utils/ScriptRunner.sol";
 import "../LimitOrderRouter.sol";
 import "../LimitOrderQuoter.sol";
 import "../LimitOrderExecutor.sol";
+import "../interfaces/ILimitOrderRouter.sol";
+import "../interfaces/IOrderBook.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -29,12 +31,11 @@ interface CheatCodes {
 
 contract LimitOrderRouterTest is DSTest {
     //Initialize limit-v0 contract for testing
-    LimitOrderRouterWrapper limitOrderRouter;
+    LimitOrderRouterWrapper limitOrderRouterWrapper;
+    ILimitOrderRouter limitOrderRouter;
+    IOrderBook orderBook;
     LimitOrderExecutor limitOrderExecutor;
     LimitOrderQuoter limitOrderQuoter;
-
-     
-    
 
     ScriptRunner scriptRunner;
 
@@ -71,30 +72,17 @@ contract LimitOrderRouterTest is DSTest {
 
     //Chainlink ERC20 address
     address swapToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
-    // bytes32 _sushiHexDem =
-    //     hex"e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303";
+
     bytes32 _uniswapV2HexDem =
         hex"96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f";
 
     //Initialize array of Dex specifications
-    bytes32[] _hexDems = [
-        _uniswapV2HexDem,
-        // _sushiHexDem,
-        bytes32(0)
-    ];
-    address[] _dexFactories = [
-        _uniV2FactoryAddress,
-        // _sushiFactoryAddress,
-        _uniV3FactoryAddress
-    ];
-    bool[] _isUniV2 = [
-        true,
-        //  true,
-        false
-    ];
+    bytes32[] _hexDems = [_uniswapV2HexDem, bytes32(0)];
+    address[] _dexFactories = [_uniV2FactoryAddress, _uniV3FactoryAddress];
+    bool[] _isUniV2 = [true, false];
 
     uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000; //0.00001
-    
+
     address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
 
     function setUp() public {
@@ -103,7 +91,6 @@ contract LimitOrderRouterTest is DSTest {
         swapHelper = new Swap(_sushiSwapRouterAddress, WETH);
         swapHelperUniV2 = new Swap(uniV2Addr, WETH);
 
-        
         limitOrderQuoter = new LimitOrderQuoter(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
@@ -115,25 +102,32 @@ contract LimitOrderRouterTest is DSTest {
             address(limitOrderQuoter),
             _hexDems,
             _dexFactories,
-            _isUniV2
+            _isUniV2,
+            aggregatorV3Address
         );
 
-        limitOrderRouter = new LimitOrderRouterWrapper(
+        limitOrderRouter = ILimitOrderRouter(
+            limitOrderExecutor.LIMIT_ORDER_ROUTER()
+        );
+
+        orderBook = IOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
+
+        //Wrapper contract to test internal functions
+        limitOrderRouterWrapper = new LimitOrderRouterWrapper(
             aggregatorV3Address,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             address(limitOrderExecutor)
         );
-        
     }
 
-    // function testOnlyEOA() public {
-    //     cheatCodes.prank(tx.origin);
-    //     limitOrderRouter.invokeOnlyEOA();
-    // }
+    function testOnlyEOA() public {
+        cheatCodes.prank(tx.origin);
+        limitOrderRouterWrapper.invokeOnlyEOA();
+    }
 
-    // function testFailOnlyEOA() public {
-    //     limitOrderRouter.invokeOnlyEOA();
-    // }
+    function testFailOnlyEOA() public {
+        limitOrderRouterWrapper.invokeOnlyEOA();
+    }
 
     //================================================================
     //================= Validate Order Sequence Tests ================
@@ -147,7 +141,7 @@ contract LimitOrderRouterTest is DSTest {
 
         OrderBook.Order[] memory orderBatch = newMockTokenToTokenBatch();
 
-        limitOrderRouter.validateOrderSequencing(orderBatch);
+        limitOrderRouterWrapper.validateOrderSequencing(orderBatch);
     }
 
     function testFailValidateOrderSequence_InvalidBatchOrder() public {
@@ -158,7 +152,7 @@ contract LimitOrderRouterTest is DSTest {
         OrderBook.Order[]
             memory orderBatch = newMockTokenToWethBatch_InvalidBatchOrdering();
 
-        limitOrderRouter.validateOrderSequencing(orderBatch);
+        limitOrderRouterWrapper.validateOrderSequencing(orderBatch);
     }
 
     function testFailValidateOrderSequence_IncongruentInputTokenInBatch()
@@ -171,7 +165,7 @@ contract LimitOrderRouterTest is DSTest {
         OrderBook.Order[]
             memory orderBatch = newMockTokenToWethBatch_IncongruentTokenIn();
 
-        limitOrderRouter.validateOrderSequencing(orderBatch);
+        limitOrderRouterWrapper.validateOrderSequencing(orderBatch);
     }
 
     function testFailValidateOrderSequence_IncongruentTokenOut() public {
@@ -181,7 +175,7 @@ contract LimitOrderRouterTest is DSTest {
 
         OrderBook.Order[]
             memory orderBatch = newMockTokenToWethBatch_IncongruentTokenOut();
-        limitOrderRouter.validateOrderSequencing(orderBatch);
+        limitOrderRouterWrapper.validateOrderSequencing(orderBatch);
     }
 
     function testFailValidateOrderSequence_IncongruentBuySellStatusInBatch()
@@ -193,7 +187,7 @@ contract LimitOrderRouterTest is DSTest {
 
         OrderBook.Order[]
             memory orderBatch = newMockTokenToWethBatch_IncongruentBuySellStatus();
-        limitOrderRouter.validateOrderSequencing(orderBatch);
+        limitOrderRouterWrapper.validateOrderSequencing(orderBatch);
     }
 
     function testFailValidateOrderSequence_IncongruentTaxedTokenInBatch()
@@ -205,7 +199,7 @@ contract LimitOrderRouterTest is DSTest {
 
         OrderBook.Order[]
             memory orderBatch = newMockTokenToWethBatch_IncongruentTaxedTokenInBatch();
-        limitOrderRouter.validateOrderSequencing(orderBatch);
+        limitOrderRouterWrapper.validateOrderSequencing(orderBatch);
     }
 
     function testGetAllOrderIds() public {
@@ -219,7 +213,7 @@ contract LimitOrderRouterTest is DSTest {
         bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethBatch();
 
         bytes32 cancelledOrderId = tokenToWethOrderBatch[0];
-        limitOrderRouter.cancelOrder(cancelledOrderId);
+        orderBook.cancelOrder(cancelledOrderId);
 
         bytes32[] memory fufilledOrderIds = new bytes32[](2);
         fufilledOrderIds[0] = tokenToWethOrderBatch[1];
@@ -232,7 +226,7 @@ contract LimitOrderRouterTest is DSTest {
         cheatCodes.prank(tx.origin);
         limitOrderRouter.executeOrders(fufilledOrderIds);
 
-        bytes32[][] memory allOrderIds = limitOrderRouter.getAllOrderIds(
+        bytes32[][] memory allOrderIds = orderBook.getAllOrderIds(
             address(this)
         );
 
@@ -245,32 +239,33 @@ contract LimitOrderRouterTest is DSTest {
     //Test validate and cancel 
     function testValidateAndCancelOrder() public {
         OrderBook.Order memory order = newOrder(WETH, USDC, 0, 0, 0);
-        cheatCodes.deal(address(this),MAX_UINT);
+        cheatCodes.deal(address(this), MAX_UINT);
 
-        bytes32 orderId  = placeMockOrder(order);
-        uint256 gasPrice = limitOrderRouter.getGasPrice();
-        uint256 minimumGasCredits = (gasPrice*300000*150)/100;
-        uint256 minimumBalanceSubMultiplier= gasPrice*300000;
+        bytes32 orderId = placeMockOrder(order);
+        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
+        uint256 minimumGasCredits = (gasPrice * 300000 * 150) / 100;
+        uint256 minimumBalanceSubMultiplier = gasPrice * 300000;
 
-        depositGasCreditsForMockOrders(minimumGasCredits-1);
-        
-        bool cancelled=limitOrderRouter.validateAndCancelOrder(orderId);
+        depositGasCreditsForMockOrders(minimumGasCredits - 1);
+
+        bool cancelled = limitOrderRouter.validateAndCancelOrder(orderId);
         assertTrue(cancelled);
 
-        OrderBook.Order memory cancelledOrder = limitOrderRouter.getOrderById(
-                orderId
-            );
-    
+        OrderBook.Order memory cancelledOrder = orderBook.getOrderById(orderId);
+
         assert(cancelledOrder.orderId == bytes32(0));
+
 
         //Gas credit balance should be decremented by minimumBalanceSubMultiplier
         assertEq((minimumGasCredits-1)-minimumBalanceSubMultiplier,limitOrderRouter.gasCreditBalance(address(this)));   
+
     }
 
     //Should fail validateAndCancel since user has the min credit balance
     function testFailValidateAndCancelOrder() public {
         OrderBook.Order memory order = newOrder(WETH, USDC, 0, 0, 0);
-        cheatCodes.deal(address(this),MAX_UINT);
+        cheatCodes.deal(address(this), MAX_UINT);
+
 
         bytes32 orderId  = placeMockOrder(order);
         
@@ -282,9 +277,8 @@ contract LimitOrderRouterTest is DSTest {
 
         //Should fail assertion since the user has sufficient credits
         assertTrue(cancelled);
+
     }
-
-
 
     //================================================================
     //==================== Execution Tests ===========================
@@ -301,7 +295,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //check that the orders have been placed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 tokenToWethOrderBatch[i]
             );
 
@@ -313,7 +307,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 tokenToWethOrderBatch[i]
             );
             assert(order.orderId == bytes32(0));
@@ -330,7 +324,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //check that the orders have been placed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 tokenToWethOrderBatch[i]
             );
 
@@ -342,7 +336,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 tokenToWethOrderBatch[i]
             );
             assert(order.orderId == bytes32(0));
@@ -362,7 +356,7 @@ contract LimitOrderRouterTest is DSTest {
         );
 
         require(depositSuccess, "failure when depositing ether into weth");
-        
+
         IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
         //Create a new mock order
         OrderBook.Order memory order = newMockOrder(
@@ -379,7 +373,6 @@ contract LimitOrderRouterTest is DSTest {
             0,
             MAX_U32
         );
-        
 
         bytes32 orderId = placeMockOrder(order);
         bytes32[] memory orderBatch = new bytes32[](1);
@@ -387,7 +380,7 @@ contract LimitOrderRouterTest is DSTest {
         orderBatch[0] = orderId;
         //check that the orders have been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
 
@@ -398,7 +391,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
             assert(order0.orderId == bytes32(0));
@@ -435,7 +428,7 @@ contract LimitOrderRouterTest is DSTest {
         orderBatch[0] = orderId;
         //check that the orders have been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
 
@@ -446,7 +439,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
             assert(order0.orderId == bytes32(0));
@@ -455,30 +448,27 @@ contract LimitOrderRouterTest is DSTest {
 
     ///@notice Test to execute a batch of Weth to Token orders Weth/Dai
     function testExecuteWethToTokenOrderBatch() public {
-        
         cheatCodes.deal(address(this), 100 ether);
-        
+
         depositGasCreditsForMockOrders(100 ether);
-        
+
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         cheatCodes.deal(address(this), 500000000000 ether);
-        
-       
+
         //Deposit weth to address(this)
         (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
             abi.encodeWithSignature("deposit()")
         );
-    
 
         //require that the deposit was a success
         require(depositSuccess, "testDepositGasCredits: deposit failed");
 
         IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
-        
+
         bytes32[] memory tokenToWethOrderBatch = placeNewMockWethToTokenBatch();
         //Make sure the orders have been placed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 tokenToWethOrderBatch[i]
             );
 
@@ -489,7 +479,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 tokenToWethOrderBatch[i]
             );
             assert(order0.orderId == bytes32(0));
@@ -524,7 +514,7 @@ contract LimitOrderRouterTest is DSTest {
 
         orderBatch[0] = orderId;
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
 
@@ -536,7 +526,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
             assert(order0.orderId == bytes32(0));
@@ -545,7 +535,6 @@ contract LimitOrderRouterTest is DSTest {
 
     ///@notice Test To Execute a batch of Token to token orders Usdc/Uni
     function testExecuteTokenToTokenBatch() public {
-        
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
@@ -557,7 +546,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //check that the orders have been placed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 tokenToTokenOrderBatch[i]
             );
 
@@ -569,7 +558,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 tokenToTokenOrderBatch[i]
             );
             assert(order.orderId == bytes32(0));
@@ -591,7 +580,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //check that the orders have been placed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 tokenToTokenOrderBatch[i]
             );
 
@@ -603,7 +592,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 tokenToTokenOrderBatch[i]
             );
             assert(order.orderId == bytes32(0));
@@ -649,7 +638,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //check that the orders have been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order1 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order1 = orderBook.getOrderById(
                 orderBatch[i]
             );
 
@@ -661,7 +650,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order1 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order1 = orderBook.getOrderById(
                 orderBatch[i]
             );
             assert(order1.orderId == bytes32(0));
@@ -688,7 +677,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //check that the orders have been placed
         for (uint256 i = 0; i < wethToTaxedOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 wethToTaxedOrderBatch[i]
             );
 
@@ -700,7 +689,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < wethToTaxedOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 wethToTaxedOrderBatch[i]
             );
             assert(order.orderId == bytes32(0));
@@ -733,10 +722,10 @@ contract LimitOrderRouterTest is DSTest {
         );
         OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         orderGroup[0] = order;
-        bytes32[] memory orderBatch = limitOrderRouter.placeOrder(orderGroup);
+        bytes32[] memory orderBatch = orderBook.placeOrder(orderGroup);
         //Ensure all of the orders have been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
 
@@ -749,7 +738,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //Ensure the batch has been fulfilled
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
             assert(order0.orderId == bytes32(0));
@@ -769,7 +758,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //check that the orders have been placed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 tokenToWethOrderBatch[i]
             );
 
@@ -782,7 +771,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 tokenToWethOrderBatch[i]
             );
             assert(order.orderId == bytes32(0));
@@ -814,11 +803,11 @@ contract LimitOrderRouterTest is DSTest {
 
         OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         orderGroup[0] = order;
-        bytes32[] memory orderBatch = limitOrderRouter.placeOrder(orderGroup);
+        bytes32[] memory orderBatch = orderBook.placeOrder(orderGroup);
 
         //Ensure the order has been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
 
@@ -832,7 +821,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
             assert(order0.orderId == bytes32(0));
@@ -872,7 +861,7 @@ contract LimitOrderRouterTest is DSTest {
         OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         orderGroup[0] = order;
 
-        bytes32[] memory orderBatch = limitOrderRouter.placeOrder(orderGroup);
+        bytes32[] memory orderBatch = orderBook.placeOrder(orderGroup);
 
         cheatCodes.prank(tx.origin);
         limitOrderRouter.executeOrders(orderBatch);
@@ -890,7 +879,7 @@ contract LimitOrderRouterTest is DSTest {
         bytes32[] memory orderBatch = placeNewMockTaxedToTokenBatch();
 
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
             console.log(order0.quantity);
@@ -902,7 +891,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
             assert(order0.orderId == bytes32(0));
@@ -921,7 +910,7 @@ contract LimitOrderRouterTest is DSTest {
         bytes32[] memory orderBatch = placeNewMockTaxedToTaxedTokenBatch();
 
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
 
@@ -933,7 +922,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
             assert(order0.orderId == bytes32(0));
@@ -967,10 +956,10 @@ contract LimitOrderRouterTest is DSTest {
         OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         orderGroup[0] = order;
 
-        bytes32[] memory orderBatch = limitOrderRouter.placeOrder(orderGroup);
+        bytes32[] memory orderBatch = orderBook.placeOrder(orderGroup);
 
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
 
@@ -982,7 +971,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
             assert(order0.orderId == bytes32(0));
@@ -1162,7 +1151,7 @@ contract LimitOrderRouterTest is DSTest {
         orderBatch[0] = orderId;
         ///Ensure the order has been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
 
@@ -1173,7 +1162,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //Ensure the order was not cancelled and lastRefresh timestamp is updated to block.timestamp
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
             console.log(order0.lastRefreshTimestamp);
@@ -1214,7 +1203,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //Ensure order was not canceled
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
 
@@ -1225,7 +1214,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //Ensure the orders are canceled
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
             assert(order0.orderId == bytes32(0));
@@ -1262,7 +1251,7 @@ contract LimitOrderRouterTest is DSTest {
 
         orderBatch[0] = orderId;
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
 
@@ -1273,7 +1262,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //Ensure order was not refreshed or cancelled
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
             assert(order0.orderId != bytes32(0));
@@ -1330,7 +1319,7 @@ contract LimitOrderRouterTest is DSTest {
         orderGroup[0] = order;
 
         //place order
-        bytes32[] memory orderIds = limitOrderRouter.placeOrder(orderGroup);
+        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
 
         orderId = orderIds[0];
     }
@@ -1340,7 +1329,7 @@ contract LimitOrderRouterTest is DSTest {
         returns (bytes32[] memory)
     {
         //place order
-        bytes32[] memory orderIds = limitOrderRouter.placeOrder(orderGroup);
+        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
 
         return orderIds;
     }
@@ -2644,18 +2633,14 @@ contract LimitOrderRouterTest is DSTest {
     }
 }
 
-contract LimitOrderRouterWrapper is LimitOrderRouter  {
+contract LimitOrderRouterWrapper is LimitOrderRouter {
+    LimitOrderRouter limitorderRouter;
+
     constructor(
         address _gasOracle,
         address _weth,
         address _limitOrderExecutor
-    )
-        LimitOrderRouter(
-            _gasOracle,
-            _weth,
-            _limitOrderExecutor
-        )
-    {}
+    ) LimitOrderRouter(_gasOracle, _weth, _limitOrderExecutor) {}
 
     function invokeOnlyEOA() public onlyEOA {}
 
