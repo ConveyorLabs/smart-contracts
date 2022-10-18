@@ -314,6 +314,7 @@ contract OrderBookTest is DSTest {
         );
         //place a mock order
         bytes32 orderId = placeMockOrder(order);
+        uint32 initialLastRefreshTimestamp = orderBook.getOrderById(orderId).lastRefreshTimestamp;
 
         //create a new order to replace the old order
         OrderBook.Order memory updatedOrder = newOrder(
@@ -327,6 +328,45 @@ contract OrderBookTest is DSTest {
         updatedOrder.orderId = orderId;
         //submit the updated order
         orderBook.updateOrder(updatedOrder);
+
+        OrderBook.Order memory contractStateOrder = orderBook.getOrderById(orderId);
+        assertEq(uint128(1), contractStateOrder.price);
+        assertEq(initialLastRefreshTimestamp, contractStateOrder.lastRefreshTimestamp);
+    }
+
+    ///@notice Test fail order update with incongruent in/out token
+    function testFailUpdateOrder_InvalidOrderUpdate() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(100 ether, swapToken);
+        
+        OrderBook.Order memory order = newOrder(
+            wnato,
+            swapToken,
+            uint128(0),
+            uint128(1),
+            uint128(1)
+        );
+        
+        //place a mock order
+        bytes32 orderId = placeMockOrder(order);
+        
+
+        //create a new order to replace the old order
+        OrderBook.Order memory updatedOrder = newOrder(
+            swapToken,
+            wnato,
+            uint128(1),
+            uint128(1),
+            uint128(1)
+        );
+
+        
+        //should fail since changing the in/out token is not allowed
+        orderBook.updateOrder(updatedOrder);
+
     }
 
     ///@notice Test fail update order order does not exist
