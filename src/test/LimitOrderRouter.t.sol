@@ -1294,7 +1294,7 @@ contract LimitOrderRouterTest is DSTest {
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
         console.log(block.timestamp);
-        OrderBook.Order memory order = newMockOrder(
+        OrderBook.Order memory order1 = newMockOrder(
             DAI,
             UNI,
             1,
@@ -1309,7 +1309,7 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
-        bytes32 orderId = placeMockOrder(order);
+        bytes32 orderId = placeMockOrder(order1);
 
         bytes32[] memory orderBatch = new bytes32[](1);
 
@@ -1330,7 +1330,7 @@ contract LimitOrderRouterTest is DSTest {
                 orderBatch[i]
             );
             assert(order0.orderId != bytes32(0));
-            assert(order.lastRefreshTimestamp == 1659049037);
+            assert(order1.lastRefreshTimestamp == 1659049037);
         }
     }
 
