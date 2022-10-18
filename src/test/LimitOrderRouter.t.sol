@@ -755,7 +755,7 @@ contract LimitOrderRouterTest is DSTest {
 
         OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         orderGroup[0] = order;
-        bytes32[] memory orderBatch = limitOrderRouter.placeOrder(orderGroup);
+        bytes32[] memory orderBatch = orderBook.placeOrder(orderGroup);
 
         //Ensure the order has been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
@@ -813,7 +813,7 @@ contract LimitOrderRouterTest is DSTest {
         OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         orderGroup[0] = order;
 
-        bytes32[] memory orderBatch = limitOrderRouter.placeOrder(orderGroup);
+        bytes32[] memory orderBatch = orderBook.placeOrder(orderGroup);
 
         cheatCodes.prank(tx.origin);
         limitOrderRouter.executeOrders(orderBatch);
@@ -908,7 +908,7 @@ contract LimitOrderRouterTest is DSTest {
         OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         orderGroup[0] = order;
 
-        bytes32[] memory orderBatch = limitOrderRouter.placeOrder(orderGroup);
+        bytes32[] memory orderBatch = orderBook.placeOrder(orderGroup);
 
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             OrderBook.Order memory order0 = orderBook.getOrderById(
@@ -1271,7 +1271,7 @@ contract LimitOrderRouterTest is DSTest {
         orderGroup[0] = order;
 
         //place order
-        bytes32[] memory orderIds = limitOrderRouter.placeOrder(orderGroup);
+        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
 
         orderId = orderIds[0];
     }
@@ -1281,7 +1281,7 @@ contract LimitOrderRouterTest is DSTest {
         returns (bytes32[] memory)
     {
         //place order
-        bytes32[] memory orderIds = limitOrderRouter.placeOrder(orderGroup);
+        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
 
         return orderIds;
     }
