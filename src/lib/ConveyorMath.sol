@@ -2,6 +2,7 @@
 pragma solidity >=0.8.16;
 
 import "../../lib/libraries/Uniswap/FullMath.sol";
+
 library ConveyorMath {
     /// @notice maximum uint128 64.64 fixed point number
     uint128 private constant MAX_64x64 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
@@ -22,7 +23,6 @@ library ConveyorMath {
             return uint128(x << 64);
         }
     }
-
 
     /// @notice helper function to transform 64.64 fixed point uint128 to uint64 integer number
     /// @param x unsigned 64.64 fixed point number
@@ -85,12 +85,9 @@ library ConveyorMath {
     }
 
     function sub64UI(uint128 x, uint256 y) internal pure returns (uint128) {
-        unchecked {
-            uint256 result = x - (y << 64);
+        uint256 result = x - (y << 64);
 
-            require(result >= 0x0 && uint128(result) <= uint128(MAX_64x64));
-            return uint128(result);
-        }
+        return uint128(result);
     }
 
     /// @notice helper to add two unsigened 128.128 fixed point numbers
@@ -602,6 +599,4 @@ library ConveyorMath {
             }
         }
     }
-
-   
 }
