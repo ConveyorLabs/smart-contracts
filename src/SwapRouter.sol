@@ -139,6 +139,7 @@ contract SwapRouter is ConveyorTickMath {
             if (i == 0) {
                 require(_isUniV2[i], "First Dex must be uniswap v2");
             }
+            require(_deploymentByteCodes[i] != bytes32(0) && _dexFactories[i]!= address(0), "Zero values in constructor");
             dexes.push(
                 Dex({
                     factoryAddress: _dexFactories[i],
