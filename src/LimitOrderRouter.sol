@@ -443,7 +443,7 @@ contract LimitOrderRouter is OrderBook {
         for (uint256 i = 0; i < orderIds.length; ) {
             bytes32 orderId = orderIds[i];
             ///@notice Mark the order as resolved from the system.
-            _resolveCompletedOrder(orderIdToOrder[orderId]);
+            _resolveCompletedOrder(orderId);
 
             ///@notice Mark order as fulfilled in addressToFufilledOrderIds mapping
             addressToFufilledOrderIds[orderOwners[i]][orderIds[i]] = true;
@@ -492,7 +492,7 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice Function to transfer ownership of the contract.
     function transferOwnership(address newOwner) external onlyOwner {
-        if (owner == address(0)) {
+        if (newOwner == address(0)) {
             revert InvalidAddress();
         }
         tempOwner = newOwner;
