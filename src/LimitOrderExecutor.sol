@@ -6,6 +6,8 @@ import "./interfaces/ILimitOrderQuoter.sol";
 import "./lib/ConveyorFeeMath.sol";
 
 contract LimitOrderExecutor is SwapRouter {
+
+    using SafeERC20 for IERC20;
     ///====================================Immutable Storage Variables==============================================//
     address immutable WETH;
     address immutable USDC;
@@ -371,22 +373,17 @@ contract LimitOrderExecutor is SwapRouter {
     }
 
     ///@notice Transfer the order quantity to the contract.
-    ///@return success - Boolean to indicate if the transfer was successful.
+    ///@param order - The orders tokens to be transferred.
     function transferTokensToContract(OrderBook.Order memory order)
         internal
-        returns (bool success)
     {
-        try
-            IERC20(order.tokenIn).transferFrom(
-                order.owner,
-                address(this),
-                order.quantity
-            )
-        {} catch {
-            ///@notice Revert on token transfer failure.
-            revert TokenTransferFailed(order.orderId);
-        }
-        return true;
+        
+        IERC20(order.tokenIn).safeTransferFrom(
+            order.owner,
+            address(this),
+            order.quantity
+        );
+       
     }
 
     ///@notice Function to withdraw owner fee's accumulated

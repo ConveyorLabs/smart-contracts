@@ -16,12 +16,14 @@ import "../lib/interfaces/token/IWETH.sol";
 import "./lib/ConveyorFeeMath.sol";
 import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
-
+import "../lib/libraries/token/SafeERC20.sol";
 
 /// @title SwapRouter
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures.
 contract SwapRouter is ConveyorTickMath {
+
+    using SafeERC20 for IERC20;
     //----------------------Structs------------------------------------//
 
     ///@notice Struct to store DEX details
@@ -357,9 +359,7 @@ contract SwapRouter is ConveyorTickMath {
         uint256 amount,
         address tokenOut
     ) internal {
-        try IERC20(tokenOut).transfer(orderOwner, amount) {} catch {
-            revert TokenTransferFailed(bytes32(0));
-        }
+        IERC20(tokenOut).safeTransfer(orderOwner, amount);
     }
 
     function transferBeaconReward(
@@ -398,10 +398,10 @@ contract SwapRouter is ConveyorTickMath {
         ///@dev This can happen when swapping taxed tokens to avoid being double taxed by sending the tokens to the contract instead of directly to the lp
         if (_sender != address(this)) {
             ///@notice Transfer the tokens to the lp from the sender.
-            IERC20(_tokenIn).transferFrom(_sender, _lp, _amountIn);
+            IERC20(_tokenIn).safeTransferFrom(_sender, _lp, _amountIn);
         } else {
             ///@notice Transfer the tokens to the lp from the current context.
-            IERC20(_tokenIn).transfer(_lp, _amountIn);
+            IERC20(_tokenIn).safeTransfer(_lp, _amountIn);
         }
 
         ///@notice Get token0 from the pairing.
@@ -635,9 +635,9 @@ contract SwapRouter is ConveyorTickMath {
 
         if (!(_sender == address(this))) {
             ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender.
-            IERC20(tokenIn).transferFrom(_sender, poolAddress, amountIn);
+            IERC20(tokenIn).safeTransferFrom(_sender, poolAddress, amountIn);
         } else {
-            IERC20(tokenIn).transfer(poolAddress, amountIn);
+            IERC20(tokenIn).safeTransfer(poolAddress, amountIn);
         }
     }
 
