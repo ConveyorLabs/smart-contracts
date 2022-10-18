@@ -10,13 +10,13 @@ import "./ConveyorErrors.sol";
 /// @notice Contract to maintain active orders in limit order system.
 contract OrderBook is GasOracle {
     address immutable EXECUTOR_ADDRESS;
+
     //----------------------Constructor------------------------------------//
-    
 
     constructor(address _gasOracle, address _limitOrderExecutor)
         GasOracle(_gasOracle)
     {
-        EXECUTOR_ADDRESS=_limitOrderExecutor;
+        EXECUTOR_ADDRESS = _limitOrderExecutor;
     }
 
     //----------------------Events------------------------------------//
@@ -240,14 +240,17 @@ contract OrderBook is GasOracle {
         ///@notice Get the existing order that will be replaced with the new order
         Order memory oldOrder = orderIdToOrder[newOrder.orderId];
 
-        if(oldOrder.tokenIn !=newOrder.tokenIn || oldOrder.tokenOut != newOrder.tokenOut){
+        if (
+            oldOrder.tokenIn != newOrder.tokenIn ||
+            oldOrder.tokenOut != newOrder.tokenOut
+        ) {
             revert InvalidOrderUpdate();
         }
         ///@notice Get the total orders value for the msg.sender on the tokenIn
         uint256 totalOrdersValue = _getTotalOrdersValue(oldOrder.tokenIn);
 
         ///@notice Set the lastRefreshTimestamp on the new order to the old orders lastRefreshTimestamp.
-        newOrder.lastRefreshTimestamp=oldOrder.lastRefreshTimestamp;
+        newOrder.lastRefreshTimestamp = oldOrder.lastRefreshTimestamp;
 
         ///@notice Update the total orders value
         if (newOrder.quantity > oldOrder.quantity) {
@@ -401,11 +404,11 @@ contract OrderBook is GasOracle {
     ///@notice Function to resolve an order as completed.
     ///@param order - The order that should be resolved from the system.
     function _resolveCompletedOrder(Order memory order) internal {
-        ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed. 
+        ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
         Order memory orderCheck = orderIdToOrder[order.orderId];
-        
+
         ///@notice If the order has already been removed from the contract revert.
-        if(orderCheck.orderId==bytes32(0)){
+        if (orderCheck.orderId == bytes32(0)) {
             revert DuplicateOrdersInExecution();
         }
         ///@notice Remove the order from the system
@@ -491,15 +494,13 @@ contract OrderBook is GasOracle {
         ///@notice Get the total amount of active orders for the userAddress
         uint256 totalOrderCount = totalOrdersPerAddress[userAddress];
 
-        unchecked {
-            ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
-            uint256 minimumGasCredits = totalOrderCount *
-                gasPrice *
-                executionCost *
-                multiplier;
-            ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
-            return minimumGasCredits / 100;
-        }
+        ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
+        uint256 minimumGasCredits = totalOrderCount *
+            gasPrice *
+            executionCost *
+            multiplier;
+        ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
+        return minimumGasCredits / 100;
     }
 
     /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders.
