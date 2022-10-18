@@ -95,11 +95,9 @@ library ConveyorMath {
     /// @param y 128.128 unsigned fixed point number
     /// @return unsigned 128.128 unsigned fixed point number
     function add128x128(uint256 x, uint256 y) internal pure returns (uint256) {
-        unchecked {
-            uint256 answer = x + y;
-            require(answer <= MAX_128x128);
-            return answer;
-        }
+        uint256 answer = x + y;
+
+        return answer;
     }
 
     /// @notice helper to add unsigned 128.128 fixed point number with unsigned 64.64 fixed point number
