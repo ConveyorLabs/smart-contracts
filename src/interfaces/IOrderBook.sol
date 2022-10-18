@@ -9,4 +9,19 @@ interface IOrderBook {
         external
         view
         returns (OrderBook.Order memory order);
+
+    function placeOrder(OrderBook.Order[] calldata orderGroup)
+        external
+        returns (bytes32[] memory);
+
+    function updateOrder(OrderBook.Order memory newOrder) external;
+
+    function cancelOrder(bytes32 orderId) external;
+
+    function cancelOrders(bytes32[] memory orderIds) external;
+
+    function getAllOrderIds(address owner)
+        external
+        view
+        returns (bytes32[][] memory);
 }

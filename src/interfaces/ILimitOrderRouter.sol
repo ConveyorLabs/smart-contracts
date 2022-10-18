@@ -1,47 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-import "../SwapRouter.sol";
+interface ILimitOrderRouter {
+    function gasCreditBalance(address addr) external returns (uint256);
 
-interface ILimitOrderExecutor {
-    function _findBestTokenToTokenExecutionPrice(
-        SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
-        bool buyOrder
-    ) external pure returns (uint256 bestPriceIndex);
+    function depositGasCredits() external payable returns (bool success);
 
-    function simulateTokenToTokenPriceChange(
-        uint128 alphaX,
-        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
-    ) external returns (SwapRouter.TokenToTokenExecutionPrice memory);
+    function withdrawGasCredits(uint256 value) external returns (bool success);
 
-    function simulateTokenToWethPriceChange(
-        uint128 alphaX,
-        SwapRouter.TokenToWethExecutionPrice memory executionPrice
-    ) external returns (SwapRouter.TokenToWethExecutionPrice memory);
+    function refreshOrder(bytes32[] memory orderIds) external;
 
-    function _findBestTokenToWethExecutionPrice(
-        SwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
-        bool buyOrder
-    ) external pure returns (uint256 bestPriceIndex);
+    function validateAndCancelOrder(bytes32 orderId)
+        external
+        returns (bool success);
 
-    function calculateAmountOutMinAToWeth(
-        address lpAddressAToWeth,
-        uint256 amountInOrder,
-        uint16 taxIn,
-        uint24 feeIn,
-        address tokenIn
-    ) external returns (uint256 amountOutMinAToWeth);
+    function executeOrders(bytes32[] calldata orderIds) external;
 
-    function _initializeTokenToWethExecutionPrices(
-        SwapRouter.SpotReserve[] memory spotReserveAToWeth,
-        address[] memory lpAddressesAToWeth
-    ) external view returns (SwapRouter.TokenToWethExecutionPrice[] memory);
+    function confirmTransferOwnership() external;
 
-    function _initializeTokenToTokenExecutionPrices(
-        address tokenIn,
-        SwapRouter.SpotReserve[] memory spotReserveAToWeth,
-        address[] memory lpAddressesAToWeth,
-        SwapRouter.SpotReserve[] memory spotReserveWethToB,
-        address[] memory lpAddressWethToB
-    ) external view returns (SwapRouter.TokenToTokenExecutionPrice[] memory);
+    function transferOwnership(address newOwner) external;
 }
