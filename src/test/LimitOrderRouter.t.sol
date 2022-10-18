@@ -13,6 +13,7 @@ import "./utils/ScriptRunner.sol";
 import "../LimitOrderRouter.sol";
 import "../LimitOrderQuoter.sol";
 import "../LimitOrderExecutor.sol";
+import "../interfaces/ILimitOrderRouter.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -29,12 +30,10 @@ interface CheatCodes {
 
 contract LimitOrderRouterTest is DSTest {
     //Initialize limit-v0 contract for testing
-    LimitOrderRouterWrapper limitOrderRouter;
+    LimitOrderRouterWrapper limitOrderRouterWrapper;
+    LimitOrderRouter limitOrderRouter;
     LimitOrderExecutor limitOrderExecutor;
     LimitOrderQuoter limitOrderQuoter;
-
-     
-    
 
     ScriptRunner scriptRunner;
 
@@ -94,7 +93,7 @@ contract LimitOrderRouterTest is DSTest {
     ];
 
     uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000; //0.00001
-    
+
     address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
 
     function setUp() public {
@@ -103,7 +102,6 @@ contract LimitOrderRouterTest is DSTest {
         swapHelper = new Swap(_sushiSwapRouterAddress, WETH);
         swapHelperUniV2 = new Swap(uniV2Addr, WETH);
 
-        
         limitOrderQuoter = new LimitOrderQuoter(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
@@ -115,25 +113,30 @@ contract LimitOrderRouterTest is DSTest {
             address(limitOrderQuoter),
             _hexDems,
             _dexFactories,
-            _isUniV2
+            _isUniV2,
+            aggregatorV3Address
         );
 
-        limitOrderRouter = new LimitOrderRouterWrapper(
+        limitOrderRouter = ILimitOrderRouter(
+            limitOrderExecutor.LIMIT_ORDER_ROUTER
+        );
+
+        //Wrapper contract to test internal functions
+        limitOrderRouterWrapper = new LimitOrderRouterWrapper(
             aggregatorV3Address,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             address(limitOrderExecutor)
         );
-        
     }
 
-    // function testOnlyEOA() public {
-    //     cheatCodes.prank(tx.origin);
-    //     limitOrderRouter.invokeOnlyEOA();
-    // }
+    function testOnlyEOA() public {
+        cheatCodes.prank(tx.origin);
+        limitOrderRouterWrapper.invokeOnlyEOA();
+    }
 
-    // function testFailOnlyEOA() public {
-    //     limitOrderRouter.invokeOnlyEOA();
-    // }
+    function testFailOnlyEOA() public {
+        limitOrderRouterWrapper.invokeOnlyEOA();
+    }
 
     //================================================================
     //================= Validate Order Sequence Tests ================
@@ -244,49 +247,53 @@ contract LimitOrderRouterTest is DSTest {
 
     function testValidateAndCancelOrder() public {
         OrderBook.Order memory order = newOrder(WETH, USDC, 0, 0, 0);
-        cheatCodes.deal(address(this),MAX_UINT);
+        cheatCodes.deal(address(this), MAX_UINT);
 
-        bytes32 orderId  = placeMockOrder(order);
+        bytes32 orderId = placeMockOrder(order);
         uint256 gasPrice = limitOrderRouter.getGasPrice();
-        uint256 minimumGasCredits = (gasPrice*300000*150)/100;
-        uint256 minimumBalanceSubMultiplier= gasPrice*300000;
+        uint256 minimumGasCredits = (gasPrice * 300000 * 150) / 100;
+        uint256 minimumBalanceSubMultiplier = gasPrice * 300000;
 
-        depositGasCreditsForMockOrders(minimumGasCredits-1);
-        
-        bool cancelled=limitOrderRouter.validateAndCancelOrder(orderId);
+        depositGasCreditsForMockOrders(minimumGasCredits - 1);
+
+        bool cancelled = limitOrderRouter.validateAndCancelOrder(orderId);
         assertTrue(cancelled);
 
         OrderBook.Order memory cancelledOrder = limitOrderRouter.getOrderById(
-                orderId
-            );
-    
+            orderId
+        );
+
         assert(cancelledOrder.orderId == bytes32(0));
-        assertEq((minimumGasCredits-1)-minimumBalanceSubMultiplier,limitOrderRouter.gasCreditBalance(address(this)));   
+        assertEq(
+            (minimumGasCredits - 1) - minimumBalanceSubMultiplier,
+            limitOrderRouter.gasCreditBalance(address(this))
+        );
     }
 
     function testFailValidateAndCancelOrder() public {
         OrderBook.Order memory order = newOrder(WETH, USDC, 0, 0, 0);
-        cheatCodes.deal(address(this),MAX_UINT);
+        cheatCodes.deal(address(this), MAX_UINT);
 
-        bytes32 orderId  = placeMockOrder(order);
+        bytes32 orderId = placeMockOrder(order);
         uint256 gasPrice = limitOrderRouter.getGasPrice();
-        uint256 minimumGasCredits = (gasPrice*300000*150)/100;
-        uint256 minimumBalanceSubMultiplier= gasPrice*300000;
+        uint256 minimumGasCredits = (gasPrice * 300000 * 150) / 100;
+        uint256 minimumBalanceSubMultiplier = gasPrice * 300000;
 
-        depositGasCreditsForMockOrders(minimumGasCredits-1);
-        
-        bool cancelled=limitOrderRouter.validateAndCancelOrder(orderId);
+        depositGasCreditsForMockOrders(minimumGasCredits - 1);
+
+        bool cancelled = limitOrderRouter.validateAndCancelOrder(orderId);
         assertTrue(cancelled);
 
         OrderBook.Order memory cancelledOrder = limitOrderRouter.getOrderById(
-                orderId
-            );
-    
+            orderId
+        );
+
         assert(cancelledOrder.orderId == bytes32(0));
-        assertEq(minimumGasCredits-minimumBalanceSubMultiplier,limitOrderRouter.gasCreditBalance(address(this)));   
+        assertEq(
+            minimumGasCredits - minimumBalanceSubMultiplier,
+            limitOrderRouter.gasCreditBalance(address(this))
+        );
     }
-
-
 
     //================================================================
     //==================== Execution Tests ===========================
@@ -335,7 +342,7 @@ contract LimitOrderRouterTest is DSTest {
         );
 
         require(depositSuccess, "failure when depositing ether into weth");
-        
+
         IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
         //Create a new mock order
         OrderBook.Order memory order = newMockOrder(
@@ -352,7 +359,6 @@ contract LimitOrderRouterTest is DSTest {
             0,
             MAX_U32
         );
-        
 
         bytes32 orderId = placeMockOrder(order);
         bytes32[] memory orderBatch = new bytes32[](1);
@@ -428,26 +434,23 @@ contract LimitOrderRouterTest is DSTest {
 
     ///@notice Test to execute a batch of Weth to Token orders Weth/Dai
     function testExecuteWethToTokenOrderBatch() public {
-        
         cheatCodes.deal(address(this), 100 ether);
-        
+
         depositGasCreditsForMockOrders(100 ether);
-        
+
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         cheatCodes.deal(address(this), 500000000000 ether);
-        
-       
+
         //Deposit weth to address(this)
         (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
             abi.encodeWithSignature("deposit()")
         );
-    
 
         //require that the deposit was a success
         require(depositSuccess, "testDepositGasCredits: deposit failed");
 
         IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
-        
+
         bytes32[] memory tokenToWethOrderBatch = placeNewMockWethToTokenBatch();
         //Make sure the orders have been placed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
@@ -518,7 +521,6 @@ contract LimitOrderRouterTest is DSTest {
 
     ///@notice Test To Execute a batch of Token to token orders Usdc/Uni
     function testExecuteTokenToTokenBatch() public {
-        
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
@@ -2452,18 +2454,14 @@ contract LimitOrderRouterTest is DSTest {
     }
 }
 
-contract LimitOrderRouterWrapper is LimitOrderRouter  {
+contract LimitOrderRouterWrapper is LimitOrderRouter {
+    LimitOrderRouter limitorderRouter;
+
     constructor(
         address _gasOracle,
         address _weth,
         address _limitOrderExecutor
-    )
-        LimitOrderRouter(
-            _gasOracle,
-            _weth,
-            _limitOrderExecutor
-        )
-    {}
+    ) LimitOrderRouter(_gasOracle, _weth, _limitOrderExecutor) {}
 
     function invokeOnlyEOA() public onlyEOA {}
 

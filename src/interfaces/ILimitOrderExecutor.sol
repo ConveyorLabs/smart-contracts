@@ -1,14 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-import "../OrderBook.sol";
+interface ILimitOrderRouter {
+    function depositGasCredits() external payable returns (bool success);
 
-interface ILimitOrderExecutor {
-    function executeTokenToWethOrders(OrderBook.Order[] memory orders)
-        external
-        returns (uint256, uint256);
+    function withdrawGasCredits(uint256 value) external returns (bool success);
 
-    function executeTokenToTokenOrders(OrderBook.Order[] memory orders)
+    function refreshOrder(bytes32[] memory orderIds) external;
+
+    function validateAndCancelOrder(bytes32 orderId)
         external
-        returns (uint256, uint256);
+        returns (bool success);
+
+    function executeOrders(bytes32[] calldata orderIds) external;
+
+    function confirmTransferOwnership() external;
+
+    function transferOwnership(address newOwner) external;
 }

@@ -13,7 +13,6 @@ import "../LimitOrderQuoter.sol";
 import "../LimitOrderExecutor.sol";
 import "../SwapRouter.sol";
 
-
 interface CheatCodes {
     function prank(address) external;
 
@@ -32,9 +31,9 @@ contract OrderBookTest is DSTest {
     LimitOrderExecutor limitOrderExecutor;
     LimitOrderQuoter limitOrderQuoter;
     Swap swapHelper;
-    
+
     OrderBookWrapper orderBook;
-   
+
     event OrderPlaced(bytes32[] orderIds);
     event OrderCancelled(bytes32[] orderIds);
     event OrderUpdated(bytes32[] orderIds);
@@ -59,6 +58,8 @@ contract OrderBookTest is DSTest {
     bytes32 _uniswapV2HexDem =
         0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
 
+    address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
+
     address swapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     //Initialize array of Dex specifications
     bytes32[] _hexDems = [_uniswapV2HexDem, _uniswapV2HexDem];
@@ -71,7 +72,7 @@ contract OrderBookTest is DSTest {
 
         swapHelper = new Swap(_sushiSwapRouterAddress, wnato);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
-        
+
         limitOrderQuoter = new LimitOrderQuoter(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
@@ -83,14 +84,13 @@ contract OrderBookTest is DSTest {
             address(limitOrderQuoter),
             _hexDems,
             _dexFactories,
-            _isUniV2
+            _isUniV2,
+            aggregatorV3Address
         );
-       
 
         orderBook = new OrderBookWrapper(
-            0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C,
+            aggregatorV3Address,
             address(limitOrderExecutor)
-            
         );
     }
 
@@ -111,9 +111,7 @@ contract OrderBookTest is DSTest {
         //place a mock order
         bytes32 orderId = placeMockOrder(order);
 
-        OrderBook.Order memory returnedOrder = orderBook.getOrderById(
-            orderId
-        );
+        OrderBook.Order memory returnedOrder = orderBook.getOrderById(orderId);
 
         // assert that the two orders are the same
         assertEq(returnedOrder.tokenIn, order.tokenIn);
@@ -578,9 +576,7 @@ contract OrderBookTest is DSTest {
         //place a mock order
         placeMockOrder(order);
 
-        uint256 totalOrdersValue = orderBook.getTotalOrdersValue(
-            swapToken
-        );
+        uint256 totalOrdersValue = orderBook.getTotalOrdersValue(swapToken);
         assertEq(5, totalOrdersValue);
     }
 
@@ -621,9 +617,9 @@ contract OrderBookTest is DSTest {
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
         cheatCodes.deal(address(this), MAX_UINT);
-        (bool depositSuccess, ) = address(orderBook).call{
-            value: 1000000000000
-        }(abi.encodeWithSignature("depositGasCredits()")); //12 wei
+        (bool depositSuccess, ) = address(orderBook).call{value: 1000000000000}(
+            abi.encodeWithSignature("depositGasCredits()")
+        ); //12 wei
 
         swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
 
@@ -695,11 +691,9 @@ contract OrderBookTest is DSTest {
 
 ///@notice wrapper around the OrderBook contract to expose internal functions for testing
 contract OrderBookWrapper is OrderBook {
-    constructor(
-        address _gasOracle,
-        address _limitOrderExecutor
-        
-    ) OrderBook(_gasOracle,_limitOrderExecutor) {}
+    constructor(address _gasOracle, address _limitOrderExecutor)
+        OrderBook(_gasOracle, _limitOrderExecutor)
+    {}
 
     function calculateMinGasCredits(
         uint256 gasPrice,
