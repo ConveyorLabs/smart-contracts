@@ -326,7 +326,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //check that the orders have been placed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 tokenToWethOrderBatch[i]
             );
 
@@ -338,7 +338,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 tokenToWethOrderBatch[i]
             );
             assert(order.orderId == bytes32(0));
@@ -582,7 +582,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //check that the orders have been placed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 tokenToTokenOrderBatch[i]
             );
 
@@ -594,7 +594,7 @@ contract LimitOrderRouterTest is DSTest {
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order = orderBook.getOrderById(
                 tokenToTokenOrderBatch[i]
             );
             assert(order.orderId == bytes32(0));
