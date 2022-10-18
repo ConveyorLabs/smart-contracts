@@ -1252,7 +1252,7 @@ contract LimitOrderRouterTest is DSTest {
         orderBatch[0] = orderId;
         ///Ensure the order has been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
 
@@ -1263,7 +1263,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //Ensure the order was cancelled
         for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = limitOrderRouter.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
             
