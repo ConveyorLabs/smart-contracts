@@ -162,21 +162,11 @@ library ConveyorMath {
     /// @param y uint256 unsigned integer
     /// @return unsigned
     function mul128I(uint256 x, uint256 y) internal pure returns (uint256) {
-        unchecked {
-            if (y == 0 || x == 0) {
-                return 0;
-            }
-
-            uint256 lo = (uint256(x) *
-                (y & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)) >> 64;
-            uint256 hi = uint256(x) * (y >> 128);
-
-            require(hi <= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
-            hi <<= 64;
-
-            require(hi <= MAX_128x128 - lo);
-            return (hi + lo) >> 64;
+        if (y == 0 || x == 0) {
+            return 0;
         }
+
+        return (x * y) >> 128;
     }
 
     function abs(int256 x) internal pure returns (int256) {
