@@ -142,6 +142,7 @@ contract LimitOrderExecutor is SwapRouter {
                 executionPrice.lpAddressAToWeth,
                 order
             );
+
         beaconReward = maxBeaconReward > beaconReward
             ? beaconReward
             : maxBeaconReward;
@@ -395,11 +396,19 @@ contract LimitOrderExecutor is SwapRouter {
         }
         reentrancyStatus = true;
 
+        ///@notice Revert if caller is not the owner.
         if (msg.sender != owner) {
             revert MsgSenderIsNotOwner();
         }
+
+        ///@notice Unwrap the the conveyorBalance.
+        IWETH(WETH).withdraw(conveyorBalance);
+
         safeTransferETH(owner, conveyorBalance);
+        ///@notice Set the conveyorBalance to 0 prior to transferring the ETH.
         conveyorBalance = 0;
+
+        ///@notice Set the reentrancy status to false after the conveyorBalance has been decremented to prevent reentrancy. 
         reentrancyStatus = false;
     }
 
