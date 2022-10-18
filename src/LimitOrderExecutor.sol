@@ -4,14 +4,15 @@ pragma solidity ^0.8.16;
 import "./SwapRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./lib/ConveyorFeeMath.sol";
+import "./LimitOrderRouter.sol";
 
 contract LimitOrderExecutor is SwapRouter {
-
     using SafeERC20 for IERC20;
     ///====================================Immutable Storage Variables==============================================//
     address immutable WETH;
     address immutable USDC;
     address immutable LIMIT_ORDER_QUOTER;
+    address public immutable LIMIT_ORDER_ROUTER;
 
     ///@notice The contract owner.
     address owner;
@@ -34,12 +35,17 @@ contract LimitOrderExecutor is SwapRouter {
         address _limitOrderQuoterAddress,
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
-        bool[] memory _isUniV2
+        bool[] memory _isUniV2,
+        address _gasOracle
     ) SwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
         USDC = _usdc;
         WETH = _weth;
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
         owner = msg.sender;
+
+        LIMIT_ORDER_ROUTER = address(
+            new LimitOrderRouter(_gasOracle, _weth, address(this))
+        );
     }
 
     ///@notice Function to execute a batch of Token to Weth Orders.
@@ -374,16 +380,12 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Transfer the order quantity to the contract.
     ///@param order - The orders tokens to be transferred.
-    function transferTokensToContract(OrderBook.Order memory order)
-        internal
-    {
-        
+    function transferTokensToContract(OrderBook.Order memory order) internal {
         IERC20(order.tokenIn).safeTransferFrom(
             order.owner,
             address(this),
             order.quantity
         );
-       
     }
 
     ///@notice Function to withdraw owner fee's accumulated
