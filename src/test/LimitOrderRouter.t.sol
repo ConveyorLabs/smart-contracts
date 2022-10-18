@@ -321,6 +321,35 @@ contract LimitOrderRouterTest is DSTest {
             assert(order.orderId == bytes32(0));
         }
     }
+    //Test fail case in execution with duplicate orderIds passed
+    function testFailExecuteTokenToWethOrderBatch_DuplicateOrdersInExecution() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
+        bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethBatchDuplicateOrderIds();
+
+        //check that the orders have been placed
+        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
+            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+                tokenToWethOrderBatch[i]
+            );
+
+            assert(order.orderId != bytes32(0));
+        }
+
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
+
+        // check that the orders have been fufilled and removed
+        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
+            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+                tokenToWethOrderBatch[i]
+            );
+            assert(order.orderId == bytes32(0));
+        }
+    }
 
     ///@notice Test to execute a single token to with order
     function testExecuteWethToTokenSingle() public {
@@ -548,6 +577,41 @@ contract LimitOrderRouterTest is DSTest {
             assert(order.orderId == bytes32(0));
         }
     }
+
+
+    ///@notice Test fail Execute a batch of Token to token with revert on duplicate orderIds in batch
+    function testFailExecuteTokenToTokenBatch_DuplicateOrdersInExecution() public {
+        
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        IERC20(USDC).approve(address(limitOrderExecutor), MAX_UINT);
+
+        bytes32[]
+            memory tokenToTokenOrderBatch = placeNewMockTokenToTokenBatchDuplicateOrderIds();
+
+        //check that the orders have been placed
+        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
+            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+                tokenToTokenOrderBatch[i]
+            );
+
+            assert(order.orderId != bytes32(0));
+        }
+
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
+
+        // check that the orders have been fufilled and removed
+        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
+            OrderBook.Order memory order = limitOrderRouter.getOrderById(
+                tokenToTokenOrderBatch[i]
+            );
+            assert(order.orderId == bytes32(0));
+        }
+    }
+
 
     ///@notice Test to execute a single weth to taxed order
     function testExecuteWethToTaxedTokenSingle() public {
@@ -1360,6 +1424,85 @@ contract LimitOrderRouterTest is DSTest {
         orderBatch[2] = order3;
         orderBatch[3] = order4;
         return placeMultipleMockOrder(orderBatch);
+    }
+
+
+    function placeNewMockTokenToWethBatchDuplicateOrderIds()
+        internal
+        returns (bytes32[] memory)
+    {
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+
+        OrderBook.Order memory order1 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            false,
+            0,
+            1000000000000000000,
+            5000000000000000000000, //5000 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
+        );
+
+        OrderBook.Order memory order2 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            false,
+            0,
+            1000000000000000000,
+            5000000000000000000001, //5001 DAI
+            3000,
+            3000,
+            0,
+            MAX_U32
+        );
+        OrderBook.Order memory order3 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            false,
+            0,
+            1000000000000000000,
+            5000000000000000000002, //5002 DAI
+            3000,
+            3000,
+            0,
+            MAX_U32
+        );
+        OrderBook.Order memory order4 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            false,
+            0,
+            1000000000000000000,
+            5000000000000000000003, //5003 DAI
+            3000,
+            3000,
+            0,
+            MAX_U32
+        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](4);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
+        orderBatch[2] = order3;
+        orderBatch[3] = order4;
+        bytes32[] memory orderIds = new bytes32[](5);
+        bytes32[] memory returnIds = placeMultipleMockOrder(orderBatch);
+        orderIds[0]= returnIds[0];
+        orderIds[1]= returnIds[1];
+        orderIds[2]=returnIds[2];
+        orderIds[3]=returnIds[3];
+        orderIds[4]= returnIds[0]; //Add a duplicate orderId to the batch
+        return orderIds;
     }
 
     function placeNewMockTokenToWethTaxedBatch()
@@ -2283,6 +2426,57 @@ contract LimitOrderRouterTest is DSTest {
 
         return placeMultipleMockOrder(orderBatch);
     }
+
+
+    function placeNewMockTokenToTokenBatchDuplicateOrderIds()
+        internal
+        returns (bytes32[] memory)
+    {
+        swapHelper.swapEthForTokenWithUniV2(10000 ether, USDC);
+
+        OrderBook.Order memory order1 = newMockOrder(
+            USDC,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000, //5000 USDC
+            3000,
+            3000,
+            0,
+            MAX_U32
+        );
+
+        OrderBook.Order memory order2 = newMockOrder(
+            USDC,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000, //5000 USDC
+            3000,
+            3000,
+            0,
+            MAX_U32
+        );
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
+        
+
+        bytes32[] memory returnIds=placeMultipleMockOrder(orderBatch);
+        bytes32[] memory duplicateIdArray = new bytes32[](3);
+        duplicateIdArray[0]= returnIds[0];
+        duplicateIdArray[1]= returnIds[1];
+        duplicateIdArray[2]= returnIds[1]; //Duplicate id in batch should cause revert 
+        return duplicateIdArray;
+    }
+
 
     function placeNewMockTaxedToTokenBatch()
         internal
