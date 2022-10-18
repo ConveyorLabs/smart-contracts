@@ -204,7 +204,7 @@ library ConveyorMath {
             uint256 hi = xInt * (MAX_128x128 / y);
             uint256 lo = (xDec * (MAX_128x128 / y)) >> 128;
 
-            require(hi + lo <= MAX_128x128);
+            require(hi <= MAX_128x128 -lo);
             return hi + lo;
         }
     }
