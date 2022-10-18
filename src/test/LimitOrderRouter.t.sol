@@ -242,6 +242,7 @@ contract LimitOrderRouterTest is DSTest {
         assertEq(allOrderIds[1][1], fufilledOrderIds[1]);
     }
 
+    //Test validate and cancel 
     function testValidateAndCancelOrder() public {
         OrderBook.Order memory order = newOrder(WETH, USDC, 0, 0, 0);
         cheatCodes.deal(address(this),MAX_UINT);
@@ -261,29 +262,26 @@ contract LimitOrderRouterTest is DSTest {
             );
     
         assert(cancelledOrder.orderId == bytes32(0));
+
+        //Gas credit balance should be decremented by minimumBalanceSubMultiplier
         assertEq((minimumGasCredits-1)-minimumBalanceSubMultiplier,limitOrderRouter.gasCreditBalance(address(this)));   
     }
 
+    //Should fail validateAndCancel since user has the min credit balance
     function testFailValidateAndCancelOrder() public {
         OrderBook.Order memory order = newOrder(WETH, USDC, 0, 0, 0);
         cheatCodes.deal(address(this),MAX_UINT);
 
         bytes32 orderId  = placeMockOrder(order);
-        uint256 gasPrice = limitOrderRouter.getGasPrice();
-        uint256 minimumGasCredits = (gasPrice*300000*150)/100;
-        uint256 minimumBalanceSubMultiplier= gasPrice*300000;
+        
+        uint256 sufficientCredits = MAX_UINT;
 
-        depositGasCreditsForMockOrders(minimumGasCredits-1);
+        depositGasCreditsForMockOrders(sufficientCredits);
         
         bool cancelled=limitOrderRouter.validateAndCancelOrder(orderId);
-        assertTrue(cancelled);
 
-        OrderBook.Order memory cancelledOrder = limitOrderRouter.getOrderById(
-                orderId
-            );
-    
-        assert(cancelledOrder.orderId == bytes32(0));
-        assertEq(minimumGasCredits-minimumBalanceSubMultiplier,limitOrderRouter.gasCreditBalance(address(this)));   
+        //Should fail assertion since the user has sufficient credits
+        assertTrue(cancelled);
     }
 
 
