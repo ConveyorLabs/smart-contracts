@@ -86,6 +86,8 @@ contract LimitOrderRouter is OrderBook {
         address _weth,
         address _limitOrderExecutor
     ) OrderBook(_gasOracle, _limitOrderExecutor) {
+        require(_limitOrderExecutor !=address(0), "Invalid LimitOrderExecutor address");
+        require(_weth !=address(0), "Invalid weth address");
         WETH = _weth;
         owner = msg.sender;
 
