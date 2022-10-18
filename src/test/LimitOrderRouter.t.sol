@@ -343,6 +343,26 @@ contract LimitOrderRouterTest is DSTest {
         }
     }
 
+    ///@notice Test to check fail case if orderIds length is 0
+    function testFailExecuteOrders_InvalidCalldata() public {
+        
+        bytes32[] memory emptyIdArray = new bytes32[](0);
+
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.executeOrders(emptyIdArray);
+       
+    }
+
+    ///@notice Test to check fail case if orderId is not in the state of contract
+    function testFailExecuteOrders_OrderDoesNotExist() public {
+        
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0]= bytes32(0);
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.executeOrders(orderIds);
+       
+    }
+
     ///@notice Test to execute a single token to with order
     function testExecuteWethToTokenSingle() public {
         cheatCodes.deal(address(this), MAX_UINT);
