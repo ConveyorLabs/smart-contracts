@@ -253,11 +253,9 @@ contract OrderBook is GasOracle {
         newOrder.lastRefreshTimestamp = oldOrder.lastRefreshTimestamp;
 
         ///@notice Update the total orders value
-        if (newOrder.quantity > oldOrder.quantity) {
-            totalOrdersValue += newOrder.quantity - oldOrder.quantity;
-        } else {
-            totalOrdersValue += oldOrder.quantity - newOrder.quantity;
-        }
+        totalOrdersValue += newOrder.quantity;
+        totalOrdersValue -= oldOrder.quantity;
+        
 
         ///@notice If the wallet does not have a sufficient balance for the updated total orders value, revert.
         if (IERC20(newOrder.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
