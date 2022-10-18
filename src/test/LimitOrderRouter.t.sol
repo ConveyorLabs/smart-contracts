@@ -72,27 +72,14 @@ contract LimitOrderRouterTest is DSTest {
 
     //Chainlink ERC20 address
     address swapToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
-    // bytes32 _sushiHexDem =
-    //     hex"e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303";
+
     bytes32 _uniswapV2HexDem =
         hex"96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f";
 
     //Initialize array of Dex specifications
-    bytes32[] _hexDems = [
-        _uniswapV2HexDem,
-        // _sushiHexDem,
-        bytes32(0)
-    ];
-    address[] _dexFactories = [
-        _uniV2FactoryAddress,
-        // _sushiFactoryAddress,
-        _uniV3FactoryAddress
-    ];
-    bool[] _isUniV2 = [
-        true,
-        //  true,
-        false
-    ];
+    bytes32[] _hexDems = [_uniswapV2HexDem, bytes32(0)];
+    address[] _dexFactories = [_uniV2FactoryAddress, _uniV3FactoryAddress];
+    bool[] _isUniV2 = [true, false];
 
     uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000; //0.00001
 
