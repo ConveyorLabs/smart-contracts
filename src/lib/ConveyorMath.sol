@@ -79,7 +79,7 @@ library ConveyorMath {
     function sub(int128 x, int128 y) internal pure returns (int128) {
         unchecked {
             int256 result = int256(x) - y;
-            require(result >= MIN_64x64 && result <= int128(MAX_64x64));
+            require(result >= MIN_64x64 && result <= type(int128).max);
             return int128(result);
         }
     }
