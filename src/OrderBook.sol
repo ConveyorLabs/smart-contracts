@@ -16,6 +16,7 @@ contract OrderBook is GasOracle {
     constructor(address _gasOracle, address _limitOrderExecutor)
         GasOracle(_gasOracle)
     {
+        require(_limitOrderExecutor != address(0), "Invalid LimitOrderExecutor Address");
         EXECUTOR_ADDRESS = _limitOrderExecutor;
     }
 
