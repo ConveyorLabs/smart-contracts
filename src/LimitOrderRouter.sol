@@ -397,7 +397,7 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice This function is called by off-chain executors, passing in an array of orderIds to execute a specific batch of orders.
     /// @param orderIds - Array of orderIds to indicate which orders should be executed.
-    function executeOrders(bytes32[] calldata orderIds) external onlyEOA {
+    function executeOrders(bytes32[] calldata orderIds) external onlyEOA nonReentrant {
         //Update the initial gas balance.
         assembly {
             sstore(initialTxGas.slot, gas())
