@@ -51,3 +51,18 @@ Several functions are missing authorization validation and allow anyone to call 
 `TokenToWethLimitOrderExecution.executeTokenToWethOrderSingle()`
 
 ### Resolution Details
+
+
+## QSP-18
+
+File(s) affected: TokenToWethLimitOrderExecution.sol
+
+Description: In TokenToWethLimitOrderExecution.sol#L365, getAllPrices() is using the first order's order.feeIn to compute uniswap prices for all of the orders in the batch.
+
+However, different orders are not guaranteed to have the same feeIn. Thus, the computed result may not apply to all orders in the batch.
+
+Recommendation: Change the logic to use each individual order's feeIn or check that they all have the same feeIn value, e.g. in LimitOrderRouter._validateOrderSequencing().
+
+### Resolution Details
+
+Updated _validateOrderSequencing() to check for congruent `feeIn` and `feeOut`.
