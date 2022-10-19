@@ -65,4 +65,4 @@ Recommendation: Change the logic to use each individual order's feeIn or check t
 
 ### Resolution Details
 
-Updated _validateOrderSequencing() to check for congruent `feeIn` and `feeOut`.
+Updated _validateOrderSequencing() to check for congruent `feeIn` and `feeOut`. Added tests `testFailValidateOrderSequence_IncongruentFeeIn` and  `testFailValidateOrderSequence_IncongruentFeeOut`.
