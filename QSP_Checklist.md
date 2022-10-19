@@ -82,11 +82,55 @@ Several functions are missing authorization validation and allow anyone to call 
 
 ## QSP-16 Gas Oracle Reliability ❌
 
-## QSP-17 Math Function Returns Wrong Type ❌
+## QSP-17 Math Function Returns Wrong Type ✅
+Severity: 🟡Low Risk🟡
+## Description
+Under the assumption that the function `divUU128x128()` should return a `128.128` fixed point number, this function does not return the correct value.
+### Resolution Details
+This function has been removed from the codebase as we are no longer using it in the core contracts.
 
 ## QSP-18 Individual Order Fee Is Not Used in Batch Execution ❌
 
-## QSP-19 Locking the Difference Between `beaconReward` and `maxBeaconReward` in the Contract ❌
+# QSP-19 Locking the Difference Between `beaconReward` and `maxBeaconReward` in the Contract ❌
+Severity: 🔵Informational🔵
+## Description: 
+The code has the concept of a `maxBeaconReward` to cap the max beacon reward sent to the executor. So whenever the raw `beaconReward` is greater than the `maxBeaconReward`, the executor will get the `maxBeaconReward`. However, the implementation will lock the difference between the two in the contract.
+
+## QSP-19_1
+`TaxedTokenLimitOrderExecution._executeTokenToWethTaxedSingle()`: The function calls the `_executeTokenToWethOrder()` function on L133 and the `_executeTokenToWethOrder() `function will return `uint256(amountOutWeth - (beaconReward + conveyorReward))` (L192) as the `amountOut`. The `amountOut` is the final amount transferred to the order's owner. Later on L148-150, the raw `beaconReward` is capped to the `maxBeaconReward`. The difference will be left and locked in the contract.
+
+### Resolution
+The contract architecture change from batch execution to linear execution remvoved the need for a TaxedTokenLimitOrderExecution contract. A single taxed order from Token -> WETH will now be executed by the contract `LimitOrderExecutor#L52` within the function `executeTokenToWethOrders`. The resolution to the locked beacon reward issue within the function is addressed in **QSP-19_6**.
+## QSP-19_2 
+`TaxedTokenLimitOrderExecution._executeTokenToTokenTaxedSingle()`: The function calls `_executeTokenToTokenOrder().` The raw `beaconReward` will also be part of the deduction in `_executeTokenToTokenOrder()` (L357): `amountInWethToB = amountIn - (beaconReward + conveyorReward)`. The `maxBeaconReward` cap is applied later, and the difference will be left locked in the contract.
+### Resolution
+The contract architecture change from batch execution to linear execution remvoved the need for a TaxedTokenLimitOrderExecution contract. A single taxed order from Token -> Token will now be executed by the contract `LimitOrderExecutor#L220` within the function `executeTokenToTokenOrders`. The resolution to the locked beacon reward issue within the function is addressed in **QSP-19_4**.
+## QSP-19_3
+TokenToTokenLimitOrderExecution._executeTokenToTokenSingle(): The function calls the _executeTokenToTokenOrder(). The raw beaconReward will be deducted when calculating the amountInWethToB. Later in _executeTokenToTokenSingle(), the maxBeaconReward is applied to the beaconReward. The difference
+between the beaconReward and maxBeaconReward will be left in the contract.
+### Resolution
+This function has been removed as it is no longer needed with a linear execution contract architecture. A single order from Token-> Token will now be executed by the contract `LimitOrderExecutor#L220` within the function `executeTokenToTokenOrders`. The resolution to the locked beacon reward issue within the function is addressed in **QSP-19_4**.
+## QSP-19_4
+`TokenToTokenLimitOrderExecution._executeTokenToTokenBatchOrders()`: The function calls `_executeTokenToTokenBatch()`. In the
+`_executeTokenToTokenBatch()` function, the raw `beaconReward` is deducted when calculating the `amountInWethToB`. Later in the `_executeTokenToTokenBatchOrders()` function, the `maxBeaconReward` is applied to the `totalBeaconReward`. The difference between the `totalBeaconReward` and `maxBeaconReward` will be left in the contract.
+### Resolution
+The function `TokenToTokenLimitOrderExecution._executeTokenToTokenBatchOrders()` has been replaced with `LimitOrderExecutor#L222executeTokenToTokenOrders()` as a result of changing to a linear execution architecture. The function similarly calculates the `maxBeaconReward` `#L256-257` and calls `_executeTokenToTokenOrder#L278` passing in the capped beacon reward.
+#### Case Token-Token.) 
+The function calls `_executeSwapTokenToWethOrder#L329` and returns the `amountInWethToB` decremented by the `maxBeaconReward` if instantiated. The fix can be referenced at `LimitOrderExecutor#L190-217`. 
+#### Case WETH-Token.) 
+Since WETH is the input token no swap is needed. The function `_executeTokenToTokenOrder#L341` calls `transferTokensToContract` and decrements the value `amountInWethToB` by the `maxBeaconReward` if instantiated. The fix can be referenced in `LimitOrderExecutor#L341-363`.
+## QSP-19_5 
+`TokenToWethLimitOrderExecution._executeTokenToWethSingle()`: The function calls `_executeTokenToWethOrder()`. The `_executeTokenToWethOrder()` will deduct the raw `beaconReward` when returning the `amountOut` value. Later, the `_executeTokenToWethSingle()` function caps the `beaconReward` to `maxBeaconReward`. The difference between the `beaconReward` and `maxBeaconReward` will be left in the contract. 
+
+### Resolution
+This function has been removed as it is no longer needed with a linear execution contract architecture. A single order from Token-> WETH will now be executed by the contract `LimitOrderExecutor#L52` within the function `executeTokenToWethOrders`. The resolution to the locked beacon reward issue within the function is addressed in **QSP-19_6**.
+
+## QSP-19_6 
+`TokenToWethLimitOrderExecution._executeTokenToWethBatchOrders()`: The function calls the `_executeTokenToWethBatch()` function. The `_executeTokenToWethBatch()` will deduct the raw `beaconReward` when returning the `amountOut` value. Later, the `_executeTokenToWethBatchOrders()` function caps the `totalBeaconReward` to `maxBeaconReward`. The difference between the `totalBeaconReward` and `maxBeaconReward` will be left in the contract.
+
+### Resolution
+
+The function `TokenToWethLimitOrderExecution._executeTokenToWethBatchOrders()` is no longer used with the changes to a simpler linear execution architecture. All orders from Token -> Weth will now be executed at the top level by `LimitOrderExecutor#L52executeTokenToWethOrders`. This function calculates the `maxBeaconReward` `LimitOrderExecutor#L72` and calls `_executeTokenToWethOrder#L97` passing in the `maxBeaconReward` as a parameter. `_executeTokenToWethOrder` calls `_executeSwapTokenToWethOrder#L141` with the `maxBeaconReward` as a parameter and the returned `amountOutWeth` value is decremented by the `beaconReward` after the `beaconReward` has been capped. The fix can be referenced at `LimitOrderExecutor#L190-217_executeSwapTokenToWethOrder`.
 
 ## QSP-20 Inaccurate Array Length ❌
 
