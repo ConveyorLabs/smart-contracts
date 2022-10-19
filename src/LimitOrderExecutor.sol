@@ -14,7 +14,11 @@ contract LimitOrderExecutor is SwapRouter {
     address immutable LIMIT_ORDER_QUOTER;
     address public immutable LIMIT_ORDER_ROUTER;
 
-    ///@notice The contract owner.
+    ///@notice Temporary owner storage variable when transferring ownership of the contract.
+    address tempOwner;
+
+    ///@notice The owner of the Order Router contract
+    ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
     address owner;
 
     ///@notice Conveyor funds balance in the contract.
@@ -38,6 +42,9 @@ contract LimitOrderExecutor is SwapRouter {
         bool[] memory _isUniV2,
         address _gasOracle
     ) SwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
+        require(_weth != address(0), "Invalid weth address");
+        require(_usdc != address(0), "Invalid usdc address");
+        require(_limitOrderQuoterAddress != address(0), "Invalid LimitOrderQuoter address");
         USDC = _usdc;
         WETH = _weth;
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
@@ -412,11 +419,23 @@ contract LimitOrderExecutor is SwapRouter {
         reentrancyStatus = false;
     }
 
+    ///@notice Function to confirm ownership transfer of the contract.
+    function confirmTransferOwnership() external {
+        if (msg.sender != tempOwner) {
+            revert UnauthorizedCaller();
+        }
+        owner = msg.sender;
+    }
+
     ///@notice Function to transfer ownership of the contract.
     function transferOwnership(address newOwner) external {
-        if (msg.sender != owner) {
-            revert MsgSenderIsNotOwner();
+        if(msg.sender != owner){
+            revert UnauthorizedCaller();
         }
-        owner = newOwner;
+        
+        if (newOwner == address(0)) {
+            revert InvalidAddress();
+        }
+        tempOwner = newOwner;
     }
 }

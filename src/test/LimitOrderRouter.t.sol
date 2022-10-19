@@ -77,7 +77,7 @@ contract LimitOrderRouterTest is DSTest {
         hex"96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f";
 
     //Initialize array of Dex specifications
-    bytes32[] _hexDems = [_uniswapV2HexDem, bytes32(0)];
+    bytes32[] _hexDems = [_uniswapV2HexDem, _uniswapV2HexDem];
     address[] _dexFactories = [_uniV2FactoryAddress, _uniV3FactoryAddress];
     bool[] _isUniV2 = [true, false];
 
@@ -364,6 +364,22 @@ contract LimitOrderRouterTest is DSTest {
             );
             assert(order.orderId == bytes32(0));
         }
+    }
+
+    ///@notice Test to check fail case if orderIds length is 0
+    function testFailExecuteOrders_InvalidCalldata() public {
+        bytes32[] memory emptyIdArray = new bytes32[](0);
+
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.executeOrders(emptyIdArray);
+    }
+
+    ///@notice Test to check fail case if orderId is not in the state of contract
+    function testFailExecuteOrders_OrderDoesNotExist() public {
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = bytes32(0);
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.executeOrders(orderIds);
     }
 
     ///@notice Test to execute a single token to with order
@@ -1010,6 +1026,10 @@ contract LimitOrderRouterTest is DSTest {
         assembly {
             let bal := selfbalance()
             underflow := gt(sub(bal, _amount), bal)
+        }
+
+        if(_amount ==0){
+            underflow=true;
         }
 
         if (!underflow) {
