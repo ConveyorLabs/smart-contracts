@@ -268,6 +268,18 @@ contract OrderBook is GasOracle {
             totalOrdersValue
         );
 
+        ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
+        uint256 totalApprovedQuantity = IERC20(newOrder.tokenIn).allowance(
+            msg.sender,
+            address(EXECUTOR_ADDRESS)
+        );
+
+        ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
+        if (totalApprovedQuantity < newOrder.quantity) {
+            revert InsufficientAllowanceForOrderUpdate();
+        
+        }
+
         ///@notice Update the order details stored in the system.
         orderIdToOrder[oldOrder.orderId] = newOrder;
 
