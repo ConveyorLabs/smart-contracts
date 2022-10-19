@@ -166,7 +166,7 @@ In `OrderBook.getAllOrderIds()` assembly is used to resize the array after it is
 
 
 
-## QSP-21 `TaxedTokenLimitOrderExecution` Contains Code for Handling Non-Taxed Orders ❌
+## QSP-21 `TaxedTokenLimitOrderExecution` Contains Code for Handling Non-Taxed Orders ✅
 
 Severity: 🔵Informational🔵
 
@@ -180,8 +180,21 @@ This code has been removed with the new contract architecture for linear executi
 
 ## QSP-23 Allowance Not Checked when Updating Orders ❌
 
-## QSP-24 Incorrect Restriction in fromUInt256 ❌
-
+## QSP-24 Incorrect Restriction in fromUInt256 ✅
+Severity: 🔵Informational🔵
+## Description: 
+In the function `fromUInt256()`, if the input `x` is an unsigned integer and `x <= 0xFFFFFFFFFFFFFFFF`, then after `x << 64`, it will be less than or equal to `MAX64.64`. However
+the restriction for `x` is set to `<= 0x7FFFFFFFFFFFFFFF` in the current implementation.
+### Resolution
+Changed the require statement to the reccomended validation logic. Reference `ConveyorMath.sol#L20-25`.
+```
+function fromUInt256(uint256 x) internal pure returns (uint128) {
+    unchecked {
+        require(x <= 0xFFFFFFFFFFFFFFFF);
+        return uint128(x << 64);
+    }
+}
+```
 ## QSP-25 Extremely Expensive Batch Execution for Uniswap V3 ❌
 
 ## QSP-26 Issues in Maximum Beacon Reward Calculation ❌

@@ -19,7 +19,7 @@ library ConveyorMath {
     /// @return unsigned 64.64 unsigned fixed point number
     function fromUInt256(uint256 x) internal pure returns (uint128) {
         unchecked {
-            require(x <= 0x7FFFFFFFFFFFFFFF);
+            require(x <= 0xFFFFFFFFFFFFFFFF);
             return uint128(x << 64);
         }
     }
