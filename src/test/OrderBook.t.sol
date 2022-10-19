@@ -359,11 +359,7 @@ contract OrderBookTest is DSTest {
         assertEq(newAmountOutMin, contractStateOrder.amountOutMin);
     }
 
-<<<<<<< HEAD
-    ///@notice Test update order
-=======
     ///@notice Test fail update order insufficient allowance
->>>>>>> a1cfa108c2034da00962a62330585ca1d1891dcf
     function testFailUpdateOrder_InsufficientAllowanceForOrderUpdate(
         uint128 price,
         uint64 quantity,

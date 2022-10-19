@@ -252,13 +252,13 @@ function fromUInt256(uint256 x) internal pure returns (uint128) {
 ```
 
 
-## QSP-25 Extremely Expensive Batch Execution for Uniswap V3 ❌
+# QSP-25 Extremely Expensive Batch Execution for Uniswap V3 ❌
 
-## QSP-26 Issues in Maximum Beacon Reward Calculation ❌
+# QSP-26 Issues in Maximum Beacon Reward Calculation ❌
 
-## QSP-27 Verifier's Dilemma ❌
+# QSP-27 Verifier's Dilemma ❌
 
-## QSP-28 Taxed Token Swaps Using Uniswap V3 Might Fail ❌
+# QSP-28 Taxed Token Swaps Using Uniswap V3 Might Fail ❌
 
 # **Code Documentation**
 
