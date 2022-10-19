@@ -255,7 +255,6 @@ contract OrderBook is GasOracle {
         ///@notice Update the total orders value
         totalOrdersValue += newOrder.quantity;
         totalOrdersValue -= oldOrder.quantity;
-        
 
         ///@notice If the wallet does not have a sufficient balance for the updated total orders value, revert.
         if (IERC20(newOrder.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
@@ -559,6 +558,16 @@ contract OrderBook is GasOracle {
                 cancelledOrderIds[cancelledOrderIdsIndex] = orderId;
                 ++cancelledOrderIdsIndex;
             }
+        }
+
+        ///Reassign length of each array
+        uint256 pendingOrderIdsLength = pendingOrderIds.length;
+        uint256 fufilledOrderIdsLength = fufilledOrderIds.length;
+        uint256 cancelledOrderIdsLength = cancelledOrderIds.length;
+        assembly {
+            mstore(pendingOrderIds, pendingOrderIdsLength)
+            mstore(fufilledOrderIds, fufilledOrderIdsLength)
+            mstore(cancelledOrderIds, cancelledOrderIdsLength)
         }
 
         orderIdsStatus[0] = pendingOrderIds;

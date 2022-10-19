@@ -88,7 +88,31 @@ Several functions are missing authorization validation and allow anyone to call 
 
 ## QSP-19 Locking the Difference Between `beaconReward` and `maxBeaconReward` in the Contract ❌
 
-## QSP-20 Inaccurate Array Length ❌
+## QSP-20 Inaccurate Array Length ✅
+Severity: Informational Status: Unresolved
+
+File(s) affected: LimitOrderBatcher.sol, OrderBook.sol
+**Description**: Some functions return arrays that are padded with empty elements. The caller of those functions will need to be aware of this fact to not accidentally treat the padding as real data. The following is a list of functions that have this issue:
+1. OrderBook.getAllOrderIds(): The impact is unclear, as the function is only used in the test contracts.
+
+2. LimitOrderBatcher.batchTokenToTokenOrders(): The function is called by TokenToTokenLimitOrderExecution.executeTokenToTokenOrders(). Fortunately, the
+implementation of executeTokenToTokenOrders() seems to be aware of the fact that batches can be empty.
+
+**Recommendation**: Either get an exact array length and allocate the array with the correct size or try to override the array length before returning the array. Otherwise, consider adding a warning to the above functions to ensure callers are aware of the returned array potentially containing empty elements.
+While newer solidity versions no longer allow assigning the array length directly, it is still possible to do so using assembly:
+
+```js
+assembly {
+    mstore(<:your_array_var>, <:reset_size>)
+}
+```
+
+### Resolution
+
+
+In `OrderBook.getAllOrderIds()` assembly is used to resize the array after it is populated. Batching functionality was removed so the issue in `LimitOrderBatcher.batchTokenToTokenOrders()` no longer exists.
+
+
 
 ## QSP-21 `TaxedTokenLimitOrderExecution` Contains Code for Handling Non-Taxed Orders ❌
 
