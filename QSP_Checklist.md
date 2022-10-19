@@ -88,7 +88,7 @@ Several functions are missing authorization validation and allow anyone to call 
 
 ## QSP-19 Locking the Difference Between `beaconReward` and `maxBeaconReward` in the Contract ❌
 
-## QSP-20 Inaccurate Array Length ✅
+## QSP-20 Inaccurate Array Length ❌ (Needs tests to validate expected behavior)
 Severity: Informational Status: Unresolved
 
 File(s) affected: LimitOrderBatcher.sol, OrderBook.sol
@@ -108,7 +108,6 @@ assembly {
 ```
 
 ### Resolution
-
 
 In `OrderBook.getAllOrderIds()` assembly is used to resize the array after it is populated. Batching functionality was removed so the issue in `LimitOrderBatcher.batchTokenToTokenOrders()` no longer exists.
 
