@@ -21,6 +21,9 @@ error InsufficientAllowanceForOrderPlacement();
 error InvalidBatchOrder();
 error IncongruentInputTokenInBatch();
 error IncongruentOutputTokenInBatch();
+error IncongruentFeeInInBatch();
+error IncongruentFeeOutInBatch();
+
 error IncongruentTaxedTokenInBatch();
 error IncongruentBuySellStatusInBatch();
 error WethWithdrawUnsuccessful();

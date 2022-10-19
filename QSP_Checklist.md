@@ -89,7 +89,16 @@ Under the assumption that the function `divUU128x128()` should return a `128.128
 ### Resolution Details
 This function has been removed from the codebase as we are no longer using it in the core contracts.
 
-## QSP-18 Individual Order Fee Is Not Used in Batch Execution ❌
+
+## QSP-18 Individual Order Fee Is Not Used in Batch Execution ✅
+
+File(s) affected: TokenToWethLimitOrderExecution.sol
+**Description**: In TokenToWethLimitOrderExecution.sol#L365, getAllPrices() is using the first order's order.feeIn to compute uniswap prices for all of the orders in the batch.
+However, different orders are not guaranteed to have the same feeIn. Thus, the computed result may not apply to all orders in the batch.
+**Recommendation**: Change the logic to use each individual order's feeIn or check that they all have the same feeIn value, e.g. in LimitOrderRouter._validateOrderSequencing().
+
+### Resolution Details
+Updated _validateOrderSequencing() to check for congruent `feeIn` and `feeOut`. Added tests `testFailValidateOrderSequence_IncongruentFeeIn` and  `testFailValidateOrderSequence_IncongruentFeeOut`.
 
 # QSP-19 Locking the Difference Between `beaconReward` and `maxBeaconReward` in the Contract ✅
 Severity: 🔵Informational🔵
