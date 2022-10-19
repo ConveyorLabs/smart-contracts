@@ -36,9 +36,6 @@ error UnauthorizedCaller();
 error UnauthorizedUniswapV3CallbackCaller();
 error InvalidOrderUpdate();
 error DuplicateOrdersInExecution();
-<<<<<<< HEAD
-=======
 error InvalidCalldata();
 error InsufficientMsgValue();
->>>>>>> cb356fcc645116da057df9645548b54f3997d3db
 error InsufficientAllowanceForOrderUpdate();

@@ -275,16 +275,10 @@ contract OrderBook is GasOracle {
             address(EXECUTOR_ADDRESS)
         );
 
-<<<<<<< HEAD
-        ///@notice If the total approved quantity is less than the updatedTotalOrdersValue, revert.
-        if (totalApprovedQuantity < newOrder.quantity) {
-            revert InsufficientAllowanceForOrderUpdate();
-=======
         ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
         if (totalApprovedQuantity < newOrder.quantity) {
             revert InsufficientAllowanceForOrderUpdate();
         
->>>>>>> cb356fcc645116da057df9645548b54f3997d3db
         }
 
         ///@notice Update the order details stored in the system.
