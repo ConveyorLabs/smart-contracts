@@ -139,18 +139,15 @@ contract LimitOrderExecutor is SwapRouter {
             uint128 conveyorReward,
             uint128 beaconReward
         ) = _executeSwapTokenToWethOrder(
+                maxBeaconReward,
                 executionPrice.lpAddressAToWeth,
                 order
             );
 
-        beaconReward = maxBeaconReward > beaconReward
-            ? beaconReward
-            : maxBeaconReward;
-
         ///@notice Transfer the tokenOut amount to the order owner.
         transferTokensOutToOwner(
             order.owner,
-            amountOutWeth - (beaconReward + conveyorReward),
+            amountOutWeth,
             WETH
         );
 
@@ -162,6 +159,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@param order - The order to be executed.
     ///@return amountOutWeth - The amountOut in Weth after the swap.
     function _executeSwapTokenToWethOrder(
+        uint128 maxBeaconReward,
         address lpAddressAToWeth,
         OrderBook.Order memory order
     )
@@ -210,6 +208,10 @@ contract LimitOrderExecutor is SwapRouter {
             protocolFee,
             amountOutWeth
         );
+
+        beaconReward = maxBeaconReward > beaconReward
+            ? beaconReward
+            : maxBeaconReward;
 
         ///@notice Get the AmountIn for weth to tokenB.
         amountOutWeth = amountOutWeth - (beaconReward + conveyorReward);
@@ -325,6 +327,7 @@ contract LimitOrderExecutor is SwapRouter {
                     conveyorReward,
                     beaconReward
                 ) = _executeSwapTokenToWethOrder(
+                    maxBeaconReward,
                     executionPrice.lpAddressAToWeth,
                     order
                 );
@@ -332,6 +335,7 @@ contract LimitOrderExecutor is SwapRouter {
                 if (amountInWethToB == 0) {
                     revert InsufficientOutputAmount();
                 }
+                
             } else {
                 ///@notice Transfer the TokenIn to the contract.
                 transferTokensToContract(order);
@@ -349,6 +353,11 @@ contract LimitOrderExecutor is SwapRouter {
                 ///@notice Calculate the conveyorReward and the off-chain logic executor reward.
                 (conveyorReward, beaconReward) = ConveyorFeeMath
                     .calculateReward(protocolFee, uint128(amountIn));
+
+                ///@notice Adjust the beaconReward according to the maxBeaconReward.
+                beaconReward = beaconReward < maxBeaconReward
+                    ? beaconReward
+                    : maxBeaconReward;
 
                 ///@notice Get the amountIn for the Weth to tokenB swap.
                 amountInWethToB = amountIn - (beaconReward + conveyorReward);
@@ -370,11 +379,6 @@ contract LimitOrderExecutor is SwapRouter {
         if (amountOutInB == 0) {
             revert InsufficientOutputAmount();
         }
-
-        ///@notice Adjust the beaconReward according to the maxBeaconReward.
-        beaconReward = beaconReward < maxBeaconReward
-            ? beaconReward
-            : maxBeaconReward;
 
         return (uint256(conveyorReward), uint256(beaconReward));
     }
@@ -408,7 +412,7 @@ contract LimitOrderExecutor is SwapRouter {
         ///@notice Set the conveyorBalance to 0 prior to transferring the ETH.
         conveyorBalance = 0;
 
-        ///@notice Set the reentrancy status to false after the conveyorBalance has been decremented to prevent reentrancy. 
+        ///@notice Set the reentrancy status to false after the conveyorBalance has been decremented to prevent reentrancy.
         reentrancyStatus = false;
     }
 
