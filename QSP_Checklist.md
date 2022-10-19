@@ -1,5 +1,6 @@
  
 # QSP-1 Stealing User and Contract Funds ✅
+Severity: 🔴**High Risk**🔴
 ## Description
 Some funds-transferring functions in the contracts are declared as public or external but without any authorization checks, allowing anyone to arbitrarily call the functions and transfer funds.
 
@@ -7,6 +8,7 @@ Some funds-transferring functions in the contracts are declared as public or ext
 The visibility of the `safeTransferETH()` function in several contracts is public. The visibility allows anyone to call this function to transfer the ETH on the contract to any address directly. The following is the list of affected contracts: `LimitOrderRouter.sol`, `SwapRouter.sol`, `TaxedTokenLimitOrderExecution.sol`,`TokenToTokenLimitOrderExecution.sol`, `TokenToWethLimitOrderExecution.sol`.
 
 ### Resolution Details
+Commit: `commit 4a39d554209b0c2c3f45f7a41944bc60a43340db`
 
 ## QSP-1_2
 In the SwapRouter contract, several `transferXXX()` functions allow anyone to call and direct transfer the funds away. The following is the list of functions: `transferTokensToContract()`, `transferTokensOutToOwner()`, and `transferBeaconReward()`.
