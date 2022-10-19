@@ -176,11 +176,81 @@ The function `_executeTokenToTokenOrder()` checks whether the order to execute i
 ### Resolution
 This code has been removed with the new contract architecture for linear execution. Taxed orders now follow the same execution flow as untaxed orders dependent on whether the swap is happening on Token-> Weth or Token->Token.
 
-## QSP-22 Unlocked Pragma ❌
+# QSP-22 Unlocked Pragma ✅
+### Resolution
+Locked all pragma versions to 0.8.16 in core contracts.
+## QSP-23 Allowance Not Checked when Updating Orders ✅
+Severity: 🔵Informational🔵
+## Description: 
+When placing an order, the contract will check if users set a high enough allowance to the ORDER_ROUTER contract (L216). However, this is not checked when updating an order in
+the function updateOrder().
+### Resolution
+Added a check that ensures the allowance of the sender on the `LimitOrderExecutor` contract >= the `newOrder.quantity`. Reference `OrderBook.sol#L277-281` for the fix:
+```
+        ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
+        if (totalApprovedQuantity < newOrder.quantity) {
+            revert InsufficientAllowanceForOrderUpdate();
+        }
+```
+Test Reference `OrderBook.t.sol#L363-401`:
+```
+    ///@notice Test fail update order insufficient allowance
+    function testFailUpdateOrder_InsufficientAllowanceForOrderUpdate(
+        uint128 price,
+        uint64 quantity,
+        uint128 amountOutMin,
+        uint128 newPrice,
+        uint128 newAmountOutMin
+    ) public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        IERC20(swapToken).approve(address(limitOrderExecutor), quantity);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
 
-## QSP-23 Allowance Not Checked when Updating Orders ❌
+        //create a new order
+        OrderBook.Order memory order = newOrder(
+            swapToken,
+            wnato,
+            price,
+            quantity,
+            amountOutMin
+        );
 
-## QSP-24 Incorrect Restriction in fromUInt256 ❌
+        //place a mock order
+        bytes32 orderId = placeMockOrder(order);
+
+        //create a new order to replace the old order
+        OrderBook.Order memory updatedOrder = newOrder(
+            swapToken,
+            wnato,
+            newPrice,
+            quantity + 1, //Change the quantity to more than the approved amount
+            newAmountOutMin
+        );
+
+        updatedOrder.orderId = orderId;
+
+        //submit the updated order should revert since approved quantity is less than order quantity
+        orderBook.updateOrder(updatedOrder);
+    }
+```
+
+# QSP-24 Incorrect Restriction in fromUInt256 ✅
+Severity: 🔵Informational🔵
+## Description: 
+In the function `fromUInt256()`, if the input `x` is an unsigned integer and `x <= 0xFFFFFFFFFFFFFFFF`, then after `x << 64`, it will be less than or equal to `MAX64.64`. However
+the restriction for `x` is set to `<= 0x7FFFFFFFFFFFFFFF` in the current implementation.
+### Resolution
+Changed the require statement to the reccomended validation logic. Reference `ConveyorMath.sol#L20-25`.
+```
+function fromUInt256(uint256 x) internal pure returns (uint128) {
+    unchecked {
+        require(x <= 0xFFFFFFFFFFFFFFFF);
+        return uint128(x << 64);
+    }
+}
+```
+
 
 ## QSP-25 Extremely Expensive Batch Execution for Uniswap V3 ❌
 
