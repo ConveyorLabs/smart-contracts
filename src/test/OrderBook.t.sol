@@ -359,7 +359,11 @@ contract OrderBookTest is DSTest {
         assertEq(newAmountOutMin, contractStateOrder.amountOutMin);
     }
 
+<<<<<<< HEAD
     ///@notice Test update order
+=======
+    ///@notice Test fail update order insufficient allowance
+>>>>>>> cb356fcc645116da057df9645548b54f3997d3db
     function testFailUpdateOrder_InsufficientAllowanceForOrderUpdate(
         uint128 price,
         uint64 quantity,
@@ -385,13 +389,20 @@ contract OrderBookTest is DSTest {
         //place a mock order
         bytes32 orderId = placeMockOrder(order);
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> cb356fcc645116da057df9645548b54f3997d3db
         //create a new order to replace the old order
         OrderBook.Order memory updatedOrder = newOrder(
             swapToken,
             wnato,
             newPrice,
+<<<<<<< HEAD
             quantity+1, //Change the quantity to more than the approved amount
+=======
+            quantity + 1, //Change the quantity to more than the approved amount
+>>>>>>> cb356fcc645116da057df9645548b54f3997d3db
             newAmountOutMin
         );
 
@@ -399,11 +410,14 @@ contract OrderBookTest is DSTest {
 
         //submit the updated order should revert since approved quantity is less than order quantity
         orderBook.updateOrder(updatedOrder);
+<<<<<<< HEAD
 
         
 
        
 
+=======
+>>>>>>> cb356fcc645116da057df9645548b54f3997d3db
     }
 
     ///@notice Test fail order update with incongruent in/out token

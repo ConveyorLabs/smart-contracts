@@ -16,6 +16,7 @@ contract OrderBook is GasOracle {
     constructor(address _gasOracle, address _limitOrderExecutor)
         GasOracle(_gasOracle)
     {
+        require(_limitOrderExecutor != address(0), "Invalid LimitOrderExecutor Address");
         EXECUTOR_ADDRESS = _limitOrderExecutor;
     }
 
@@ -274,9 +275,16 @@ contract OrderBook is GasOracle {
             address(EXECUTOR_ADDRESS)
         );
 
+<<<<<<< HEAD
         ///@notice If the total approved quantity is less than the updatedTotalOrdersValue, revert.
         if (totalApprovedQuantity < newOrder.quantity) {
             revert InsufficientAllowanceForOrderUpdate();
+=======
+        ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
+        if (totalApprovedQuantity < newOrder.quantity) {
+            revert InsufficientAllowanceForOrderUpdate();
+        
+>>>>>>> cb356fcc645116da057df9645548b54f3997d3db
         }
 
         ///@notice Update the order details stored in the system.
@@ -410,18 +418,18 @@ contract OrderBook is GasOracle {
     }
 
     ///@notice Function to resolve an order as completed.
-    ///@param order - The order that should be resolved from the system.
-    function _resolveCompletedOrder(Order memory order) internal {
+    ///@param orderId - The orderId that should be resolved from the system.
+    function _resolveCompletedOrder(bytes32 orderId) internal {
         ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
-        Order memory orderCheck = orderIdToOrder[order.orderId];
+        Order memory order = orderIdToOrder[orderId];
 
         ///@notice If the order has already been removed from the contract revert.
-        if (orderCheck.orderId == bytes32(0)) {
+        if (order.orderId == bytes32(0)) {
             revert DuplicateOrdersInExecution();
         }
         ///@notice Remove the order from the system
-        delete orderIdToOrder[order.orderId];
-        delete addressToOrderIds[order.owner][order.orderId];
+        delete orderIdToOrder[orderId];
+        delete addressToOrderIds[order.owner][orderId];
 
         ///@notice Decrement from total orders per address
         --totalOrdersPerAddress[order.owner];
