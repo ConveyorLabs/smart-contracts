@@ -150,7 +150,7 @@ contract LimitOrderExecutor is SwapRouter {
         ///@notice Transfer the tokenOut amount to the order owner.
         transferTokensOutToOwner(
             order.owner,
-            amountOutWeth - (beaconReward + conveyorReward),
+            amountOutWeth,
             WETH
         );
 
