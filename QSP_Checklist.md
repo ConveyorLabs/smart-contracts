@@ -1,23 +1,53 @@
-# Quantstamp Audit Report Progress Checklist
-
+ 
 # QSP-1 Stealing User and Contract Funds
 ## Description
 Some funds-transferring functions in the contracts are declared as public or external but without any authorization checks, allowing anyone to arbitrarily call the functions and transfer funds.
 
-### 1.)
-#### Issue
-The visibility of the safeTransferETH() function in several contracts is public. The visibility allows anyone to call this function to transfer the ETH on the contract to any address directly. The following is the list of affected contracts: LimitOrderRouter.sol, SwapRouter.sol, TaxedTokenLimitOrderExecution.sol,TokenToTokenLimitOrderExecution.sol, TokenToWethLimitOrderExecution.sol.
+## QSP-1_1
+The visibility of the `safeTransferETH()` function in several contracts is public. The visibility allows anyone to call this function to transfer the ETH on the contract to any address directly. The following is the list of affected contracts: `LimitOrderRouter.sol`, `SwapRouter.sol`, `TaxedTokenLimitOrderExecution.sol`,`TokenToTokenLimitOrderExecution.sol`, `TokenToWethLimitOrderExecution.sol`.
 
-#### Resolution
+### Resolution Details
 
-### 2.)
-#### Issue
-In the SwapRouter contract, several transferXXX() functions allow anyone to call and direct transfer the funds away. The following is the list of functions: transferTokensToContract(), transferTokensOutToOwner(), and transferBeaconReward().
+## QSP-1_2
+In the SwapRouter contract, several `transferXXX()` functions allow anyone to call and direct transfer the funds away. The following is the list of functions: `transferTokensToContract()`, `transferTokensOutToOwner()`, and `transferBeaconReward()`.
  
-#### Resolution
+### Resolution Details
 
-### 3.)
-#### Issue
-The SwapRouter.uniswapV3SwapCallback() function does not verify that it is called from the Uniswap V3 contract, allowing anyone to steal funds by supplying fake inputs.
+## QSP-1_3
+The `SwapRouter.uniswapV3SwapCallback()` function does not verify that it is called from the Uniswap V3 contract, allowing anyone to steal funds by supplying fake inputs.
 
-#### Resolution
+### Resolution Details
+
+# QSP-2 Missing Authorization for Execution Contracts
+## Description
+Several functions are missing authorization validation and allow anyone to call the function instead of the specific callers. Specifically, the "execution" contracts are designed to be triggered by the `LimitOrderRouter` contract. However, those functions do not verify the caller. If anyone calls those functions on the "execution" contract, it will trigger the order execution without updating the order status as fulfilled.
+
+## QSP-2_1
+`TaxedTokenLimitOrderExecution.executeTokenToWethTaxedOrders()`
+
+### Resolution Details
+
+## QSP-2_2
+`TaxedTokenLimitOrderExecution.executeTokenToTokenTaxedOrders()`
+ 
+### Resolution Details
+
+## QSP-2_3
+`TokenToTokenLimitOrderExecution.executeTokenToTokenOrders()`
+
+### Resolution Details
+
+## QSP-2_4
+`TokenToTokenLimitOrderExecution.executeTokenToTokenOrderSingle()`
+
+### Resolution Details
+
+## QSP-2_5
+`TokenToWethLimitOrderExecution.executeTokenToWethOrders()`
+
+### Resolution Details
+
+## QSP-2_6
+`TokenToWethLimitOrderExecution.executeTokenToWethOrderSingle()`
+
+### Resolution Details
