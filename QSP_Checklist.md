@@ -132,7 +132,30 @@ This function has been removed as it is no longer needed with a linear execution
 
 The function `TokenToWethLimitOrderExecution._executeTokenToWethBatchOrders()` is no longer used with the changes to a simpler linear execution architecture. All orders from Token -> Weth will now be executed at the top level by `LimitOrderExecutor#L52executeTokenToWethOrders`. This function calculates the `maxBeaconReward` `LimitOrderExecutor#L72` and calls `_executeTokenToWethOrder#L97` passing in the `maxBeaconReward` as a parameter. `_executeTokenToWethOrder` calls `_executeSwapTokenToWethOrder#L141` with the `maxBeaconReward` as a parameter and the returned `amountOutWeth` value is decremented by the `beaconReward` after the `beaconReward` has been capped. The fix can be referenced at `LimitOrderExecutor#L190-217_executeSwapTokenToWethOrder`.
 
-## QSP-20 Inaccurate Array Length ❌
+## QSP-20 Inaccurate Array Length ❌ (Needs tests to validate expected behavior)
+Severity: Informational Status: Unresolved
+
+File(s) affected: LimitOrderBatcher.sol, OrderBook.sol
+**Description**: Some functions return arrays that are padded with empty elements. The caller of those functions will need to be aware of this fact to not accidentally treat the padding as real data. The following is a list of functions that have this issue:
+1. OrderBook.getAllOrderIds(): The impact is unclear, as the function is only used in the test contracts.
+
+2. LimitOrderBatcher.batchTokenToTokenOrders(): The function is called by TokenToTokenLimitOrderExecution.executeTokenToTokenOrders(). Fortunately, the
+implementation of executeTokenToTokenOrders() seems to be aware of the fact that batches can be empty.
+
+**Recommendation**: Either get an exact array length and allocate the array with the correct size or try to override the array length before returning the array. Otherwise, consider adding a warning to the above functions to ensure callers are aware of the returned array potentially containing empty elements.
+While newer solidity versions no longer allow assigning the array length directly, it is still possible to do so using assembly:
+
+```js
+assembly {
+    mstore(<:your_array_var>, <:reset_size>)
+}
+```
+
+### Resolution
+
+In `OrderBook.getAllOrderIds()` assembly is used to resize the array after it is populated. Batching functionality was removed so the issue in `LimitOrderBatcher.batchTokenToTokenOrders()` no longer exists.
+
+
 
 ## QSP-21 `TaxedTokenLimitOrderExecution` Contains Code for Handling Non-Taxed Orders ❌
 
