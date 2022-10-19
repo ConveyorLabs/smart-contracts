@@ -178,6 +178,26 @@ contract LimitOrderRouterTest is DSTest {
         limitOrderRouterWrapper.validateOrderSequencing(orderBatch);
     }
 
+    function testFailValidateOrderSequence_IncongruentFeeIn() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        OrderBook.Order[]
+            memory orderBatch = newMockTokenToWethBatch_IncongruentFeeIn();
+        limitOrderRouterWrapper.validateOrderSequencing(orderBatch);
+    }
+
+    function testFailValidateOrderSequence_IncongruentFeeOut() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        OrderBook.Order[]
+            memory orderBatch = newMockTokenToWethBatch_IncongruentFeeOut();
+        limitOrderRouterWrapper.validateOrderSequencing(orderBatch);
+    }
+
     function testFailValidateOrderSequence_IncongruentBuySellStatusInBatch()
         public
     {
@@ -1432,8 +1452,8 @@ contract LimitOrderRouterTest is DSTest {
             1000000000000000000,
             5000000000000000000000, //5000 DAI
             3000,
-            0,
-            0,
+            300,
+            500,
             MAX_U32
         );
 
@@ -1447,8 +1467,8 @@ contract LimitOrderRouterTest is DSTest {
             1000000000000000000,
             5000000000000000000001, //5001 DAI
             3000,
-            3000,
-            0,
+            300,
+            500,
             MAX_U32
         );
         OrderBook.Order memory order3 = newMockOrder(
@@ -1461,8 +1481,8 @@ contract LimitOrderRouterTest is DSTest {
             1000000000000000000,
             5000000000000000000002, //5002 DAI
             3000,
-            3000,
-            0,
+            300,
+            500,
             MAX_U32
         );
         OrderBook.Order memory order4 = newMockOrder(
@@ -1475,8 +1495,8 @@ contract LimitOrderRouterTest is DSTest {
             1000000000000000000,
             5000000000000000000003, //5003 DAI
             3000,
-            3000,
-            0,
+            300,
+            500,
             MAX_U32
         );
         OrderBook.Order[] memory orderBatch = new OrderBook.Order[](4);
@@ -2105,6 +2125,92 @@ contract LimitOrderRouterTest is DSTest {
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
+
+        return orderBatch;
+    }
+
+    function newMockTokenToWethBatch_IncongruentFeeIn()
+        internal
+        returns (OrderBook.Order[] memory)
+    {
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+
+        OrderBook.Order memory order1 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            300,
+            0,
+            MAX_U32
+        );
+
+        OrderBook.Order memory order2 = newMockOrder(
+            DAI,
+            USDC,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000001, //5001 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
+        );
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
+
+        return orderBatch;
+    }
+
+    function newMockTokenToWethBatch_IncongruentFeeOut()
+        internal
+        returns (OrderBook.Order[] memory)
+    {
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+
+        OrderBook.Order memory order1 = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            300,
+            300,
+            MAX_U32
+        );
+
+        OrderBook.Order memory order2 = newMockOrder(
+            DAI,
+            USDC,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000001, //5001 DAI
+            3000,
+            300,
+            500,
+            MAX_U32
+        );
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
 
         return orderBatch;
     }

@@ -295,13 +295,20 @@ contract OrderBookTest is DSTest {
     }
 
     ///@notice Test update order
-    function testUpdateOrder(uint128 price, uint64 quantity, uint128 amountOutMin, uint128 newPrice, uint64 newQuantity, uint128 newAmountOutMin) public {
+    function testUpdateOrder(
+        uint128 price,
+        uint64 quantity,
+        uint128 amountOutMin,
+        uint128 newPrice,
+        uint64 newQuantity,
+        uint128 newAmountOutMin
+    ) public {
         cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
-        
+
         //create a new order
         OrderBook.Order memory order = newOrder(
             swapToken,
@@ -314,7 +321,9 @@ contract OrderBookTest is DSTest {
         //place a mock order
         bytes32 orderId = placeMockOrder(order);
 
-        uint32 initialLastRefreshTimestamp = orderBook.getOrderById(orderId).lastRefreshTimestamp;
+        uint32 initialLastRefreshTimestamp = orderBook
+            .getOrderById(orderId)
+            .lastRefreshTimestamp;
 
         //create a new order to replace the old order
         OrderBook.Order memory updatedOrder = newOrder(
@@ -330,17 +339,65 @@ contract OrderBookTest is DSTest {
         //submit the updated order
         orderBook.updateOrder(updatedOrder);
 
-        OrderBook.Order memory contractStateOrder = orderBook.getOrderById(orderId);
+        OrderBook.Order memory contractStateOrder = orderBook.getOrderById(
+            orderId
+        );
 
         //Cache the total orders value after the update
-        uint256 totalOrdersValueAfter = orderBook.getTotalOrdersValue(swapToken);
+        uint256 totalOrdersValueAfter = orderBook.getTotalOrdersValue(
+            swapToken
+        );
 
         //Make sure the order was updated properly
-        assertEq(newQuantity,totalOrdersValueAfter);
-        assertEq(newQuantity,contractStateOrder.quantity);
+        assertEq(newQuantity, totalOrdersValueAfter);
+        assertEq(newQuantity, contractStateOrder.quantity);
         assertEq(newPrice, contractStateOrder.price);
-        assertEq(initialLastRefreshTimestamp, contractStateOrder.lastRefreshTimestamp);
+        assertEq(
+            initialLastRefreshTimestamp,
+            contractStateOrder.lastRefreshTimestamp
+        );
         assertEq(newAmountOutMin, contractStateOrder.amountOutMin);
+    }
+
+    ///@notice Test fail update order insufficient allowance
+    function testFailUpdateOrder_InsufficientAllowanceForOrderUpdate(
+        uint128 price,
+        uint64 quantity,
+        uint128 amountOutMin,
+        uint128 newPrice,
+        uint128 newAmountOutMin
+    ) public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        IERC20(swapToken).approve(address(limitOrderExecutor), quantity);
+
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
+
+        //create a new order
+        OrderBook.Order memory order = newOrder(
+            swapToken,
+            wnato,
+            price,
+            quantity,
+            amountOutMin
+        );
+
+        //place a mock order
+        bytes32 orderId = placeMockOrder(order);
+
+        //create a new order to replace the old order
+        OrderBook.Order memory updatedOrder = newOrder(
+            swapToken,
+            wnato,
+            newPrice,
+            quantity + 1, //Change the quantity to more than the approved amount
+            newAmountOutMin
+        );
+
+        updatedOrder.orderId = orderId;
+
+        //submit the updated order should revert since approved quantity is less than order quantity
+        orderBook.updateOrder(updatedOrder);
     }
 
     ///@notice Test fail order update with incongruent in/out token
@@ -350,7 +407,7 @@ contract OrderBookTest is DSTest {
 
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(100 ether, swapToken);
-        
+
         OrderBook.Order memory order = newOrder(
             wnato,
             swapToken,
@@ -358,10 +415,9 @@ contract OrderBookTest is DSTest {
             uint128(1),
             uint128(1)
         );
-        
+
         //place a mock order
         bytes32 orderId = placeMockOrder(order);
-        
 
         //create a new order to replace the old order
         OrderBook.Order memory updatedOrder = newOrder(
@@ -372,10 +428,8 @@ contract OrderBookTest is DSTest {
             uint128(1)
         );
 
-        
         //should fail since changing the in/out token is not allowed
         orderBook.updateOrder(updatedOrder);
-
     }
 
     ///@notice Test fail update order order does not exist

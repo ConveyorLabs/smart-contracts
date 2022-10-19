@@ -256,7 +256,6 @@ contract OrderBook is GasOracle {
         ///@notice Update the total orders value
         totalOrdersValue += newOrder.quantity;
         totalOrdersValue -= oldOrder.quantity;
-        
 
         ///@notice If the wallet does not have a sufficient balance for the updated total orders value, revert.
         if (IERC20(newOrder.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
@@ -269,6 +268,18 @@ contract OrderBook is GasOracle {
             msg.sender,
             totalOrdersValue
         );
+
+        ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
+        uint256 totalApprovedQuantity = IERC20(newOrder.tokenIn).allowance(
+            msg.sender,
+            address(EXECUTOR_ADDRESS)
+        );
+
+        ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
+        if (totalApprovedQuantity < newOrder.quantity) {
+            revert InsufficientAllowanceForOrderUpdate();
+        
+        }
 
         ///@notice Update the order details stored in the system.
         orderIdToOrder[oldOrder.orderId] = newOrder;
@@ -560,6 +571,16 @@ contract OrderBook is GasOracle {
                 cancelledOrderIds[cancelledOrderIdsIndex] = orderId;
                 ++cancelledOrderIdsIndex;
             }
+        }
+
+        ///Reassign length of each array
+        uint256 pendingOrderIdsLength = pendingOrderIds.length;
+        uint256 fufilledOrderIdsLength = fufilledOrderIds.length;
+        uint256 cancelledOrderIdsLength = cancelledOrderIds.length;
+        assembly {
+            mstore(pendingOrderIds, pendingOrderIdsLength)
+            mstore(fufilledOrderIds, fufilledOrderIdsLength)
+            mstore(cancelledOrderIds, cancelledOrderIdsLength)
         }
 
         orderIdsStatus[0] = pendingOrderIds;
