@@ -200,7 +200,7 @@ contract LimitOrderRouter is OrderBook {
             ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
             if (gasCreditBalance[order.owner] < REFRESH_FEE) {
                 _cancelOrder(order);
-                
+
                 unchecked {
                     ++i;
                 }
@@ -373,24 +373,34 @@ contract LimitOrderRouter is OrderBook {
                 revert InvalidBatchOrder();
             }
 
-            ///@notice Check if the token in is the same for the last order
+            ///@notice Check if the token in is the same for the next order
             if (currentOrder.tokenIn != nextOrder.tokenIn) {
                 revert IncongruentInputTokenInBatch();
             }
 
-            ///@notice Check if the token out is the same for the last order
+            ///@notice Check if the token out is the same for the next order
             if (currentOrder.tokenOut != nextOrder.tokenOut) {
                 revert IncongruentOutputTokenInBatch();
             }
 
-            ///@notice Check if the token tax status is the same for the last order
+            ///@notice Check if the token tax status is the same for the next order
             if (currentOrder.buy != nextOrder.buy) {
                 revert IncongruentBuySellStatusInBatch();
             }
 
-            ///@notice Check if the token tax status is the same for the last order
+            ///@notice Check if the token tax status is the same for the next order
             if (currentOrder.taxed != nextOrder.taxed) {
                 revert IncongruentTaxedTokenInBatch();
+            }
+
+            ///@notice Check if the fee in is the same for the next order
+            if (currentOrder.feeIn != nextOrder.feeIn) {
+                revert IncongruentFeeInInBatch();
+            }
+
+            ///@notice Check if the fee out is the same for the next order
+            if (currentOrder.feeOut != nextOrder.feeOut) {
+                revert IncongruentFeeOutInBatch();
             }
         }
     }
@@ -399,7 +409,11 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice This function is called by off-chain executors, passing in an array of orderIds to execute a specific batch of orders.
     /// @param orderIds - Array of orderIds to indicate which orders should be executed.
-    function executeOrders(bytes32[] calldata orderIds) external onlyEOA nonReentrant {
+    function executeOrders(bytes32[] calldata orderIds)
+        external
+        onlyEOA
+        nonReentrant
+    {
         //Update the initial gas balance.
         assembly {
             sstore(initialTxGas.slot, gas())
