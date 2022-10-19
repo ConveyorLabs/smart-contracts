@@ -22,7 +22,6 @@ import "../lib/libraries/token/SafeERC20.sol";
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures.
 contract SwapRouter is ConveyorTickMath {
-
     using SafeERC20 for IERC20;
     //----------------------Structs------------------------------------//
 
@@ -137,6 +136,10 @@ contract SwapRouter is ConveyorTickMath {
     ) {
         ///@notice Initialize DEXs and other variables
         for (uint256 i = 0; i < _deploymentByteCodes.length; ++i) {
+            if (i == 0) {
+                require(_isUniV2[i], "First Dex must be uniswap v2");
+            }
+            require(_deploymentByteCodes[i] != bytes32(0) && _dexFactories[i]!= address(0), "Zero values in constructor");
             dexes.push(
                 Dex({
                     factoryAddress: _dexFactories[i],
@@ -525,7 +528,7 @@ contract SwapRouter is ConveyorTickMath {
 
         ///@notice Initialize Storage variable uniV3AmountOut to 0 prior to the swap.
         uniV3AmountOut = 0;
-        
+
         ///@notice Execute the swap on the lp for the amounts specified.
         IUniswapV3Pool(_lp).swap(
             _reciever,
@@ -607,7 +610,7 @@ contract SwapRouter is ConveyorTickMath {
             tokenOut,
             fee
         );
-        
+
         if (msg.sender != poolAddress) {
             revert UnauthorizedUniswapV3CallbackCaller();
         }

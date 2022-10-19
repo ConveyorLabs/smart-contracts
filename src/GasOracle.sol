@@ -10,8 +10,9 @@ contract GasOracle {
     ///@notice The gasOracleAddress is the address of the Chainlink Gas Oracle.
     address immutable gasOracleAddress;
 
-    ///@notice Stale Price delay interval between blocks. 
+    ///@notice Stale Price delay interval between blocks.
     constructor(address _gasOracleAddress) {
+        require(_gasOracleAddress != address(0), "Invalid address");
         gasOracleAddress = _gasOracleAddress;
     }
 

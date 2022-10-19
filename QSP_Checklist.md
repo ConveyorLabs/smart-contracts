@@ -54,35 +54,35 @@ Several functions are missing authorization validation and allow anyone to call 
 
 ### Resolution Details
 
-## QSP-3 Ignoring Return Value of ERC20 Transfer Functions ✅
+# QSP-3 Ignoring Return Value of ERC20 Transfer Functions ✅
 
-## QSP-4 Cancelling Order Provides Compensation Twice ✅
+# QSP-4 Cancelling Order Provides Compensation Twice ✅
 
-## QSP-5 Updating an Existing Order Can Be Malicious ✅
+# QSP-5 Updating an Existing Order Can Be Malicious ✅
 
-## QSP-6 Same Order Id Can Be Executed Multiple Times ✅ 
+# QSP-6 Same Order Id Can Be Executed Multiple Times ✅ 
 
-## QSP-7 Incorrectly Computing the Best Price ✅
+# QSP-7 Incorrectly Computing the Best Price ✅
 
-## QSP-8 Reentrancy ✅
+# QSP-8 Reentrancy ✅
 
-## QSP-9 Not Cancelling Order as Expected ✅
+# QSP-9 Not Cancelling Order as Expected ✅
 
-## QSP-10 Granting Insufficient Gas Credit to the Executor ❎
+# QSP-10 Granting Insufficient Gas Credit to the Executor ❎
 
-## QSP-11 Integer Overflow / Underflow ✅
+# QSP-11 Integer Overflow / Underflow ✅
 
-## QSP-12 Updating Order Performs Wrong Total Order Quantity Accounting ✅
+# QSP-12 Updating Order Performs Wrong Total Order Quantity Accounting ✅
 
-## QSP-13 Not Always Taking Beacon Reward Into Account ✅
+# QSP-13 Not Always Taking Beacon Reward Into Account ✅
 
-## QSP-14 Denial of Service Due to Unbound Iteration ❌
+# QSP-14 Denial of Service Due to Unbound Iteration ❌
 
-## QSP-15 Missing Input Validation ✅
+# QSP-15 Missing Input Validation ✅
 
-## QSP-16 Gas Oracle Reliability ❌
+# QSP-16 Gas Oracle Reliability ❌
 
-## QSP-17 Math Function Returns Wrong Type ✅
+# QSP-17 Math Function Returns Wrong Type ✅
 Severity: 🟡Low Risk🟡
 ## Description
 Under the assumption that the function `divUU128x128()` should return a `128.128` fixed point number, this function does not return the correct value.
@@ -90,7 +90,7 @@ Under the assumption that the function `divUU128x128()` should return a `128.128
 This function has been removed from the codebase as we are no longer using it in the core contracts.
 
 
-## QSP-18 Individual Order Fee Is Not Used in Batch Execution ✅
+# QSP-18 Individual Order Fee Is Not Used in Batch Execution ✅
 
 File(s) affected: TokenToWethLimitOrderExecution.sol
 **Description**: In TokenToWethLimitOrderExecution.sol#L365, getAllPrices() is using the first order's order.feeIn to compute uniswap prices for all of the orders in the batch.
@@ -141,7 +141,7 @@ This function has been removed as it is no longer needed with a linear execution
 
 The function `TokenToWethLimitOrderExecution._executeTokenToWethBatchOrders()` is no longer used with the changes to a simpler linear execution architecture. All orders from Token -> Weth will now be executed at the top level by `LimitOrderExecutor#L52executeTokenToWethOrders`. This function calculates the `maxBeaconReward` `LimitOrderExecutor#L72` and calls `_executeTokenToWethOrder#L97` passing in the `maxBeaconReward` as a parameter. `_executeTokenToWethOrder` calls `_executeSwapTokenToWethOrder#L141` with the `maxBeaconReward` as a parameter and the returned `amountOutWeth` value is decremented by the `beaconReward` after the `beaconReward` has been capped. The fix can be referenced at `LimitOrderExecutor#L190-217_executeSwapTokenToWethOrder`.
 
-## QSP-20 Inaccurate Array Length ❌ (Needs tests to validate expected behavior)
+# QSP-20 Inaccurate Array Length ❌ (Needs tests to validate expected behavior)
 Severity: Informational Status: Unresolved
 
 File(s) affected: LimitOrderBatcher.sol, OrderBook.sol
@@ -166,7 +166,7 @@ In `OrderBook.getAllOrderIds()` assembly is used to resize the array after it is
 
 
 
-## QSP-21 `TaxedTokenLimitOrderExecution` Contains Code for Handling Non-Taxed Orders ❌
+# QSP-21 `TaxedTokenLimitOrderExecution` Contains Code for Handling Non-Taxed Orders ✅
 
 Severity: 🔵Informational🔵
 
@@ -176,6 +176,7 @@ The function `_executeTokenToTokenOrder()` checks whether the order to execute i
 ### Resolution
 This code has been removed with the new contract architecture for linear execution. Taxed orders now follow the same execution flow as untaxed orders dependent on whether the swap is happening on Token-> Weth or Token->Token.
 
+
 ## QSP-22 Unlocked Pragma ✅
 Severity: 🔵Informational🔵
 ## Description: 
@@ -184,17 +185,87 @@ meaning that the compiler will use the specified version and above, hence the te
 ### Resolution
 Locked all core contracts at solidity v0.8.16.
 
-## QSP-23 Allowance Not Checked when Updating Orders ❌
+# QSP-23 Allowance Not Checked when Updating Orders ✅
+Severity: 🔵Informational🔵
+## Description: 
+When placing an order, the contract will check if users set a high enough allowance to the ORDER_ROUTER contract (L216). However, this is not checked when updating an order in
+the function updateOrder().
+### Resolution
+Added a check that ensures the allowance of the sender on the `LimitOrderExecutor` contract >= the `newOrder.quantity`. Reference `OrderBook.sol#L277-281` for the fix:
+```
+        ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
+        if (totalApprovedQuantity < newOrder.quantity) {
+            revert InsufficientAllowanceForOrderUpdate();
+        }
+```
+Test Reference `OrderBook.t.sol#L363-401`:
+```
+    ///@notice Test fail update order insufficient allowance
+    function testFailUpdateOrder_InsufficientAllowanceForOrderUpdate(
+        uint128 price,
+        uint64 quantity,
+        uint128 amountOutMin,
+        uint128 newPrice,
+        uint128 newAmountOutMin
+    ) public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        IERC20(swapToken).approve(address(limitOrderExecutor), quantity);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
 
-## QSP-24 Incorrect Restriction in fromUInt256 ❌
+        //create a new order
+        OrderBook.Order memory order = newOrder(
+            swapToken,
+            wnato,
+            price,
+            quantity,
+            amountOutMin
+        );
 
-## QSP-25 Extremely Expensive Batch Execution for Uniswap V3 ❌
+        //place a mock order
+        bytes32 orderId = placeMockOrder(order);
 
-## QSP-26 Issues in Maximum Beacon Reward Calculation ❌
+        //create a new order to replace the old order
+        OrderBook.Order memory updatedOrder = newOrder(
+            swapToken,
+            wnato,
+            newPrice,
+            quantity + 1, //Change the quantity to more than the approved amount
+            newAmountOutMin
+        );
 
-## QSP-27 Verifier's Dilemma ❌
+        updatedOrder.orderId = orderId;
 
-## QSP-28 Taxed Token Swaps Using Uniswap V3 Might Fail ❌
+        //submit the updated order should revert since approved quantity is less than order quantity
+        orderBook.updateOrder(updatedOrder);
+    }
+```
+
+
+# QSP-24 Incorrect Restriction in fromUInt256 ✅
+Severity: 🔵Informational🔵
+## Description: 
+In the function `fromUInt256()`, if the input `x` is an unsigned integer and `x <= 0xFFFFFFFFFFFFFFFF`, then after `x << 64`, it will be less than or equal to `MAX64.64`. However
+the restriction for `x` is set to `<= 0x7FFFFFFFFFFFFFFF` in the current implementation.
+### Resolution
+Changed the require statement to the reccomended validation logic. Reference `ConveyorMath.sol#L20-25`.
+```
+function fromUInt256(uint256 x) internal pure returns (uint128) {
+    unchecked {
+        require(x <= 0xFFFFFFFFFFFFFFFF);
+        return uint128(x << 64);
+    }
+}
+```
+
+
+# QSP-25 Extremely Expensive Batch Execution for Uniswap V3 ❌
+
+# QSP-26 Issues in Maximum Beacon Reward Calculation ❌
+
+# QSP-27 Verifier's Dilemma ❌
+
+# QSP-28 Taxed Token Swaps Using Uniswap V3 Might Fail ❌
 
 # **Code Documentation**
 

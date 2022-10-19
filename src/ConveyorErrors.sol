@@ -23,7 +23,6 @@ error IncongruentInputTokenInBatch();
 error IncongruentOutputTokenInBatch();
 error IncongruentFeeInInBatch();
 error IncongruentFeeOutInBatch();
-
 error IncongruentTaxedTokenInBatch();
 error IncongruentBuySellStatusInBatch();
 error WethWithdrawUnsuccessful();
@@ -37,3 +36,6 @@ error UnauthorizedCaller();
 error UnauthorizedUniswapV3CallbackCaller();
 error InvalidOrderUpdate();
 error DuplicateOrdersInExecution();
+error InvalidCalldata();
+error InsufficientMsgValue();
+error InsufficientAllowanceForOrderUpdate();

@@ -86,6 +86,8 @@ contract LimitOrderRouter is OrderBook {
         address _weth,
         address _limitOrderExecutor
     ) OrderBook(_gasOracle, _limitOrderExecutor) {
+        require(_limitOrderExecutor !=address(0), "Invalid LimitOrderExecutor address");
+        require(_weth !=address(0), "Invalid weth address");
         WETH = _weth;
         owner = msg.sender;
 
@@ -111,6 +113,9 @@ contract LimitOrderRouter is OrderBook {
     /// @notice Function to deposit gas credits.
     /// @return success - Boolean that indicates if the deposit completed successfully.
     function depositGasCredits() public payable returns (bool success) {
+        if(msg.value == 0){
+            revert InsufficientMsgValue();
+        }
         ///@notice Increment the gas credit balance for the user by the msg.value
         uint256 newBalance = gasCreditBalance[msg.sender] + msg.value;
 
@@ -418,12 +423,20 @@ contract LimitOrderRouter is OrderBook {
         assembly {
             sstore(initialTxGas.slot, gas())
         }
+        ///@notice Revert if the length of the orderIds array is 0.
+        if (orderIds.length == 0) {
+            revert InvalidCalldata();
+        }
 
         ///@notice Get all of the orders by orderId and add them to a temporary orders array
         Order[] memory orders = new Order[](orderIds.length);
+
         for (uint256 i = 0; i < orderIds.length; ) {
             orders[i] = getOrderById(orderIds[i]);
-
+            ///@notice Revert if the order does not exist in the contract.
+            if (orders[i].orderId == bytes32(0)) {
+                revert OrderDoesNotExist(orderIds[i]);
+            }
             unchecked {
                 ++i;
             }
@@ -457,7 +470,7 @@ contract LimitOrderRouter is OrderBook {
         for (uint256 i = 0; i < orderIds.length; ) {
             bytes32 orderId = orderIds[i];
             ///@notice Mark the order as resolved from the system.
-            _resolveCompletedOrder(orderIdToOrder[orderId]);
+            _resolveCompletedOrder(orderId);
 
             ///@notice Mark order as fulfilled in addressToFufilledOrderIds mapping
             addressToFufilledOrderIds[orderOwners[i]][orderIds[i]] = true;
@@ -506,7 +519,7 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice Function to transfer ownership of the contract.
     function transferOwnership(address newOwner) external onlyOwner {
-        if (owner == address(0)) {
+        if (newOwner == address(0)) {
             revert InvalidAddress();
         }
         tempOwner = newOwner;
