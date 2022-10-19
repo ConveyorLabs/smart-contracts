@@ -91,7 +91,7 @@ This function has been removed from the codebase as we are no longer using it in
 
 ## QSP-18 Individual Order Fee Is Not Used in Batch Execution ❌
 
-# QSP-19 Locking the Difference Between `beaconReward` and `maxBeaconReward` in the Contract ❌
+# QSP-19 Locking the Difference Between `beaconReward` and `maxBeaconReward` in the Contract ✅
 Severity: 🔵Informational🔵
 ## Description: 
 The code has the concept of a `maxBeaconReward` to cap the max beacon reward sent to the executor. So whenever the raw `beaconReward` is greater than the `maxBeaconReward`, the executor will get the `maxBeaconReward`. However, the implementation will lock the difference between the two in the contract.
