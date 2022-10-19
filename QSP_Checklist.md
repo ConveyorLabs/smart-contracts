@@ -54,35 +54,35 @@ Several functions are missing authorization validation and allow anyone to call 
 
 ### Resolution Details
 
-## QSP-3 Ignoring Return Value of ERC20 Transfer Functions ✅
+# QSP-3 Ignoring Return Value of ERC20 Transfer Functions ✅
 
-## QSP-4 Cancelling Order Provides Compensation Twice ✅
+# QSP-4 Cancelling Order Provides Compensation Twice ✅
 
-## QSP-5 Updating an Existing Order Can Be Malicious ✅
+# QSP-5 Updating an Existing Order Can Be Malicious ✅
 
-## QSP-6 Same Order Id Can Be Executed Multiple Times ✅ 
+# QSP-6 Same Order Id Can Be Executed Multiple Times ✅ 
 
-## QSP-7 Incorrectly Computing the Best Price ✅
+# QSP-7 Incorrectly Computing the Best Price ✅
 
-## QSP-8 Reentrancy ✅
+# QSP-8 Reentrancy ✅
 
-## QSP-9 Not Cancelling Order as Expected ✅
+# QSP-9 Not Cancelling Order as Expected ✅
 
-## QSP-10 Granting Insufficient Gas Credit to the Executor ❎
+# QSP-10 Granting Insufficient Gas Credit to the Executor ❎
 
-## QSP-11 Integer Overflow / Underflow ✅
+# QSP-11 Integer Overflow / Underflow ✅
 
-## QSP-12 Updating Order Performs Wrong Total Order Quantity Accounting ✅
+# QSP-12 Updating Order Performs Wrong Total Order Quantity Accounting ✅
 
-## QSP-13 Not Always Taking Beacon Reward Into Account ✅
+# QSP-13 Not Always Taking Beacon Reward Into Account ✅
 
-## QSP-14 Denial of Service Due to Unbound Iteration ❌
+# QSP-14 Denial of Service Due to Unbound Iteration ❌
 
-## QSP-15 Missing Input Validation ✅
+# QSP-15 Missing Input Validation ✅
 
-## QSP-16 Gas Oracle Reliability ❌
+# QSP-16 Gas Oracle Reliability ❌
 
-## QSP-17 Math Function Returns Wrong Type ✅
+# QSP-17 Math Function Returns Wrong Type ✅
 Severity: 🟡Low Risk🟡
 ## Description
 Under the assumption that the function `divUU128x128()` should return a `128.128` fixed point number, this function does not return the correct value.
@@ -90,7 +90,7 @@ Under the assumption that the function `divUU128x128()` should return a `128.128
 This function has been removed from the codebase as we are no longer using it in the core contracts.
 
 
-## QSP-18 Individual Order Fee Is Not Used in Batch Execution ✅
+# QSP-18 Individual Order Fee Is Not Used in Batch Execution ✅
 
 File(s) affected: TokenToWethLimitOrderExecution.sol
 **Description**: In TokenToWethLimitOrderExecution.sol#L365, getAllPrices() is using the first order's order.feeIn to compute uniswap prices for all of the orders in the batch.
@@ -141,7 +141,7 @@ This function has been removed as it is no longer needed with a linear execution
 
 The function `TokenToWethLimitOrderExecution._executeTokenToWethBatchOrders()` is no longer used with the changes to a simpler linear execution architecture. All orders from Token -> Weth will now be executed at the top level by `LimitOrderExecutor#L52executeTokenToWethOrders`. This function calculates the `maxBeaconReward` `LimitOrderExecutor#L72` and calls `_executeTokenToWethOrder#L97` passing in the `maxBeaconReward` as a parameter. `_executeTokenToWethOrder` calls `_executeSwapTokenToWethOrder#L141` with the `maxBeaconReward` as a parameter and the returned `amountOutWeth` value is decremented by the `beaconReward` after the `beaconReward` has been capped. The fix can be referenced at `LimitOrderExecutor#L190-217_executeSwapTokenToWethOrder`.
 
-## QSP-20 Inaccurate Array Length ❌ (Needs tests to validate expected behavior)
+# QSP-20 Inaccurate Array Length ❌ (Needs tests to validate expected behavior)
 Severity: Informational Status: Unresolved
 
 File(s) affected: LimitOrderBatcher.sol, OrderBook.sol
@@ -166,7 +166,7 @@ In `OrderBook.getAllOrderIds()` assembly is used to resize the array after it is
 
 
 
-## QSP-21 `TaxedTokenLimitOrderExecution` Contains Code for Handling Non-Taxed Orders ❌
+# QSP-21 `TaxedTokenLimitOrderExecution` Contains Code for Handling Non-Taxed Orders ✅
 
 Severity: 🔵Informational🔵
 
