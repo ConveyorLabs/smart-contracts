@@ -166,7 +166,7 @@ In `OrderBook.getAllOrderIds()` assembly is used to resize the array after it is
 
 
 
-## QSP-21 `TaxedTokenLimitOrderExecution` Contains Code for Handling Non-Taxed Orders ❌
+## QSP-21 `TaxedTokenLimitOrderExecution` Contains Code for Handling Non-Taxed Orders ✅
 
 Severity: 🔵Informational🔵
 
@@ -203,7 +203,6 @@ Test Reference `OrderBook.t.sol#L363-401`:
     ) public {
         cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(limitOrderExecutor), quantity);
-
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
 
@@ -234,7 +233,23 @@ Test Reference `OrderBook.t.sol#L363-401`:
         orderBook.updateOrder(updatedOrder);
     }
 ```
-## QSP-24 Incorrect Restriction in fromUInt256 ❌
+
+## QSP-24 Incorrect Restriction in fromUInt256 ✅
+Severity: 🔵Informational🔵
+## Description: 
+In the function `fromUInt256()`, if the input `x` is an unsigned integer and `x <= 0xFFFFFFFFFFFFFFFF`, then after `x << 64`, it will be less than or equal to `MAX64.64`. However
+the restriction for `x` is set to `<= 0x7FFFFFFFFFFFFFFF` in the current implementation.
+### Resolution
+Changed the require statement to the reccomended validation logic. Reference `ConveyorMath.sol#L20-25`.
+```
+function fromUInt256(uint256 x) internal pure returns (uint128) {
+    unchecked {
+        require(x <= 0xFFFFFFFFFFFFFFFF);
+        return uint128(x << 64);
+    }
+}
+```
+
 
 ## QSP-25 Extremely Expensive Batch Execution for Uniswap V3 ❌
 
