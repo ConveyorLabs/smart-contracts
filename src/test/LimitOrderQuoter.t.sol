@@ -15,7 +15,6 @@ import "../LimitOrderRouter.sol";
 import "../LimitOrderQuoter.sol";
 import "../../lib/interfaces/uniswap-v3/IQuoter.sol";
 
-
 interface CheatCodes {
     function prank(address) external;
 
@@ -33,7 +32,6 @@ contract LimitOrderQuoterTest is DSTest {
     //Initialize limit-v0 contract for testing
     LimitOrderRouter limitOrderRouter;
     ExecutionWrapper limitOrderQuoter;
-   
 
     SwapRouter orderRouter;
     //Initialize OrderBook
@@ -206,7 +204,7 @@ contract LimitOrderQuoterTest is DSTest {
     }
 
     ///@notice Simulate AToB price change v2 spot price test
-    function testSimulateAToBPriceChangeV2SpotPrice(uint112 _amountIn) public {
+    function testSimulateAToBPriceChangeV2SpotPrice(uint64 _amountIn) public {
         uint112 reserveAIn = 7957765096999155822679329;
         uint112 reserveBIn = 4628057647836077568601;
 
@@ -239,19 +237,85 @@ contract LimitOrderQuoterTest is DSTest {
         }
     }
 
-    //Block # 15233771
-    function testSimulateAmountOutV3() public {
-        address poolAddress = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
-        address tokenIn = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        uint128 alphaX = 500000000000;
-        (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(poolAddress).slot0();
-        uint128 liquidity = IUniswapV3Pool(poolAddress).liquidity();
-        uint160 sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(sqrtPriceX96, liquidity, alphaX, true);
-        uint256 amountOut =iQuoter.quoteExactInputSingle(tokenIn, WETH, 3000, alphaX, sqrtPriceLimitX96);
-        uint256 amountOutMin = limitOrderQuoter.calculateAmountOutMinAToWeth(poolAddress, alphaX, 0, 3000, tokenIn);
+    
+    function testSimulateAmountOutV3_Fuzz1_ZeroForOneTrue(uint64 _alphaX) public {
+        bool run = true;
+        if (_alphaX == 0) {
+            run = false;
+        }
 
-        assertEq(amountOut,amountOutMin);
+        if (run) {
+            address poolAddress = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
+            address tokenIn = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+
+            (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(poolAddress)
+                .slot0();
+            uint128 liquidity = IUniswapV3Pool(poolAddress).liquidity();
+            uint160 sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
+                sqrtPriceX96,
+                liquidity,
+                _alphaX,
+                true
+            );
+            uint256 amountOut = iQuoter.quoteExactInputSingle(
+                tokenIn,
+                WETH,
+                3000,
+                _alphaX,
+                sqrtPriceLimitX96
+            );
+            uint256 amountOutMin = limitOrderQuoter
+                .calculateAmountOutMinAToWeth(
+                    poolAddress,
+                    _alphaX,
+                    0,
+                    3000,
+                    tokenIn
+                );
+
+            assertEq(amountOut, amountOutMin);
+        }
     }
+
+    function testSimulateAmountOutV3_Fuzz1_ZeroForOneFalse(uint64 _alphaX) public {
+        bool run = true;
+        if (_alphaX == 0) {
+            run = false;
+        }
+
+        if (run) {
+            address poolAddress = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
+            address tokenOut = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+
+            (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(poolAddress)
+                .slot0();
+            uint128 liquidity = IUniswapV3Pool(poolAddress).liquidity();
+            uint160 sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
+                sqrtPriceX96,
+                liquidity,
+                _alphaX,
+                false
+            );
+            uint256 amountOut = iQuoter.quoteExactInputSingle(
+                WETH,
+                tokenOut,
+                3000,
+                _alphaX,
+                sqrtPriceLimitX96
+            );
+            uint256 amountOutMin = limitOrderQuoter
+                .calculateAmountOutMinAToWeth(
+                    poolAddress,
+                    _alphaX,
+                    0,
+                    3000,
+                    WETH
+                );
+
+            assertEq(amountOut, amountOutMin);
+        }
+    }
+
 
     //Block # 15233771
     ///@notice Simulate WethToB price change v2 test
@@ -1503,10 +1567,9 @@ contract LimitOrderQuoterTest is DSTest {
 }
 
 contract ExecutionWrapper is LimitOrderQuoter {
-    constructor(
-        address _weth,
-        address _quoterAddress
-    ) LimitOrderQuoter(_weth, _quoterAddress) {}
+    constructor(address _weth, address _quoterAddress)
+        LimitOrderQuoter(_weth, _quoterAddress)
+    {}
 
     function simulateAToBPriceChange(
         uint128 alphaX,
@@ -1547,8 +1610,6 @@ contract ExecutionWrapper is LimitOrderQuoter {
     {
         return _simulateAToWethPriceChange(alphaX, executionPrice);
     }
-
- 
 
     function simulateWethToBPriceChange(
         uint128 alphaX,
