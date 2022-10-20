@@ -62,6 +62,12 @@ contract ConveyorTickMath {
     }
 
     ///@notice Function to convers a SqrtPrice Q96.64 fixed point to Price as 128.128 fixed point resolution. 
+    ///@dev token0 is token0 on the pool, and token1 is token1 on the pool. Not tokenIn,tokenOut on the swap. 
+    ///@param sqrtPriceX96 The slot0 sqrtPriceX96 on the pool.
+    ///@param token0IsReserve0 Bool indicating whether the tokenIn to be quoted is token0 on the pool.
+    ///@param token0 Token0 in the pool.
+    ///@param token1 Token1 in the pool.
+    ///@return priceX128 The spot price of TokenIn as 128.128 fixed point. 
     function fromSqrtX96(uint160 sqrtPriceX96, bool token0IsReserve0, address token0, address token1) internal view returns (uint256 priceX128) {
         unchecked {
             ///@notice Cache the difference between the input and output token decimals. p=y/x ==> p*10**(x_decimals-y_decimals)>>Q192 will be the proper price in base 10.
