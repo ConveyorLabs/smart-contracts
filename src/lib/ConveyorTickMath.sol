@@ -12,7 +12,7 @@ import "../../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../../lib/libraries/Uniswap/LowGasSafeMath.sol";
 import "../../lib/libraries/Uniswap/Tick.sol";
 import "../../lib/libraries/Uniswap/SafeCast.sol";
-
+import "../../lib/interfaces/token/IERC20.sol";
 contract ConveyorTickMath {
     ///@notice Initialize all libraries. 
     using SafeCast for uint256;
@@ -28,7 +28,7 @@ contract ConveyorTickMath {
 
     /// @notice maximum uint128 64.64 fixed point number
     uint128 private constant MAX_64x64 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
-    
+    uint256 internal constant Q96 = 0x1000000000000000000000000;
     ///@notice Struct holding the current simulated swap state.
     struct CurrentState {
         ///@notice Amount remaining to be swapped upon cross tick simulation.
@@ -60,20 +60,29 @@ contract ConveyorTickMath {
         uint256 feeAmount;
     }
 
-    ///@notice Function to convers a Q96.64 fixed point to a 64.64 fixed point resolution. 
-    function fromX96(uint160 x) internal pure returns (uint128) {
-        
+    ///@notice Function to convers a SqrtPrice Q96.64 fixed point to Price as 128.128 fixed point resolution. 
+    function fromSqrtX96(uint160 sqrtPriceX96, bool token0IsReserve0, address token0, address token1) internal view returns (uint256 priceX128) {
         unchecked {
-            require(uint128(x >> 32) <= MAX_64x64,"overflow");
-            return uint128(x >> 32);
-        }
-    }
+            ///@notice Cache the difference between the input and output token decimals. p=y/x ==> p*10**(x_decimals-y_decimals)>>Q192 will be the proper price in base 10.
+            int8 decimalShift = int8(IERC20(token0).decimals()) -
+                int8(IERC20(token1).decimals());
+            ///@notice Square the sqrtPrice ratio and normalize the value based on decimalShift.
+            uint256 priceSquaredX96 = decimalShift < 0
+                ? uint256(sqrtPriceX96)**2 / uint256(10)**(uint8(-decimalShift))
+                : uint256(sqrtPriceX96)**2 * 10**uint8(decimalShift);
 
-    function x96ToX128(uint160 x) internal pure returns (uint256 z) {
-        unchecked {
-            z=uint256(uint128(x>>32));
-            require(z<=type(uint256).max);
-            
+            ///@notice The first value is a Q96 representation of p_token0, the second is 128X fixed point representation of p_token1.
+            uint256 priceSquaredShiftQ96 = token0IsReserve0
+                ? priceSquaredX96 / Q96
+                : (Q96 * 0xffffffffffffffffffffffffffffffff) /
+                    (priceSquaredX96 / Q96);
+
+            ///@notice Convert the first value to 128X fixed point by shifting it left 128 bits and normalizing the value by Q96.
+            priceX128 = token0IsReserve0
+                ? (uint256(priceSquaredShiftQ96) *
+                    0xffffffffffffffffffffffffffffffff) / Q96
+                : priceSquaredShiftQ96;
+            require(priceX128 <= type(uint256).max,"Overflow");
         }
     }
 

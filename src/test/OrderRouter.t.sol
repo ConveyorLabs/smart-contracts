@@ -405,12 +405,12 @@ contract SwapRouterTest is DSTest {
         (
             SwapRouter.SpotReserve[] memory pricesWethUsdc,
             address[] memory lps
-        ) = limitOrderExecutor.getAllPrices(weth, usdc, 3000);
+        ) = limitOrderExecutor.getAllPrices(weth, usdc, 500);
 
         (
             SwapRouter.SpotReserve[] memory pricesUsdcWeth,
             address[] memory lps1
-        ) = limitOrderExecutor.getAllPrices(usdc, weth, 3000);
+        ) = limitOrderExecutor.getAllPrices(usdc, weth, 500);
 
         console.log("weth/usdc");
         console.log(pricesWethUsdc[0].spotPrice);

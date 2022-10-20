@@ -683,14 +683,16 @@ contract LimitOrderQuoter is ConveyorTickMath {
                     false
                 );
 
-                ///@notice Convert output to 64.64 fixed point representation
-                uint128 sqrtSpotPrice64x64 = fromX96(nextSqrtPriceX96);
-
-                ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
-                spotPrice = ConveyorMath.mul64x64(
-                    ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64),
-                    ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64)
+                ///@notice Convert output to 128.128 fixed point representation
+                uint256 sqrtSpotPrice128x128 = fromSqrtX96(
+                    nextSqrtPriceX96,
+                    false,
+                    token1,
+                    token0
                 );
+
+                ///@notice sqrtSpotPrice64x64 == token1/token0 spot
+                spotPrice = uint128(sqrtSpotPrice128x128 >> 64);
             } else {
                 ///@notice calculate nextSqrtPriceX96 price change on wethOutAmount add false since we are removing the weth liquidity from the pool
                 nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
@@ -700,16 +702,16 @@ contract LimitOrderQuoter is ConveyorTickMath {
                     true
                 );
 
-                ///@notice Since weth is token1 we have the correct form of sqrtPrice i.e token1/token0 spot, so just convert to 64.64 and square it
-                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
-                    nextSqrtPriceX96
+                ///@notice Convert output to 128.128 fixed point representation
+                uint256 sqrtSpotPrice128x128 = fromSqrtX96(
+                    nextSqrtPriceX96,
+                    true,
+                    token0,
+                    token1
                 );
 
-                ///@notice sqrtSpotPrice64x64 == token1/token0 which is the correct direction so, simply square the 64.64 sqrt price.
-                spotPrice = ConveyorMath.mul64x64(
-                    sqrtSpotPrice64x64,
-                    sqrtSpotPrice64x64
-                );
+                ///@notice Spot price 64.64 fixed point.
+                spotPrice = uint128(sqrtSpotPrice128x128 >> 64);
             }
         } else {
             ///@notice isTokenToWeth =false ==> we are exchanging weth -> token
@@ -722,16 +724,16 @@ contract LimitOrderQuoter is ConveyorTickMath {
                     alphaX,
                     true
                 );
-                ///@notice Since token0 = weth token1/token0 is the proper exchange rate so convert to 64.64 and square to yield the spot price
-                uint128 sqrtSpotPrice64x64 = ConveyorTickMath.fromX96(
-                    nextSqrtPriceX96
+                ///@notice Convert output to 128.128 fixed point representation
+                uint256 sqrtSpotPrice128x128 = fromSqrtX96(
+                    nextSqrtPriceX96,
+                    true,
+                    token0,
+                    token1
                 );
 
-                ///@notice sqrtSpotPrice64x64 == token1/token0 which is the correct direction so, simply square the 64.64 sqrt price.
-                spotPrice = ConveyorMath.mul64x64(
-                    sqrtSpotPrice64x64,
-                    sqrtSpotPrice64x64
-                );
+                ///@notice Spot price 64.64 fixed point.
+                spotPrice = uint128(sqrtSpotPrice128x128 >> 64);
             } else {
                 ///@notice set nextSqrtPriceX96 to change on Input alphaX which will be in Weth, since weth is token1 0To1=false
                 nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
@@ -741,14 +743,16 @@ contract LimitOrderQuoter is ConveyorTickMath {
                     false
                 );
 
-                ///@notice Convert to 64.64.
-                uint128 sqrtSpotPrice64x64 = fromX96(nextSqrtPriceX96);
-
-                ///@notice sqrtSpotPrice64x64 == token1/token0 spot, since token1 is our tokenIn take the inverse of sqrtSpotPrice64x64 and square it to be in standard form usable for two hop finalSpot calculation
-                spotPrice = ConveyorMath.mul64x64(
-                    ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64),
-                    ConveyorMath.div64x64(uint128(1) << 64, sqrtSpotPrice64x64)
+                ///@notice Convert output to 128.128 fixed point representation
+                uint256 sqrtSpotPrice128x128 = fromSqrtX96(
+                    nextSqrtPriceX96,
+                    false,
+                    token1,
+                    token0
                 );
+
+                ///@notice Spot price 64.64 fixed point.
+                spotPrice = uint128(sqrtSpotPrice128x128 >> 64);
             }
         }
     }
