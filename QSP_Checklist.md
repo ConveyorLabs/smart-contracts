@@ -176,9 +176,15 @@ The function `_executeTokenToTokenOrder()` checks whether the order to execute i
 ### Resolution
 This code has been removed with the new contract architecture for linear execution. Taxed orders now follow the same execution flow as untaxed orders dependent on whether the swap is happening on Token-> Weth or Token->Token.
 
-# QSP-22 Unlocked Pragma ✅
+
+## QSP-22 Unlocked Pragma ✅
+Severity: 🔵Informational🔵
+## Description: 
+Every Solidity file specifies in the header a version number of the format pragma solidity (^)0.8.*. The caret (^) before the version number implies an unlocked pragma,
+meaning that the compiler will use the specified version and above, hence the term "unlocked".
 ### Resolution
-Locked all pragma versions to 0.8.16 in core contracts.
+Locked all core contracts at solidity v0.8.16.
+
 # QSP-23 Allowance Not Checked when Updating Orders ✅
 Severity: 🔵Informational🔵
 ## Description: 
@@ -234,6 +240,7 @@ Test Reference `OrderBook.t.sol#L363-401`:
         orderBook.updateOrder(updatedOrder);
     }
 ```
+
 
 # QSP-24 Incorrect Restriction in fromUInt256 ✅
 Severity: 🔵Informational🔵
