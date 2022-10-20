@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.16;
+pragma solidity 0.8.16;
 
 import "../../lib/libraries/Uniswap/FullMath.sol";
 
@@ -19,7 +19,7 @@ library ConveyorMath {
     /// @return unsigned 64.64 unsigned fixed point number
     function fromUInt256(uint256 x) internal pure returns (uint128) {
         unchecked {
-            require(x <= 0x7FFFFFFFFFFFFFFF);
+            require(x <= 0xFFFFFFFFFFFFFFFF);
             return uint128(x << 64);
         }
     }

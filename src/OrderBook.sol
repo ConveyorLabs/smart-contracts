@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.16;
+pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./GasOracle.sol";
@@ -16,6 +16,7 @@ contract OrderBook is GasOracle {
     constructor(address _gasOracle, address _limitOrderExecutor)
         GasOracle(_gasOracle)
     {
+        require(_limitOrderExecutor != address(0), "Invalid LimitOrderExecutor Address");
         EXECUTOR_ADDRESS = _limitOrderExecutor;
     }
 
@@ -253,11 +254,8 @@ contract OrderBook is GasOracle {
         newOrder.lastRefreshTimestamp = oldOrder.lastRefreshTimestamp;
 
         ///@notice Update the total orders value
-        if (newOrder.quantity > oldOrder.quantity) {
-            totalOrdersValue += newOrder.quantity - oldOrder.quantity;
-        } else {
-            totalOrdersValue += oldOrder.quantity - newOrder.quantity;
-        }
+        totalOrdersValue += newOrder.quantity;
+        totalOrdersValue -= oldOrder.quantity;
 
         ///@notice If the wallet does not have a sufficient balance for the updated total orders value, revert.
         if (IERC20(newOrder.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
@@ -270,6 +268,18 @@ contract OrderBook is GasOracle {
             msg.sender,
             totalOrdersValue
         );
+
+        ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
+        uint256 totalApprovedQuantity = IERC20(newOrder.tokenIn).allowance(
+            msg.sender,
+            address(EXECUTOR_ADDRESS)
+        );
+
+        ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
+        if (totalApprovedQuantity < newOrder.quantity) {
+            revert InsufficientAllowanceForOrderUpdate();
+        
+        }
 
         ///@notice Update the order details stored in the system.
         orderIdToOrder[oldOrder.orderId] = newOrder;
@@ -402,18 +412,18 @@ contract OrderBook is GasOracle {
     }
 
     ///@notice Function to resolve an order as completed.
-    ///@param order - The order that should be resolved from the system.
-    function _resolveCompletedOrder(Order memory order) internal {
+    ///@param orderId - The orderId that should be resolved from the system.
+    function _resolveCompletedOrder(bytes32 orderId) internal {
         ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
-        Order memory orderCheck = orderIdToOrder[order.orderId];
+        Order memory order = orderIdToOrder[orderId];
 
         ///@notice If the order has already been removed from the contract revert.
-        if (orderCheck.orderId == bytes32(0)) {
+        if (order.orderId == bytes32(0)) {
             revert DuplicateOrdersInExecution();
         }
         ///@notice Remove the order from the system
-        delete orderIdToOrder[order.orderId];
-        delete addressToOrderIds[order.owner][order.orderId];
+        delete orderIdToOrder[orderId];
+        delete addressToOrderIds[order.owner][orderId];
 
         ///@notice Decrement from total orders per address
         --totalOrdersPerAddress[order.owner];
@@ -561,6 +571,16 @@ contract OrderBook is GasOracle {
                 cancelledOrderIds[cancelledOrderIdsIndex] = orderId;
                 ++cancelledOrderIdsIndex;
             }
+        }
+
+        ///Reassign length of each array
+        uint256 pendingOrderIdsLength = pendingOrderIds.length;
+        uint256 fufilledOrderIdsLength = fufilledOrderIds.length;
+        uint256 cancelledOrderIdsLength = cancelledOrderIds.length;
+        assembly {
+            mstore(pendingOrderIds, pendingOrderIdsLength)
+            mstore(fufilledOrderIds, fufilledOrderIdsLength)
+            mstore(cancelledOrderIds, cancelledOrderIdsLength)
         }
 
         orderIdsStatus[0] = pendingOrderIds;

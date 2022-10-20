@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.16;
+pragma solidity 0.8.16;
 
 error InsufficientGasCreditBalance();
 error InsufficientGasCreditBalanceForOrderExecution();
@@ -21,6 +21,8 @@ error InsufficientAllowanceForOrderPlacement();
 error InvalidBatchOrder();
 error IncongruentInputTokenInBatch();
 error IncongruentOutputTokenInBatch();
+error IncongruentFeeInInBatch();
+error IncongruentFeeOutInBatch();
 error IncongruentTaxedTokenInBatch();
 error IncongruentBuySellStatusInBatch();
 error WethWithdrawUnsuccessful();
@@ -35,3 +37,6 @@ error UnauthorizedUniswapV3CallbackCaller();
 error InvalidOrderUpdate();
 error DuplicateOrdersInExecution();
 error VerifierDilemmaGasPrice();
+error InvalidCalldata();
+error InsufficientMsgValue();
+error InsufficientAllowanceForOrderUpdate();

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.16;
+pragma solidity 0.8.16;
 
 import "../lib/AggregatorV3Interface.sol";
 
@@ -12,6 +12,7 @@ contract GasOracle {
 
     ///@notice Stale Price delay interval between blocks.
     constructor(address _gasOracleAddress) {
+        require(_gasOracleAddress != address(0), "Invalid address");
         gasOracleAddress = _gasOracleAddress;
     }
 

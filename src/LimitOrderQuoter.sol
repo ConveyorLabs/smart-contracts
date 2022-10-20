@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.16;
+pragma solidity 0.8.16;
 
 import "./SwapRouter.sol";
 import "./lib/ConveyorTickMath.sol";
@@ -8,6 +8,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     address immutable WETH;
 
     constructor(address _weth, address _quoterAddress) {
+        require(_weth != address(0), "Invalid weth address");
         WETH = _weth;
     }
 
