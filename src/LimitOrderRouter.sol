@@ -421,7 +421,7 @@ contract LimitOrderRouter is OrderBook {
         there is not an incentive to order one transaction in front of the other, allowing the first to submit the transaction to be included in most cases.
         */
         uint256 gasPrice = getGasPrice();
-        if (gasPrice != tx.gasprice) {
+        if (tx.gasprice > gasPrice) {
             revert VerifierDilemmaGasPrice();
         }
 

@@ -27,9 +27,7 @@ contract GasOracle {
          This allows for the off chain executor to always be incentivized to execute a transaction, regardless of how far the gasOracle deviates
          from the fair market price. 
         */
-        uint256 oracleGasPrice = uint256(answer);
-        uint256 adjustedGasPrice = oracleGasPrice +
-            ((oracleGasPrice * 25) / 100);
+        uint256 adjustedGasPrice = (uint256(answer) * 125) / 100;
 
         return adjustedGasPrice;
     }
