@@ -2,8 +2,8 @@
 ## Linear Execution Changes
 
 ## Uniswap V3 Changes
-### Replacing the V3 Quoter
-As per the Quant Stamp teams reccomendation we decided to eliminate the use of the v3 Quoter completely in the contract. The Quoter was called in 3 different places throughout the contract. `SwapRouter.getNextSqrtPriceV3()`, `LimitOrderBatcher.calculateNextSqrtPriceX96()`, and `LimitOrderBatcher.calculateAmountOutMinAToWeth()`. The quoters most critical use case in the contract was to derive a highly accurate `amountOutMin` for a Token->Token order on the first swap from Token-> Weth. In order to remove the quoter we wrote our own internal logic to quote an accurate `amountOutMin` modeled after Uniswap V3 internal swap logic  (https://github.com/Uniswap/v3-core/blob/main/contracts/UniswapV3Pool.sol#L596).
+### Function `LimitOrderBatcher.calculateAmountOutMinAToWeth()`
+As per the Quant Stamp teams reccomendation we decided to eliminate the use of the v3 Quoter completely in the contract. In order to remove the quoter we wrote our own internal logic to quote an accurate `amountOutMin` modeled after Uniswap V3 internal swap logic  (https://github.com/Uniswap/v3-core/blob/main/contracts/UniswapV3Pool.sol#L596).
 
 The implementation is located in `src/lib/ConveyorTickMath.sol#L88` within the function `simulateAmountOutOnSqrtPriceX96`. 
 
@@ -19,93 +19,27 @@ function simulateAmountOutOnSqrtPriceX96(
     ) internal returns (int256 amountOut)
 ```
 
-This function is called in `src/LimitOrderQuoter.sol#L785` within `calculateAmountOutMinAToWeth` to derive the `amountOutMin` on the first swap (Token->Weth) for a Token->Token order. 
+This function is called in `src/LimitOrderQuoter.sol#L785` within `calculateAmountOutMinAToWeth` to derive the `amountOutMin` on the first swap (Token->Weth) for a Token->Token order.<br /> 
 
-Fuzz Tests:
-Reference `src/test/LimitOrderQuoter.t.sol#L241-319`
-The tests check our internal quoted amount out vs the quoters calculated amount out on a fuzzed input quantity. 
-```
-    function testSimulateAmountOutV3_Fuzz1_ZeroForOneTrue(uint64 _alphaX) public {
-        bool run = true;
-        if (_alphaX == 0) {
-            run = false;
-        }
-
-        if (run) {
-            address poolAddress = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
-            address tokenIn = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-
-            (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(poolAddress)
-                .slot0();
-            uint128 liquidity = IUniswapV3Pool(poolAddress).liquidity();
-            uint160 sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
-                sqrtPriceX96,
-                liquidity,
-                _alphaX,
-                true
-            );
-            uint256 amountOut = iQuoter.quoteExactInputSingle(
-                tokenIn,
-                WETH,
-                3000,
-                _alphaX,
-                sqrtPriceLimitX96
-            );
-            uint256 amountOutMin = limitOrderQuoter
-                .calculateAmountOutMinAToWeth(
-                    poolAddress,
-                    _alphaX,
-                    0,
-                    3000,
-                    tokenIn
-                );
-
-            assertEq(amountOut, amountOutMin);
-        }
-    }
-
-    function testSimulateAmountOutV3_Fuzz1_ZeroForOneFalse(uint64 _alphaX) public {
-        bool run = true;
-        if (_alphaX == 0) {
-            run = false;
-        }
-
-        if (run) {
-            address poolAddress = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
-            address tokenOut = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-
-            (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(poolAddress)
-                .slot0();
-            uint128 liquidity = IUniswapV3Pool(poolAddress).liquidity();
-            uint160 sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
-                sqrtPriceX96,
-                liquidity,
-                _alphaX,
-                false
-            );
-            uint256 amountOut = iQuoter.quoteExactInputSingle(
-                WETH,
-                tokenOut,
-                3000,
-                _alphaX,
-                sqrtPriceLimitX96
-            );
-            uint256 amountOutMin = limitOrderQuoter
-                .calculateAmountOutMinAToWeth(
-                    poolAddress,
-                    _alphaX,
-                    0,
-                    3000,
-                    WETH
-                );
-
-            assertEq(amountOut, amountOutMin);
-        }
-    }
-```
-### Gas Optimized V3 Spot Price Calculation
+Tests:<br />
+Reference `src/test/LimitOrderQuoter.t.sol#L241-319` for `calculateAmountOutMinAToWeth` tests.<br />
+Reference `src/test/ConveyorTickMath.t.sol#L110-265` for `simulateAmountOutOnSqrtPriceX96` tests. <br />
 
 
+### Function `_calculateV3SpotPrice`
+The V3 spot price calculation has been modified to be more gas efficient by simply calling `slot0()` on the pool, and converting `sqrtPriceX96` to `128.128` fixed point representation of `sqrtPriceX96**2`. Reference `src/SwapRouter.sol#L751` for the new implementation. 
+New Functions:
+`fromSqrtX96` Reference `src/lib/ConveyorTickMath.sol#L71`<br />
+Tests: <br />
+Reference `src/test/ConveyorTickMath.t.sol#267-282` for `fromSqrtX96` tests. <br />
+Reference `src/test/OrderRouter.t.sol#282-313` for `_calculateV3SpotPrice` tests. <br />
+
+### Function `LimitOrderBatcher.calculateNextSqrtPriceX96`
+This function was modified to be more gas efficient by eliminating all calls to the v3 quoter, and calculating the amountOut return value by simply calling `ConveyorTickMath.simulateAmountOutOnSqrtPriceX96`. 
+
+### Function `SwapRouter.getNextSqrtPriceV3`
+This has been simplified to be more gas efficient by eliminating all calls to the quoter. <br />
+Reference `SwapRouter#L551`
 
 # QSP-1 Stealing User and Contract Funds ✅
 Severity: 🔴**High Risk**🔴
