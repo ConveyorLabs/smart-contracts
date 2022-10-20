@@ -1,4 +1,5 @@
 # Major Architecture Changes 
+
 As per the Quantstamp teams reccomendation we removed batch execution, and changed the execution logic to a linear flow with each order executing indivually in sequence. The change to linear execution removed the need for a `TaxedTokenLimitOrderExecution` contract. The reduced contract sizes allowed us to combine `TokenToTokenLimitOrderExecution.sol` and `TokenToWethLimitOrderExecution.sol` into one contract `LimitOrderExecutor.sol`. Further, we were able to allow the `LimitOrderExecutor`to inherit `SwapRouter` to eliminated unnecessary external calls. <br /> 
 
 The changes also removed the need for the batching functions in `LimitOrderBatcher.sol`. We changed the batcher contract name to `LimitOrderQuoter.sol` which only holds the functions from `LimitOrderBatcher.sol` that were still needed. The last change to the contract architecture was we removed some of the pure functions from `SwapRouter.sol` for fee calculations into a library `src/lib/ConveyorFeeMath.sol` to reduce the size of `LimitOrderExecutor.sol`.<br /> 
@@ -35,6 +36,7 @@ Functions Modified: <br />
 ### Contract `LimitOrderRouter`
 Functions Modified: <br /> 
 `executeOrders#L417` <br /> 
+
 
 
 ## Uniswap V3 Changes
@@ -254,9 +256,15 @@ The function `_executeTokenToTokenOrder()` checks whether the order to execute i
 ### Resolution
 This code has been removed with the new contract architecture for linear execution. Taxed orders now follow the same execution flow as untaxed orders dependent on whether the swap is happening on Token-> Weth or Token->Token.
 
-# QSP-22 Unlocked Pragma ✅
+
+## QSP-22 Unlocked Pragma ✅
+Severity: 🔵Informational🔵
+## Description: 
+Every Solidity file specifies in the header a version number of the format pragma solidity (^)0.8.*. The caret (^) before the version number implies an unlocked pragma,
+meaning that the compiler will use the specified version and above, hence the term "unlocked".
 ### Resolution
-Locked all pragma versions to 0.8.16 in core contracts.
+Locked all core contracts at solidity v0.8.16.
+
 # QSP-23 Allowance Not Checked when Updating Orders ✅
 Severity: 🔵Informational🔵
 ## Description: 
@@ -312,6 +320,7 @@ Test Reference `OrderBook.t.sol#L363-401`:
         orderBook.updateOrder(updatedOrder);
     }
 ```
+
 
 # QSP-24 Incorrect Restriction in fromUInt256 ✅
 Severity: 🔵Informational🔵
