@@ -1,5 +1,41 @@
 # Major Architecture Changes 
-## Linear Execution Changes
+As per the Quantstamp teams reccomendation we removed batch execution, and changed the execution logic to a linear flow with each order executing indivually in sequence. The change to linear execution removed the need for a `TaxedTokenLimitOrderExecution` contract. The reduced contract sizes allowed us to combine `TokenToTokenLimitOrderExecution.sol` and `TokenToWethLimitOrderExecution.sol` into one contract `LimitOrderExecutor.sol`. Further, we were able to allow the `LimitOrderExecutor`to inherit `SwapRouter` to eliminated unnecessary external calls. <br /> 
+
+The changes also removed the need for the batching functions in `LimitOrderBatcher.sol`. We changed the batcher contract name to `LimitOrderQuoter.sol` which only holds the functions from `LimitOrderBatcher.sol` that were still needed. The last change to the contract architecture was we removed some of the pure functions from `SwapRouter.sol` for fee calculations into a library `src/lib/ConveyorFeeMath.sol` to reduce the size of `LimitOrderExecutor.sol`.<br /> 
+
+## Post Audit Changes
+
+### Library `ConveyorFeeMath`
+Functions Modified: <br /> 
+None
+
+### Contract `LimitOrderQuoter`
+Functions Modified: <br /> 
+`calculateAmountOutMinAToWeth#L767` <br /> 
+`calculateNextSqrtPriceX96#L617` <br /> 
+
+### Contract `LimitOrderExecutor`
+Functions Modified: <br /> 
+`executeTokenToWethOrders#L59` <br /> 
+`_executeTokenToWethOrder#L138` <br /> 
+`_executeSwapTokenToWethOrder#L168` <br /> 
+`executeTokenToTokenOrders#L229` <br /> 
+`_executeTokenToTokenOrder#L317` <br /> 
+
+### Contract `ConveyorTickMath`
+Functions Modified: <br /> 
+`fromSqrtX96#L71` <br /> 
+`simulateAmountOutOnSqrtPriceX96#L104` <br /> 
+
+### Contract `SwapRouter`
+Functions Modified: <br /> 
+`getNextSqrtPriceV3#L551` <br /> 
+`_calculateV3SpotPrice#L751` <br /> 
+
+### Contract `LimitOrderRouter`
+Functions Modified: <br /> 
+`executeOrders#L417` <br /> 
+
 
 ## Uniswap V3 Changes
 ### Function `LimitOrderBatcher.calculateAmountOutMinAToWeth()`
