@@ -687,8 +687,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
                 uint256 sqrtSpotPrice128x128 = fromSqrtX96(
                     nextSqrtPriceX96,
                     false,
-                    token1,
-                    token0
+                    token0,
+                    token1
                 );
 
                 ///@notice sqrtSpotPrice64x64 == token1/token0 spot
@@ -747,8 +747,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
                 uint256 sqrtSpotPrice128x128 = fromSqrtX96(
                     nextSqrtPriceX96,
                     false,
-                    token1,
-                    token0
+                    token0,
+                    token1
                 );
 
                 ///@notice Spot price 64.64 fixed point.

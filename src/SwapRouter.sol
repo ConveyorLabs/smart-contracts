@@ -772,7 +772,7 @@ contract SwapRouter is ConveyorTickMath {
         bool token0IsReserve0 = _tokenX == token0 ? true : false;
 
         ///@notice Initialize block scoped variables
-        uint256 priceX128 =fromSqrtX96(sqrtPriceX96, token0IsReserve0, token0, token1);
+        uint256 priceX128 =fromSqrtX96(sqrtPriceX96, token0IsReserve0, _tokenX, _tokenY);
 
         ///@notice Set the spot price in the spot reserve structure.
         _spRes.spotPrice = priceX128;

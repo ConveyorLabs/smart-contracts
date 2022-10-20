@@ -10,6 +10,7 @@ import "../../lib/libraries/Uniswap/TickBitmap.sol";
 import "../../lib/libraries/Uniswap/SwapMath.sol";
 import "../../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "../../lib/libraries/Uniswap/LowGasSafeMath.sol";
+import "../../lib/libraries/Uniswap/LiquidityMath.sol";
 import "../../lib/libraries/Uniswap/Tick.sol";
 import "../../lib/libraries/Uniswap/SafeCast.sol";
 import "../../lib/interfaces/token/IERC20.sol";
@@ -76,7 +77,7 @@ contract ConveyorTickMath {
                 ? priceSquaredX96 / Q96
                 : (Q96 * 0xffffffffffffffffffffffffffffffff) /
                     (priceSquaredX96 / Q96);
-
+            
             ///@notice Convert the first value to 128X fixed point by shifting it left 128 bits and normalizing the value by Q96.
             priceX128 = token0IsReserve0
                 ? (uint256(priceSquaredShiftQ96) *
@@ -120,6 +121,8 @@ contract ConveyorTickMath {
             liquidity: liquidity
         });
 
+        uint160 sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(sqrtPriceX96, liquidity, amountIn, zeroForOne);
+
         ///@notice While the current state still has an amount to swap continue.
         while (currentState.amountSpecifiedRemaining > 0) {
             ///@notice Initialize step structure.
@@ -133,6 +136,12 @@ contract ConveyorTickMath {
                     tickSpacing,
                     zeroForOne
                 );
+            // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
+            if (step.tickNext < TickMath.MIN_TICK) {
+                step.tickNext = TickMath.MIN_TICK;
+            } else if (step.tickNext > TickMath.MAX_TICK) {
+                step.tickNext = TickMath.MAX_TICK;
+            }
             ///@notice Set the next sqrtPrice of the step.
             step.sqrtPriceNextX96 = TickMath.getSqrtRatioAtTick(step.tickNext);
             ///@notice Perform the swap step on the current tick.
@@ -143,7 +152,9 @@ contract ConveyorTickMath {
                 step.feeAmount
             ) = SwapMath.computeSwapStep(
                 currentState.sqrtPriceX96,
-                step.sqrtPriceNextX96,
+                (zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)
+                    ? sqrtPriceLimitX96
+                    : step.sqrtPriceNextX96,
                 currentState.liquidity,
                 currentState.amountSpecifiedRemaining,
                 fee
@@ -159,13 +170,10 @@ contract ConveyorTickMath {
                     ///@notice Get the net liquidity after crossing the tick.
                     int128 liquidityNet = ticks.cross(step.tickNext);
                     ///@notice If swapping token0 for token1 then negate the liquidtyNet.
-                    unchecked {
-                        if (zeroForOne) liquidityNet = -liquidityNet;
-                    }
-                    ///@notice Update the current states liquidity based on liquidityNet in the new tick range.
-                    currentState.liquidity = liquidityNet < 0
-                        ? currentState.liquidity - uint128(-liquidityNet)
-                        : currentState.liquidity + uint128(liquidityNet);
+                    
+                    if (zeroForOne) liquidityNet = -liquidityNet;
+                    
+                    currentState.liquidity = LiquidityMath.addDelta(currentState.liquidity, liquidityNet);
                 }
                 ///@notice Update the currentStates tick.
                 unchecked {
