@@ -167,6 +167,7 @@ contract ConveyorTickMathTest is DSTest {
 
                 //Make sure we got more than our amountOutMin
                 assertGe(amountReceived, amountOutToValidate);
+
                 //Ensure they are equal within 10 wei
                 assertEq(
                     amountOutToValidate / 10,
@@ -227,14 +228,17 @@ contract ConveyorTickMathTest is DSTest {
             );
 
             {
+                //Deal the swapHelper eth
                 cheatCodes.deal(address(swapHelper), MAX_UINT);
+                //Swap eth for DAI
                 swapHelper.swapEthForTokenWithUniV2(
                     100000000000000000000000,
                     DAI
                 );
+                //Transfer the dai to the swap router
                 IERC20(DAI).transfer(address(swapRouter), _alphaX);
+
                 //Attempt a swap on our derived quote
-                //Perform the swap on the pool to recalculate if the current tick has been crossed
                 uint256 amountReceived = swapRouter.swapV3(
                     daiWethPoolV3,
                     DAI,
@@ -246,7 +250,9 @@ contract ConveyorTickMathTest is DSTest {
                     address(swapRouter)
                 );
 
+                //Make sure we got at least our quote from the swap
                 assertGe(amountReceived, amountOutToValidate);
+                
                 //Ensure they are equal within 10 wei
                 assertEq(
                     amountOutToValidate/10,

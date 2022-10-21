@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import "../../src/lib/ConveyorBitMath.sol";
+import "./Uniswap/BitMath.sol";
 
 library QuadruplePrecision {
     bytes16 private constant POSITIVE_ZERO = 0x00000000000000000000000000000000;
@@ -35,7 +35,7 @@ library QuadruplePrecision {
                 // We rely on overflow behavior here
                 uint256 result = uint256(x > 0 ? x : -x);
 
-                uint256 msb = ConveyorBitMath.mostSignificantBit(result);
+                uint256 msb = BitMath.mostSignificantBit(result);
                 if (msb < 112) result <<= 112 - msb;
                 else if (msb > 112) result >>= msb - 112;
 
@@ -69,43 +69,45 @@ library QuadruplePrecision {
         }
     }
 
-    function fromUInt (uint256 x) internal pure returns (bytes16) {
-    unchecked {
-      if (x == 0) return bytes16 (0);
-      else {
-        uint256 result = x;
+    function fromUInt(uint256 x) internal pure returns (bytes16) {
+        unchecked {
+            if (x == 0) return bytes16(0);
+            else {
+                uint256 result = x;
 
-        uint256 msb = mostSignificantBit (result);
-        if (msb < 112) result <<= 112 - msb;
-        else if (msb > 112) result >>= msb - 112;
+                uint256 msb = mostSignificantBit(result);
+                if (msb < 112) result <<= 112 - msb;
+                else if (msb > 112) result >>= msb - 112;
 
-        result = result & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF | 16383 + msb << 112;
+                result =
+                    (result & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF) |
+                    ((16383 + msb) << 112);
 
-        return bytes16 (uint128 (result));
-      }
+                return bytes16(uint128(result));
+            }
+        }
     }
-  }
-  
 
-    function from128x128 (int256 x) internal pure returns (bytes16) {
-    unchecked {
-      if (x == 0) return bytes16 (0);
-      else {
-        // We rely on overflow behavior here
-        uint256 result = uint256 (x > 0 ? x : -x);
+    function from128x128(int256 x) internal pure returns (bytes16) {
+        unchecked {
+            if (x == 0) return bytes16(0);
+            else {
+                // We rely on overflow behavior here
+                uint256 result = uint256(x > 0 ? x : -x);
 
-        uint256 msb = mostSignificantBit (result);
-        if (msb < 112) result <<= 112 - msb;
-        else if (msb > 112) result >>= msb - 112;
+                uint256 msb = mostSignificantBit(result);
+                if (msb < 112) result <<= 112 - msb;
+                else if (msb > 112) result >>= msb - 112;
 
-        result = result & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF | 16255 + msb << 112;
-        if (x < 0) result |= 0x80000000000000000000000000000000;
+                result =
+                    (result & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF) |
+                    ((16255 + msb) << 112);
+                if (x < 0) result |= 0x80000000000000000000000000000000;
 
-        return bytes16 (uint128 (result));
-      }
+                return bytes16(uint128(result));
+            }
+        }
     }
-  }
-
 
     /**
      * Calculate x + y.  Special values behave in the following way:
@@ -514,7 +516,6 @@ library QuadruplePrecision {
         }
     }
 
-
     /**
      * Calculate |x|.
      *
@@ -593,8 +594,6 @@ library QuadruplePrecision {
         }
     }
 
-
-
     /**
      * Get index of the most significant non-zero bit in binary representation of
      * x.  Reverts if x is zero.
@@ -642,7 +641,7 @@ library QuadruplePrecision {
         }
     }
 
-     /**
+    /**
      * Calculate binary logarithm of x.  Return NaN on negative x excluding -0.
      *
      * @param x quadruple precision number
@@ -723,7 +722,7 @@ library QuadruplePrecision {
         }
     }
 
-     /**
+    /**
      * Calculate natural logarithm of x.  Return NaN on negative x excluding -0.
      *
      * @param x quadruple precision number
