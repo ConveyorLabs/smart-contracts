@@ -419,6 +419,27 @@ contract LimitOrderRouter is OrderBook {
         onlyEOA
         nonReentrant
     {
+        ///@notice Require gas price to avoid verifier's delimma.
+        /*
+        A verifier's delimma occurs when there is not a sufficient incentive for a player within a given system to carry out an action.
+        Within the context of the Conveyor Finance Limit Order Protocol, if an MEV searcher were to listen to the mempool for execution 
+        transactions and frontrun the off-chain execution, there would be no incentive for the off-chain executor to run the computations 
+        to identify when a limit order is eligible when they could simply listen and front run other transactions. To solve for this, the protocol
+        requires that the gas price of the execution transaction is exactly the price of the Chainlink gas oracle price + 25%.
+
+        The Chainlink oracle's gas price can deviate from the real competitive gas price by 25% before an update. If the gas oracle is 25% lower than
+        the competitive gas price, the execution transaction gas price is still priced at a competitive rate. If the gas oracle is 25% higher than
+        the competitive gas price, the execution gas price will be faster than the current competitive rate. At all times, the execution transaction's gas price will be competitve.
+
+        Since the gas price is an exact value, searchers can not monitor the mempool and front run the transaction with a higher gas price. This effecively eliminates the verifier's delimma
+        from the protocol, incentivizing the off-chain executor to be the first to compute the execution opportunity and submit a transaction. Any while miners/block builders can order a block as they desire
+        there is not an incentive to order one transaction in front of the other, allowing the first to submit the transaction to be included in most cases.
+        */
+        uint256 gasPrice = getGasPrice();
+        if (tx.gasprice > gasPrice) {
+            revert VerifierDilemmaGasPrice();
+        }
+
         //Update the initial gas balance.
         assembly {
             sstore(initialTxGas.slot, gas())
@@ -485,6 +506,7 @@ contract LimitOrderRouter is OrderBook {
 
         ///@notice Calculate the execution gas compensation.
         uint256 executionGasCompensation = calculateExecutionGasCompensation(
+            gasPrice,
             orderOwners
         );
 
@@ -527,27 +549,30 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice Function to calculate the execution gas consumed during executeOrders
     ///@return executionGasConsumed - The amount of gas consumed.
-    function calculateExecutionGasConsumed()
+    function calculateExecutionGasConsumed(uint256 gasPrice)
         internal
         view
         returns (uint256 executionGasConsumed)
     {
         assembly {
-            executionGasConsumed := sub(sload(initialTxGas.slot), gas())
+            executionGasConsumed := mul(
+                gasPrice,
+                sub(sload(initialTxGas.slot), gas())
+            )
         }
     }
 
     ///@notice Function to adjust order owner's gas credit balance and calaculate the compensation to be paid to the executor.
     ///@param orderOwners - The order owners in the batch.
     ///@return gasExecutionCompensation - The amount to be paid to the off-chain executor for execution gas.
-    function calculateExecutionGasCompensation(address[] memory orderOwners)
-        internal
-        returns (uint256 gasExecutionCompensation)
-    {
+    function calculateExecutionGasCompensation(
+        uint256 gasPrice,
+        address[] memory orderOwners
+    ) internal returns (uint256 gasExecutionCompensation) {
         uint256 orderOwnersLength = orderOwners.length;
 
         ///@notice Decrement gas credit balances for each order owner
-        uint256 executionGasConsumed = calculateExecutionGasConsumed();
+        uint256 executionGasConsumed = calculateExecutionGasConsumed(gasPrice);
         uint256 gasDecrementValue = executionGasConsumed / orderOwnersLength;
 
         ///@notice Unchecked for gas efficiency

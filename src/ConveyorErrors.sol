@@ -36,6 +36,7 @@ error UnauthorizedCaller();
 error UnauthorizedUniswapV3CallbackCaller();
 error InvalidOrderUpdate();
 error DuplicateOrdersInExecution();
+error VerifierDilemmaGasPrice();
 error InvalidCalldata();
 error InsufficientMsgValue();
 error InsufficientAllowanceForOrderUpdate();

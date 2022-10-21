@@ -21,6 +21,15 @@ contract GasOracle {
         (, int256 answer, , , ) = IAggregatorV3(gasOracleAddress)
             .latestRoundData();
 
-        return uint256(answer);
+        ///@notice
+        /* The gas price is determined to be the oracleGasPrice * 1.25 since the Chainlink Gas Oracle can deviate up to 25% between updates
+         If the Chainlink Gas oracle is reporting a price that is 25% less than the actual price, then the adjustedGasPrice will report the fair market gas price
+         If the Gas oracle is reporting a price 25% greater than the actual gas price, the adjusted price is still 25% greater than the oracle.
+         This allows for the off chain executor to always be incentivized to execute a transaction, regardless of how far the gasOracle deviates
+         from the fair market price. 
+        */
+        uint256 adjustedGasPrice = (uint256(answer) * 125) / 100;
+
+        return adjustedGasPrice;
     }
 }
