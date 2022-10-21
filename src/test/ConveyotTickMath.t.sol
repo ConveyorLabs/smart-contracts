@@ -151,7 +151,7 @@ contract ConveyorTickMathTest is DSTest {
 
                 //Transfer the input amount to the SwapRotuer contract to be sent to the pool in the swap callback.
                 IERC20(WETH).transfer(address(swapRouter), _alphaX);
-                
+
                 //Attempt a swap on our derived quote
                 //Perform the swap
                 uint256 amountReceived = swapRouter.swapV3(
@@ -169,10 +169,7 @@ contract ConveyorTickMathTest is DSTest {
                 assertGe(amountReceived, amountOutToValidate);
 
                 //Ensure they are equal within 10 wei
-                assertEq(
-                    amountOutToValidate / 10,
-                    amountOutExpected / 10
-                );
+                assertEq(amountOutToValidate / 10, amountOutExpected / 10);
             }
         }
     }
@@ -252,12 +249,9 @@ contract ConveyorTickMathTest is DSTest {
 
                 //Make sure we got at least our quote from the swap
                 assertGe(amountReceived, amountOutToValidate);
-                
+
                 //Ensure they are equal within 10 wei
-                assertEq(
-                    amountOutToValidate/10,
-                    amountOutExpected/10
-                );
+                assertEq(amountOutToValidate / 10, amountOutExpected / 10);
             }
         }
     }

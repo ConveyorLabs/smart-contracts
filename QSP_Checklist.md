@@ -87,18 +87,22 @@ Some funds-transferring functions in the contracts are declared as public or ext
 ## QSP-1_1
 The visibility of the `safeTransferETH()` function in several contracts is public. The visibility allows anyone to call this function to transfer the ETH on the contract to any address directly. The following is the list of affected contracts: `LimitOrderRouter.sol`, `SwapRouter.sol`, `TaxedTokenLimitOrderExecution.sol`,`TokenToTokenLimitOrderExecution.sol`, `TokenToWethLimitOrderExecution.sol`.
 
-### Resolution Details
-Commit: `commit 4a39d554209b0c2c3f45f7a41944bc60a43340db`
+### Resolution
+The `safeTransferETH()` function visibility was changed to internal for all contracts affected.
+ 
+[Link to commit](https://github.com/ConveyorLabs/LimitOrders-v0/commit/4a39d554209b0c2c3f45f7a41944bc60a43340db)
 
 ## QSP-1_2
 In the SwapRouter contract, several `transferXXX()` functions allow anyone to call and direct transfer the funds away. The following is the list of functions: `transferTokensToContract()`, `transferTokensOutToOwner()`, and `transferBeaconReward()`.
  
-### Resolution Details
+### Resolution
+
+
 
 ## QSP-1_3
 The `SwapRouter.uniswapV3SwapCallback()` function does not verify that it is called from the Uniswap V3 contract, allowing anyone to steal funds by supplying fake inputs.
 
-### Resolution Details
+### Resolution
 
 # QSP-2 Missing Authorization for Execution Contracts ✅
 ## Description

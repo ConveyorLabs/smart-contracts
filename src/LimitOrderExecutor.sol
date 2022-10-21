@@ -14,6 +14,16 @@ contract LimitOrderExecutor is SwapRouter {
     address immutable LIMIT_ORDER_QUOTER;
     address public immutable LIMIT_ORDER_ROUTER;
 
+    //----------------------Modifiers------------------------------------//
+
+    ///@notice Modifier to restrict smart contracts from calling a function.
+    modifier onlyLimitOrderRouter() {
+        if (msg.sender != LIMIT_ORDER_ROUTER) {
+            revert MsgSenderIsNotLimitOrderRouter();
+        }
+        _;
+    }
+
     ///@notice Temporary owner storage variable when transferring ownership of the contract.
     address tempOwner;
 
@@ -44,20 +54,24 @@ contract LimitOrderExecutor is SwapRouter {
     ) SwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
         require(_weth != address(0), "Invalid weth address");
         require(_usdc != address(0), "Invalid usdc address");
-        require(_limitOrderQuoterAddress != address(0), "Invalid LimitOrderQuoter address");
+        require(
+            _limitOrderQuoterAddress != address(0),
+            "Invalid LimitOrderQuoter address"
+        );
         USDC = _usdc;
         WETH = _weth;
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
-        owner = msg.sender;
-
         LIMIT_ORDER_ROUTER = address(
             new LimitOrderRouter(_gasOracle, _weth, address(this))
         );
+
+        owner = msg.sender;
     }
 
     ///@notice Function to execute a batch of Token to Weth Orders.
     function executeTokenToWethOrders(OrderBook.Order[] memory orders)
         external
+        onlyLimitOrderRouter
         returns (uint256, uint256)
     {
         ///@notice Get all of the execution prices on TokenIn to Weth for each dex.
@@ -152,11 +166,7 @@ contract LimitOrderExecutor is SwapRouter {
             );
 
         ///@notice Transfer the tokenOut amount to the order owner.
-        transferTokensOutToOwner(
-            order.owner,
-            amountOutWeth,
-            WETH
-        );
+        transferTokensOutToOwner(order.owner, amountOutWeth, WETH);
 
         return (uint256(conveyorReward), uint256(beaconReward));
     }
@@ -228,6 +238,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@param orders - Array of orders to be executed.
     function executeTokenToTokenOrders(OrderBook.Order[] memory orders)
         external
+        onlyLimitOrderRouter
         returns (uint256, uint256)
     {
         TokenToTokenExecutionPrice[] memory executionPrices;
@@ -342,7 +353,6 @@ contract LimitOrderExecutor is SwapRouter {
                 if (amountInWethToB == 0) {
                     revert InsufficientOutputAmount();
                 }
-                
             } else {
                 ///@notice Transfer the TokenIn to the contract.
                 transferTokensToContract(order);
@@ -433,10 +443,10 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Function to transfer ownership of the contract.
     function transferOwnership(address newOwner) external {
-        if(msg.sender != owner){
+        if (msg.sender != owner) {
             revert UnauthorizedCaller();
         }
-        
+
         if (newOwner == address(0)) {
             revert InvalidAddress();
         }
