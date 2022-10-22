@@ -27,6 +27,7 @@ error IncongruentTaxedTokenInBatch();
 error IncongruentBuySellStatusInBatch();
 error WethWithdrawUnsuccessful();
 error MsgSenderIsNotTxOrigin();
+error MsgSenderIsNotLimitOrderRouter();
 error Reentrancy();
 error ETHTransferFailed();
 error InvalidTokenPairIdenticalAddress();

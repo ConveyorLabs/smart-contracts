@@ -89,8 +89,6 @@ contract SwapRouter is ConveyorTickMath {
     ///@notice Mapping from DEX factory address to the index of the DEX in the dexes array
     mapping(address => uint256) dexToIndex;
 
-    //----------------------Modifiers------------------------------------//
-
     //======================Events==================================
 
     event UniV2SwapError(string indexed reason);
@@ -112,7 +110,6 @@ contract SwapRouter is ConveyorTickMath {
     uint128 constant ZERO_POINT_ZERO_ZERO_ONE = 18446744073709550;
     uint128 constant MAX_CONVEYOR_PERCENT = 110680464442257300 * 10**2;
     uint128 constant MIN_CONVEYOR_PERCENT = 7378697629483821000;
-  
 
     ///@notice Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
     uint256 constant alphaXDivergenceThreshold =
@@ -139,7 +136,11 @@ contract SwapRouter is ConveyorTickMath {
             if (i == 0) {
                 require(_isUniV2[i], "First Dex must be uniswap v2");
             }
-            require(_deploymentByteCodes[i] != bytes32(0) && _dexFactories[i]!= address(0), "Zero values in constructor");
+            require(
+                _deploymentByteCodes[i] != bytes32(0) &&
+                    _dexFactories[i] != address(0),
+                "Zero values in constructor"
+            );
             dexes.push(
                 Dex({
                     factoryAddress: _dexFactories[i],
@@ -772,7 +773,12 @@ contract SwapRouter is ConveyorTickMath {
         bool token0IsReserve0 = _tokenX == token0 ? true : false;
 
         ///@notice Initialize block scoped variables
-        uint256 priceX128 =fromSqrtX96(sqrtPriceX96, token0IsReserve0, _tokenX, _tokenY);
+        uint256 priceX128 = fromSqrtX96(
+            sqrtPriceX96,
+            token0IsReserve0,
+            _tokenX,
+            _tokenY
+        );
 
         ///@notice Set the spot price in the spot reserve structure.
         _spRes.spotPrice = priceX128;
