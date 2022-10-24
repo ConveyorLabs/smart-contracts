@@ -86,8 +86,11 @@ contract LimitOrderRouter is OrderBook {
         address _weth,
         address _limitOrderExecutor
     ) OrderBook(_gasOracle, _limitOrderExecutor) {
-        require(_limitOrderExecutor !=address(0), "Invalid LimitOrderExecutor address");
-        require(_weth !=address(0), "Invalid weth address");
+        require(
+            _limitOrderExecutor != address(0),
+            "Invalid LimitOrderExecutor address"
+        );
+        require(_weth != address(0), "Invalid weth address");
         WETH = _weth;
         owner = msg.sender;
 
@@ -113,7 +116,7 @@ contract LimitOrderRouter is OrderBook {
     /// @notice Function to deposit gas credits.
     /// @return success - Boolean that indicates if the deposit completed successfully.
     function depositGasCredits() public payable returns (bool success) {
-        if(msg.value == 0){
+        if (msg.value == 0) {
             revert InsufficientMsgValue();
         }
         ///@notice Increment the gas credit balance for the user by the msg.value
@@ -419,10 +422,7 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice This function is called by off-chain executors, passing in an array of orderIds to execute a specific batch of orders.
     /// @param orderIds - Array of orderIds to indicate which orders should be executed.
-    function executeOrders(bytes32[] calldata orderIds)
-        external
-        nonReentrant
-    {
+    function executeOrders(bytes32[] calldata orderIds) external nonReentrant {
         ///@notice Require gas price to avoid verifier's delimma.
         /*
         A verifier's delimma occurs when there is not a sufficient incentive for a player within a given system to carry out an action.
@@ -466,10 +466,12 @@ contract LimitOrderRouter is OrderBook {
                 ++i;
             }
         }
+        ///@notice Cache stoploss status for the orders.
         bool isStoplossExecution = orders[0].stoploss;
-
-        if(msg.sender != tx.origin){
-            if(isStoplossExecution){
+        ///@notice If msg.sender != tx.origin and the stoploss status for the batch is true, revert the transaction.
+        ///@dev Stoploss batches strictly require EOA execution.
+        if (msg.sender != tx.origin) {
+            if (isStoplossExecution) {
                 revert InvalidNonEOAStoplossExecution();
             }
         }
