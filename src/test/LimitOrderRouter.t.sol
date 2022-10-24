@@ -168,6 +168,19 @@ contract LimitOrderRouterTest is DSTest {
         limitOrderRouterWrapper.validateOrderSequencing(orderBatch);
     }
 
+    function testFailValidateOrderSequence_IncongruentStoplossStatus()
+        public
+    {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        OrderBook.Order[]
+            memory orderBatch = placeNewMockTokenToWethBatch_IncongruentStoploss();
+
+        limitOrderRouterWrapper.validateOrderSequencing(orderBatch);
+    }
+
     function testFailValidateOrderSequence_IncongruentTokenOut() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
@@ -355,6 +368,39 @@ contract LimitOrderRouterTest is DSTest {
         }
 
         cheatCodes.prank(tx.origin);
+        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
+
+        // check that the orders have been fufilled and removed
+        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
+            OrderBook.Order memory order = orderBook.getOrderById(
+                tokenToWethOrderBatch[i]
+            );
+            assert(order.orderId == bytes32(0));
+        }
+    }
+
+    //Test fail case in execution with duplicate orderIds passed
+    function testFailExecuteTokenToWethOrderBatch_InvalidNonEOAStoplossExecution()
+        public
+    {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
+        bytes32[]
+            memory tokenToWethOrderBatch = placeNewMockTokenToWethBatchStoploss();
+
+        //check that the orders have been placed
+        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
+            OrderBook.Order memory order = orderBook.getOrderById(
+                tokenToWethOrderBatch[i]
+            );
+
+            assert(order.orderId != bytes32(0));
+        }
+
+        //Dont prank tx.origin should revert with stoploss orders.
         limitOrderRouter.executeOrders(tokenToWethOrderBatch);
 
         // check that the orders have been fufilled and removed
@@ -593,6 +639,37 @@ contract LimitOrderRouterTest is DSTest {
         }
 
         cheatCodes.prank(tx.origin);
+        limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
+
+        // check that the orders have been fufilled and removed
+        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
+            OrderBook.Order memory order = orderBook.getOrderById(
+                tokenToTokenOrderBatch[i]
+            );
+            assert(order.orderId == bytes32(0));
+        }
+    }
+
+    function testFailExecuteTokenToTokenBatch_InvalidNonEOAStoplossExecution() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        IERC20(USDC).approve(address(limitOrderExecutor), MAX_UINT);
+
+        bytes32[]
+            memory tokenToTokenOrderBatch = placeNewMockTokenToTokenStoplossBatch();
+
+        //check that the orders have been placed
+        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
+            OrderBook.Order memory order = orderBook.getOrderById(
+                tokenToTokenOrderBatch[i]
+            );
+
+            assert(order.orderId != bytes32(0));
+        }
+
+        //Don't prank tx.origin should revert
         limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
 
         // check that the orders have been fufilled and removed
@@ -1370,6 +1447,41 @@ contract LimitOrderRouterTest is DSTest {
     //======================= Helper functions =======================
     //================================================================
 
+    function newMockStoplossOrder(
+        address tokenIn,
+        address tokenOut,
+        uint128 price,
+        bool buy,
+        bool stoploss,
+        bool taxed,
+        uint16 taxIn,
+        uint112 amountOutMin,
+        uint112 quantity,
+        uint16 feeIn,
+        uint16 feeOut,
+        uint32 lastRefreshTimestamp,
+        uint32 expirationTimestamp
+    ) internal view returns (OrderBook.Order memory order) {
+        //Initialize mock order
+        order = OrderBook.Order({
+            stoploss:stoploss,
+            buy: buy,
+            taxed: taxed,
+            lastRefreshTimestamp: lastRefreshTimestamp,
+            expirationTimestamp: expirationTimestamp,
+            feeIn: feeIn,
+            feeOut: feeOut,
+            taxIn: taxIn,
+            price: price,
+            amountOutMin: amountOutMin,
+            quantity: quantity,
+            owner: msg.sender,
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            orderId: bytes32(0)
+        });
+    }
+
     function newMockOrder(
         address tokenIn,
         address tokenOut,
@@ -1386,6 +1498,7 @@ contract LimitOrderRouterTest is DSTest {
     ) internal view returns (OrderBook.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
+            stoploss:false,
             buy: buy,
             taxed: taxed,
             lastRefreshTimestamp: lastRefreshTimestamp,
@@ -1834,6 +1947,134 @@ contract LimitOrderRouterTest is DSTest {
         orderIds[0] = mockOrderOrderIds[0];
         orderIds[1] = mockOrderOrderIds[1];
         orderIds[2] = mockOrderId;
+
+        return orderIds;
+    }
+
+    function placeNewMockTokenToWethBatch_IncongruentStoploss()
+        internal
+        returns (OrderBook.Order[] memory)
+    {
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, UNI);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, USDC);
+
+        OrderBook.Order memory order1 = newMockStoplossOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            true,
+            false,
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
+        );
+
+        OrderBook.Order memory order2 = newMockStoplossOrder(
+            USDC,
+            WETH,
+            1,
+            false,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000001, //5001 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
+        );
+        OrderBook.Order memory order3 = newMockStoplossOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            true,
+            false,
+            0,
+            1,
+            5000000000000000000002, //5002 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
+        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
+        orderBatch[2]=order3;
+        
+
+        return orderBatch;
+    }
+
+    function placeNewMockTokenToWethBatchStoploss()
+        internal
+        returns (bytes32[] memory)
+    {
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, UNI);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, USDC);
+
+        OrderBook.Order memory order1 = newMockStoplossOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            true,
+            false,
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
+        );
+
+        OrderBook.Order memory order2 = newMockStoplossOrder(
+            USDC,
+            WETH,
+            1,
+            false,
+            true,
+            false,
+            0,
+            1,
+            5000000000000000000001, //5001 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
+        );
+        OrderBook.Order memory order3 = newMockStoplossOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            true,
+            false,
+            0,
+            1,
+            5000000000000000000002, //5002 DAI
+            3000,
+            0,
+            0,
+            MAX_U32
+        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
+        orderBatch[2]=order3;
+        bytes32[] memory orderIds = new bytes32[](3);
+        bytes32[] memory returnIds = placeMultipleMockOrder(orderBatch);
+        orderIds[0] = returnIds[0];
+        orderIds[1] = returnIds[1];
+        orderIds[2] = returnIds[2];
 
         return orderIds;
     }
@@ -2593,6 +2834,54 @@ contract LimitOrderRouterTest is DSTest {
         return placeMultipleMockOrder(orderBatch);
     }
 
+    function placeNewMockTokenToTokenStoplossBatch()
+        internal
+        returns (bytes32[] memory)
+    {
+        swapHelper.swapEthForTokenWithUniV2(10000 ether, USDC);
+
+        OrderBook.Order memory order1 = newMockStoplossOrder(
+            USDC,
+            UNI,
+            1,
+            false,
+            true,
+            false,
+            0,
+            1,
+            5000000000, //5000 USDC
+            3000,
+            3000,
+            0,
+            MAX_U32
+        );
+
+        OrderBook.Order memory order2 = newMockStoplossOrder(
+            USDC,
+            UNI,
+            1,
+            false,
+            true,
+            false,
+            0,
+            1,
+            5000000000, //5000 USDC
+            3000,
+            3000,
+            0,
+            MAX_U32
+        );
+
+     
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
+        
+
+        return placeMultipleMockOrder(orderBatch);
+    }
+
     function placeNewMockTokenToTokenBatchDuplicateOrderIds()
         internal
         returns (bytes32[] memory)
@@ -2791,6 +3080,7 @@ contract LimitOrderRouterTest is DSTest {
     ) internal view returns (OrderBook.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
+            stoploss:false,
             buy: false,
             taxed: false,
             lastRefreshTimestamp: 0,

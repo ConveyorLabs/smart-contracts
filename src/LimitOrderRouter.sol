@@ -86,8 +86,11 @@ contract LimitOrderRouter is OrderBook {
         address _weth,
         address _limitOrderExecutor
     ) OrderBook(_gasOracle, _limitOrderExecutor) {
-        require(_limitOrderExecutor !=address(0), "Invalid LimitOrderExecutor address");
-        require(_weth !=address(0), "Invalid weth address");
+        require(
+            _limitOrderExecutor != address(0),
+            "Invalid LimitOrderExecutor address"
+        );
+        require(_weth != address(0), "Invalid weth address");
         WETH = _weth;
         owner = msg.sender;
 
@@ -113,7 +116,7 @@ contract LimitOrderRouter is OrderBook {
     /// @notice Function to deposit gas credits.
     /// @return success - Boolean that indicates if the deposit completed successfully.
     function depositGasCredits() public payable returns (bool success) {
-        if(msg.value == 0){
+        if (msg.value == 0) {
             revert InsufficientMsgValue();
         }
         ///@notice Increment the gas credit balance for the user by the msg.value
@@ -383,6 +386,11 @@ contract LimitOrderRouter is OrderBook {
                 revert IncongruentInputTokenInBatch();
             }
 
+            ///@notice Check if the token in is the same for the next order
+            if (currentOrder.stoploss != nextOrder.stoploss) {
+                revert IncongruentStoplossStatus();
+            }
+
             ///@notice Check if the token out is the same for the next order
             if (currentOrder.tokenOut != nextOrder.tokenOut) {
                 revert IncongruentOutputTokenInBatch();
@@ -414,11 +422,7 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice This function is called by off-chain executors, passing in an array of orderIds to execute a specific batch of orders.
     /// @param orderIds - Array of orderIds to indicate which orders should be executed.
-    function executeOrders(bytes32[] calldata orderIds)
-        external
-        onlyEOA
-        nonReentrant
-    {
+    function executeOrders(bytes32[] calldata orderIds) external nonReentrant {
         ///@notice Require gas price to avoid verifier's delimma.
         /*
         A verifier's delimma occurs when there is not a sufficient incentive for a player within a given system to carry out an action.
@@ -462,6 +466,15 @@ contract LimitOrderRouter is OrderBook {
                 ++i;
             }
         }
+        ///@notice Cache stoploss status for the orders.
+        bool isStoplossExecution = orders[0].stoploss;
+        ///@notice If msg.sender != tx.origin and the stoploss status for the batch is true, revert the transaction.
+        ///@dev Stoploss batches strictly require EOA execution.
+        if (isStoplossExecution) {
+            if (msg.sender != tx.origin) {
+                revert NonEOAStoplossExecution();
+            }
+        }
 
         ///@notice If the length of orders array is greater than a single order, than validate the order sequencing.
         if (orders.length > 1) {
@@ -476,12 +489,12 @@ contract LimitOrderRouter is OrderBook {
         if (orders[0].tokenOut == WETH) {
             (totalBeaconReward, totalConveyorReward) = ILimitOrderExecutor(
                 LIMIT_ORDER_EXECUTOR
-            ).executeTokenToWethOrders(orders);
+            ).executeTokenToWethOrders(orders, isStoplossExecution);
         } else {
             ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
             (totalBeaconReward, totalConveyorReward) = ILimitOrderExecutor(
                 LIMIT_ORDER_EXECUTOR
-            ).executeTokenToTokenOrders(orders);
+            ).executeTokenToTokenOrders(orders, isStoplossExecution);
         }
 
         ///@notice Get the array of order owners.
