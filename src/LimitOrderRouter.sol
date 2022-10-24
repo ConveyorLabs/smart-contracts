@@ -383,6 +383,11 @@ contract LimitOrderRouter is OrderBook {
                 revert IncongruentInputTokenInBatch();
             }
 
+            ///@notice Check if the token in is the same for the next order
+            if (currentOrder.stoploss != nextOrder.stoploss) {
+                revert IncongruentStoplossStatus();
+            }
+
             ///@notice Check if the token out is the same for the next order
             if (currentOrder.tokenOut != nextOrder.tokenOut) {
                 revert IncongruentOutputTokenInBatch();
