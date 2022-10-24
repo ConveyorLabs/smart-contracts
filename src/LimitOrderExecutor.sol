@@ -69,7 +69,9 @@ contract LimitOrderExecutor is SwapRouter {
     }
 
     ///@notice Function to execute a batch of Token to Weth Orders.
-    function executeTokenToWethOrders(OrderBook.Order[] memory orders)
+    ///@param orders The orders to be executed. 
+    ///@param isStopLossExecution Boolean indicating whether the orders stoploss status is true. 
+    function executeTokenToWethOrders(OrderBook.Order[] memory orders, bool isStopLossExecution)
         external
         onlyLimitOrderRouter
         returns (uint256, uint256)
@@ -90,11 +92,11 @@ contract LimitOrderExecutor is SwapRouter {
             );
 
         ///@notice Calculate the max beacon reward from the spot reserves.
-        uint128 maxBeaconReward = calculateMaxBeaconReward(
+        uint128 maxBeaconReward = isStopLossExecution ? calculateMaxBeaconReward(
             spotReserveAToWeth,
             orders,
             false
-        );
+        ) : type(uint128).max;
 
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
@@ -236,7 +238,8 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
-    function executeTokenToTokenOrders(OrderBook.Order[] memory orders)
+    ///@param isStopLossExecution Boolean indicating whether the orders stoploss status is true. 
+    function executeTokenToTokenOrders(OrderBook.Order[] memory orders, bool isStopLossExecution)
         external
         onlyLimitOrderRouter
         returns (uint256, uint256)
@@ -270,9 +273,9 @@ contract LimitOrderExecutor is SwapRouter {
                     lpAddressWethToB
                 );
             ///@notice Get the Max beacon reward on the SpotReserves
-            maxBeaconReward = WETH != tokenIn
+            maxBeaconReward = isStopLossExecution ? (WETH != tokenIn
                 ? calculateMaxBeaconReward(spotReserveAToWeth, orders, false)
-                : calculateMaxBeaconReward(spotReserveWethToB, orders, true);
+                : calculateMaxBeaconReward(spotReserveWethToB, orders, true)) : type(uint128).max;
         }
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;

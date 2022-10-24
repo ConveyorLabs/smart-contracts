@@ -4,11 +4,11 @@ pragma solidity 0.8.16;
 import "../OrderBook.sol";
 
 interface ILimitOrderExecutor {
-    function executeTokenToWethOrders(OrderBook.Order[] memory orders)
+    function executeTokenToWethOrders(OrderBook.Order[] memory orders, bool isStopLossExecution)
         external
         returns (uint256, uint256);
 
-    function executeTokenToTokenOrders(OrderBook.Order[] memory orders)
+    function executeTokenToTokenOrders(OrderBook.Order[] memory orders, bool isStopLossExecution)
         external
         returns (uint256, uint256);
 }

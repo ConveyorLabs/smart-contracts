@@ -416,7 +416,6 @@ contract LimitOrderRouter is OrderBook {
     /// @param orderIds - Array of orderIds to indicate which orders should be executed.
     function executeOrders(bytes32[] calldata orderIds)
         external
-        onlyEOA
         nonReentrant
     {
         ///@notice Require gas price to avoid verifier's delimma.
@@ -462,6 +461,13 @@ contract LimitOrderRouter is OrderBook {
                 ++i;
             }
         }
+        bool isStoplossExecution = orders[0].stoploss;
+
+        if(msg.sender != tx.origin){
+            if(isStoplossExecution){
+                revert InvalidNonEOAStoplossExecution();
+            }
+        }
 
         ///@notice If the length of orders array is greater than a single order, than validate the order sequencing.
         if (orders.length > 1) {
@@ -476,12 +482,12 @@ contract LimitOrderRouter is OrderBook {
         if (orders[0].tokenOut == WETH) {
             (totalBeaconReward, totalConveyorReward) = ILimitOrderExecutor(
                 LIMIT_ORDER_EXECUTOR
-            ).executeTokenToWethOrders(orders);
+            ).executeTokenToWethOrders(orders, isStoplossExecution);
         } else {
             ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
             (totalBeaconReward, totalConveyorReward) = ILimitOrderExecutor(
                 LIMIT_ORDER_EXECUTOR
-            ).executeTokenToTokenOrders(orders);
+            ).executeTokenToTokenOrders(orders, isStoplossExecution);
         }
 
         ///@notice Get the array of order owners.

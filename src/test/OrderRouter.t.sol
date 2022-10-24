@@ -918,6 +918,7 @@ contract SwapRouterTest is DSTest {
     ) internal view returns (OrderBook.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
+            stoploss:false,
             buy: buy,
             taxed: taxed,
             lastRefreshTimestamp: lastRefreshTimestamp,

@@ -60,6 +60,7 @@ contract OrderBook is GasOracle {
     struct Order {
         bool buy;
         bool taxed;
+        bool stoploss;
         uint32 lastRefreshTimestamp;
         uint32 expirationTimestamp;
         uint24 feeIn;

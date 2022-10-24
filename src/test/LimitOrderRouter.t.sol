@@ -1386,6 +1386,7 @@ contract LimitOrderRouterTest is DSTest {
     ) internal view returns (OrderBook.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
+            stoploss:false,
             buy: buy,
             taxed: taxed,
             lastRefreshTimestamp: lastRefreshTimestamp,
@@ -2791,6 +2792,7 @@ contract LimitOrderRouterTest is DSTest {
     ) internal view returns (OrderBook.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
+            stoploss:false,
             buy: false,
             taxed: false,
             lastRefreshTimestamp: 0,

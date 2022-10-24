@@ -24,6 +24,7 @@ error IncongruentOutputTokenInBatch();
 error IncongruentFeeInInBatch();
 error IncongruentFeeOutInBatch();
 error IncongruentTaxedTokenInBatch();
+error InvalidNonEOAStoplossExecution();
 error IncongruentBuySellStatusInBatch();
 error WethWithdrawUnsuccessful();
 error MsgSenderIsNotTxOrigin();
