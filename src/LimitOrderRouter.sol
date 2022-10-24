@@ -470,9 +470,9 @@ contract LimitOrderRouter is OrderBook {
         bool isStoplossExecution = orders[0].stoploss;
         ///@notice If msg.sender != tx.origin and the stoploss status for the batch is true, revert the transaction.
         ///@dev Stoploss batches strictly require EOA execution.
-        if (msg.sender != tx.origin) {
-            if (isStoplossExecution) {
-                revert InvalidNonEOAStoplossExecution();
+        if (isStoplossExecution) {
+            if (msg.sender != tx.origin) {
+                revert NonEOAStoplossExecution();
             }
         }
 
