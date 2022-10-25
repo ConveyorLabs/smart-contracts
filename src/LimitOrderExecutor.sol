@@ -26,7 +26,7 @@ contract LimitOrderExecutor is SwapRouter {
         fee being paid is roughly $750,000. The fee paid by the user ranges from 0.5%-0.1% following a logistic curve which approaches 0.1% assymtocically in the limit
         as OrderQuantity -> infinity for all non stoploss orders. 
     */
-    uint128 constant MAX_BEACON_REWARD = 50000000000000000;
+    uint128 constant MAX_BEACON_REWARD_STOPLOSS = 50000000000000000;
 
     //----------------------Modifiers------------------------------------//
 
