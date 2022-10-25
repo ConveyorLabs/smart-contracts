@@ -13,7 +13,9 @@ contract GasOracleTest is DSTest {
         gasOracle = new GasOracle(aggregatorV3Address);
     }
 
-    function testGetPrice() public view {
+    function testGetPrice() public {
         gasOracle.getGasPrice();
     }
+
+
 }

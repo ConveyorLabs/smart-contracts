@@ -36,10 +36,12 @@ contract GasOracle {
         uint256 gasPrice = uint256(answer);
 
         ///@notice update the meanGasPrice
-        uint256 newMeanGasPrice = (meanGasPrice +
-            ((block.timestamp - lastGasOracleTimestamp) / timeHorizon) *
-            gasPrice) /
-            (1 + ((block.timestamp - lastGasOracleTimestamp) / timeHorizon));
+        uint256 newMeanGasPrice = (((meanGasPrice +
+            (((block.timestamp - lastGasOracleTimestamp) << 64) / timeHorizon) *
+            gasPrice)>>64) /
+            (1 +
+                ((((block.timestamp - lastGasOracleTimestamp) << 64) /
+                    timeHorizon)>>64)));
 
         ///@notice Update the last gas timestamp
         lastGasOracleTimestamp = block.timestamp;
