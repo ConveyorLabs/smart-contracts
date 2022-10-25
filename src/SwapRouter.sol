@@ -17,6 +17,7 @@ import "./lib/ConveyorFeeMath.sol";
 import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/token/SafeERC20.sol";
+import "./test/utils/Console.sol";
 
 /// @title SwapRouter
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
@@ -75,6 +76,7 @@ contract SwapRouter is ConveyorTickMath {
         uint128 res0;
         uint128 res1;
         bool token0IsReserve0;
+        uint128 liquidity;
     }
 
     //----------------------State Variables------------------------------------//
@@ -262,44 +264,44 @@ contract SwapRouter is ConveyorTickMath {
     ) internal view returns (uint128 maxBeaconReward) {
         ///@notice Cache the first order buy status.
         bool buy = orders[0].buy;
-
+        address tokenIn = orders[0].tokenIn;
+        address tokenOut = orders[0].tokenOut;
         ///@notice Initialize v2Outlier to the max/min depending on order status.
-        uint256 v2Outlier = buy
+        uint256 outlierSpot = buy
             ? 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
             : 0;
 
         ///@notice Initialize variables involved in conditional logic.
-        uint256 v3Spot;
-        bool v3PairExists;
-        uint256 v2OutlierIndex;
+        uint256 baseSpot = buy
+            ? 0
+            : 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+
+        uint256 outlierIndex;
 
         ///@dev Scoping to avoid stack too deep errors.
         {
             ///@notice For each spot reserve in the spotReserves array
             for (uint256 i = 0; i < spotReserves.length; ) {
-                ///@notice If the dex is not uniV2 compatible
-                if (!dexes[i].isUniV2) {
-                    ///@notice Update the v3Spot price
-                    v3Spot = spotReserves[i].spotPrice;
-                    if (v3Spot == 0) {
-                        v3PairExists = false;
-                    } else {
-                        v3PairExists = true;
+                ///@notice if the order is a buy order
+                if (buy) {
+                    ///@notice if the spotPrice is less than the v2Outlier, assign the spotPrice to the v2Outlier.
+                    if (spotReserves[i].spotPrice < outlierSpot) {
+                        outlierIndex = i;
+                        outlierSpot = spotReserves[i].spotPrice;
+                    }
+                    ///@notice if the spotPrice is less than the v2Outlier, assign the spotPrice to the v2Outlier.
+                    if (spotReserves[i].spotPrice > baseSpot) {
+                        baseSpot = spotReserves[i].spotPrice;
                     }
                 } else {
-                    ///@notice if the order is a buy order
-                    if (buy) {
-                        ///@notice if the spotPrice is less than the v2Outlier, assign the spotPrice to the v2Outlier.
-                        if (spotReserves[i].spotPrice < v2Outlier) {
-                            v2OutlierIndex = i;
-                            v2Outlier = spotReserves[i].spotPrice;
-                        }
-                    } else {
-                        ///@notice if the order is a sell order and the spot price is greater than the v2Outlier, assign the spotPrice to the v2Outlier.
-                        if (spotReserves[i].spotPrice > v2Outlier) {
-                            v2OutlierIndex = i;
-                            v2Outlier = spotReserves[i].spotPrice;
-                        }
+                    ///@notice if the order is a sell order and the spot price is greater than the v2Outlier, assign the spotPrice to the v2Outlier.
+                    if (spotReserves[i].spotPrice > outlierSpot) {
+                        outlierIndex = i;
+                        outlierSpot = spotReserves[i].spotPrice;
+                    }
+                    ///@notice if the spotPrice is less than the v2Outlier, assign the spotPrice to the v2Outlier.
+                    if (spotReserves[i].spotPrice < baseSpot) {
+                        baseSpot = spotReserves[i].spotPrice;
                     }
                 }
 
@@ -307,16 +309,6 @@ contract SwapRouter is ConveyorTickMath {
                     ++i;
                 }
             }
-        }
-
-        ///@notice if the order is a buy order and the v2Outlier is greater than the v3Spot price
-        if (buy && v2Outlier > v3Spot) {
-            ///@notice return the max uint128 value as the max beacon reward.
-            return MAX_UINT_128;
-        } else if (!(buy) && v2Outlier < v3Spot) {
-            /**@notice if the order is a sell order and the v2Outlier is less than the v3Spot price
-           return the max uint128 value as the max beacon reward.*/
-            return MAX_UINT_128;
         }
 
         ///@notice Initialize variables involved in conditional logic.
@@ -328,34 +320,145 @@ contract SwapRouter is ConveyorTickMath {
         ///@dev Scoping to avoid stack too deep errors.
         {
             ///@notice If a v3Pair exists for the order
-            if (v3PairExists) {
+            if (baseSpot != outlierSpot) {
                 ///@notice Calculate proportional difference between the v3 and v2Outlier price
                 priceDivergence = ConveyorFeeMath._calculatePriceDivergence(
-                    v3Spot,
-                    v2Outlier
+                    baseSpot,
+                    outlierSpot
                 );
 
                 ///@notice If the difference crosses the alphaXDivergenceThreshold, then calulate the max beacon fee.
                 if (priceDivergence > alphaXDivergenceThreshold) {
-                    maxBeaconReward = ConveyorFeeMath._calculateMaxBeaconReward(
-                            priceDivergence,
-                            spotReserves[v2OutlierIndex].res0,
-                            spotReserves[v2OutlierIndex].res1,
-                            UNI_V2_FEE
+                    if (dexes[outlierIndex].isUniV2) {
+                        maxBeaconReward = ConveyorFeeMath
+                            ._calculateMaxBeaconReward(
+                                priceDivergence,
+                                spotReserves[outlierIndex].res0,
+                                spotReserves[outlierIndex].res1,
+                                UNI_V2_FEE
+                            );
+                    } else {
+                        maxBeaconReward = uint128(
+                            calculateV3MaxReward(
+                                spotReserves,
+                                baseSpot,
+                                outlierSpot,
+                                outlierIndex,
+                                orders[0].tokenIn,
+                                orders[0].tokenOut,
+                                buy
+                            )
                         );
+                        console.log(maxBeaconReward);
+
+                        maxBeaconReward = !((!wethIsToken0 && !buy) ||
+                            (buy && wethIsToken0))
+                            ? (
+                                IERC20(tokenOut).decimals() < uint8(18)
+                                    ? uint128(
+                                        maxBeaconReward *
+                                            (10 **
+                                                (18 -
+                                                    IERC20(tokenOut)
+                                                        .decimals()))
+                                    )
+                                    : uint128(
+                                        maxBeaconReward /
+                                            (10 **
+                                                (IERC20(tokenOut).decimals() -
+                                                    18))
+                                    )
+                            )
+                            : (
+                                IERC20(tokenIn).decimals() < uint8(18)
+                                    ? uint128(
+                                        maxBeaconReward *
+                                            (10 **
+                                                (18 -
+                                                    IERC20(tokenIn).decimals()))
+                                    )
+                                    : uint128(
+                                        maxBeaconReward /
+                                            (10 **
+                                                (IERC20(tokenIn).decimals() -
+                                                    18))
+                                    )
+                            );
+                    }
                 }
             }
         }
 
         ///@notice If weth is not token0, then convert the maxBeaconValue into Weth.
-        if (!wethIsToken0) {
+        if ((!wethIsToken0 && !buy) || (buy && wethIsToken0)) {
             ///@notice Convert the alphaX*fee quantity into Weth
             maxBeaconReward = uint128(
-                ConveyorMath.mul128I(v2Outlier, maxBeaconReward)
+                ConveyorMath.mul128I(outlierSpot, maxBeaconReward)
             );
         }
 
         return maxBeaconReward;
+    }
+
+    function calculateV3MaxReward(
+        SpotReserve[] memory spotReserves,
+        uint256 baseSpot,
+        uint256 outlierSpot,
+        uint256 v2OutlierIndex,
+        address tokenIn,
+        address tokenOut,
+        bool buy
+    ) internal view returns (uint256 maxBeaconReward) {
+        uint8 decimalsIn = IERC20(tokenIn).decimals();
+        uint8 decimalsOut = IERC20(tokenOut).decimals();
+
+        {
+            int8 shift = tokenIn < tokenOut
+                ? int8(decimalsIn) - int8(decimalsOut)
+                : int8(decimalsOut) - int8(decimalsIn);
+            (
+                uint160 sqrtRatioAX96,
+                uint160 sqrtRatioBX96
+            ) = from128XSpotToSqrtRatioX96(
+                    outlierSpot,
+                    baseSpot,
+                    shift,
+                    tokenIn < tokenOut
+                );
+            console.log(sqrtRatioAX96);
+            console.log(sqrtRatioBX96);
+            maxBeaconReward = tokenIn < tokenOut
+                ? (
+                    buy
+                        ? SqrtPriceMath.getAmount0Delta(
+                            sqrtRatioAX96,
+                            sqrtRatioBX96,
+                            spotReserves[v2OutlierIndex].liquidity,
+                            false
+                        )
+                        : SqrtPriceMath.getAmount1Delta(
+                            sqrtRatioBX96,
+                            sqrtRatioAX96,
+                            spotReserves[v2OutlierIndex].liquidity,
+                            false
+                        )
+                )
+                : (
+                    buy
+                        ? SqrtPriceMath.getAmount1Delta(
+                            sqrtRatioAX96,
+                            sqrtRatioBX96,
+                            spotReserves[v2OutlierIndex].liquidity,
+                            false
+                        )
+                        : SqrtPriceMath.getAmount0Delta(
+                            sqrtRatioBX96,
+                            sqrtRatioAX96,
+                            spotReserves[v2OutlierIndex].liquidity,
+                            false
+                        )
+                );
+        }
     }
 
     function transferTokensOutToOwner(
@@ -779,7 +882,8 @@ contract SwapRouter is ConveyorTickMath {
             _tokenX,
             _tokenY
         );
-
+        uint128 liquidity = IUniswapV3Pool(pool).liquidity();
+        _spRes.liquidity = liquidity;
         ///@notice Set the spot price in the spot reserve structure.
         _spRes.spotPrice = priceX128;
 

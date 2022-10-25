@@ -69,6 +69,62 @@ library QuadruplePrecision {
         }
     }
 
+    /**
+   * Convert signed 64.64 bit fixed point number into quadruple precision
+   * number.
+   *
+   * @param x signed 64.64 bit fixed point number
+   * @return quadruple precision number
+   */
+  function from64x64 (int128 x) internal pure returns (bytes16) {
+    unchecked {
+      if (x == 0) return bytes16 (0);
+      else {
+        // We rely on overflow behavior here
+        uint256 result = uint128 (x > 0 ? x : -x);
+
+        uint256 msb = mostSignificantBit (result);
+        if (msb < 112) result <<= 112 - msb;
+        else if (msb > 112) result >>= msb - 112;
+
+        result = result & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF | 16319 + msb << 112;
+        if (x < 0) result |= 0x80000000000000000000000000000000;
+
+        return bytes16 (uint128 (result));
+      }
+    }
+  }
+
+  /**
+   * Convert quadruple precision number into signed 64.64 bit fixed point
+   * number.  Revert on overflow.
+   *
+   * @param x quadruple precision number
+   * @return signed 64.64 bit fixed point number
+   */
+  function to64x64 (bytes16 x) internal pure returns (int128) {
+    unchecked {
+      uint256 exponent = uint128 (x) >> 112 & 0x7FFF;
+
+      require (exponent <= 16446); // Overflow
+      if (exponent < 16319) return 0; // Underflow
+
+      uint256 result = uint256 (uint128 (x)) & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF |
+        0x10000000000000000000000000000;
+
+      if (exponent < 16431) result >>= 16431 - exponent;
+      else if (exponent > 16431) result <<= exponent - 16431;
+
+      if (uint128 (x) >= 0x80000000000000000000000000000000) { // Negative
+        require (result <= 0x80000000000000000000000000000000);
+        return -int128 (int256 (result)); // We rely on overflow behavior here
+      } else {
+        require (result <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
+        return int128 (int256 (result));
+      }
+    }
+  } 
+
     function fromUInt(uint256 x) internal pure returns (bytes16) {
         unchecked {
             if (x == 0) return bytes16(0);

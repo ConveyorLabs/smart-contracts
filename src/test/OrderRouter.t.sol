@@ -577,22 +577,11 @@ contract SwapRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         (SwapRouter.SpotReserve[] memory pricesUsdcWeth, ) = limitOrderExecutor
-            .getAllPrices(usdc, weth, 3000);
+            .getAllPrices(usdc, weth, 500);
+        console.log(pricesUsdcWeth[0].spotPrice);
 
-        // console.log("Price V3");
-        // console.logUint(pricesUsdcWeth[2].spotPrice);
-        // console.log("v2 uni/v2 sushi");
-        // console.logUint(pricesUsdcWeth[0].spotPrice);
-        // console.log(pricesUsdcWeth[0].res0);
-        // console.log(pricesUsdcWeth[0].res1);
-        // console.logUint(pricesUsdcWeth[1].spotPrice);
-        // v2 uni -> v3
-        //>>> 195241231237093697621340806139528792/195097921519758036482852264177188530
-        //
-        // 1.0007345527631424
-        // >>> 1.0007345527631424*2**128
-        // 3.405323222738089e+38 > alphaXThreshold
-        //Sell order ==> High price more advantagous
+
+       
         OrderBook.Order memory order1 = newMockOrder(
             usdc,
             weth,
@@ -602,7 +591,7 @@ contract SwapRouterTest is DSTest {
             0,
             1,
             10000000,
-            3000,
+            500,
             0,
             0,
             0
@@ -617,7 +606,7 @@ contract SwapRouterTest is DSTest {
             0,
             1,
             10000000,
-            3000,
+            500,
             0,
             0,
             0
@@ -633,109 +622,69 @@ contract SwapRouterTest is DSTest {
             false
         );
 
-        uint256 alphaX = ConveyorFeeMath._calculateAlphaX(
-            239580372152757160000000000000000000,
-            pricesUsdcWeth[0].res1,
-            pricesUsdcWeth[0].res0
-        );
-        uint256 projectedSnapshot = FullMath.mulDiv(
-            (pricesUsdcWeth[0].res1 - alphaX),
-            2**128,
-            (
-                FullMath.mulDiv(
-                    pricesUsdcWeth[0].res1,
-                    pricesUsdcWeth[0].res0,
-                    pricesUsdcWeth[0].res1 - alphaX
-                )
-            )
-        );
+        
+        uint256 bufferLower =12145684150716091770-5;
+        uint256 bufferUpper = 12145684150716091770+5;
 
-        bytes16 max128 = QuadruplePrecision.fromUInt(
-            340282366920938463463374607431768211455
-        );
-        bytes16 TEN = QuadruplePrecision.fromUInt(10);
-
-        ///@notice Convert 2**128-1 to base 10 decimals i.e log_10(2**128-1)=x s.t 10^x=2**128-1
-        uint256 decimalsBase10 = QuadruplePrecision.toUInt(
-            QuadruplePrecision.div(
-                QuadruplePrecision.ln(max128),
-                QuadruplePrecision.ln(TEN)
-            )
-        );
-
-        ///@notice 10**8 precision after the decimal point
-        assertEqDecimal(
-            projectedSnapshot / (10**(decimalsBase10 - 8)),
-            pricesUsdcWeth[2].spotPrice / (10**(decimalsBase10 - 8)),
-            decimalsBase10
-        );
-
-        assertEq(maxReward, 3671040722799248953);
+        assertGt(maxReward, bufferLower);
+        assertLt(maxReward, bufferUpper);
     }
 
-    ///@notice Deprecated as there are no longer batches to measure the price divergence
-    // ///@notice Test Calculate Price Divergence from batch min
-    // function testCalculatePriceDivergenceFromBatchMin() public {
-    //     address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    //     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    //     OrderBook.Order memory order1 = newMockOrder(
-    //         usdc,
-    //         weth,
-    //         195241231237093697621340806139528790,
-    //         false,
-    //         false,
-    //         0,
-    //         1,
-    //         10000000,
-    //         3000,
-    //         0,
-    //         0,
-    //         0
-    //     );
+    function testCalculateMaxBeaconRewardTopLevelV3Outlier() public {
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        (SwapRouter.SpotReserve[] memory pricesUsdcWeth, ) = limitOrderExecutor
+            .getAllPrices(weth, usdc, 500);
+        console.log(pricesUsdcWeth[0].spotPrice);
 
-    //     OrderBook.Order memory order2 = newMockOrder(
-    //         usdc,
-    //         weth,
-    //         195241231237093697621340806139528790, //<- min
-    //         false,
-    //         false,
-    //         0,
-    //         1,
-    //         10000000,
-    //         3000,
-    //         0,
-    //         0,
-    //         0
-    //     );
+        OrderBook.Order memory order1 = newMockOrder(
+            weth,
+            usdc,
+            1,
+            false,
+            false,
+            0,
+            1,
+            10000000,
+            500,
+            0,
+            0,
+            0
+        );
 
-    //     //V2 outlier 128.128
-    //     uint256 v2Outlier = 195241231237093697621340806139528792;
+        OrderBook.Order memory order2 = newMockOrder(
+            weth,
+            usdc,
+            1,
+            false,
+            false,
+            0,
+            1,
+            10000000,
+            500,
+            0,
+            0,
+            0
+        );
 
-    //     //Expected target
-    //     uint256 targetSpotExpected = order2.price;
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
 
-    //     OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
-    //     orderBatch[0] = order1;
-    //     orderBatch[1] = order2;
-    //     bool buy = false;
+        uint128 maxReward = limitOrderExecutor._calculateMaxBeaconReward(
+            pricesUsdcWeth,
+            orderBatch,
+            true
+        );
 
-    //     //Get the price divergence and target spot
-    //     (uint256 priceDivergence, uint256 targetSpot) = limitOrderExecutor
-    //         .calculatePriceDivergenceFromBatchMin(v2Outlier, orderBatch, buy);
+        
+        uint256 bufferLower =459896000000000000-5;
+        uint256 bufferUpper = 459896000000000000+5;
 
-    //     //Expected the 1-targetSpot/v2Outlier
-    //     uint256 proportionalSpotChangeExpected = ConveyorMath.div128x128(
-    //         targetSpot,
-    //         v2Outlier
-    //     );
+        assertGt(maxReward, bufferLower);
+        assertLt(maxReward, bufferUpper);
+    }
 
-    //     uint256 priceDivergenceExpected = (uint256(1) << 128) -
-    //         proportionalSpotChangeExpected;
-
-    //     //Assert the values
-    //     assertEq(priceDivergence, priceDivergenceExpected);
-    //     assertEq(targetSpot, targetSpotExpected);
-    // }
 
     ///@notice Test to calculate the price divergence between two spot prices
     function testCalculatePriceDivergence(uint128 _v3Spot, uint128 _v2Outlier)
