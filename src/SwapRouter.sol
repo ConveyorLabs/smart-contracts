@@ -98,7 +98,6 @@ contract SwapRouter is ConveyorTickMath {
 
     uint128 constant MIN_FEE_64x64 = 18446744073709552;
     uint128 constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
-    uint128 constant UNI_V2_FEE = 5534023222112865000;
     uint256 constant MAX_UINT_256 =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     uint256 constant ONE_128x128 = uint256(1) << 128;
@@ -108,12 +107,7 @@ contract SwapRouter is ConveyorTickMath {
     uint128 constant ZERO_POINT_ONE = 1844674407370955300;
     uint128 constant ZERO_POINT_ZERO_ZERO_FIVE = 92233720368547760;
     uint128 constant ZERO_POINT_ZERO_ZERO_ONE = 18446744073709550;
-    uint128 constant MAX_CONVEYOR_PERCENT = 110680464442257300 * 10**2;
-    uint128 constant MIN_CONVEYOR_PERCENT = 7378697629483821000;
-
-    ///@notice Threshold between UniV3 and UniV2 spot price that determines if maxBeaconReward should be used.
-    uint256 constant alphaXDivergenceThreshold =
-        3402823669209385000000000000000000;
+    
 
     //======================Immutables================================
 

@@ -312,787 +312,6 @@ contract LimitOrderRouterTest is DSTest {
         assertTrue(cancelled);
     }
 
-    //================================================================
-    //==================== Execution Tests ===========================
-    //================================================================
-
-    ///@notice Test to Execute a batch of Token To Weth Orders
-    function testExecuteTokenToWethOrderBatch() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
-        bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethBatch();
-
-        //check that the orders have been placed
-        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToWethOrderBatch[i]
-            );
-
-            assert(order.orderId != bytes32(0));
-        }
-
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToWethOrderBatch[i]
-            );
-            assert(order.orderId == bytes32(0));
-        }
-    }
-
-    //Test fail case in execution with duplicate orderIds passed
-    function testFailExecuteTokenToWethOrderBatch_DuplicateOrdersInExecution()
-        public
-    {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
-        bytes32[]
-            memory tokenToWethOrderBatch = placeNewMockTokenToWethBatchDuplicateOrderIds();
-
-        //check that the orders have been placed
-        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToWethOrderBatch[i]
-            );
-
-            assert(order.orderId != bytes32(0));
-        }
-
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToWethOrderBatch[i]
-            );
-            assert(order.orderId == bytes32(0));
-        }
-    }
-
-    //Test fail case in execution with duplicate orderIds passed
-    function testFailExecuteTokenToWethOrderBatch_InvalidNonEOAStoplossExecution()
-        public
-    {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
-        bytes32[]
-            memory tokenToWethOrderBatch = placeNewMockTokenToWethBatchStoploss();
-
-        //check that the orders have been placed
-        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToWethOrderBatch[i]
-            );
-
-            assert(order.orderId != bytes32(0));
-        }
-
-        //Dont prank tx.origin should revert with stoploss orders.
-        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToWethOrderBatch[i]
-            );
-            assert(order.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Test to check fail case if orderIds length is 0
-    function testFailExecuteOrders_InvalidCalldata() public {
-        bytes32[] memory emptyIdArray = new bytes32[](0);
-
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(emptyIdArray);
-    }
-
-    ///@notice Test to check fail case if orderId is not in the state of contract
-    function testFailExecuteOrders_OrderDoesNotExist() public {
-        bytes32[] memory orderIds = new bytes32[](1);
-        orderIds[0] = bytes32(0);
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderIds);
-    }
-
-    ///@notice Test to execute a single token to with order
-    function testExecuteWethToTokenSingle() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        cheatCodes.deal(address(this), MAX_UINT);
-
-        (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
-            abi.encodeWithSignature("deposit()")
-        );
-
-        require(depositSuccess, "failure when depositing ether into weth");
-
-        IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
-        //Create a new mock order
-        OrderBook.Order memory order = newMockOrder(
-            WETH,
-            DAI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 WETH
-            3000,
-            0,
-            0,
-            MAX_U32
-        );
-
-        bytes32 orderId = placeMockOrder(order);
-        bytes32[] memory orderBatch = new bytes32[](1);
-
-        orderBatch[0] = orderId;
-        //check that the orders have been placed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-
-            assert(order0.orderId != bytes32(0));
-        }
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-            assert(order0.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Teas To execute a single token to Weth order Dai/Weth
-    function testExecuteTokenToWethSingle() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
-        //Create a new mock order
-        OrderBook.Order memory order = newMockOrder(
-            DAI,
-            WETH,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 DAI
-            3000,
-            0,
-            0,
-            MAX_U32
-        );
-
-        bytes32 orderId = placeMockOrder(order);
-
-        bytes32[] memory orderBatch = new bytes32[](1);
-
-        orderBatch[0] = orderId;
-        //check that the orders have been placed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-
-            assert(order0.orderId != bytes32(0));
-        }
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-            assert(order0.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Test to execute a batch of Weth to Token orders Weth/Dai
-    function testExecuteWethToTokenOrderBatch() public {
-        cheatCodes.deal(address(this), 100 ether);
-
-        depositGasCreditsForMockOrders(100 ether);
-
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        cheatCodes.deal(address(this), 500000000000 ether);
-
-        //Deposit weth to address(this)
-        (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
-            abi.encodeWithSignature("deposit()")
-        );
-
-        //require that the deposit was a success
-        require(depositSuccess, "testDepositGasCredits: deposit failed");
-
-        IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
-
-        bytes32[] memory tokenToWethOrderBatch = placeNewMockWethToTokenBatch();
-        //Make sure the orders have been placed
-        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                tokenToWethOrderBatch[i]
-            );
-
-            assert(order0.orderId != bytes32(0));
-        }
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                tokenToWethOrderBatch[i]
-            );
-            assert(order0.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Test to execute a single token to token order. Dai/Uni
-    function testExecuteTokenToTokenSingle() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
-        OrderBook.Order memory order = newMockOrder(
-            DAI,
-            UNI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            500000000000000000000, //5000 DAI
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
-
-        bytes32 orderId = placeMockOrder(order);
-
-        bytes32[] memory orderBatch = new bytes32[](1);
-
-        orderBatch[0] = orderId;
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-
-            assert(order0.orderId != bytes32(0));
-        }
-
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-            assert(order0.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Test To Execute a batch of Token to token orders Usdc/Uni
-    function testExecuteTokenToTokenBatch() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        IERC20(USDC).approve(address(limitOrderExecutor), MAX_UINT);
-
-        bytes32[]
-            memory tokenToTokenOrderBatch = placeNewMockTokenToTokenBatch();
-
-        //check that the orders have been placed
-        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToTokenOrderBatch[i]
-            );
-
-            assert(order.orderId != bytes32(0));
-        }
-
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToTokenOrderBatch[i]
-            );
-            assert(order.orderId == bytes32(0));
-        }
-    }
-
-    function testFailExecuteTokenToTokenBatch_InvalidNonEOAStoplossExecution() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        IERC20(USDC).approve(address(limitOrderExecutor), MAX_UINT);
-
-        bytes32[]
-            memory tokenToTokenOrderBatch = placeNewMockTokenToTokenStoplossBatch();
-
-        //check that the orders have been placed
-        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToTokenOrderBatch[i]
-            );
-
-            assert(order.orderId != bytes32(0));
-        }
-
-        //Don't prank tx.origin should revert
-        limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToTokenOrderBatch[i]
-            );
-            assert(order.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Test fail Execute a batch of Token to token with revert on duplicate orderIds in batch
-    function testFailExecuteTokenToTokenBatch_DuplicateOrdersInExecution()
-        public
-    {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        IERC20(USDC).approve(address(limitOrderExecutor), MAX_UINT);
-
-        bytes32[]
-            memory tokenToTokenOrderBatch = placeNewMockTokenToTokenBatchDuplicateOrderIds();
-
-        //check that the orders have been placed
-        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToTokenOrderBatch[i]
-            );
-
-            assert(order.orderId != bytes32(0));
-        }
-
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToTokenOrderBatch[i]
-            );
-            assert(order.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Test to execute a single weth to taxed order
-    function testExecuteWethToTaxedTokenSingle() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        cheatCodes.deal(address(this), MAX_UINT);
-
-        (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
-            abi.encodeWithSignature("deposit()")
-        );
-
-        require(depositSuccess, "failure when depositing ether into weth");
-
-        IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
-        OrderBook.Order memory order = newMockOrder(
-            WETH,
-            TAXED_TOKEN,
-            1,
-            false,
-            true,
-            0,
-            1,
-            20000000000000000, //2,000,000
-            3000,
-            0,
-            0,
-            MAX_U32
-        );
-
-        bytes32 orderId = placeMockOrder(order);
-
-        bytes32[] memory orderBatch = new bytes32[](1);
-
-        orderBatch[0] = orderId;
-
-        //check that the orders have been placed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order1 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-
-            assert(order1.orderId != bytes32(0));
-        }
-
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order1 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-            assert(order1.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Test to execute a batch of weth to taxed token orders
-    function testExecuteWethToTaxedTokenBatch() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        cheatCodes.deal(address(this), MAX_UINT);
-
-        (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
-            abi.encodeWithSignature("deposit()")
-        );
-
-        require(depositSuccess, "failure when depositing ether into weth");
-
-        IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
-
-        bytes32[] memory wethToTaxedOrderBatch = placeNewMockWethToTaxedBatch();
-
-        //check that the orders have been placed
-        for (uint256 i = 0; i < wethToTaxedOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                wethToTaxedOrderBatch[i]
-            );
-
-            assert(order.orderId != bytes32(0));
-        }
-
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(wethToTaxedOrderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < wethToTaxedOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                wethToTaxedOrderBatch[i]
-            );
-            assert(order.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Test to execute a single taxed to token order Taxed_token/Weth
-    function testExecuteTaxedTokenToWethSingle() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, TAXED_TOKEN);
-
-        IERC20(TAXED_TOKEN).approve(address(limitOrderExecutor), MAX_UINT);
-
-        OrderBook.Order memory order = newMockOrder(
-            TAXED_TOKEN,
-            WETH,
-            1,
-            false,
-            true,
-            4000,
-            1,
-            20000000000000000, //2,000,000
-            3000,
-            0,
-            0,
-            MAX_U32
-        );
-        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
-        orderGroup[0] = order;
-        bytes32[] memory orderBatch = orderBook.placeOrder(orderGroup);
-        //Ensure all of the orders have been placed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-
-            assert(order0.orderId != bytes32(0));
-        }
-        //Prank tx.origin since executeOrders is onlyEOA
-        cheatCodes.prank(tx.origin);
-        //Execute the batch
-        limitOrderRouter.executeOrders(orderBatch);
-
-        //Ensure the batch has been fulfilled
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-            assert(order0.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Test to execute a batch of Taxed to token orders
-    function testExecuteTaxedTokenToWethBatch() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        IERC20(TAXED_TOKEN).approve(address(limitOrderExecutor), MAX_UINT);
-
-        bytes32[]
-            memory tokenToWethOrderBatch = placeNewMockTokenToWethTaxedBatch();
-
-        //check that the orders have been placed
-        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToWethOrderBatch[i]
-            );
-
-            assert(order.orderId != bytes32(0));
-        }
-
-        cheatCodes.prank(tx.origin);
-        //Execute the orders
-        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToWethOrderBatch[i]
-            );
-            assert(order.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Test to execute a single Token To Taxed order
-    function testExecuteTokenToTaxedTokenSingle() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-
-        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
-        OrderBook.Order memory order = newMockOrder(
-            DAI,
-            TAXED_TOKEN,
-            1,
-            false,
-            true,
-            0,
-            1,
-            20000000000000000000000, //20,000
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
-
-        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
-        orderGroup[0] = order;
-        bytes32[] memory orderBatch = orderBook.placeOrder(orderGroup);
-
-        //Ensure the order has been placed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-
-            assert(order0.orderId != bytes32(0));
-        }
-
-        cheatCodes.prank(tx.origin);
-
-        //Execute the order
-        limitOrderRouter.executeOrders(orderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-            assert(order0.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Test to execute a batch of token to taxed token orders
-    function testExecuteTokenToTaxedTokenBatch() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-    }
-
-    ///@notice Taxed Token to dai single test
-    function testExecuteTaxedTokenToTokenSingle() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, TAXED_TOKEN);
-
-        IERC20(TAXED_TOKEN).approve(address(limitOrderExecutor), MAX_UINT);
-
-        OrderBook.Order memory order = newMockOrder(
-            TAXED_TOKEN,
-            DAI,
-            1,
-            false,
-            true,
-            4000,
-            1,
-            20000000000000000, //2,000,000
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
-
-        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
-        orderGroup[0] = order;
-
-        bytes32[] memory orderBatch = orderBook.placeOrder(orderGroup);
-
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
-    }
-
-    ///@notice Test to execute a batch of taxed token to token orders
-    function testExecuteTaxedTokenToTokenBatch() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelperUniV2), MAX_UINT);
-        swapHelperUniV2.swapEthForTokenWithUniV2(10000 ether, TAXED_TOKEN);
-
-        IERC20(TAXED_TOKEN).approve(address(limitOrderExecutor), MAX_UINT);
-
-        bytes32[] memory orderBatch = placeNewMockTaxedToTokenBatch();
-
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-            console.log(order0.quantity);
-            assert(order0.orderId != bytes32(0));
-        }
-
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-            assert(order0.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Test to execute a batch of taxed token to taxed token orders
-    function testExecuteTaxedTokenToTaxedTokenBatch() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelperUniV2), MAX_UINT);
-        swapHelperUniV2.swapEthForTokenWithUniV2(10000 ether, TAXED_TOKEN);
-
-        IERC20(TAXED_TOKEN).approve(address(limitOrderExecutor), MAX_UINT);
-
-        bytes32[] memory orderBatch = placeNewMockTaxedToTaxedTokenBatch();
-
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-
-            assert(order0.orderId != bytes32(0));
-        }
-
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-            assert(order0.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Test to execute a single taxed token to taxed token order
-    function testExecuteTaxedTokenToTaxedTokenSingle() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, TAXED_TOKEN);
-
-        IERC20(TAXED_TOKEN).approve(address(limitOrderExecutor), MAX_UINT);
-
-        OrderBook.Order memory order = newMockOrder(
-            TAXED_TOKEN,
-            TAXED_TOKEN_1,
-            1,
-            false,
-            true,
-            3000,
-            1,
-            2000000000000000000000000, //2,000,000
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
-
-        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
-        orderGroup[0] = order;
-
-        bytes32[] memory orderBatch = orderBook.placeOrder(orderGroup);
-
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-
-            assert(order0.orderId != bytes32(0));
-        }
-
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-            assert(order0.orderId == bytes32(0));
-        }
-    }
-
     //----------------------------Gas Credit Tests-----------------------------------------
     ///@notice Deposit gas credits test
     function testDepositGasCredits(uint256 _amount) public {
@@ -2571,161 +1790,164 @@ contract LimitOrderRouterTest is DSTest {
         return orderBatch;
     }
 
-    function placeNewMockWethToTokenBatch()
+
+
+    function placeNewMockTokenToTokenStoplossBatch()
         internal
         returns (bytes32[] memory)
     {
-        OrderBook.Order memory order1 = newMockOrder(
-            WETH,
-            DAI,
+        swapHelper.swapEthForTokenWithUniV2(10000 ether, USDC);
+
+        OrderBook.Order memory order1 = newMockStoplossOrder(
+            USDC,
+            UNI,
             1,
             false,
+            true,
             false,
             0,
             1,
-            5000000000000000000000, //5000 WETH
+            5000000000, //5000 USDC
             3000,
-            0,
+            3000,
             0,
             MAX_U32
         );
 
-        OrderBook.Order memory order2 = newMockOrder(
-            WETH,
-            DAI,
+        OrderBook.Order memory order2 = newMockStoplossOrder(
+            USDC,
+            UNI,
             1,
             false,
+            true,
             false,
             0,
             1,
-            5000000000000000000000, //5000 WETH
+            5000000000, //5000 USDC
             3000,
-            0,
-            0,
-            MAX_U32
-        );
-        OrderBook.Order memory order3 = newMockOrder(
-            WETH,
-            DAI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 WETH
             3000,
-            0,
-            0,
-            MAX_U32
-        );
-        OrderBook.Order memory order4 = newMockOrder(
-            WETH,
-            DAI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 WETH
-            3000,
-            0,
-            0,
-            MAX_U32
-        );
-        OrderBook.Order memory order5 = newMockOrder(
-            WETH,
-            DAI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 WETH
-            3000,
-            0,
-            0,
-            MAX_U32
-        );
-        OrderBook.Order memory order6 = newMockOrder(
-            WETH,
-            DAI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 WETH
-            3000,
-            0,
             0,
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](6);
+     
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
-        orderBatch[2] = order3;
-        orderBatch[3] = order4;
-        orderBatch[4] = order5;
-        orderBatch[5] = order6;
+        
+
         return placeMultipleMockOrder(orderBatch);
     }
 
-    function placeNewMockWethToTaxedBatch()
+    function placeNewMockTokenToTokenBatchDuplicateOrderIds()
         internal
         returns (bytes32[] memory)
     {
-        OrderBook.Order memory order = newMockOrder(
-            WETH,
-            TAXED_TOKEN,
+        swapHelper.swapEthForTokenWithUniV2(10000 ether, USDC);
+
+        OrderBook.Order memory order1 = newMockOrder(
+            USDC,
+            UNI,
             1,
             false,
-            true,
+            false,
             0,
             1,
-            20000000000000000, //2,000,000
+            5000000000, //5000 USDC
             3000,
-            0,
+            3000,
             0,
             MAX_U32
         );
 
-        OrderBook.Order memory order1 = newMockOrder(
-            WETH,
-            TAXED_TOKEN,
+        OrderBook.Order memory order2 = newMockOrder(
+            USDC,
+            UNI,
             1,
             false,
-            true,
+            false,
             0,
             1,
-            20000000000000001, //2,000,001
+            5000000000, //5000 USDC
             3000,
-            0,
+            3000,
             0,
             MAX_U32
         );
-        OrderBook.Order memory order2 = newMockOrder(
-            WETH,
-            TAXED_TOKEN,
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
+
+        bytes32[] memory returnIds = placeMultipleMockOrder(orderBatch);
+        bytes32[] memory duplicateIdArray = new bytes32[](3);
+        duplicateIdArray[0] = returnIds[0];
+        duplicateIdArray[1] = returnIds[1];
+        duplicateIdArray[2] = returnIds[1]; //Duplicate id in batch should cause revert
+        return duplicateIdArray;
+    }
+
+
+    function newMockTokenToTokenBatch()
+        internal
+        returns (OrderBook.Order[] memory)
+    {
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+
+        OrderBook.Order memory order1 = newMockOrder(
+            DAI,
+            UNI,
             1,
             false,
-            true,
+            false,
             0,
             1,
-            20000000000000002, //2,000,002
+            5000000000000000000000, //5000 DAI
+            3000,
             3000,
             0,
+            MAX_U32
+        );
+
+        OrderBook.Order memory order2 = newMockOrder(
+            DAI,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            MAX_U32
+        );
+
+        OrderBook.Order memory order3 = newMockOrder(
+            DAI,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
             0,
             MAX_U32
         );
 
         OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
-        orderBatch[0] = order;
-        orderBatch[1] = order1;
-        orderBatch[2] = order2;
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
+        orderBatch[2] = order3;
 
-        return placeMultipleMockOrder(orderBatch);
+        return orderBatch;
     }
+
 
     function placeNewMockTokenToTokenBatch()
         internal
@@ -2832,243 +2054,6 @@ contract LimitOrderRouterTest is DSTest {
         // orderBatch[5] = order6;
 
         return placeMultipleMockOrder(orderBatch);
-    }
-
-    function placeNewMockTokenToTokenStoplossBatch()
-        internal
-        returns (bytes32[] memory)
-    {
-        swapHelper.swapEthForTokenWithUniV2(10000 ether, USDC);
-
-        OrderBook.Order memory order1 = newMockStoplossOrder(
-            USDC,
-            UNI,
-            1,
-            false,
-            true,
-            false,
-            0,
-            1,
-            5000000000, //5000 USDC
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
-
-        OrderBook.Order memory order2 = newMockStoplossOrder(
-            USDC,
-            UNI,
-            1,
-            false,
-            true,
-            false,
-            0,
-            1,
-            5000000000, //5000 USDC
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
-
-     
-
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
-        orderBatch[0] = order1;
-        orderBatch[1] = order2;
-        
-
-        return placeMultipleMockOrder(orderBatch);
-    }
-
-    function placeNewMockTokenToTokenBatchDuplicateOrderIds()
-        internal
-        returns (bytes32[] memory)
-    {
-        swapHelper.swapEthForTokenWithUniV2(10000 ether, USDC);
-
-        OrderBook.Order memory order1 = newMockOrder(
-            USDC,
-            UNI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000, //5000 USDC
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
-
-        OrderBook.Order memory order2 = newMockOrder(
-            USDC,
-            UNI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000, //5000 USDC
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
-
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
-        orderBatch[0] = order1;
-        orderBatch[1] = order2;
-
-        bytes32[] memory returnIds = placeMultipleMockOrder(orderBatch);
-        bytes32[] memory duplicateIdArray = new bytes32[](3);
-        duplicateIdArray[0] = returnIds[0];
-        duplicateIdArray[1] = returnIds[1];
-        duplicateIdArray[2] = returnIds[1]; //Duplicate id in batch should cause revert
-        return duplicateIdArray;
-    }
-
-    function placeNewMockTaxedToTokenBatch()
-        internal
-        returns (bytes32[] memory)
-    {
-        OrderBook.Order memory order = newMockOrder(
-            TAXED_TOKEN,
-            DAI,
-            1,
-            false,
-            true,
-            9000,
-            1,
-            2000000000000000000000, //2,000,000
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
-
-        OrderBook.Order memory order1 = newMockOrder(
-            TAXED_TOKEN,
-            DAI,
-            1,
-            false,
-            true,
-            9000,
-            1,
-            2000000000000000000000, //2,000,001
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
-
-        //    OrderBook.Order memory order2 = newMockOrder(
-        //         TAXED_TOKEN_3,
-        //         DAI,
-        //         1,
-        //         false,
-        //         true,
-        //         9000,
-        //         1,
-        //         2000000000000000000000000, //2,000,002
-        //         3000,
-        //         3000,
-        //         0,
-        //         MAX_U32
-        //     );
-
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
-        orderBatch[0] = order;
-        orderBatch[1] = order1;
-        // orderBatch[2] = order2;
-
-        return placeMultipleMockOrder(orderBatch);
-    }
-
-    function placeNewMockTaxedToTaxedTokenBatch()
-        internal
-        returns (bytes32[] memory)
-    {
-        OrderBook.Order memory order = newMockOrder(
-            TAXED_TOKEN,
-            TAXED_TOKEN_1,
-            1,
-            false,
-            true,
-            9000,
-            1,
-            2000000000000000000000, //2,000,000
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
-
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](1);
-        orderBatch[0] = order;
-
-        return placeMultipleMockOrder(orderBatch);
-    }
-
-    function newMockTokenToTokenBatch()
-        internal
-        returns (OrderBook.Order[] memory)
-    {
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-
-        OrderBook.Order memory order1 = newMockOrder(
-            DAI,
-            UNI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 DAI
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
-
-        OrderBook.Order memory order2 = newMockOrder(
-            DAI,
-            UNI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 DAI
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
-
-        OrderBook.Order memory order3 = newMockOrder(
-            DAI,
-            UNI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 DAI
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
-
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
-        orderBatch[0] = order1;
-        orderBatch[1] = order2;
-        orderBatch[2] = order3;
-
-        return orderBatch;
     }
 
     function newOrder(
