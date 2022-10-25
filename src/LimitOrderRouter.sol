@@ -489,12 +489,12 @@ contract LimitOrderRouter is OrderBook {
         if (orders[0].tokenOut == WETH) {
             (totalBeaconReward, totalConveyorReward) = ILimitOrderExecutor(
                 LIMIT_ORDER_EXECUTOR
-            ).executeTokenToWethOrders(orders, isStoplossExecution);
+            ).executeTokenToWethOrders(orders);
         } else {
             ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
             (totalBeaconReward, totalConveyorReward) = ILimitOrderExecutor(
                 LIMIT_ORDER_EXECUTOR
-            ).executeTokenToTokenOrders(orders, isStoplossExecution);
+            ).executeTokenToTokenOrders(orders);
         }
 
         ///@notice Get the array of order owners.
