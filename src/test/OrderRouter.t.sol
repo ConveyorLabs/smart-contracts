@@ -17,6 +17,7 @@ import "../../lib/libraries/Uniswap/FullMath.sol";
 import "../OrderBook.sol";
 import "../LimitOrderQuoter.sol";
 import "../LimitOrderExecutor.sol";
+import "../lib/ConveyorTickMath.sol";
 
 //import "../../scripts/logistic_curve.py";
 
@@ -580,8 +581,6 @@ contract SwapRouterTest is DSTest {
             .getAllPrices(usdc, weth, 500);
         console.log(pricesUsdcWeth[0].spotPrice);
 
-
-       
         OrderBook.Order memory order1 = newMockOrder(
             usdc,
             weth,
@@ -622,9 +621,8 @@ contract SwapRouterTest is DSTest {
             false
         );
 
-        
-        uint256 bufferLower =12145684150716091770-5;
-        uint256 bufferUpper = 12145684150716091770+5;
+        uint256 bufferLower = 12145684150716091770 - 5;
+        uint256 bufferUpper = 12145684150716091770 + 5;
 
         assertGt(maxReward, bufferLower);
         assertLt(maxReward, bufferUpper);
@@ -677,14 +675,215 @@ contract SwapRouterTest is DSTest {
             true
         );
 
-        
-        uint256 bufferLower =459896000000000000-5;
-        uint256 bufferUpper = 459896000000000000+5;
+        uint256 bufferLower = 459896000000000000 - 5;
+        uint256 bufferUpper = 459896000000000000 + 5;
 
         assertGt(maxReward, bufferLower);
         assertLt(maxReward, bufferUpper);
     }
 
+    function testCalculateMaxBeaconRewardTopLevelV3QuoteValidationWethInput(
+        uint112 amountDelta
+    ) public {
+        bool run = true;
+        if (amountDelta == 0 || amountDelta < 100000000000000000000 || !(amountDelta < 1000000000000000000000)) {
+            run = false;
+        }
+        if (run) {
+            address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+            address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+            (uint160 sqrtRatioPrice, , , , , , ) = IUniswapV3Pool(
+                0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640
+            ).slot0();
+            uint128 liquidity = IUniswapV3Pool(
+                0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640
+            ).liquidity();
+            uint160 nextSqrtPriceFromDelta = SqrtPriceMath
+                .getNextSqrtPriceFromInput(
+                    sqrtRatioPrice,
+                    liquidity,
+                    amountDelta,
+                    false
+                );
+            
+            SwapRouter.SpotReserve[]
+                memory spotReserves = new SwapRouter.SpotReserve[](3);
+            spotReserves[0]= SwapRouter.SpotReserve({
+                spotPrice: ConveyorMath.div128x128(uint256(1)<<128,limitOrderExecutor.fromSqrtX96(nextSqrtPriceFromDelta, false, usdc, weth))-2,
+                liquidity:0,
+                res0:0,
+                res1:0,
+                token0IsReserve0:false
+            });
+            spotReserves[1] = SwapRouter.SpotReserve({
+                spotPrice: ConveyorMath.div128x128(uint256(1)<<128,limitOrderExecutor.fromSqrtX96(sqrtRatioPrice, false, usdc, weth)),
+                liquidity: 0,
+                res0: 0,
+                res1: 0,
+                token0IsReserve0: false
+            });
+            spotReserves[2] = SwapRouter.SpotReserve({
+                spotPrice: ConveyorMath.div128x128(uint256(1)<<128,limitOrderExecutor.fromSqrtX96(nextSqrtPriceFromDelta, false, usdc, weth)),
+                liquidity: liquidity,
+                res0: 0,
+                res1: 0,
+                token0IsReserve0: false
+            });
+
+            OrderBook.Order memory order1 = newMockOrder(
+                weth,
+                usdc,
+                1,
+                false,
+                false,
+                0,
+                1,
+                10000000,
+                500,
+                0,
+                0,
+                0
+            );
+
+            OrderBook.Order memory order2 = newMockOrder(
+                weth,
+                usdc,
+                1,
+                false,
+                false,
+                0,
+                1,
+                10000000,
+                500,
+                0,
+                0,
+                0
+            );
+
+            OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
+            orderBatch[0] = order1;
+            orderBatch[1] = order2;
+
+            uint128 maxReward = limitOrderExecutor._calculateMaxBeaconReward(
+                spotReserves,
+                orderBatch,
+                true
+            );
+
+            uint128 amounDeltaSubFee = uint128(
+                ConveyorMath.mul64I(92233720368547760, amountDelta)
+            );
+
+            console.log(maxReward);
+            console.log(amounDeltaSubFee);
+            uint128 deltaUpper = amounDeltaSubFee +1000;
+            uint128 deltaLower = amounDeltaSubFee -1000;
+            assertGe(maxReward, deltaLower);
+            assertLe(maxReward, deltaUpper);
+        }
+    }
+
+    function testCalculateMaxBeaconRewardTopLevelV3QuoteValidationWethOutput(
+        uint112 amountDelta
+    ) public {
+        bool run = true;
+        if (amountDelta == 0 || amountDelta < 100000000000000 || !(amountDelta < 1000000000000000000)) {
+            run = false;
+        }
+        if (run) {
+            address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+            address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+            (uint160 sqrtRatioPrice, , , , , , ) = IUniswapV3Pool(
+                0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640
+            ).slot0();
+            uint128 liquidity = IUniswapV3Pool(
+                0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640
+            ).liquidity();
+            uint160 nextSqrtPriceFromDelta = SqrtPriceMath
+                .getNextSqrtPriceFromInput(
+                    sqrtRatioPrice,
+                    liquidity,
+                    amountDelta,
+                    true
+                );
+            SwapRouter.SpotReserve[]
+                memory spotReserves = new SwapRouter.SpotReserve[](3);
+            spotReserves[0]= SwapRouter.SpotReserve({
+                spotPrice: limitOrderExecutor.fromSqrtX96(nextSqrtPriceFromDelta, true, usdc, weth)+1,
+                liquidity:0,
+                res0:0,
+                res1:0,
+                token0IsReserve0:true
+            });
+            spotReserves[1] = SwapRouter.SpotReserve({
+                spotPrice: limitOrderExecutor.fromSqrtX96(sqrtRatioPrice, true, usdc, weth),
+                liquidity: 0,
+                res0: 0,
+                res1: 0,
+                token0IsReserve0: true
+            });
+            spotReserves[2] = SwapRouter.SpotReserve({
+                spotPrice: limitOrderExecutor.fromSqrtX96(nextSqrtPriceFromDelta, true, usdc, weth),
+                liquidity: liquidity,
+                res0: 0,
+                res1: 0,
+                token0IsReserve0: true
+            });
+
+            OrderBook.Order memory order1 = newMockOrder(
+                usdc,
+                weth,
+                1,
+                true,
+                true,
+                0,
+                1,
+                10000000,
+                500,
+                0,
+                0,
+                0
+            );
+
+            OrderBook.Order memory order2 = newMockOrder(
+                usdc,
+                weth,
+                1,
+                true,
+                true,
+                0,
+                1,
+                10000000,
+                500,
+                0,
+                0,
+                0
+            );
+
+            OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
+            orderBatch[0] = order1;
+            orderBatch[1] = order2;
+
+            uint128 maxReward = limitOrderExecutor._calculateMaxBeaconReward(
+                spotReserves,
+                orderBatch,
+                false
+            );
+
+            uint128 amounDeltaSubFee = uint128(
+                ConveyorMath.mul64I(92233720368547760, amountDelta)
+            );
+
+            console.log(maxReward);
+            console.log(amounDeltaSubFee);
+            uint128 deltaUpper = amounDeltaSubFee +1000;
+            uint128 deltaLower = amounDeltaSubFee -1000;
+            assertGe(maxReward, deltaLower);
+            assertLe(maxReward, deltaUpper);
+        }
+    }
 
     ///@notice Test to calculate the price divergence between two spot prices
     function testCalculatePriceDivergence(uint128 _v3Spot, uint128 _v2Outlier)

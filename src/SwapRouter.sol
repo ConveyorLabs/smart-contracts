@@ -97,10 +97,11 @@ contract SwapRouter is ConveyorTickMath {
     event UniV3SwapError(string indexed reason);
 
     //======================Constants================================
-
+    uint128 constant REWARD_MIN = 30000000000000000;
     uint128 constant MIN_FEE_64x64 = 18446744073709552;
     uint128 constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
     uint128 constant UNI_V2_FEE = 5534023222112865000;
+    uint128 constant UNI_V3_STANDARD_FEE = 92233720368547760;
     uint256 constant MAX_UINT_256 =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     uint256 constant ONE_128x128 = uint256(1) << 128;
@@ -250,8 +251,10 @@ contract SwapRouter is ConveyorTickMath {
     }
 
     ///@notice Function that determines if the max beacon reward should be applied to a batch.
-    /**@dev The max beacon reward is determined by the alpha x calculation in order to prevent profit derrived 
-    from price manipulation. This function determines if the max beacon reward must be used.*/
+    /**@dev The maxBeaconReward calculation is only used on Orders with the stoploss bool set to true. The maxBeaconReward calculation determines the delta introduced to a v2/v3 pool to move the spot price from
+    The baseSpot (least advantageous spot tracked based on order buy/sell status) to the outlierSpot (the most advantageous price for the orders). It then converts that amount into WETH, and caps the beacon reward on the 
+    v2/v3 swap fee that would have been paid for manipulating the price point.
+    */
     ///@param spotReserves - Holds the spot prices and reserve values for the batch.
     ///@param orders - All orders being prepared for execution within the batch.
     ///@param wethIsToken0 - Boolean that indicates if the token0 is Weth which determines how the max beacon reward is evaluated.
@@ -284,22 +287,22 @@ contract SwapRouter is ConveyorTickMath {
             for (uint256 i = 0; i < spotReserves.length; ) {
                 ///@notice if the order is a buy order
                 if (buy) {
-                    ///@notice if the spotPrice is less than the v2Outlier, assign the spotPrice to the v2Outlier.
+                    ///@notice if the spotPrice is less than the outlierSpot, assign the spotPrice to the outlierSpot.
                     if (spotReserves[i].spotPrice < outlierSpot) {
                         outlierIndex = i;
                         outlierSpot = spotReserves[i].spotPrice;
                     }
-                    ///@notice if the spotPrice is less than the v2Outlier, assign the spotPrice to the v2Outlier.
+                    ///@notice if the spotPrice is less than the outlierSpot, assign the spotPrice to the outlierSpot.
                     if (spotReserves[i].spotPrice > baseSpot) {
                         baseSpot = spotReserves[i].spotPrice;
                     }
                 } else {
-                    ///@notice if the order is a sell order and the spot price is greater than the v2Outlier, assign the spotPrice to the v2Outlier.
+                    ///@notice if the order is a sell order and the spot price is greater than the outlierSpot, assign the spotPrice to the outlierSpot.
                     if (spotReserves[i].spotPrice > outlierSpot) {
                         outlierIndex = i;
                         outlierSpot = spotReserves[i].spotPrice;
                     }
-                    ///@notice if the spotPrice is less than the v2Outlier, assign the spotPrice to the v2Outlier.
+                    ///@notice if the spotPrice is less than the outlierSpot, assign the spotPrice to the outlierSpot.
                     if (spotReserves[i].spotPrice < baseSpot) {
                         baseSpot = spotReserves[i].spotPrice;
                     }
@@ -315,13 +318,14 @@ contract SwapRouter is ConveyorTickMath {
         ///@dev This is separate from the previous logic to keep the stack lean and avoid stack overflows.
         uint256 priceDivergence;
 
+        ///@notice Initialize the maxBeaconReward to type(uint128).max
         maxBeaconReward = MAX_UINT_128;
 
         ///@dev Scoping to avoid stack too deep errors.
         {
             ///@notice If a v3Pair exists for the order
             if (baseSpot != outlierSpot) {
-                ///@notice Calculate proportional difference between the v3 and v2Outlier price
+                ///@notice Calculate proportional difference between the base and outlierSpot.
                 priceDivergence = ConveyorFeeMath._calculatePriceDivergence(
                     baseSpot,
                     outlierSpot
@@ -329,6 +333,7 @@ contract SwapRouter is ConveyorTickMath {
 
                 ///@notice If the difference crosses the alphaXDivergenceThreshold, then calulate the max beacon fee.
                 if (priceDivergence > alphaXDivergenceThreshold) {
+                    ///@notice If the outlierSpot is Uniswap v2 then calculate the max beaconReward with alphaX.
                     if (dexes[outlierIndex].isUniV2) {
                         maxBeaconReward = ConveyorFeeMath
                             ._calculateMaxBeaconReward(
@@ -338,6 +343,7 @@ contract SwapRouter is ConveyorTickMath {
                                 UNI_V2_FEE
                             );
                     } else {
+                        ///@notice If the outlierSpot is Uniswap V3 use the sqrtPriceMath library to calculate the amountDelta needed to move the price from baseSpot -> outlierSpot.
                         maxBeaconReward = uint128(
                             calculateV3MaxReward(
                                 spotReserves,
@@ -349,28 +355,34 @@ contract SwapRouter is ConveyorTickMath {
                                 buy
                             )
                         );
-                        console.log(maxBeaconReward);
 
-                        maxBeaconReward = !((!wethIsToken0 && !buy) ||
-                            (buy && wethIsToken0))
-                            ? (
-                                IERC20(tokenOut).decimals() < uint8(18)
-                                    ? uint128(
-                                        maxBeaconReward *
-                                            (10 **
-                                                (18 -
-                                                    IERC20(tokenOut)
-                                                        .decimals()))
-                                    )
-                                    : uint128(
-                                        maxBeaconReward /
-                                            (10 **
-                                                (IERC20(tokenOut).decimals() -
-                                                    18))
-                                    )
-                            )
+                        ///@notice If wethIsToken0 and buy || !buy && !wethIsToken0 then the delta computed will be tokenOut.
+                        ///@dev Normalize the tokenOut decimals to 18 decimals.
+                        maxBeaconReward = !buy
+                            ? (wethIsToken0 ///@notice wethIsToken0 & sell order status. So, the highest price quoting WETH will be most advantageous. ///@notice To move the price to quote WETH at a higher valuation, tokenOut has to be introduced to the pool. ///So, convert the maxBeaconReward to the standard WETH decimals.
+                                ? (
+                                    maxBeaconReward=IERC20(tokenOut).decimals() < uint8(18)
+                                        ? uint128(
+                                            maxBeaconReward *
+                                                (10 **
+                                                    (18 -
+                                                        IERC20(tokenOut)
+                                                            .decimals()))
+                                        )
+                                        : uint128(
+                                            maxBeaconReward /
+                                                (10 **
+                                                    (IERC20(tokenOut)
+                                                        .decimals() - 18))
+                                        )
+                                )
+                                : ///@notice Otherwise weth will be the delta quoted to move the price.
+                                maxBeaconReward = maxBeaconReward)
                             : (
-                                IERC20(tokenIn).decimals() < uint8(18)
+                                ///@notice Weth is token0 and orderBatch status is buy. Therefore to depreciate the quote of Weth in the pool weth would have to be introduced into the reserves.
+                                wethIsToken0
+                                    ? (maxBeaconReward = maxBeaconReward)///@notice Weth is tokenOut and orderBatch status is buy. The delta introduced to the pool would have to be on tokenIn, so convert the tokenIn amount to 18 decimals.
+                                    : maxBeaconReward=IERC20(tokenIn).decimals() < uint8(18)
                                     ? uint128(
                                         maxBeaconReward *
                                             (10 **
@@ -384,20 +396,56 @@ contract SwapRouter is ConveyorTickMath {
                                                     18))
                                     )
                             );
+
+                        ///@notice Set the maxBeaconReward to the delta*V3_SWAP_FEE set to 0.005.
+                        maxBeaconReward = uint128(
+                            ConveyorMath.mul64I(
+                                UNI_V3_STANDARD_FEE,
+                                maxBeaconReward
+                            )
+                        );
                     }
                 }
             }
         }
 
-        ///@notice If weth is not token0, then convert the maxBeaconValue into Weth.
-        if ((!wethIsToken0 && !buy) || (buy && wethIsToken0)) {
-            ///@notice Convert the alphaX*fee quantity into Weth
-            maxBeaconReward = uint128(
-                ConveyorMath.mul128I(outlierSpot, maxBeaconReward)
-            );
-        }
+        {
+            ///@notice If weth is not token0, then convert the maxBeaconValue into Weth.
+            if ((!wethIsToken0 && !buy) || (buy && !wethIsToken0)) {
+                if (!dexes[outlierIndex].isUniV2) {
+                    if (wethIsToken0) {
+                        maxBeaconReward = uint128(
+                            ConveyorMath.mul128I(
+                                ConveyorMath.div128x128(
+                                    uint256(1) << 128,
+                                    outlierSpot
+                                ),
+                                maxBeaconReward
+                            )
+                        );
+                    } else {
+                        ///@notice Convert the alphaX*fee quantity into Weth
+                        maxBeaconReward = uint128(
+                            ConveyorMath.mul128I(outlierSpot, maxBeaconReward)
+                        );
+                        console.log(outlierSpot);
+                    }
+                } else {
+                    if (!wethIsToken0) {
+                        ///@notice Convert the alphaX*fee quantity into Weth
+                        maxBeaconReward = uint128(
+                            ConveyorMath.mul128I(outlierSpot, maxBeaconReward)
+                        );
+                    }
+                }
+            }
 
-        return maxBeaconReward;
+            // if(maxBeaconReward < REWARD_MIN){
+            //     return REWARD_MIN;
+            // }
+
+            return maxBeaconReward;
+        }
     }
 
     function calculateV3MaxReward(
@@ -437,8 +485,8 @@ contract SwapRouter is ConveyorTickMath {
                             false
                         )
                         : SqrtPriceMath.getAmount1Delta(
-                            sqrtRatioBX96,
                             sqrtRatioAX96,
+                            sqrtRatioBX96,
                             spotReserves[v2OutlierIndex].liquidity,
                             false
                         )
@@ -452,8 +500,8 @@ contract SwapRouter is ConveyorTickMath {
                             false
                         )
                         : SqrtPriceMath.getAmount0Delta(
-                            sqrtRatioBX96,
                             sqrtRatioAX96,
+                            sqrtRatioBX96,
                             spotReserves[v2OutlierIndex].liquidity,
                             false
                         )

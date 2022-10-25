@@ -77,7 +77,7 @@ contract ConveyorTickMath {
         bool token0IsReserve0,
         address token0,
         address token1
-    ) internal view returns (uint256 priceX128) {
+    ) public view returns (uint256 priceX128) {
         unchecked {
             ///@notice Cache the difference between the input and output token decimals. p=y/x ==> p*10**(x_decimals-y_decimals)>>Q192 will be the proper price in base 10.
             int8 decimalShift = int8(IERC20(token0).decimals()) -
@@ -257,7 +257,7 @@ contract ConveyorTickMath {
         uint256 spotOutlier,
         int8 shift,
         bool token0IsReserve0
-    ) internal pure returns (uint160 sqrtRatioAX96, uint160 sqrtRatioBX96) {
+    ) public pure returns (uint160 sqrtRatioAX96, uint160 sqrtRatioBX96) {
         bytes16 outlierSpotQuad = QuadruplePrecision.from128x128(
             int256(spotOutlier)
         );
