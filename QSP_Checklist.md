@@ -570,6 +570,7 @@ Relevant Gas Snapshot Post Changes:
 
 # QSP-27 Verifier's Dilemma ❌
 
+
 # QSP-28 Taxed Token Swaps Using Uniswap V3 Might Fail ❌
 
 # **Code Documentation**
