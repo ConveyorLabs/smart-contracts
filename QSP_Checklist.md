@@ -84,87 +84,248 @@ Severity: 🔴**High Risk**🔴
 ## Description
 Some funds-transferring functions in the contracts are declared as public or external but without any authorization checks, allowing anyone to arbitrarily call the functions and transfer funds.
 
-## QSP-1_1
+### QSP-1_1
 The visibility of the `safeTransferETH()` function in several contracts is public. The visibility allows anyone to call this function to transfer the ETH on the contract to any address directly. The following is the list of affected contracts: `LimitOrderRouter.sol`, `SwapRouter.sol`, `TaxedTokenLimitOrderExecution.sol`,`TokenToTokenLimitOrderExecution.sol`, `TokenToWethLimitOrderExecution.sol`.
 
 ### Resolution
 The `safeTransferETH()` function visibility was changed to internal for all contracts affected.
- 
-[Link to commit](https://github.com/ConveyorLabs/LimitOrders-v0/commit/4a39d554209b0c2c3f45f7a41944bc60a43340db)
 
-## QSP-1_2
+### QSP-1_2
 In the SwapRouter contract, several `transferXXX()` functions allow anyone to call and direct transfer the funds away. The following is the list of functions: `transferTokensToContract()`, `transferTokensOutToOwner()`, and `transferBeaconReward()`.
  
 ### Resolution
+All `transferXXX()` functions were updated to only be callable by the execution contract.
 
 
-
-## QSP-1_3
+### QSP-1_3
 The `SwapRouter.uniswapV3SwapCallback()` function does not verify that it is called from the Uniswap V3 contract, allowing anyone to steal funds by supplying fake inputs.
 
 ### Resolution
+
+The Uniswapv3 swap callback now has verification that the caller is a Uniswapv3 pool. First, the pool address is derived by calling the Uniswapv3 Factory. Then the function checks if the msg.sender is the pool address.
+
+```jav    
+     address poolAddress = IUniswapV3Factory(uniswapV3Factory).getPool(
+            tokenIn,
+            tokenOut,
+            fee
+        );
+
+        if (msg.sender != poolAddress) {
+            revert UnauthorizedUniswapV3CallbackCaller();
+        }
+```
+
+
+
+
 
 # QSP-2 Missing Authorization for Execution Contracts ✅
 ## Description
 Several functions are missing authorization validation and allow anyone to call the function instead of the specific callers. Specifically, the "execution" contracts are designed to be triggered by the `LimitOrderRouter` contract. However, those functions do not verify the caller. If anyone calls those functions on the "execution" contract, it will trigger the order execution without updating the order status as fulfilled.
 
-## QSP-2_1
-`TaxedTokenLimitOrderExecution.executeTokenToWethTaxedOrders()`
+### Resolution
+Execution functions were merged into a single execution contract called `LimitOrderExecutor.sol`. Validation was added to each execution function via a modifier called `onlyLimitOrderRouter`.
 
-### Resolution Details
 
-## QSP-2_2
-`TaxedTokenLimitOrderExecution.executeTokenToTokenTaxedOrders()`
- 
-### Resolution Details
-
-## QSP-2_3
-`TokenToTokenLimitOrderExecution.executeTokenToTokenOrders()`
-
-### Resolution Details
-
-## QSP-2_4
-`TokenToTokenLimitOrderExecution.executeTokenToTokenOrderSingle()`
-
-### Resolution Details
-
-## QSP-2_5
-`TokenToWethLimitOrderExecution.executeTokenToWethOrders()`
-
-### Resolution Details
-
-## QSP-2_6
-`TokenToWethLimitOrderExecution.executeTokenToWethOrderSingle()`
-
-### Resolution Details
+```js
+modifier onlyLimitOrderRouter() {
+    if (msg.sender != LIMIT_ORDER_ROUTER) {
+        revert MsgSenderIsNotLimitOrderRouter();
+    }
+    _;
+}
+```
 
 # QSP-3 Ignoring Return Value of ERC20 Transfer Functions ✅
 
+## Description
+Several functions use ERC20's and without checking their return values. Since per the , these functions merely throw, some implementations return on error. This is very dangerous, as transfers might not have been executed while the contract code assumes they did.
+
+### Resolution
+SafeERC20 was implemented for ERC20 transfer functions.
+
+
 # QSP-4 Cancelling Order Provides Compensation Twice ✅
+### Description
+After validating that a user does not have sufficient gas credits, the function validateAndCancelOrder() first calls _cancelOrder(), which removes the order from the
+system, transfers compensation to the message sender and emits an event. After the call, the function itself sends compensation to the message sender again and emits an
+event for the second time.
+
+### Resolution
+Duplicate logic was removed.
 
 # QSP-5 Updating an Existing Order Can Be Malicious ✅
+### Description
 
-# QSP-6 Same Order Id Can Be Executed Multiple Times ✅ 
+The function updateOrder() allows the order owner to change the old order's parameters. From the code, the owner is allowed to change anything except the member orderID.
+
+
+### Resolution
+The `updateOrder()` function was updated to take a quantity and price, which are now the only fields that are updated instead of replacing the old order. If the user wants to update any other fields, they will have to cancel the order and place a new one. The function now has the following signature:
+
+```javascript
+function updateOrder(
+    bytes32 orderId, 
+    uint128 price, 
+    uint128 quantity) public {
+   //--snip--   
+  }
+```
+
+
+# QSP-6 Same Order Id Can Be Executed Multiple Times ✅
+### Description
+In the current implementation, if the input orderIds in the function executeOrders() contains duplicate orderIDs, the function will execute the same order more than once.
+
+### Resolution
+Logic was added within the `_resolveCompletedOrder()` function to check if the order exists in the orderIdToOrder mapping. Since the orderId gets cleaned up from this mapping after successful execution, if there is a duplicate orderId in the array of orderIds being executed, the orderToOrderId mapping will return 0 for the duplicated orderId, causing a reversion.
+
+```javascript=
+
+    function _resolveCompletedOrder(bytes32 orderId) internal {
+        ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
+        Order memory order = orderIdToOrder[orderId];
+
+        ///@notice If the order has already been removed from the contract revert.
+        if (order.orderId == bytes32(0)) {
+            revert DuplicateOrdersInExecution();
+        }
+```
+
 
 # QSP-7 Incorrectly Computing the Best Price ✅
+### Description
+The function _findBestTokenToWethExecutionPrice() initializes the bestPrice as 0 for buy orders and type(uint256).max for sell orders. For buy orders, the code
+checks for each execution price whether that price is less than the current bestPrice and updates the bestPrice and bestPriceIndex accordingly. Since there is no "better" price than 0,
+the function will always return the default value of bestPriceIndex, which is 0. Similarly for sell orders, the bestPrice is already the best it can be and will always return 0.
+
+### Resolution
 
 # QSP-8 Reentrancy ✅
+### Description
+A reentrancy vulnerability is a scenario where an attacker can repeatedly call a function from itself, unexpectedly leading to potentially disastrous results. The following are places
+that are at risk of reentrancy: `LimitOrderRouter.executeOrders()`, `withdrawConveyorFees()`.
+
+
+### Resolution
+
+Logic to stop reentrancy has been added to `LimitOrderRouter.executeOrders()` and `withdrawConveyorFees()`. 
+
+```javascript=
+
+
+    ///@notice Modifier to restrict reentrancy into a function.
+    modifier nonReentrant() {
+        if (reentrancyStatus == true) {
+            revert Reentrancy();
+        }
+        reentrancyStatus = true;
+        _;
+        reentrancyStatus = false;
+    }
+
+    
+    function executeOrders(bytes32[] calldata orderIds) external nonReentrant {
+        
+        //--snip--
+    }
+
+```
+
+
+```javascript=
+
+    ///@notice Function to withdraw owner fee's accumulated
+    function withdrawConveyorFees() external {
+        if (reentrancyStatus == true) {
+            revert Reentrancy();
+        }
+        reentrancyStatus = true;
+   //--snip--     
+```
 
 # QSP-9 Not Cancelling Order as Expected ✅
+### Description
+A few code comments state that orders should be cancelled in certain cases while the implementation does not cancel them.
+
+### Resolution
+Comments referring to order cancellation in these instances have been removed or cancellation logic has been added.
 
 # QSP-10 Granting Insufficient Gas Credit to the Executor ❎
 
+### Description
+The calculateExecutionGasConsumed() function returns the gas difference of the initialTxGas and the current gas retrieved by the gas() call. The returned value is the
+gas without multiplying it with the gas price. The calculateExecutionGasCompensation() function uses the returned gas value directly to calculate the gasDecrementValue. The
+gasDecrementValue does not take the gas price into account either. Consequently, the executor will not get enough gas compensation with the current implementation.
+
+### Resolution
+The `calculateExecutionGasConsumed()` function was patched to multiply the gas price with the execution gas to decrement the correct amount of gas from the gasCredit balance and pay the off-chain executor. 
+
+
 # QSP-11 Integer Overflow / Underflow ✅
+### Description
+Description: Integer overflow/underflow occurs when an integer hits its bit-size limit. Every integer has a set range; the value loops back around when that range is passed. A clock is a good
+analogy: at 11:59, the minute hand goes to 0, not 60, because 59 is the most significant possible minute.
+We noticed that the ConveyorMath library implements changes from the ABDK library and introduced several issues because the overflow protection on the original library would work only on
+the signed integers or with 128 bits. The overflow can lead to a miscalculation of the fees and rewards in the SwapRouter contract.
+
+### Resolution
 
 # QSP-12 Updating Order Performs Wrong Total Order Quantity Accounting ✅
+### Description
+The updateOrders() function first retrieves the value for the oldOrder.tokenIn, then performs adjustments depending on whether the new order has a higher or lower order quantity. The
+first issue with the function is that the else branch of the adjustment code is incorrect. If we assume the old value was 100 and the new value is 50, the total will be updated by += 100 - 50,
+i.e. an increase by 50 instead of a decrease. While this code path is exercised in a test, the total order value is never checked to be equal to the expected value.
+Additionally, the function updates the total order quantity with a call to updateTotalOrdersQuantity(newOrder.tokenIn, ...). Since it is never checked that the tokenIn member of
+the old and new order are the same, this could update some completely unrelated token order quantity.
 
+### Resolution
+
+The updated order quantity now calculates the correct value.
+
+
+```javascript=
+
+totalOrdersValue += newQuantity;
+totalOrdersValue -= oldOrder.quantity;
+
+```
 # QSP-13 Not Always Taking Beacon Reward Into Account ✅
+### Description
+In the TaxedTokenLimitOrderExecution and TokenToTokenLimitOrderExecution contracts, the _executeTokenToTokenOrder() functions will always return a zero
+amount beaconReward when order.tokenIn != WETH. Note that the function _executeSwapTokenToWethOrder() has the logic for computing beaconReward in it but the
+beaconReward value is not returned as part of the function. The _executeTokenToTokenOrder() will need to get the beaconReward value from the
+_executeSwapTokenToWethOrder() function.
+
+### Resolution
+
 
 # QSP-14 Denial of Service Due to Unbound Iteration ❌
+### Description
+Description: There is a limit on how much gas a block can execute on the network. It can consume more gas than the network limit when iterating over an unbounded list. In that case, the
+transaction will never work and block the service. The following is the list of places that are at risk:
+
+### Resolution
 
 # QSP-15 Missing Input Validation ✅
+### Description
+//TODO: check if all inputs ahve ben validated now
+
+### Resolution
 
 # QSP-16 Gas Oracle Reliability ❌
+### Description
+1. Chainlink updates the feeds periodically (heartbeat idle time). The application should check that the timestamp of the latest answer is updated within the latest
+heartbeat or within the time limits acceptable for the application (see: Chainlink docs). The GasOracle.getGasPrice() function does not check the timestamp of the
+answer from the IAggregatorV3(gasOracleAddress).latestRoundData() call.
+2. The "Fast Gas Data Feed" prices from Chainlink can be manipulated according to their docs. The application should be designed to detect gas price volatility or
+malicious activity.
+
+
+### Resolution
+The contract now checks if the GasOracle timestamp is past 7200 seconds, denoting that the gas price is stale. The stale price time is 7200 seconds as the Chainlink docs mention that a price update should happen every time the real-time price deviates 25% from the last gas price, or when 7200 seconds has passed since the last update.
+
 
 # QSP-17 Math Function Returns Wrong Type ✅
 Severity: 🟡Low Risk🟡
