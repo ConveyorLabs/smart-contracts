@@ -439,19 +439,6 @@ contract OrderBook is GasOracle {
         totalOrdersQuantity[totalOrdersValueKey] -= quantity;
     }
 
-    ///@notice Increment an owner's total order value on a specific token.
-    ///@param token - Token address to increment the total order value on.
-    ///@param owner - Account address to increment the total order value from.
-    ///@param quantity - Amount to increment the total order value by.
-    function incrementTotalOrdersQuantity(
-        address token,
-        address owner,
-        uint256 quantity
-    ) internal {
-        bytes32 totalOrdersValueKey = keccak256(abi.encode(owner, token));
-        totalOrdersQuantity[totalOrdersValueKey] += quantity;
-    }
-
     ///@notice Update an owner's total order value on a specific token.
     ///@param token - Token address to update the total order value on.
     ///@param owner - Account address to update the total order value from.
