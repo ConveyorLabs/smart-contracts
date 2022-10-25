@@ -18,7 +18,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@notice The Maximum Reward a beacon can receive from stoploss execution.
     ///Note:
     /*
-        The MAX_BEACON_REWARD is set to 0.06 WETH. Also Note the protocol is receiving 0.05 WETH for trades with fees surpassing the MAX_BEACON_REWARD.
+        The STOP_LOSS_MAX_BEACON_REWARD is set to 0.06 WETH. Also Note the protocol is receiving 0.05 WETH for trades with fees surpassing the STOP_LOSS_MAX_BEACON_REWARD.
         What this means is that for stoploss orders, if the quantity of the Order surpasses the threshold such that 0.1% of the order quantity in WETH 
         is greater than 0.1 WETH total. Then the fee paid by the user will be 0.1/OrderQuantity where OrderQuantity is in terms of the amount received from the 
         output of the first Swap if WETH is not the input token. Note: For all other types of Limit Orders there is no hardcoded cap on the fee paid by the end user.
@@ -26,7 +26,7 @@ contract LimitOrderExecutor is SwapRouter {
         fee being paid is roughly $750,000. The fee paid by the user ranges from 0.5%-0.1% following a logistic curve which approaches 0.1% assymtocically in the limit
         as OrderQuantity -> infinity for all non stoploss orders. 
     */
-    uint128 constant MAX_BEACON_REWARD_STOPLOSS = 50000000000000000;
+    uint128 constant STOP_LOSS_MAX_BEACON_REWARD = 50000000000000000;
 
     //----------------------Modifiers------------------------------------//
 
@@ -229,9 +229,9 @@ contract LimitOrderExecutor is SwapRouter {
         );
         ///@notice If the order is a stoploss, and the beaconReward surpasses 0.05 WETH. Cap the protocol and the off chain executor at 0.05 WETH.
         if (order.stoploss) {
-            if (MAX_BEACON_REWARD < beaconReward) {
-                beaconReward = MAX_BEACON_REWARD;
-                conveyorReward = MAX_BEACON_REWARD;
+            if (STOP_LOSS_MAX_BEACON_REWARD < beaconReward) {
+                beaconReward = STOP_LOSS_MAX_BEACON_REWARD;
+                conveyorReward = STOP_LOSS_MAX_BEACON_REWARD;
             }
         }
 
@@ -370,9 +370,9 @@ contract LimitOrderExecutor is SwapRouter {
 
                 ///@notice If the order is a stoploss, and the beaconReward surpasses 0.05 WETH. Cap the protocol and the off chain executor at 0.05 WETH.
                 if (order.stoploss) {
-                    if (MAX_BEACON_REWARD < beaconReward) {
-                        beaconReward = MAX_BEACON_REWARD;
-                        conveyorReward = MAX_BEACON_REWARD;
+                    if (STOP_LOSS_MAX_BEACON_REWARD < beaconReward) {
+                        beaconReward = STOP_LOSS_MAX_BEACON_REWARD;
+                        conveyorReward = STOP_LOSS_MAX_BEACON_REWARD;
                     }
                 }
 
