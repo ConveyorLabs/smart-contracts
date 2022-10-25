@@ -60,7 +60,7 @@ contract LimitOrderRouter is OrderBook {
     mapping(address => uint256) public gasCreditBalance;
 
     ///@notice The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
-    uint256 constant ORDER_EXECUTION_GAS_COST = 300000;
+    uint256 public constant ORDER_EXECUTION_GAS_COST = 300000;
 
     ///@notice State variable to track the amount of gas initally alloted during executeOrders.
     uint256 initialTxGas;
