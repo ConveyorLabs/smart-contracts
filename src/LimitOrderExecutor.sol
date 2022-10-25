@@ -14,6 +14,20 @@ contract LimitOrderExecutor is SwapRouter {
     address immutable LIMIT_ORDER_QUOTER;
     address public immutable LIMIT_ORDER_ROUTER;
 
+    ///====================================Constants==============================================//
+    ///@notice The Maximum Reward a beacon can receive from stoploss execution. 
+    ///Note: 
+    /*
+        The MAX_BEACON_REWARD is set to 0.06 WETH. Also Note the protocol is receiving 0.04 WETH for trades with fees surpassing the MAX_BEACON_REWARD.
+        What this means is that for stoploss orders, if the quantity of the Order surpasses the threshold such that 0.1% of the order quantity in WETH 
+        is greater than 0.1 WETH total. Then the fee paid by the user will be 0.1/OderQuantity where OrderQuantity is in terms of the amount received from the 
+        output of the first Swap if WETH is not the input token. Note: For all other types of Limit Orders there is no hardcoded cap on the fee paid by the end user.
+        Therefore 0.1% of the OrderQuantity will be the minimum fee paid. The fee curve reaches 0.1% in the limit, but the threshold for this 
+        fee being paid is roughly $750,000. The fee paid by the user ranges from 0.5%-0.1% following a logistic curve which approaches 0.1% assymtocically in the limit
+        as OrderQuantity -> infinity for all non stoploss orders. 
+    */
+    uint128 constant MAX_BEACON_REWARD= 60000000000000000;
+
     //----------------------Modifiers------------------------------------//
 
     ///@notice Modifier to restrict smart contracts from calling a function.
@@ -92,11 +106,7 @@ contract LimitOrderExecutor is SwapRouter {
             );
 
         ///@notice Calculate the max beacon reward from the spot reserves.
-        uint128 maxBeaconReward = isStopLossExecution ? calculateMaxBeaconReward(
-            spotReserveAToWeth,
-            orders,
-            false
-        ) : type(uint128).max;
+        uint128 maxBeaconReward = isStopLossExecution ? MAX_BEACON_REWARD : type(uint128).max;
 
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
@@ -273,9 +283,7 @@ contract LimitOrderExecutor is SwapRouter {
                     lpAddressWethToB
                 );
             ///@notice Get the Max beacon reward on the SpotReserves
-            maxBeaconReward = isStopLossExecution ? (WETH != tokenIn
-                ? calculateMaxBeaconReward(spotReserveAToWeth, orders, false)
-                : calculateMaxBeaconReward(spotReserveWethToB, orders, true)) : type(uint128).max;
+            maxBeaconReward = isStopLossExecution ? MAX_BEACON_REWARD : type(uint128).max;
         }
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
