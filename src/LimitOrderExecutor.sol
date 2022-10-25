@@ -15,18 +15,18 @@ contract LimitOrderExecutor is SwapRouter {
     address public immutable LIMIT_ORDER_ROUTER;
 
     ///====================================Constants==============================================//
-    ///@notice The Maximum Reward a beacon can receive from stoploss execution. 
-    ///Note: 
+    ///@notice The Maximum Reward a beacon can receive from stoploss execution.
+    ///Note:
     /*
-        The MAX_BEACON_REWARD is set to 0.06 WETH. Also Note the protocol is receiving 0.04 WETH for trades with fees surpassing the MAX_BEACON_REWARD.
+        The MAX_BEACON_REWARD is set to 0.06 WETH. Also Note the protocol is receiving 0.05 WETH for trades with fees surpassing the MAX_BEACON_REWARD.
         What this means is that for stoploss orders, if the quantity of the Order surpasses the threshold such that 0.1% of the order quantity in WETH 
-        is greater than 0.1 WETH total. Then the fee paid by the user will be 0.1/OderQuantity where OrderQuantity is in terms of the amount received from the 
+        is greater than 0.1 WETH total. Then the fee paid by the user will be 0.1/OrderQuantity where OrderQuantity is in terms of the amount received from the 
         output of the first Swap if WETH is not the input token. Note: For all other types of Limit Orders there is no hardcoded cap on the fee paid by the end user.
         Therefore 0.1% of the OrderQuantity will be the minimum fee paid. The fee curve reaches 0.1% in the limit, but the threshold for this 
         fee being paid is roughly $750,000. The fee paid by the user ranges from 0.5%-0.1% following a logistic curve which approaches 0.1% assymtocically in the limit
         as OrderQuantity -> infinity for all non stoploss orders. 
     */
-    uint128 constant MAX_BEACON_REWARD= 60000000000000000;
+    uint128 constant MAX_BEACON_REWARD = 50000000000000000;
 
     //----------------------Modifiers------------------------------------//
 
@@ -83,13 +83,10 @@ contract LimitOrderExecutor is SwapRouter {
     }
 
     ///@notice Function to execute a batch of Token to Weth Orders.
-    ///@param orders The orders to be executed. 
-    ///@param isStopLossExecution Boolean indicating whether the orders stoploss status is true. 
-    function executeTokenToWethOrders(OrderBook.Order[] memory orders, bool isStopLossExecution)
-        external
-        onlyLimitOrderRouter
-        returns (uint256, uint256)
-    {
+    ///@param orders The orders to be executed.
+    function executeTokenToWethOrders(
+        OrderBook.Order[] memory orders
+    ) external onlyLimitOrderRouter returns (uint256, uint256) {
         ///@notice Get all of the execution prices on TokenIn to Weth for each dex.
         ///@notice Get all prices for the pairing
         (
@@ -104,9 +101,6 @@ contract LimitOrderExecutor is SwapRouter {
                 spotReserveAToWeth,
                 lpAddressesAToWeth
             );
-
-        ///@notice Calculate the max beacon reward from the spot reserves.
-        uint128 maxBeaconReward = isStopLossExecution ? MAX_BEACON_REWARD : type(uint128).max;
 
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
@@ -129,7 +123,6 @@ contract LimitOrderExecutor is SwapRouter {
                     uint256 conveyorReward
                 ) = _executeTokenToWethOrder(
                         orders[i],
-                        maxBeaconReward,
                         executionPrices[bestPriceIndex]
                     );
                 ///@notice Increment the total beacon and conveyor reward.
@@ -163,7 +156,6 @@ contract LimitOrderExecutor is SwapRouter {
     ///@param executionPrice - The best priced TokenToWethExecutionPrice to execute the order on.
     function _executeTokenToWethOrder(
         OrderBook.Order memory order,
-        uint128 maxBeaconReward,
         SwapRouter.TokenToWethExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
         ///@notice Swap the batch amountIn on the batch lp address and send the weth back to the contract.
@@ -172,7 +164,6 @@ contract LimitOrderExecutor is SwapRouter {
             uint128 conveyorReward,
             uint128 beaconReward
         ) = _executeSwapTokenToWethOrder(
-                maxBeaconReward,
                 executionPrice.lpAddressAToWeth,
                 order
             );
@@ -188,7 +179,6 @@ contract LimitOrderExecutor is SwapRouter {
     ///@param order - The order to be executed.
     ///@return amountOutWeth - The amountOut in Weth after the swap.
     function _executeSwapTokenToWethOrder(
-        uint128 maxBeaconReward,
         address lpAddressAToWeth,
         OrderBook.Order memory order
     )
@@ -237,10 +227,13 @@ contract LimitOrderExecutor is SwapRouter {
             protocolFee,
             amountOutWeth
         );
-
-        beaconReward = maxBeaconReward > beaconReward
-            ? beaconReward
-            : maxBeaconReward;
+        ///@notice If the order is a stoploss, and the beaconReward surpasses 0.05 WETH. Cap the protocol and the off chain executor at 0.05 WETH.
+        if (order.stoploss) {
+            if (MAX_BEACON_REWARD < beaconReward) {
+                beaconReward = MAX_BEACON_REWARD;
+                conveyorReward = MAX_BEACON_REWARD;
+            }
+        }
 
         ///@notice Get the AmountIn for weth to tokenB.
         amountOutWeth = amountOutWeth - (beaconReward + conveyorReward);
@@ -248,15 +241,12 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
-    ///@param isStopLossExecution Boolean indicating whether the orders stoploss status is true. 
-    function executeTokenToTokenOrders(OrderBook.Order[] memory orders, bool isStopLossExecution)
-        external
-        onlyLimitOrderRouter
-        returns (uint256, uint256)
-    {
+    function executeTokenToTokenOrders(
+        OrderBook.Order[] memory orders
+    ) external onlyLimitOrderRouter returns (uint256, uint256) {
         TokenToTokenExecutionPrice[] memory executionPrices;
         address tokenIn = orders[0].tokenIn;
-        uint128 maxBeaconReward;
+  
         uint24 feeIn = orders[0].feeIn;
         uint24 feeOut = orders[0].feeOut;
 
@@ -282,8 +272,7 @@ contract LimitOrderExecutor is SwapRouter {
                     spotReserveWethToB,
                     lpAddressWethToB
                 );
-            ///@notice Get the Max beacon reward on the SpotReserves
-            maxBeaconReward = isStopLossExecution ? MAX_BEACON_REWARD : type(uint128).max;
+            
         }
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
@@ -306,7 +295,6 @@ contract LimitOrderExecutor is SwapRouter {
                     uint256 conveyorReward
                 ) = _executeTokenToTokenOrder(
                         orders[i],
-                        maxBeaconReward,
                         executionPrices[bestPriceIndex]
                     );
                 totalBeaconReward += beaconReward;
@@ -338,7 +326,6 @@ contract LimitOrderExecutor is SwapRouter {
     ///@param executionPrice - The best priced TokenToTokenExecution price to execute the order on.
     function _executeTokenToTokenOrder(
         OrderBook.Order memory order,
-        uint128 maxBeaconReward,
         TokenToTokenExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
         ///@notice Initialize variables to prevent stack too deep.
@@ -356,7 +343,6 @@ contract LimitOrderExecutor is SwapRouter {
                     conveyorReward,
                     beaconReward
                 ) = _executeSwapTokenToWethOrder(
-                    maxBeaconReward,
                     executionPrice.lpAddressAToWeth,
                     order
                 );
@@ -382,10 +368,13 @@ contract LimitOrderExecutor is SwapRouter {
                 (conveyorReward, beaconReward) = ConveyorFeeMath
                     .calculateReward(protocolFee, uint128(amountIn));
 
-                ///@notice Adjust the beaconReward according to the maxBeaconReward.
-                beaconReward = beaconReward < maxBeaconReward
-                    ? beaconReward
-                    : maxBeaconReward;
+                ///@notice If the order is a stoploss, and the beaconReward surpasses 0.05 WETH. Cap the protocol and the off chain executor at 0.05 WETH.
+                if (order.stoploss) {
+                    if (MAX_BEACON_REWARD < beaconReward) {
+                        beaconReward = MAX_BEACON_REWARD;
+                        conveyorReward = MAX_BEACON_REWARD;
+                    }
+                }
 
                 ///@notice Get the amountIn for the Weth to tokenB swap.
                 amountInWethToB = amountIn - (beaconReward + conveyorReward);
