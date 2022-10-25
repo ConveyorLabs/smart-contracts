@@ -16,7 +16,10 @@ contract OrderBook is GasOracle {
     constructor(address _gasOracle, address _limitOrderExecutor)
         GasOracle(_gasOracle)
     {
-        require(_limitOrderExecutor != address(0), "Invalid LimitOrderExecutor Address");
+        require(
+            _limitOrderExecutor != address(0),
+            "Invalid LimitOrderExecutor Address"
+        );
         EXECUTOR_ADDRESS = _limitOrderExecutor;
     }
 
@@ -279,7 +282,6 @@ contract OrderBook is GasOracle {
         ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
         if (totalApprovedQuantity < newOrder.quantity) {
             revert InsufficientAllowanceForOrderUpdate();
-        
         }
 
         ///@notice Update the order details stored in the system.
@@ -385,31 +387,6 @@ contract OrderBook is GasOracle {
             order.owner,
             order.quantity
         );
-    }
-
-    ///@notice Function to resolve an order as completed.
-    ///@param order - The order that should be resolved from the system.
-    function _resolveCompletedOrderAndEmitOrderFufilled(Order memory order)
-        internal
-    {
-        ///@notice Remove the order from the system
-        delete orderIdToOrder[order.orderId];
-        delete addressToOrderIds[order.owner][order.orderId];
-
-        ///@notice Decrement from total orders per address
-        --totalOrdersPerAddress[order.owner];
-
-        ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-        decrementTotalOrdersQuantity(
-            order.tokenIn,
-            order.owner,
-            order.quantity
-        );
-
-        ///@notice Emit an event to notify the off-chain executors that the order has been fufilled.
-        bytes32[] memory orderIds = new bytes32[](1);
-        orderIds[0] = order.orderId;
-        emit OrderFufilled(orderIds);
     }
 
     ///@notice Function to resolve an order as completed.

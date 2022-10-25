@@ -69,13 +69,12 @@ contract LimitOrderExecutor is SwapRouter {
     }
 
     ///@notice Function to execute a batch of Token to Weth Orders.
-    ///@param orders The orders to be executed. 
-    ///@param isStopLossExecution Boolean indicating whether the orders stoploss status is true. 
-    function executeTokenToWethOrders(OrderBook.Order[] memory orders, bool isStopLossExecution)
-        external
-        onlyLimitOrderRouter
-        returns (uint256, uint256)
-    {
+    ///@param orders The orders to be executed.
+    ///@param isStopLossExecution Boolean indicating whether the orders stoploss status is true.
+    function executeTokenToWethOrders(
+        OrderBook.Order[] memory orders,
+        bool isStopLossExecution
+    ) external onlyLimitOrderRouter returns (uint256, uint256) {
         ///@notice Get all of the execution prices on TokenIn to Weth for each dex.
         ///@notice Get all prices for the pairing
         (
@@ -92,11 +91,9 @@ contract LimitOrderExecutor is SwapRouter {
             );
 
         ///@notice Calculate the max beacon reward from the spot reserves.
-        uint128 maxBeaconReward = isStopLossExecution ? calculateMaxBeaconReward(
-            spotReserveAToWeth,
-            orders,
-            false
-        ) : type(uint128).max;
+        uint128 maxBeaconReward = isStopLossExecution
+            ? calculateMaxBeaconReward(spotReserveAToWeth, orders, false)
+            : type(uint128).max;
 
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
@@ -238,12 +235,11 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
-    ///@param isStopLossExecution Boolean indicating whether the orders stoploss status is true. 
-    function executeTokenToTokenOrders(OrderBook.Order[] memory orders, bool isStopLossExecution)
-        external
-        onlyLimitOrderRouter
-        returns (uint256, uint256)
-    {
+    ///@param isStopLossExecution Boolean indicating whether the orders stoploss status is true.
+    function executeTokenToTokenOrders(
+        OrderBook.Order[] memory orders,
+        bool isStopLossExecution
+    ) external onlyLimitOrderRouter returns (uint256, uint256) {
         TokenToTokenExecutionPrice[] memory executionPrices;
         address tokenIn = orders[0].tokenIn;
         uint128 maxBeaconReward;
@@ -273,9 +269,21 @@ contract LimitOrderExecutor is SwapRouter {
                     lpAddressWethToB
                 );
             ///@notice Get the Max beacon reward on the SpotReserves
-            maxBeaconReward = isStopLossExecution ? (WETH != tokenIn
-                ? calculateMaxBeaconReward(spotReserveAToWeth, orders, false)
-                : calculateMaxBeaconReward(spotReserveWethToB, orders, true)) : type(uint128).max;
+            maxBeaconReward = isStopLossExecution
+                ? (
+                    WETH != tokenIn
+                        ? calculateMaxBeaconReward(
+                            spotReserveAToWeth,
+                            orders,
+                            false
+                        )
+                        : calculateMaxBeaconReward(
+                            spotReserveWethToB,
+                            orders,
+                            true
+                        )
+                )
+                : type(uint128).max;
         }
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
