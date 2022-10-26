@@ -13,6 +13,7 @@ contract OrderBook is GasOracle {
 
     uint256 constant GAS_CREDIT_SHIFT = 150;
     uint256 constant GAS_CREDIT_SHIFT_NORMALIZED = 100;
+
     //----------------------Constructor------------------------------------//
 
     constructor(address _gasOracle, address _limitOrderExecutor)
@@ -126,7 +127,6 @@ contract OrderBook is GasOracle {
         public
         returns (bytes32[] memory)
     {
-       
         ///@notice Initialize a new list of bytes32 to store the newly created orderIds.
         bytes32[] memory orderIds = new bytes32[](orderGroup.length);
 
@@ -181,9 +181,7 @@ contract OrderBook is GasOracle {
 
             ///@notice update the newOrder's last refresh timestamp
             ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
-            newOrder.lastRefreshTimestamp = uint32(
-                block.timestamp
-            );
+            newOrder.lastRefreshTimestamp = uint32(block.timestamp);
 
             ///@notice Add the newly created order to the orderIdToOrder mapping
             orderIdToOrder[orderId] = newOrder;
@@ -273,7 +271,7 @@ contract OrderBook is GasOracle {
         );
 
         ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
-        if (totalApprovedQuantity < order.quantity) {
+        if (totalApprovedQuantity < quantity) {
             revert InsufficientAllowanceForOrderUpdate();
         }
 
@@ -486,7 +484,12 @@ contract OrderBook is GasOracle {
     ) internal view returns (bool) {
         return
             gasCreditBalance >=
-            _calculateMinGasCredits(gasPrice, executionCost, userAddress, GAS_CREDIT_SHIFT);
+            _calculateMinGasCredits(
+                gasPrice,
+                executionCost,
+                userAddress,
+                GAS_CREDIT_SHIFT
+            );
     }
 
     ///@notice Get all of the order Ids for a given address
