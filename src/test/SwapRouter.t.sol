@@ -69,6 +69,11 @@ contract SwapRouterTest is DSTest {
         _sushiFactoryAddress,
         _uniV3FactoryAddress
     ];
+
+    address LINK = 0x218532a12a389a4a92fC0C5Fb22901D1c19198aA;
+    address UNI = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
+    address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     bool[] _isUniV2 = [true, true, false];
     uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000; //3402823669209385000000000000000000000
 
@@ -77,9 +82,12 @@ contract SwapRouterTest is DSTest {
         scriptRunner = new ScriptRunner();
 
         limitOrderExecutor = new LimitOrderExecutorWrapper(
+            WETH,
+            USDC,
             _hexDems,
             _dexFactories,
-            _isUniV2
+            _isUniV2,
+            address(1)
         );
 
         uniV2Router = IUniswapV2Router02(_uniV2Address);
@@ -88,7 +96,9 @@ contract SwapRouterTest is DSTest {
         swapHelper = new Swap(_uniV2Address, WETH);
     }
 
-    //==================================Order Router Helper Functions ========================================
+    //================================================================
+    //==================== Misc Helpers ==============================
+    //================================================================
 
     ///@notice Test Lp is not uniV3
     function testLPIsNotUniv3() public {
@@ -99,6 +109,9 @@ contract SwapRouterTest is DSTest {
         assert(!limitOrderExecutor.lpIsNotUniV3(uniV3LPAddress));
     }
 
+    //================================================================
+    //==================== Price Fetching ============================
+    //================================================================
 
     ///@notice Test calculate V2 spot price on sushi
     function testCalculateV2SpotSushiTest1() public {
@@ -321,6 +334,93 @@ contract SwapRouterTest is DSTest {
         console.log(pricesUsdcWeth[2].spotPrice);
     }
 
+    //================================================================
+    //==================== Price Simulation ==========================
+    //================================================================
+
+    function testCalculateNewExecutionPriceTokenToWeth(uint64 amountIn) public {
+        bool run = true;
+        if (amountIn < 1000000) {
+            run = false;
+        }
+        if (run) {
+            cheatCodes.deal(address(swapHelper), MAX_UINT);
+            
+            (
+                SwapRouter.SpotReserve[] memory spots,
+                address[] memory pools
+            ) = limitOrderExecutor.getAllPrices(USDC, WETH, 500);
+            uint256 bestPrice = 0;
+            uint256 bestPriceIndex;
+            SwapRouter.TokenToWethExecutionPrice[]
+                memory executionPrices = limitOrderExecutor
+                    .initializeTokenToWethExecutionPrices(spots, pools);
+            {
+                for (uint256 i = 0; i < executionPrices.length; ++i) {
+                    if (executionPrices[i].price > bestPrice) {
+                        bestPrice = executionPrices[i].price;
+                        bestPriceIndex = i;
+                    }
+                }
+
+                ///@notice Create a new mock order
+                OrderBook.Order memory order = newMockOrder(
+                    USDC,
+                    WETH,
+                    1,
+                    false,
+                    false,
+                    0,
+                    1,
+                    amountIn,
+                    500,
+                    0,
+                    0,
+                    type(uint32).max
+                );
+
+                SwapRouter.TokenToWethExecutionPrice
+                    memory newPriceToValidate = limitOrderExecutor
+                        ._calculateNewExecutionPriceTokenToWeth(
+                            executionPrices,
+                            bestPriceIndex,
+                            order
+                        );
+                
+                uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
+                    100000000000000 ether,
+                    USDC
+                );
+
+                IERC20(USDC).approve(
+                    address(limitOrderExecutor),
+                    amountReceived
+                );
+                limitOrderExecutor._swap(
+                    USDC,
+                    WETH,
+                    0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640,
+                    500,
+                    amountIn,
+                    1,
+                    address(this),
+                    address(this)
+                );
+
+                (
+                    SwapRouter.SpotReserve memory newSpot,
+                    
+                ) = limitOrderExecutor.calculateV3SpotPrice(
+                        USDC,
+                        WETH,
+                        500,
+                        0x1F98431c8aD98523631AE4a59f267346ea31F984
+                    );
+                assertEq(newPriceToValidate.price, newSpot.spotPrice);
+            }
+        }
+    }
+
     //================================================================================================
 
     // //=========================================Fee Helper Functions============================================
@@ -489,7 +589,7 @@ contract SwapRouterTest is DSTest {
     ) internal view returns (OrderBook.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
-            stoploss:false,
+            stoploss: false,
             buy: buy,
             taxed: taxed,
             lastRefreshTimestamp: lastRefreshTimestamp,
@@ -751,12 +851,24 @@ contract SwapRouterTest is DSTest {
 }
 
 //wrapper around SwapRouter to expose internal functions for testing
-contract LimitOrderExecutorWrapper is SwapRouter {
+contract LimitOrderExecutorWrapper is LimitOrderExecutor {
     constructor(
-        bytes32[] memory _initBytecodes,
+        address _weth,
+        address _usdc,
+        bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
-        bool[] memory _isUniV2
-    ) SwapRouter(_initBytecodes, _dexFactories, _isUniV2) {}
+        bool[] memory _isUniV2,
+        address _gasOracle
+    )
+        LimitOrderExecutor(
+            _weth,
+            _usdc,
+            _deploymentByteCodes,
+            _dexFactories,
+            _isUniV2,
+            _gasOracle
+        )
+    {}
 
     function getV3PoolFee(address pairAddress)
         public
@@ -766,6 +878,18 @@ contract LimitOrderExecutorWrapper is SwapRouter {
         return getV3PoolFee(pairAddress);
     }
 
+    function _calculateNewExecutionPriceTokenToWeth(
+        TokenToWethExecutionPrice[] memory executionPrices,
+        uint256 bestPriceIndex,
+        OrderBook.Order memory order
+    ) public view returns (TokenToWethExecutionPrice memory) {
+        return
+            calculateNewExecutionPriceTokenToWeth(
+                executionPrices,
+                bestPriceIndex,
+                order
+            );
+    }
 
     function lpIsNotUniV3(address lp) public returns (bool) {
         return _lpIsNotUniV3(lp);
@@ -849,6 +973,17 @@ contract LimitOrderExecutorWrapper is SwapRouter {
         address weth
     ) public view returns (uint128) {
         return _calculateFee(amountIn, usdc, weth);
+    }
+
+    function initializeTokenToWethExecutionPrices(
+        SwapRouter.SpotReserve[] memory spotReserveAToWeth,
+        address[] memory lpAddressesAToWeth
+    ) public view returns (SwapRouter.TokenToWethExecutionPrice[] memory) {
+        return
+            _initializeTokenToWethExecutionPrices(
+                spotReserveAToWeth,
+                lpAddressesAToWeth
+            );
     }
 
     function _swap(

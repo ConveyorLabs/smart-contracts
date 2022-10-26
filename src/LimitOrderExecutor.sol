@@ -130,7 +130,7 @@ contract LimitOrderExecutor is SwapRouter {
             ] = calculateNewExecutionPriceTokenToWeth(
                 executionPrices,
                 bestPriceIndex,
-                orders
+                orders[i]
             );
 
             unchecked {
@@ -206,7 +206,7 @@ contract LimitOrderExecutor is SwapRouter {
         uint256 totalBeaconReward = 0;
         ///@notice Set totalConveyorReward to 0
         uint256 totalConveyorReward = 0;
-        
+
         bool wethIsToken0 = orders[0].tokenIn == WETH;
         ///@notice Loop through each Order.
         for (uint256 i = 0; i < orders.length; ) {
@@ -572,6 +572,7 @@ contract LimitOrderExecutor is SwapRouter {
         uint24 feeIn = order.feeIn;
         address tokenIn = order.tokenIn;
         uint256 batchAmountOutMinAToWeth = 0;
+
         if (_lpIsNotUniV3(lpAddressAToWeth)) {
             ///@notice Calculate the amountOutMin for the tokenA to Weth swap.
             batchAmountOutMinAToWeth = calculateAmountOutMinAToWethV2(

@@ -431,7 +431,7 @@ contract SwapRouter is ConveyorTickMath {
     function calculateNewExecutionPriceTokenToWeth(
         TokenToWethExecutionPrice[] memory executionPrices,
         uint256 bestPriceIndex,
-        OrderBook.Order[] memory orders
+        OrderBook.Order memory order
     ) internal view returns (TokenToWethExecutionPrice memory) {
         if (executionPrices[bestPriceIndex].lpAToWethIsV2) {
             uint128 reserve0 = executionPrices[bestPriceIndex].aToWethReserve0;
@@ -440,10 +440,10 @@ contract SwapRouter is ConveyorTickMath {
                 FullMath.mulDiv(
                     reserve0,
                     reserve1,
-                    reserve0 + orders[0].quantity
+                    reserve0 + order.quantity
                 )
             );
-            reserve0 = reserve0 + orders[0].quantity;
+            reserve0 = reserve0 + order.quantity;
             executionPrices[bestPriceIndex].price = uint256(
                 ConveyorMath.div128x128(
                     uint256(reserve1) << 128,
@@ -453,8 +453,8 @@ contract SwapRouter is ConveyorTickMath {
             executionPrices[bestPriceIndex].aToWethReserve0 = reserve0;
             executionPrices[bestPriceIndex].aToWethReserve0 = reserve1;
         } else {
-            address tokenIn = orders[0].tokenIn;
-            address tokenOut = orders[0].tokenOut;
+            address tokenIn = order.tokenIn;
+            address tokenOut = order.tokenOut;
             bool zeroForOne = tokenIn < tokenOut ? true : false;
             (uint160 sqrtPriceX96Current, , , , , , ) = IUniswapV3Pool(
                 executionPrices[bestPriceIndex].lpAddressAToWeth
