@@ -52,7 +52,7 @@ contract SwapRouter is ConveyorTickMath {
         uint256 price;
         address lpAddressAToWeth;
         address lpAddressWethToB;
-        bool lpAToWithIsV2;
+        bool lpAToWethIsV2;
         bool lpWethToBIsV2;
     }
 
@@ -66,7 +66,7 @@ contract SwapRouter is ConveyorTickMath {
         uint128 aToWethReserve1;
         uint256 price;
         address lpAddressAToWeth;
-        bool lpAToWithIsV2;
+        bool lpAToWethIsV2;
     }
 
     ///@notice Struct to represent the spot price and reserve values on a given LP address
@@ -433,7 +433,7 @@ contract SwapRouter is ConveyorTickMath {
         uint256 bestPriceIndex,
         OrderBook.Order[] memory orders
     ) internal view returns (TokenToWethExecutionPrice memory) {
-        if (executionPrices[bestPriceIndex].lpAToWithIsV2) {
+        if (executionPrices[bestPriceIndex].lpAToWethIsV2) {
             uint128 reserve0 = executionPrices[bestPriceIndex].aToWethReserve0;
             uint128 reserve1 = executionPrices[bestPriceIndex].aToWethReserve1;
             reserve1 = uint128(
@@ -475,7 +475,7 @@ contract SwapRouter is ConveyorTickMath {
         uint256 bestPriceIndex,
         OrderBook.Order memory order
     ) internal view returns (TokenToTokenExecutionPrice memory, uint256) {
-        if (executionPrices[bestPriceIndex].lpAToWithIsV2) {
+        if (executionPrices[bestPriceIndex].lpAToWethIsV2) {
             unchecked {
                 uint128 reserve0 = executionPrices[bestPriceIndex]
                     .aToWethReserve0;

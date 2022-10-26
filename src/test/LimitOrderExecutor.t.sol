@@ -205,7 +205,97 @@ contract LimitOrderExecutorTest is DSTest {
         assertGe(IERC20(WETH).balanceOf(address(this)), amountBefore);
     }
 
-    
+    function testFindBestTokenToWethExecutionPrice() public {
+        uint8[] memory decimals = new uint8[](2);
+        decimals[0] = 18;
+        decimals[1] = 18;
+
+        SwapRouter.TokenToWethExecutionPrice
+            memory tokenToWethExecutionPrice = SwapRouter
+                .TokenToWethExecutionPrice({
+                    aToWethReserve0: 8014835235973799779324680,
+                    aToWethReserve1: 4595913824638810919416,
+                    price: 36584244663945024000000000000000000000,
+                    lpAddressAToWeth: 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11,
+                    lpAToWethIsV2:true
+                    
+                });
+
+        SwapRouter.TokenToWethExecutionPrice
+            memory tokenToWethExecutionPrice1 = SwapRouter
+                .TokenToWethExecutionPrice({
+                    aToWethReserve0: 8014835235973799779324680,
+                    aToWethReserve1: 4595913824638810919416,
+                    price: 36584244663945024000000000000000000001,
+                    lpAddressAToWeth: 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11,
+                    lpAToWethIsV2:true
+                    
+                });
+
+        SwapRouter.TokenToWethExecutionPrice[]
+            memory executionPrices = new SwapRouter.TokenToWethExecutionPrice[](
+                2
+            );
+        executionPrices[0] = tokenToWethExecutionPrice;
+        executionPrices[1] = tokenToWethExecutionPrice1;
+
+        uint256 bestPriceIndexBuy = limitOrderExecutor
+            .findBestTokenToWethExecutionPrice(executionPrices, true);
+        uint256 bestPriceIndexSell = limitOrderExecutor
+            .findBestTokenToWethExecutionPrice(executionPrices, false);
+
+        assertEq(bestPriceIndexBuy, 0);
+        assertEq(bestPriceIndexSell, 1);
+    }
+
+    function testFindBestTokenToTokenExecutionPrice() public {
+        uint8[] memory decimals = new uint8[](2);
+        decimals[0] = 18;
+        decimals[1] = 18;
+
+        SwapRouter.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice = SwapRouter
+                .TokenToTokenExecutionPrice({
+                    aToWethReserve0: 8014835235973799779324680,
+                    aToWethReserve1: 4595913824638810919416,
+                    wethToBReserve0: 1414776373420924126438282,
+                    wethToBReserve1: 7545889283955278550784,
+                    price: 36584244663945024000000000000000000000,
+                    lpAddressAToWeth: 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11,
+                    lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17,
+                    lpAToWethIsV2:true,
+                    lpWethToBIsV2:true
+                });
+
+        SwapRouter.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice1 = SwapRouter
+                .TokenToTokenExecutionPrice({
+                    aToWethReserve0: 8014835235973799779324680,
+                    aToWethReserve1: 4595913824638810919416,
+                    wethToBReserve0: 1414776373420924126438282,
+                    wethToBReserve1: 7545889283955278550784,
+                    price: 36584244663945024000000000000000000001,
+                    lpAddressAToWeth: 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11,
+                    lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17,
+                    lpAToWethIsV2:true,
+                    lpWethToBIsV2:true
+                });
+
+        SwapRouter.TokenToTokenExecutionPrice[]
+            memory executionPrices = new SwapRouter.TokenToTokenExecutionPrice[](
+                2
+            );
+        executionPrices[0] = tokenToTokenExecutionPrice;
+        executionPrices[1] = tokenToTokenExecutionPrice1;
+
+        uint256 bestPriceIndexBuy = limitOrderExecutor
+            .findBestTokenToTokenExecutionPrice(executionPrices, true);
+        uint256 bestPriceIndexSell = limitOrderExecutor
+            .findBestTokenToTokenExecutionPrice(executionPrices, false);
+
+        assertEq(bestPriceIndexBuy, 0);
+        assertEq(bestPriceIndexSell, 1);
+    }
 
     //================================================================
     //==================== External Tests Execution ==================
@@ -3278,6 +3368,14 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
             _gasOracle
         )
     {}
+
+    function findBestTokenToTokenExecutionPrice(TokenToTokenExecutionPrice[] memory prices, bool buy) public pure returns (uint256 bestPriceIndex) {
+        return _findBestTokenToTokenExecutionPrice(prices, buy);
+    }
+
+    function findBestTokenToWethExecutionPrice(TokenToWethExecutionPrice[] memory prices, bool buy) public pure returns (uint256 bestPriceIndex) {
+        return _findBestTokenToWethExecutionPrice(prices, buy);
+    }
 
     function getV3PoolFee(address pairAddress)
         public
