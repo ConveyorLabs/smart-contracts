@@ -338,7 +338,7 @@ contract SwapRouterTest is DSTest {
     //==================== Price Simulation ==========================
     //================================================================
 
-    function testCalculateNewExecutionPriceTokenToWeth(uint64 amountIn) public {
+    function testCalculateNewExecutionPriceTokenToWeth(uint32 amountIn) public {
         bool run = true;
         if (amountIn < 1000000) {
             run = false;
@@ -350,14 +350,14 @@ contract SwapRouterTest is DSTest {
                 SwapRouter.SpotReserve[] memory spots,
                 address[] memory pools
             ) = limitOrderExecutor.getAllPrices(USDC, WETH, 500);
-            uint256 bestPrice = 0;
+            uint256 bestPrice = type(uint256).max;
             uint256 bestPriceIndex;
             SwapRouter.TokenToWethExecutionPrice[]
                 memory executionPrices = limitOrderExecutor
                     .initializeTokenToWethExecutionPrices(spots, pools);
             {
                 for (uint256 i = 0; i < executionPrices.length; ++i) {
-                    if (executionPrices[i].price > bestPrice) {
+                    if (executionPrices[i].price < bestPrice) {
                         bestPrice = executionPrices[i].price;
                         bestPriceIndex = i;
                     }
@@ -369,7 +369,7 @@ contract SwapRouterTest is DSTest {
                     WETH,
                     1,
                     false,
-                    false,
+                    true,
                     0,
                     1,
                     amountIn,
@@ -388,14 +388,15 @@ contract SwapRouterTest is DSTest {
                         );
                 
                 uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-                    100000000000000 ether,
+                    1000000000 ether,
                     USDC
                 );
 
                 IERC20(USDC).approve(
                     address(limitOrderExecutor),
-                    amountReceived
+                    amountIn
                 );
+
                 limitOrderExecutor._swap(
                     USDC,
                     WETH,
@@ -416,7 +417,12 @@ contract SwapRouterTest is DSTest {
                         500,
                         0x1F98431c8aD98523631AE4a59f267346ea31F984
                     );
-                assertEq(newPriceToValidate.price, newSpot.spotPrice);
+                uint128 spotToValidate64X = uint128(newPriceToValidate.price>>64);
+                uint128 newSpot64X = uint128(newSpot.spotPrice>>64);
+                uint128 divergence = ConveyorMath.div64x64(spotToValidate64X<newSpot64X ? newSpot64X : spotToValidate64X, spotToValidate64X>newSpot64X ? newSpot64X : spotToValidate64X) - (uint128(1)<<64);
+                
+                
+                assertLe(divergence, 18446744073709);
             }
         }
     }

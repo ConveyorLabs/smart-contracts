@@ -459,9 +459,13 @@ contract SwapRouter is ConveyorTickMath {
             (uint160 sqrtPriceX96Current, , , , , , ) = IUniswapV3Pool(
                 executionPrices[bestPriceIndex].lpAddressAToWeth
             ).slot0();
+            uint128 liquidity = IUniswapV3Pool(executionPrices[bestPriceIndex].lpAddressAToWeth).liquidity();
+
+            uint160 nextSqrtPrice = SqrtPriceMath.getNextSqrtPriceFromInput(sqrtPriceX96Current, liquidity, order.quantity, zeroForOne);
+            
             executionPrices[bestPriceIndex].price = fromSqrtX96(
-                sqrtPriceX96Current,
-                tokenIn < tokenOut,
+                nextSqrtPrice,
+                zeroForOne,
                 zeroForOne ? tokenIn : tokenOut,
                 zeroForOne ? tokenOut : tokenIn
             );
