@@ -25,7 +25,7 @@ interface CheatCodes {
 
 contract ConveyorFeeMathTest is DSTest {
     CheatCodes cheatCodes;
-   
+
     ScriptRunner scriptRunner;
 
     LimitOrderExecutorWrapper limitOrderExecutor;
@@ -72,10 +72,8 @@ contract ConveyorFeeMathTest is DSTest {
             _dexFactories,
             _isUniV2
         );
-
     }
 
-    
     // ///@notice Test to calculate the Order Reward beacon
     function testCalculateOrderRewardBeacon(uint64 wethValue) public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -138,11 +136,9 @@ contract ConveyorFeeMathTest is DSTest {
         }
     }
 
-
-
-  
-
-    //=========================================Fee Helper Functions============================================
+    //================================================================
+    //======================= Helper functions =======================
+    //================================================================
 
     ///@notice Helper function to convert bytes to uint
     function bytesToUint(bytes memory b) internal pure returns (uint256) {
@@ -176,52 +172,7 @@ contract ConveyorFeeMathTest is DSTest {
         }
         str = string(bstr);
     }
-
-    //================================================================
-    //======================= Helper functions =======================
-    //================================================================
-
-    function newMockOrder(
-        address tokenIn,
-        address tokenOut,
-        uint128 price,
-        bool buy,
-        bool taxed,
-        uint16 taxIn,
-        uint112 amountOutMin,
-        uint112 quantity,
-        uint16 feeIn,
-        uint16 feeOut,
-        uint32 lastRefreshTimestamp,
-        uint32 expirationTimestamp
-    ) internal view returns (OrderBook.Order memory order) {
-        //Initialize mock order
-        order = OrderBook.Order({
-            stoploss:false,
-            buy: buy,
-            taxed: taxed,
-            lastRefreshTimestamp: lastRefreshTimestamp,
-            expirationTimestamp: expirationTimestamp,
-            feeIn: feeIn,
-            feeOut: feeOut,
-            taxIn: taxIn,
-            price: price,
-            amountOutMin: amountOutMin,
-            quantity: quantity,
-            owner: msg.sender,
-            tokenIn: tokenIn,
-            tokenOut: tokenOut,
-            orderId: bytes32(0)
-        });
-    }
-
-
 }
-
-
-   
-
-   
 
 //wrapper around SwapRouter to expose internal functions for testing
 contract LimitOrderExecutorWrapper is SwapRouter {
@@ -238,7 +189,6 @@ contract LimitOrderExecutorWrapper is SwapRouter {
     {
         return getV3PoolFee(pairAddress);
     }
-
 
     function lpIsNotUniV3(address lp) public returns (bool) {
         return _lpIsNotUniV3(lp);
@@ -333,7 +283,7 @@ contract LimitOrderExecutorWrapper is SwapRouter {
         uint256 _amountOutMin,
         address _reciever,
         address _sender
-    ) public returns (uint256 amountRecieved) {
+    ) public returns (uint256 amountReceived) {
         return
             swap(
                 _tokenIn,

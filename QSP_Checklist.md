@@ -554,9 +554,11 @@ This constant is used in place of the `maxBeaconReward` in the case of stoploss 
 
 # QSP-27 Verifier's Dilemma ❌
 
+
 # QSP-28 Taxed Token Swaps Using Uniswap V3 Might Fail ❌
 
 # **Code Documentation**
+
 
 Consider providing instructions on how to build and test the contracts in the README.  </br>
 Consider providing a link in the code comment for the SwapRouter._getV2PairAddress() function (L1025-1045) on how the address is determined: Uniswap V2 Pair Address doc. ✅ </br>
@@ -580,7 +582,7 @@ Consider adding a warning for the `SwapRouter.calculateFee()` function that the 
 
 The onlyOwner modifier implemented in the `LimitOrderExecution.sol` contracts has documentation that states that the modifier should be applied to the function `transferOwnership()`. As there is no transferOwnership() function in those contracts, either add one or remove it from the modifier documentation.  ✅ </br>
 
-`ConveyorMath.mul128I()#L167`, **"multiply unsigned 64.64" should be "128.128"**.  ✅ </br>
+`ConveyorMath.mul128U()#L167`, **"multiply unsigned 64.64" should be "128.128"**.  ✅ </br>
 
 `ConveyorMath.div128x128()#L213`, **"@return unsigned uint128 64.64" should be "128.128"**.  ✅ </br>
 
@@ -611,11 +613,13 @@ The onlyOwner modifier implemented in the `LimitOrderExecution.sol` contracts ha
         `QuadruplePrecision.from128x128()`
 The `@return` documentation for the following functions is unclear:
 
+
        `ConveyorMath.mul64x64()` (expecting unsigned 64.64).
        `ConveyorMath.mul128x64() (expecting unsigned 128.128).
-       `ConveyorMath.mul64I()` (expecting unsigned integer).
-       `ConveyorMath.mul128I()` (expecting unsigned integer).
+       `ConveyorMath.mul64U()` (expecting unsigned integer).
+       `ConveyorMath.mul128U()` (expecting unsigned integer).
        
+
 ## Adherence to Best Practices**
 Remove the unused function `OrderBook._resolveCompletedOrderAndEmitOrderFufilled()` (L371-392).  ✅ </br>
 
@@ -631,7 +635,7 @@ Consider replacing the assembly block with simply `initalTxGas = gasleft()` in `
 
 Consider removing the `LimitOrderBatcher._buyOrSell()` function. The code using this function can replace it simply with `firstOrder.buy on L44` and L207.  </br>
 
-Consider renaming the `ConveyorMath.mul64I() (L149)` and the `ConveyorMath.mul128I()` (L171) functions to `mul64U()` and `mul128U()` instead. The functions handle unsigned integers instead of signed integers.  ✅ </br>
+Consider renaming the `ConveyorMath.mul64I() (L149)` and the `ConveyorMath.mul128U()` (L171) functions to `mul64U()` and `mul128U()` instead. The functions handle unsigned integers instead of signed integers.  ✅ </br>
 
 GasOracle.getGasPrice() tends to get called multiple times per execution. Consider whether it's possible to cache it to avoid multiple external calls.  ✅ </br>
 
@@ -680,4 +684,5 @@ Typos in variables:
 OrderBook.sol#L240 could use storage instead of memory to save gas. TODO: Ask about this one. </br>
 
 Internal function `_executeSwapTokenToWethOrder()` in `TokenToWethLimitOrderExecution.sol` is never used and can be removed. ✅ </br>
+
 

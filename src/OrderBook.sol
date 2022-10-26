@@ -11,12 +11,18 @@ import "./ConveyorErrors.sol";
 contract OrderBook is GasOracle {
     address immutable EXECUTOR_ADDRESS;
 
+    uint256 constant GAS_CREDIT_SHIFT = 150;
+    uint256 constant GAS_CREDIT_SHIFT_NORMALIZED = 100;
+
     //----------------------Constructor------------------------------------//
 
     constructor(address _gasOracle, address _limitOrderExecutor)
         GasOracle(_gasOracle)
     {
-        require(_limitOrderExecutor != address(0), "Invalid LimitOrderExecutor Address");
+        require(
+            _limitOrderExecutor != address(0),
+            "Invalid LimitOrderExecutor Address"
+        );
         EXECUTOR_ADDRESS = _limitOrderExecutor;
     }
 
@@ -50,6 +56,7 @@ contract OrderBook is GasOracle {
     ///@param expirationTimestamp - Unix timestamp representing when the order should expire.
     ///@param feeIn - The Univ3 liquidity pool fee for the tokenIn/Weth pairing.
     ///@param feeOut - The Univ3 liquidity pool fee for the tokenOut/Weth pairing.
+    ///@param taxIn - The token transfer tax on tokenIn.
     ///@param price - The execution price representing the spot price of tokenIn/tokenOut that the order should be filled at. This is represented as a 64x64 fixed point number.
     ///@param amountOutMin - The minimum amount out that the order owner is willing to accept. This value is represented in tokenOut.
     ///@param quantity - The amount of tokenIn that the order use as the amountIn value for the swap (represented in amount * 10**tokenInDecimals).
@@ -120,9 +127,6 @@ contract OrderBook is GasOracle {
         public
         returns (bytes32[] memory)
     {
-        ///@notice Value responsible for keeping track of array indices when placing a group of new orders
-        uint256 orderIdIndex;
-
         ///@notice Initialize a new list of bytes32 to store the newly created orderIds.
         bytes32[] memory orderIds = new bytes32[](orderGroup.length);
 
@@ -177,9 +181,7 @@ contract OrderBook is GasOracle {
 
             ///@notice update the newOrder's last refresh timestamp
             ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
-            newOrder.lastRefreshTimestamp = uint32(
-                block.timestamp % (2**32 - 1)
-            );
+            newOrder.lastRefreshTimestamp = uint32(block.timestamp);
 
             ///@notice Add the newly created order to the orderIdToOrder mapping
             orderIdToOrder[orderId] = newOrder;
@@ -191,8 +193,7 @@ contract OrderBook is GasOracle {
             ++totalOrdersPerAddress[msg.sender];
 
             ///@notice Add the orderId to the orderIds array for the PlaceOrder event emission and increment the orderIdIndex
-            orderIds[orderIdIndex] = orderId;
-            ++orderIdIndex;
+            orderIds[i] = orderId;
 
             ///@notice Add the orderId to the addressToAllOrderIds structure
             addressToAllOrderIds[msg.sender].push(orderId);
@@ -228,66 +229,59 @@ contract OrderBook is GasOracle {
 
     /**@notice Updates an existing order. If the order exists and all order criteria is met, the order at the specified orderId will
     be updated to the newOrder's parameters. */
-    /**@param newOrder - Order struct containing the updated order parameters desired. 
+    /**@param orderId - OrderId of order to update.
+    ///@param price - Price to update the execution price of the order to. The price will stay the same if this field is set to 0.
+    ///@param quantity - Quantity to update the existing order quantity to. The quantity will stay the same if this field is set to 0.
     The newOrder should have the orderId that corresponds to the existing order that it should replace. */
-    function updateOrder(Order memory newOrder) public {
+    function updateOrder(
+        bytes32 orderId,
+        uint128 price,
+        uint128 quantity
+    ) public {
         ///@notice Check if the order exists
-        bool orderExists = addressToOrderIds[msg.sender][newOrder.orderId];
+        bool orderExists = addressToOrderIds[msg.sender][orderId];
 
         ///@notice If the order does not exist, revert.
         if (!orderExists) {
-            revert OrderDoesNotExist(newOrder.orderId);
+            revert OrderDoesNotExist(orderId);
         }
 
         ///@notice Get the existing order that will be replaced with the new order
-        Order memory oldOrder = orderIdToOrder[newOrder.orderId];
+        Order memory order = orderIdToOrder[orderId];
 
-        if (
-            oldOrder.tokenIn != newOrder.tokenIn ||
-            oldOrder.tokenOut != newOrder.tokenOut
-        ) {
-            revert InvalidOrderUpdate();
-        }
         ///@notice Get the total orders value for the msg.sender on the tokenIn
-        uint256 totalOrdersValue = _getTotalOrdersValue(oldOrder.tokenIn);
-
-        ///@notice Set the lastRefreshTimestamp on the new order to the old orders lastRefreshTimestamp.
-        newOrder.lastRefreshTimestamp = oldOrder.lastRefreshTimestamp;
+        uint256 totalOrdersValue = _getTotalOrdersValue(order.tokenIn);
 
         ///@notice Update the total orders value
-        totalOrdersValue += newOrder.quantity;
-        totalOrdersValue -= oldOrder.quantity;
+        totalOrdersValue += quantity;
+        totalOrdersValue -= order.quantity;
 
         ///@notice If the wallet does not have a sufficient balance for the updated total orders value, revert.
-        if (IERC20(newOrder.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
+        if (IERC20(order.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
             revert InsufficientWalletBalance();
         }
 
         ///@notice Update the total orders quantity
-        updateTotalOrdersQuantity(
-            newOrder.tokenIn,
-            msg.sender,
-            totalOrdersValue
-        );
+        updateTotalOrdersQuantity(order.tokenIn, msg.sender, totalOrdersValue);
 
         ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
-        uint256 totalApprovedQuantity = IERC20(newOrder.tokenIn).allowance(
+        uint256 totalApprovedQuantity = IERC20(order.tokenIn).allowance(
             msg.sender,
             address(EXECUTOR_ADDRESS)
         );
 
         ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
-        if (totalApprovedQuantity < newOrder.quantity) {
+        if (totalApprovedQuantity < quantity) {
             revert InsufficientAllowanceForOrderUpdate();
-        
         }
 
         ///@notice Update the order details stored in the system.
-        orderIdToOrder[oldOrder.orderId] = newOrder;
+        orderIdToOrder[order.orderId].price = price;
+        orderIdToOrder[order.orderId].quantity = quantity;
 
         ///@notice Emit an updated order event with the orderId that was updated
         bytes32[] memory orderIds = new bytes32[](1);
-        orderIds[0] = newOrder.orderId;
+        orderIds[0] = orderId;
         emit OrderUpdated(orderIds);
     }
 
@@ -388,31 +382,6 @@ contract OrderBook is GasOracle {
     }
 
     ///@notice Function to resolve an order as completed.
-    ///@param order - The order that should be resolved from the system.
-    function _resolveCompletedOrderAndEmitOrderFufilled(Order memory order)
-        internal
-    {
-        ///@notice Remove the order from the system
-        delete orderIdToOrder[order.orderId];
-        delete addressToOrderIds[order.owner][order.orderId];
-
-        ///@notice Decrement from total orders per address
-        --totalOrdersPerAddress[order.owner];
-
-        ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-        decrementTotalOrdersQuantity(
-            order.tokenIn,
-            order.owner,
-            order.quantity
-        );
-
-        ///@notice Emit an event to notify the off-chain executors that the order has been fufilled.
-        bytes32[] memory orderIds = new bytes32[](1);
-        orderIds[0] = order.orderId;
-        emit OrderFufilled(orderIds);
-    }
-
-    ///@notice Function to resolve an order as completed.
     ///@param orderId - The orderId that should be resolved from the system.
     function _resolveCompletedOrder(bytes32 orderId) internal {
         ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
@@ -462,19 +431,6 @@ contract OrderBook is GasOracle {
         totalOrdersQuantity[totalOrdersValueKey] -= quantity;
     }
 
-    ///@notice Increment an owner's total order value on a specific token.
-    ///@param token - Token address to increment the total order value on.
-    ///@param owner - Account address to increment the total order value from.
-    ///@param quantity - Amount to increment the total order value by.
-    function incrementTotalOrdersQuantity(
-        address token,
-        address owner,
-        uint256 quantity
-    ) internal {
-        bytes32 totalOrdersValueKey = keccak256(abi.encode(owner, token));
-        totalOrdersQuantity[totalOrdersValueKey] += quantity;
-    }
-
     ///@notice Update an owner's total order value on a specific token.
     ///@param token - Token address to update the total order value on.
     ///@param owner - Account address to update the total order value from.
@@ -511,7 +467,7 @@ contract OrderBook is GasOracle {
             executionCost *
             multiplier;
         ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
-        return minimumGasCredits / 100;
+        return minimumGasCredits / GAS_CREDIT_SHIFT_NORMALIZED;
     }
 
     /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders.
@@ -528,7 +484,12 @@ contract OrderBook is GasOracle {
     ) internal view returns (bool) {
         return
             gasCreditBalance >=
-            _calculateMinGasCredits(gasPrice, executionCost, userAddress, 150);
+            _calculateMinGasCredits(
+                gasPrice,
+                executionCost,
+                userAddress,
+                GAS_CREDIT_SHIFT
+            );
     }
 
     ///@notice Get all of the order Ids for a given address

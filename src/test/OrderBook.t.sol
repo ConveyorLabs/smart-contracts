@@ -294,8 +294,7 @@ contract OrderBookTest is DSTest {
         uint64 quantity,
         uint128 amountOutMin,
         uint128 newPrice,
-        uint64 newQuantity,
-        uint128 newAmountOutMin
+        uint64 newQuantity
     ) public {
         cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
@@ -315,27 +314,10 @@ contract OrderBookTest is DSTest {
         //place a mock order
         bytes32 orderId = placeMockOrder(order);
 
-        uint32 initialLastRefreshTimestamp = orderBook
-            .getOrderById(orderId)
-            .lastRefreshTimestamp;
-
-        //create a new order to replace the old order
-        OrderBook.Order memory updatedOrder = newOrder(
-            swapToken,
-            wnato,
-            newPrice,
-            newQuantity, //Change the quantity
-            newAmountOutMin
-        );
-
-        updatedOrder.orderId = orderId;
-
         //submit the updated order
-        orderBook.updateOrder(updatedOrder);
+        orderBook.updateOrder(orderId, newPrice, newQuantity);
 
-        OrderBook.Order memory contractStateOrder = orderBook.getOrderById(
-            orderId
-        );
+        OrderBook.Order memory updatedOrder = orderBook.getOrderById(orderId);
 
         //Cache the total orders value after the update
         uint256 totalOrdersValueAfter = orderBook.getTotalOrdersValue(
@@ -344,13 +326,8 @@ contract OrderBookTest is DSTest {
 
         //Make sure the order was updated properly
         assertEq(newQuantity, totalOrdersValueAfter);
-        assertEq(newQuantity, contractStateOrder.quantity);
-        assertEq(newPrice, contractStateOrder.price);
-        assertEq(
-            initialLastRefreshTimestamp,
-            contractStateOrder.lastRefreshTimestamp
-        );
-        assertEq(newAmountOutMin, contractStateOrder.amountOutMin);
+        assertEq(newQuantity, updatedOrder.quantity);
+        assertEq(newPrice, updatedOrder.price);
     }
 
     ///@notice Test fail update order insufficient allowance
@@ -358,8 +335,7 @@ contract OrderBookTest is DSTest {
         uint128 price,
         uint64 quantity,
         uint128 amountOutMin,
-        uint128 newPrice,
-        uint128 newAmountOutMin
+        uint128 newPrice
     ) public {
         cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(limitOrderExecutor), quantity);
@@ -379,51 +355,8 @@ contract OrderBookTest is DSTest {
         //place a mock order
         bytes32 orderId = placeMockOrder(order);
 
-        //create a new order to replace the old order
-        OrderBook.Order memory updatedOrder = newOrder(
-            swapToken,
-            wnato,
-            newPrice,
-            quantity + 1, //Change the quantity to more than the approved amount
-            newAmountOutMin
-        );
-
-        updatedOrder.orderId = orderId;
-
         //submit the updated order should revert since approved quantity is less than order quantity
-        orderBook.updateOrder(updatedOrder);
-    }
-
-    ///@notice Test fail order update with incongruent in/out token
-    function testFailUpdateOrder_InvalidOrderUpdate() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
-
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(100 ether, swapToken);
-
-        OrderBook.Order memory order = newOrder(
-            wnato,
-            swapToken,
-            uint128(0),
-            uint128(1),
-            uint128(1)
-        );
-
-        //place a mock order
-        bytes32 orderId = placeMockOrder(order);
-
-        //create a new order to replace the old order
-        OrderBook.Order memory updatedOrder = newOrder(
-            swapToken,
-            wnato,
-            uint128(1),
-            uint128(1),
-            uint128(1)
-        );
-
-        //should fail since changing the in/out token is not allowed
-        orderBook.updateOrder(updatedOrder);
+        orderBook.updateOrder(orderId, newPrice, quantity + 1);
     }
 
     ///@notice Test fail update order order does not exist
@@ -449,18 +382,7 @@ contract OrderBookTest is DSTest {
             //place a mock order
             placeMockOrder(order);
 
-            //create a new order to replace the old order
-            OrderBook.Order memory updatedOrder = newOrder(
-                swapToken,
-                wnato,
-                10,
-                uint128(executionPrice),
-                uint128(executionPrice)
-            );
-            updatedOrder.orderId = orderId;
-
-            //submit the updated order
-            orderBook.updateOrder(updatedOrder);
+            orderBook.updateOrder(orderId, 100, 0);
         } catch {
             require(false, "swap failed");
         }
@@ -755,7 +677,7 @@ contract OrderBookTest is DSTest {
     ) internal view returns (OrderBook.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
-            stoploss:false,
+            stoploss: false,
             buy: false,
             taxed: false,
             lastRefreshTimestamp: 0,

@@ -181,55 +181,6 @@ contract LimitOrderExecutorTest is DSTest {
         }
     }
 
-    //Test fail case in execution with duplicate orderIds passed
-    function testFailExecuteTokenToWethOrderBatch_InvalidNonEOAStoplossExecution()
-        public
-    {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
-        bytes32[]
-            memory tokenToWethOrderBatch = placeNewMockTokenToWethBatchStoploss();
-
-        //check that the orders have been placed
-        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToWethOrderBatch[i]
-            );
-
-            assert(order.orderId != bytes32(0));
-        }
-
-        //Dont prank tx.origin should revert with stoploss orders.
-        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToWethOrderBatch[i]
-            );
-            assert(order.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Test to check fail case if orderIds length is 0
-    function testFailExecuteOrders_InvalidCalldata() public {
-        bytes32[] memory emptyIdArray = new bytes32[](0);
-
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(emptyIdArray);
-    }
-
-    ///@notice Test to check fail case if orderId is not in the state of contract
-    function testFailExecuteOrders_OrderDoesNotExist() public {
-        bytes32[] memory orderIds = new bytes32[](1);
-        orderIds[0] = bytes32(0);
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderIds);
-    }
-
     ///@notice Test to execute a single token to with order
     function testExecuteWethToTokenSingle() public {
         cheatCodes.deal(address(this), MAX_UINT);
@@ -312,9 +263,9 @@ contract LimitOrderExecutorTest is DSTest {
 
             ///@notice Decrement the amountExpectedOut by 95%
             uint112 amountOutMin = uint112(
-                ConveyorMath.mul64I(
+                ConveyorMath.mul64U(
                     _95_PERCENT,
-                    ConveyorMath.mul128I(spRes.spotPrice, amountIn)
+                    ConveyorMath.mul128U(spRes.spotPrice, amountIn)
                 )
             );
             ///@notice Create a new mock order
@@ -344,7 +295,7 @@ contract LimitOrderExecutorTest is DSTest {
 
             //Get the minimum out amount expected
             //Should be fee
-            uint256 balanceAfterMin = ConveyorMath.mul64I(
+            uint256 balanceAfterMin = ConveyorMath.mul64U(
                 ConveyorMath.div64x64(uint128(1), fee),
                 amountOutMin
             );
@@ -487,9 +438,9 @@ contract LimitOrderExecutorTest is DSTest {
 
             ///@notice Decrement the amountExpectedOut by 95%
             uint112 amountOutMin = uint112(
-                ConveyorMath.mul64I(
+                ConveyorMath.mul64U(
                     _95_PERCENT,
-                    ConveyorMath.mul128I(spRes.spotPrice, amountIn)
+                    ConveyorMath.mul128U(spRes.spotPrice, amountIn)
                 )
             );
 
@@ -498,7 +449,7 @@ contract LimitOrderExecutorTest is DSTest {
 
             //Get the minimum out amount expected
             //Should be fee
-            uint256 balanceAfterMin = ConveyorMath.mul64I(
+            uint256 balanceAfterMin = ConveyorMath.mul64U(
                 ConveyorMath.div64x64(uint128(1), fee),
                 amountOutMin
             );
@@ -630,73 +581,6 @@ contract LimitOrderExecutorTest is DSTest {
         }
     }
 
-    function testFailExecuteTokenToTokenBatch_InvalidNonEOAStoplossExecution()
-        public
-    {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        IERC20(USDC).approve(address(limitOrderExecutor), MAX_UINT);
-
-        bytes32[]
-            memory tokenToTokenOrderBatch = placeNewMockTokenToTokenStoplossBatch();
-
-        //check that the orders have been placed
-        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToTokenOrderBatch[i]
-            );
-
-            assert(order.orderId != bytes32(0));
-        }
-
-        //Don't prank tx.origin should revert
-        limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToTokenOrderBatch[i]
-            );
-            assert(order.orderId == bytes32(0));
-        }
-    }
-
-    ///@notice Test fail Execute a batch of Token to token with revert on duplicate orderIds in batch
-    function testFailExecuteTokenToTokenBatch_DuplicateOrdersInExecution()
-        public
-    {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        IERC20(USDC).approve(address(limitOrderExecutor), MAX_UINT);
-
-        bytes32[]
-            memory tokenToTokenOrderBatch = placeNewMockTokenToTokenBatchDuplicateOrderIds();
-
-        //check that the orders have been placed
-        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToTokenOrderBatch[i]
-            );
-
-            assert(order.orderId != bytes32(0));
-        }
-
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
-                tokenToTokenOrderBatch[i]
-            );
-            assert(order.orderId == bytes32(0));
-        }
-    }
-
     ///@notice Test to execute a single weth to taxed order
     ///@notice Requires via-ir to compile test
     function testExecuteWethToTaxedTokenSingle(uint112 amountIn) public {
@@ -730,9 +614,9 @@ contract LimitOrderExecutorTest is DSTest {
 
             ///@notice Decrement the amountExpectedOut by 95%
             uint112 amountOutMin = uint112(
-                ConveyorMath.mul64I(
+                ConveyorMath.mul64U(
                     _95_PERCENT,
-                    ConveyorMath.mul128I(spRes.spotPrice, amountIn)
+                    ConveyorMath.mul128U(spRes.spotPrice, amountIn)
                 )
             );
 
@@ -742,7 +626,7 @@ contract LimitOrderExecutorTest is DSTest {
             {
                 //Get the minimum out amount expected
                 //Should be fee
-                uint256 balanceAfterMin = ConveyorMath.mul64I(
+                uint256 balanceAfterMin = ConveyorMath.mul64U(
                     ConveyorMath.div64x64(uint128(1), fee),
                     amountOutMin
                 );
@@ -1300,6 +1184,144 @@ contract LimitOrderExecutorTest is DSTest {
             ///@notice Ensure the order was removed from the contract.
             assert(order0.orderId == bytes32(0));
         }
+    }
+
+    //================================================================
+    //==================== Execution Fail Tests ======================
+    //================================================================
+
+    function testFailExecuteTokenToTokenBatch_InvalidNonEOAStoplossExecution()
+        public
+    {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        IERC20(USDC).approve(address(limitOrderExecutor), MAX_UINT);
+
+        bytes32[]
+            memory tokenToTokenOrderBatch = placeNewMockTokenToTokenStoplossBatch();
+
+        //check that the orders have been placed
+        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
+            OrderBook.Order memory order = orderBook.getOrderById(
+                tokenToTokenOrderBatch[i]
+            );
+
+            assert(order.orderId != bytes32(0));
+        }
+
+        //Don't prank tx.origin should revert
+        limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
+
+        // check that the orders have been fufilled and removed
+        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
+            OrderBook.Order memory order = orderBook.getOrderById(
+                tokenToTokenOrderBatch[i]
+            );
+            assert(order.orderId == bytes32(0));
+        }
+    }
+
+    ///@notice Test fail Execute a batch of Token to token with revert on duplicate orderIds in batch
+    function testFailExecuteTokenToTokenBatch_DuplicateOrdersInExecution()
+        public
+    {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        IERC20(USDC).approve(address(limitOrderExecutor), MAX_UINT);
+
+        bytes32[]
+            memory tokenToTokenOrderBatch = placeNewMockTokenToTokenBatchDuplicateOrderIds();
+
+        //check that the orders have been placed
+        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
+            OrderBook.Order memory order = orderBook.getOrderById(
+                tokenToTokenOrderBatch[i]
+            );
+
+            assert(order.orderId != bytes32(0));
+        }
+
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
+
+        // check that the orders have been fufilled and removed
+        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
+            OrderBook.Order memory order = orderBook.getOrderById(
+                tokenToTokenOrderBatch[i]
+            );
+            assert(order.orderId == bytes32(0));
+        }
+    }
+
+    //Test fail case in execution with duplicate orderIds passed
+    function testFailExecuteTokenToWethOrderBatch_InvalidNonEOAStoplossExecution()
+        public
+    {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
+        bytes32[]
+            memory tokenToWethOrderBatch = placeNewMockTokenToWethBatchStoploss();
+
+        //check that the orders have been placed
+        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
+            OrderBook.Order memory order = orderBook.getOrderById(
+                tokenToWethOrderBatch[i]
+            );
+
+            assert(order.orderId != bytes32(0));
+        }
+        ///@notice Cache the executor balances before execution.
+        uint256 txOriginBalanceBefore = IERC20(WETH).balanceOf(tx.origin);
+        uint256 gasCompensationBefore = address(tx.origin).balance;
+
+        ///@notice Get the gas price and set the lower and upper bound threshold.
+        uint256 gasPrice = limitOrderRouter.getGasPrice();
+
+        uint256 executionCostLower = 60000; //Should be a lower bound
+
+        //Dont prank tx.origin should revert with stoploss orders.
+        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
+        uint256 gasCompensationAfter = address(tx.origin).balance;
+        // check that the orders have been fufilled and removed
+        for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
+            OrderBook.Order memory order0 = orderBook.getOrderById(
+                tokenToWethOrderBatch[i]
+            );
+
+            ///@notice Ensure tx.origin received the execution reward.
+            assert(IERC20(WETH).balanceOf(tx.origin) >= txOriginBalanceBefore);
+
+            ///@notice Ensure the upper and lower execution thresholds were paid to the beacon.
+            assertGe(
+                gasCompensationAfter - gasCompensationBefore,
+                executionCostLower * gasPrice * 2
+            );
+
+            assert(order0.orderId == bytes32(0));
+        }
+    }
+
+    ///@notice Test to check fail case if orderIds length is 0
+    function testFailExecuteOrders_InvalidCalldata() public {
+        bytes32[] memory emptyIdArray = new bytes32[](0);
+
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.executeOrders(emptyIdArray);
+    }
+
+    ///@notice Test to check fail case if orderId is not in the state of contract
+    function testFailExecuteOrders_OrderDoesNotExist() public {
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = bytes32(0);
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.executeOrders(orderIds);
     }
 
     receive() external payable {}
@@ -3087,7 +3109,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         uint256 _amountOutMin,
         address _reciever,
         address _sender
-    ) public returns (uint256 amountRecieved) {
+    ) public returns (uint256 amountReceived) {
         return
             swap(
                 _tokenIn,

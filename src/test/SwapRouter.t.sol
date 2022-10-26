@@ -340,7 +340,7 @@ contract SwapRouterTest is DSTest {
 
             ///@notice Calculate the weth amount in usd
             uint256 amountInUsdcDollarValue = uint256(
-                ConveyorMath.mul128I(spotPrice, uint256(_amount)) /
+                ConveyorMath.mul128U(spotPrice, uint256(_amount)) /
                     uint256(10**18)
             );
             console.logUint(amountInUsdcDollarValue);
@@ -527,14 +527,14 @@ contract SwapRouterTest is DSTest {
         uint256 amountOutMin = amountReceived - 1;
 
         IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
-        address reciever = address(this);
+        address receiver = address(this);
         limitOrderExecutor.swapV2(
             tokenIn,
             tokenOut,
             lp,
             amountReceived,
             amountOutMin,
-            reciever,
+            receiver,
             address(this)
         );
     }
@@ -554,14 +554,14 @@ contract SwapRouterTest is DSTest {
         uint256 amountOutMin = 10000;
 
         IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
-        address reciever = address(this);
+        address receiver = address(this);
         limitOrderExecutor.swapV2(
             tokenIn,
             tokenOut,
             lp,
             amountReceived,
             amountOutMin,
-            reciever,
+            receiver,
             address(this)
         );
     }
@@ -582,14 +582,14 @@ contract SwapRouterTest is DSTest {
         uint256 amountOutMin = 10000;
 
         IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
-        address reciever = address(this);
+        address receiver = address(this);
         limitOrderExecutor.swapV2(
             tokenIn,
             tokenOut,
             lp,
             amountReceived,
             amountOutMin,
-            reciever,
+            receiver,
             address(this)
         );
     }
@@ -610,14 +610,14 @@ contract SwapRouterTest is DSTest {
         uint256 amountOutMin = 10000000000000000;
 
         IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
-        address reciever = address(this);
+        address receiver = address(this);
         uint256 amountOut = limitOrderExecutor.swapV2(
             tokenIn,
             tokenOut,
             lp,
             amountReceived,
             amountOutMin,
-            reciever,
+            receiver,
             address(this)
         );
         require(amountOut != 0, "InsufficientOutputAmount");
@@ -643,7 +643,7 @@ contract SwapRouterTest is DSTest {
 
         address _lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
 
-        address reciever = address(this);
+        address receiver = address(this);
         limitOrderExecutor.swapV3(
             _lp,
             tokenIn,
@@ -651,7 +651,7 @@ contract SwapRouterTest is DSTest {
             500,
             1000000000000000000,
             1,
-            reciever,
+            receiver,
             address(this)
         );
     }
@@ -670,7 +670,7 @@ contract SwapRouterTest is DSTest {
 
         address _lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
 
-        address reciever = address(this);
+        address receiver = address(this);
 
         limitOrderExecutor.swapV3(
             _lp,
@@ -679,7 +679,7 @@ contract SwapRouterTest is DSTest {
             500,
             amountReceived,
             1,
-            reciever,
+            receiver,
             address(this)
         );
     }
@@ -701,7 +701,7 @@ contract SwapRouterTest is DSTest {
         address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
 
         uint256 amountInMaximum = amountReceived - 1;
-        address reciever = address(this);
+        address receiver = address(this);
 
         limitOrderExecutor._swap(
             tokenIn,
@@ -710,7 +710,7 @@ contract SwapRouterTest is DSTest {
             500,
             amountReceived,
             amountInMaximum,
-            reciever,
+            receiver,
             address(this)
         );
     }
@@ -731,7 +731,7 @@ contract SwapRouterTest is DSTest {
 
         address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
 
-        address reciever = address(this);
+        address receiver = address(this);
 
         uint256 amountOut = limitOrderExecutor._swap(
             tokenIn,
@@ -740,7 +740,7 @@ contract SwapRouterTest is DSTest {
             300,
             amountReceived,
             1000000000000000,
-            reciever,
+            receiver,
             address(this)
         );
 
@@ -860,7 +860,7 @@ contract LimitOrderExecutorWrapper is SwapRouter {
         uint256 _amountOutMin,
         address _reciever,
         address _sender
-    ) public returns (uint256 amountRecieved) {
+    ) public returns (uint256 amountReceived) {
         return
             swap(
                 _tokenIn,
