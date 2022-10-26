@@ -345,7 +345,7 @@ contract SwapRouterTest is DSTest {
         }
         if (run) {
             cheatCodes.deal(address(swapHelper), MAX_UINT);
-            
+
             (
                 SwapRouter.SpotReserve[] memory spots,
                 address[] memory pools
@@ -386,16 +386,13 @@ contract SwapRouterTest is DSTest {
                             bestPriceIndex,
                             order
                         );
-                
+
                 uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
                     1000000000 ether,
                     USDC
                 );
 
-                IERC20(USDC).approve(
-                    address(limitOrderExecutor),
-                    amountIn
-                );
+                IERC20(USDC).approve(address(limitOrderExecutor), amountIn);
 
                 limitOrderExecutor._swap(
                     USDC,
@@ -408,20 +405,238 @@ contract SwapRouterTest is DSTest {
                     address(this)
                 );
 
-                (
-                    SwapRouter.SpotReserve memory newSpot,
-                    
-                ) = limitOrderExecutor.calculateV3SpotPrice(
+                (SwapRouter.SpotReserve memory newSpot, ) = limitOrderExecutor
+                    .calculateV3SpotPrice(
                         USDC,
                         WETH,
                         500,
                         0x1F98431c8aD98523631AE4a59f267346ea31F984
                     );
-                uint128 spotToValidate64X = uint128(newPriceToValidate.price>>64);
-                uint128 newSpot64X = uint128(newSpot.spotPrice>>64);
-                uint128 divergence = ConveyorMath.div64x64(spotToValidate64X<newSpot64X ? newSpot64X : spotToValidate64X, spotToValidate64X>newSpot64X ? newSpot64X : spotToValidate64X) - (uint128(1)<<64);
+                uint128 spotToValidate64X = uint128(
+                    newPriceToValidate.price >> 64
+                );
+                uint128 newSpot64X = uint128(newSpot.spotPrice >> 64);
+                uint128 divergence = ConveyorMath.div64x64(
+                    spotToValidate64X < newSpot64X
+                        ? newSpot64X
+                        : spotToValidate64X,
+                    spotToValidate64X > newSpot64X
+                        ? newSpot64X
+                        : spotToValidate64X
+                ) - (uint128(1) << 64);
+
+                assertLe(divergence, 18446744073709);
+            }
+        }
+    }
+
+    function testCalculateNewExecutionPriceTokenToTokenAToWeth(uint32 amountIn)
+        public
+    {
+        bool run = true;
+        if (amountIn < 1000000) {
+            run = false;
+        }
+        if (run) {
+            cheatCodes.deal(address(swapHelper), MAX_UINT);
+            SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices;
+            {
+                (
+                    SwapRouter.SpotReserve[] memory spotsUsdc,
+                    address[] memory poolsUsdc
+                ) = limitOrderExecutor.getAllPrices(USDC, WETH, 500);
+                (
+                    SwapRouter.SpotReserve[] memory spotsWeth,
+                    address[] memory poolsWeth
+                ) = limitOrderExecutor.getAllPrices(WETH, DAI, 500);
+                executionPrices = limitOrderExecutor
+                    .initializeTokenToTokenExecutionPrices(
+                        USDC,
+                        spotsUsdc,
+                        poolsUsdc,
+                        spotsWeth,
+                        poolsWeth
+                    );
+            }
+            uint256 bestPrice = type(uint256).max;
+            uint256 bestPriceIndex;
+
+            {
+                for (uint256 i = 0; i < executionPrices.length; ++i) {
+                    if (executionPrices[i].price < bestPrice) {
+                        bestPrice = executionPrices[i].price;
+                        bestPriceIndex = i;
+                    }
+                }
+
+                ///@notice Create a new mock order
+                OrderBook.Order memory order = newMockOrder(
+                    USDC,
+                    WETH,
+                    1,
+                    false,
+                    true,
+                    0,
+                    1,
+                    amountIn,
+                    500,
+                    0,
+                    0,
+                    type(uint32).max
+                );
+
+                (, uint256 price) = limitOrderExecutor
+                    ._calculateNewExecutionPriceTokenToTokenAToWeth(
+                        executionPrices,
+                        bestPriceIndex,
+                        order
+                    );
+
+                swapHelper.swapEthForTokenWithUniV2(1000000000 ether, USDC);
+
+                IERC20(USDC).approve(address(limitOrderExecutor), amountIn);
+
+                limitOrderExecutor._swap(
+                    USDC,
+                    WETH,
+                    0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640,
+                    500,
+                    amountIn,
+                    1,
+                    address(this),
+                    address(this)
+                );
+
+                (SwapRouter.SpotReserve memory newSpot, ) = limitOrderExecutor
+                    .calculateV3SpotPrice(
+                        USDC,
+                        WETH,
+                        500,
+                        0x1F98431c8aD98523631AE4a59f267346ea31F984
+                    );
+                console.log(price, newSpot.spotPrice);
+                uint128 spotToValidate64X = uint128(price >> 64);
+                uint128 newSpot64X = uint128(newSpot.spotPrice >> 64);
+                uint128 divergence = ConveyorMath.div64x64(
+                    spotToValidate64X < newSpot64X
+                        ? newSpot64X
+                        : spotToValidate64X,
+                    spotToValidate64X > newSpot64X
+                        ? newSpot64X
+                        : spotToValidate64X
+                ) - (uint128(1) << 64);
+
+                assertLe(divergence, 18446744073709);
+            }
+        }
+    }
+
+    function testCalculateNewExecutionPriceTokenToTokenWethToB(uint32 amountIn)
+        public
+    {
+        bool run = true;
+        if (amountIn < 1000000) {
+            run = false;
+        }
+        if (run) {
+            cheatCodes.deal(address(this), MAX_UINT);
+            SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices;
+            SwapRouter.SpotReserve[] memory spotsUsdc;
+            address[] memory poolsUsdc;
+            {
+                (
+                    spotsUsdc,
+                    poolsUsdc
+                ) = limitOrderExecutor.getAllPrices(USDC, WETH, 500);
+                (
+                    SwapRouter.SpotReserve[] memory spotsWeth,
+                    address[] memory poolsWeth
+                ) = limitOrderExecutor.getAllPrices(WETH, DAI, 500);
+                executionPrices = limitOrderExecutor
+                    .initializeTokenToTokenExecutionPrices(
+                        USDC,
+                        spotsUsdc,
+                        poolsUsdc,
+                        spotsWeth,
+                        poolsWeth
+                    );
+            }
+            uint256 bestPrice = type(uint256).max;
+            uint256 bestPriceIndex;
+
+            {
+                for (uint256 i = 0; i < executionPrices.length; ++i) {
+                    if (executionPrices[i].price < bestPrice) {
+                        bestPrice = executionPrices[i].price;
+                        bestPriceIndex = i;
+                    }
+                }
+            }
+
+            {
                 
-                
+                ///@notice Create a new mock order
+                OrderBook.Order memory order = newMockOrder(
+                    USDC,
+                    DAI,
+                    1,
+                    false,
+                    true,
+                    0,
+                    1,
+                    amountIn,
+                    500,
+                    0,
+                    0,
+                    type(uint32).max
+                );
+
+                SwapRouter.TokenToTokenExecutionPrice
+                    memory executionP = limitOrderExecutor
+                        ._calculateNewExecutionPriceTokenToTokenWethToB(
+                            executionPrices,
+                            bestPriceIndex,
+                            spotsUsdc[2].spotPrice,
+                            order,
+                            false
+                        );
+
+                address(WETH).call{
+                    value: 500000000000 ether
+                }(abi.encodeWithSignature("deposit()"));
+
+                IERC20(WETH).approve(address(limitOrderExecutor), amountIn);
+
+                limitOrderExecutor._swap(
+                    WETH,
+                    DAI,
+                    0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8,
+                    3000,
+                    amountIn,
+                    1,
+                    address(this),
+                    address(this)
+                );
+
+                (SwapRouter.SpotReserve memory newSpot, ) = limitOrderExecutor
+                    .calculateV3SpotPrice(
+                        WETH,
+                        DAI,
+                        3000,
+                        0x1F98431c8aD98523631AE4a59f267346ea31F984
+                    );
+
+                uint128 spotToValidate64X = uint128(executionP.price >> 64);
+                uint128 newSpot64X = uint128(newSpot.spotPrice >> 64);
+                uint128 divergence = ConveyorMath.div64x64(
+                    spotToValidate64X < newSpot64X
+                        ? newSpot64X
+                        : spotToValidate64X,
+                    spotToValidate64X > newSpot64X
+                        ? newSpot64X
+                        : spotToValidate64X
+                ) - (uint128(1) << 64);
+
                 assertLe(divergence, 18446744073709);
             }
         }
@@ -884,6 +1099,36 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         return getV3PoolFee(pairAddress);
     }
 
+    function _calculateNewExecutionPriceTokenToTokenAToWeth(
+        TokenToTokenExecutionPrice[] memory executionPrices,
+        uint256 bestPriceIndex,
+        OrderBook.Order memory order
+    ) public view returns (TokenToTokenExecutionPrice memory, uint256) {
+        return
+            calculateNewExecutionPriceTokenToTokenAToWeth(
+                executionPrices,
+                bestPriceIndex,
+                order
+            );
+    }
+
+    function _calculateNewExecutionPriceTokenToTokenWethToB(
+        TokenToTokenExecutionPrice[] memory executionPrices,
+        uint256 bestPriceIndex,
+        uint256 spotPriceAToWeth,
+        OrderBook.Order memory order,
+        bool wethIsToken0
+    ) public view returns (TokenToTokenExecutionPrice memory) {
+        return
+            calculateNewExecutionPriceTokenToTokenWethToB(
+                executionPrices,
+                bestPriceIndex,
+                spotPriceAToWeth,
+                order,
+                wethIsToken0
+            );
+    }
+
     function _calculateNewExecutionPriceTokenToWeth(
         TokenToWethExecutionPrice[] memory executionPrices,
         uint256 bestPriceIndex,
@@ -989,6 +1234,23 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
             _initializeTokenToWethExecutionPrices(
                 spotReserveAToWeth,
                 lpAddressesAToWeth
+            );
+    }
+
+    function initializeTokenToTokenExecutionPrices(
+        address tokenIn,
+        SpotReserve[] memory spotReserveAToWeth,
+        address[] memory lpAddressesAToWeth,
+        SpotReserve[] memory spotReserveWethToB,
+        address[] memory lpAddressWethToB
+    ) public view returns (TokenToTokenExecutionPrice[] memory) {
+        return
+            _initializeTokenToTokenExecutionPrices(
+                tokenIn,
+                spotReserveAToWeth,
+                lpAddressesAToWeth,
+                spotReserveWethToB,
+                lpAddressWethToB
             );
     }
 
