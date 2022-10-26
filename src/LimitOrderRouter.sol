@@ -60,7 +60,7 @@ contract LimitOrderRouter is OrderBook {
     mapping(address => uint256) public gasCreditBalance;
 
     ///@notice The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
-    uint256 constant ORDER_EXECUTION_GAS_COST = 300000;
+    uint256 public constant ORDER_EXECUTION_GAS_COST = 300000;
 
     ///@notice State variable to track the amount of gas initally alloted during executeOrders.
     uint256 initialTxGas;
@@ -181,6 +181,12 @@ contract LimitOrderRouter is OrderBook {
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
     function refreshOrder(bytes32[] memory orderIds) external nonReentrant {
+        ///@notice Get the current gas price from the v3 Aggregator.
+        uint256 gasPrice = getGasPrice();
+
+        ///@notice Initialize totalRefreshFees;
+        uint256 totalRefreshFees;
+
         ///@notice For each order in the orderIds array.
         for (uint256 i = 0; i < orderIds.length; ) {
             ///@notice Get the current orderId.
@@ -227,9 +233,6 @@ contract LimitOrderRouter is OrderBook {
                 continue;
             }
 
-            ///@notice Get the current gas price from the v3 Aggregator.
-            uint256 gasPrice = getGasPrice();
-
             ///@notice Require that account has enough gas for order execution after the refresh, otherwise, cancel the order and continue the loop.
             if (
                 !(
@@ -250,8 +253,8 @@ contract LimitOrderRouter is OrderBook {
                 continue;
             }
 
-            ///@notice Transfer the refresh fee to off-chain executor who called the function.
-            safeTransferETH(msg.sender, REFRESH_FEE);
+            ///@notice Accumulate the REFRESH_FEE.
+            totalRefreshFees += REFRESH_FEE;
 
             ///@notice Decrement the order.owner's gas credit balance
             gasCreditBalance[order.owner] -= REFRESH_FEE;
@@ -273,6 +276,9 @@ contract LimitOrderRouter is OrderBook {
                 ++i;
             }
         }
+
+        ///@notice Transfer the refresh fee to off-chain executor who called the function.
+        safeTransferETH(msg.sender, totalRefreshFees);
     }
 
     ///@notice Transfer ETH to a specific address and require that the call was successful.
@@ -386,7 +392,7 @@ contract LimitOrderRouter is OrderBook {
                 revert IncongruentInputTokenInBatch();
             }
 
-            ///@notice Check if the token in is the same for the next order
+            ///@notice Check if the stoploss status is the same for the next order
             if (currentOrder.stoploss != nextOrder.stoploss) {
                 revert IncongruentStoplossStatus();
             }
@@ -396,12 +402,12 @@ contract LimitOrderRouter is OrderBook {
                 revert IncongruentOutputTokenInBatch();
             }
 
-            ///@notice Check if the token tax status is the same for the next order
+            ///@notice Check if the buy status is the same for the next order
             if (currentOrder.buy != nextOrder.buy) {
                 revert IncongruentBuySellStatusInBatch();
             }
 
-            ///@notice Check if the token tax status is the same for the next order
+            ///@notice Check if the tax status is the same for the next order
             if (currentOrder.taxed != nextOrder.taxed) {
                 revert IncongruentTaxedTokenInBatch();
             }

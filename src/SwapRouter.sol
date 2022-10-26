@@ -20,7 +20,7 @@ import "../lib/libraries/token/SafeERC20.sol";
 
 /// @title SwapRouter
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
-/// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution. Contains all limit order execution structures.
+/// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution.
 contract SwapRouter is ConveyorTickMath {
     using SafeERC20 for IERC20;
     //----------------------Structs------------------------------------//
@@ -107,7 +107,6 @@ contract SwapRouter is ConveyorTickMath {
     uint128 constant ZERO_POINT_ONE = 1844674407370955300;
     uint128 constant ZERO_POINT_ZERO_ZERO_FIVE = 92233720368547760;
     uint128 constant ZERO_POINT_ZERO_ZERO_ONE = 18446744073709550;
-    
 
     //======================Immutables================================
 
@@ -168,7 +167,8 @@ contract SwapRouter is ConveyorTickMath {
         }
     }
 
-    /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation
+    /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation.
+    /// @dev amountIn must be in WETH represented in 18 decimal form.
     /// @dev This calculation assumes that all values are in a 64x64 fixed point uint128 representation.
     /** @param amountIn - Amount of Weth represented as a 64x64 fixed point value to calculate the fee that will be applied 
     to the amountOut of an executed order. */
@@ -194,7 +194,7 @@ contract SwapRouter is ConveyorTickMath {
         uint256 spotPrice = _spRes.spotPrice;
 
         ///@notice The SpotPrice is represented as a 128x128 fixed point value. To derive the amount in USDC, multiply spotPrice*amountIn and adjust to base 10
-        uint256 amountInUSDCDollarValue = ConveyorMath.mul128I(
+        uint256 amountInUSDCDollarValue = ConveyorMath.mul128U(
             spotPrice,
             amountIn
         ) / uint256(10**18);
@@ -271,7 +271,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@param _amountOutMin - AmountOutMin for the swap.
     ///@param _reciever - Address to receive the amountOut.
     ///@param _sender - Address to send the tokenIn.
-    ///@return amountRecieved - Amount received from the swap.
+    ///@return amountReceived - Amount received from the swap.
     function _swapV2(
         address _tokenIn,
         address _tokenOut,
@@ -280,7 +280,7 @@ contract SwapRouter is ConveyorTickMath {
         uint256 _amountOutMin,
         address _reciever,
         address _sender
-    ) internal returns (uint256 amountRecieved) {
+    ) internal returns (uint256 amountReceived) {
         ///@notice If the sender is not the current context
         ///@dev This can happen when swapping taxed tokens to avoid being double taxed by sending the tokens to the contract instead of directly to the lp
         if (_sender != address(this)) {
@@ -292,7 +292,7 @@ contract SwapRouter is ConveyorTickMath {
         }
 
         ///@notice Get token0 from the pairing.
-        (address token0, ) = ConveyorFeeMath._sortTokens(_tokenIn, _tokenOut);
+        (address token0, ) = _sortTokens(_tokenIn, _tokenOut);
 
         ///@notice Intialize the amountOutMin value
         (uint256 amount0Out, uint256 amount1Out) = _tokenIn == token0
@@ -311,14 +311,14 @@ contract SwapRouter is ConveyorTickMath {
         );
 
         ///@notice calculate the amount recieved
-        amountRecieved = IERC20(_tokenOut).balanceOf(_reciever) - balanceBefore;
+        amountReceived = IERC20(_tokenOut).balanceOf(_reciever) - balanceBefore;
 
         ///@notice if the amount recieved is less than the amount out min, revert
-        if (amountRecieved < _amountOutMin) {
+        if (amountReceived < _amountOutMin) {
             revert InsufficientOutputAmount();
         }
 
-        return amountRecieved;
+        return amountReceived;
     }
 
     receive() external payable {}
@@ -332,7 +332,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@param _amountOutMin - AmountOutMin for the swap.
     ///@param _reciever - Address to receive the amountOut.
     ///@param _sender - Address to send the tokenIn.
-    ///@return amountRecieved - Amount received from the swap.
+    ///@return amountReceived - Amount received from the swap.
     function swap(
         address _tokenIn,
         address _tokenOut,
@@ -342,9 +342,9 @@ contract SwapRouter is ConveyorTickMath {
         uint256 _amountOutMin,
         address _reciever,
         address _sender
-    ) internal returns (uint256 amountRecieved) {
+    ) internal returns (uint256 amountReceived) {
         if (_lpIsNotUniV3(_lp)) {
-            amountRecieved = _swapV2(
+            amountReceived = _swapV2(
                 _tokenIn,
                 _tokenOut,
                 _lp,
@@ -354,7 +354,7 @@ contract SwapRouter is ConveyorTickMath {
                 _sender
             );
         } else {
-            amountRecieved = _swapV3(
+            amountReceived = _swapV3(
                 _lp,
                 _tokenIn,
                 _tokenOut,
@@ -375,7 +375,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@param _amountOutMin The minimum amount out in TokenOut post swap.
     ///@param _reciever The receiver of the tokens post swap.
     ///@param _sender The sender of TokenIn on the swap.
-    ///@return amountRecieved The amount of TokenOut received post swap.
+    ///@return amountReceived The amount of TokenOut received post swap.
     function _swapV3(
         address _lp,
         address _tokenIn,
@@ -385,19 +385,14 @@ contract SwapRouter is ConveyorTickMath {
         uint256 _amountOutMin,
         address _reciever,
         address _sender
-    ) internal returns (uint256 amountRecieved) {
+    ) internal returns (uint256 amountReceived) {
         ///@notice Initialize variables to prevent stack too deep.
-        uint160 _sqrtPriceLimitX96;
         bool _zeroForOne;
 
         ///@notice Scope out logic to prevent stack too deep.
         {
-            ///@notice Get the sqrtPriceLimitX96 and zeroForOne on the swap.
-            (_sqrtPriceLimitX96, _zeroForOne) = getNextSqrtPriceV3(
-                _lp,
-                _amountIn,
-                _tokenIn
-            );
+            (address token0, ) = _sortTokens(_tokenIn, _tokenOut);
+            _zeroForOne = token0 == _tokenIn ? true : false;
         }
 
         ///@notice Pack the relevant data to be retrieved in the swap callback.
@@ -410,61 +405,23 @@ contract SwapRouter is ConveyorTickMath {
             _sender
         );
 
-        ///@notice Initialize Storage variable uniV3AmountOut to 0 prior to the swap.
-        uniV3AmountOut = 0;
-
         ///@notice Execute the swap on the lp for the amounts specified.
         IUniswapV3Pool(_lp).swap(
             _reciever,
             _zeroForOne,
             int256(_amountIn),
-            _sqrtPriceLimitX96,
+            _zeroForOne
+                ? TickMath.MIN_SQRT_RATIO + 1
+                : TickMath.MAX_SQRT_RATIO - 1,
             data
         );
 
+        ///@notice Cache the uniV3Amount.
+        uint256 amountOut = uniV3AmountOut;
+        ///@notice Set uniV3AmountOut to 0.
+        uniV3AmountOut = 0;
         ///@notice Return the amountOut yielded from the swap.
-        return uniV3AmountOut;
-    }
-
-    ///@notice Function to calculate the nextSqrtPriceX96 for a Uniswap V3 swap.
-    ///@param _lp - Address of the liquidity pool to execute the swap on.
-    ///@param _alphaX - The input amount to calculate the nextSqrtPriceX96.
-    ///@param _tokenIn - The address of TokenIn.
-    ///@return _sqrtPriceLimitX96 - The nextSqrtPriceX96 after alphaX amount of TokenIn is introduced to the pool.
-    ///@return  _zeroForOne - Boolean indicating whether Token0 is being swapped for Token1 on the liquidity pool.
-    function getNextSqrtPriceV3(
-        address _lp,
-        uint256 _alphaX,
-        address _tokenIn
-    ) internal view returns (uint160 _sqrtPriceLimitX96, bool _zeroForOne) {
-        ///@notice Initialize token0 & token1 to prevent stack too deep.
-        address token0;
-        address token1;
-        ///@notice Scope out logic to prevent stack too deep.
-        {
-            ///@notice Retrieve token0 & token1 from the liquidity pool.
-            token0 = IUniswapV3Pool(_lp).token0();
-            token1 = IUniswapV3Pool(_lp).token1();
-
-            ///@notice Set boolean _zeroForOne.
-            _zeroForOne = token0 == _tokenIn ? true : false;
-        }
-
-        ///@notice Get the current sqrtPriceX96 from the liquidity pool.
-        (uint160 _srtPriceX96, , , , , , ) = IUniswapV3Pool(_lp).slot0();
-
-        ///@notice Get the liquditity from the liquidity pool.
-        uint128 liquidity = IUniswapV3Pool(_lp).liquidity();
-
-        ///@notice If swapping token1 for token0.
-
-        ///@notice Get the nextSqrtPrice after introducing alphaX into the token1 reserves.
-        _sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
-            _srtPriceX96,
-            liquidity,
-            _alphaX,
-            _zeroForOne
-        );
+        return amountOut;
     }
 
     ///@notice Uniswap V3 callback function called during a swap on a v3 liqudity pool.
@@ -546,14 +503,14 @@ contract SwapRouter is ConveyorTickMath {
         address tok1;
 
         {
-            (tok0, tok1) = ConveyorFeeMath._sortTokens(token0, token1);
+            (tok0, tok1) = _sortTokens(token0, token1);
         }
 
         ///@notice SpotReserve struct to hold the reserve values and spot price of the dex.
         SpotReserve memory _spRes;
 
         ///@notice Get pool address on the token pair.
-        address pairAddress = ConveyorFeeMath._getV2PairAddress(
+        address pairAddress = _getV2PairAddress(
             _factory,
             tok0,
             tok1,
@@ -600,6 +557,7 @@ contract SwapRouter is ConveyorTickMath {
         (spRes, poolAddress) = (_spRes, pairAddress);
     }
 
+
     ///@notice Helper function to convert reserve values to common 18 decimal base.
     ///@param tok0 - Address of token0.
     ///@param tok1 - Address of token1.
@@ -639,10 +597,7 @@ contract SwapRouter is ConveyorTickMath {
         address _factory
     ) internal view returns (SpotReserve memory _spRes, address pool) {
         ///@notice Sort the tokens to retrieve token0, token1 in the pool.
-        (address _tokenX, address _tokenY) = ConveyorFeeMath._sortTokens(
-            token0,
-            token1
-        );
+        (address _tokenX, address _tokenY) = _sortTokens(token0, token1);
         ///@notice Get the pool address for token pair.
         pool = IUniswapV3Factory(_factory).getPool(token0, token1, fee);
         ///@notice Return an empty spot reserve if the pool address was not found.
@@ -667,6 +622,49 @@ contract SwapRouter is ConveyorTickMath {
         _spRes.spotPrice = priceX128;
 
         return (_spRes, pool);
+    }
+
+    ///@notice Helper function to derive the token pair address on a Dex from the factory address and initialization bytecode.
+    ///@notice Reference: https://docs.uniswap.org/protocol/V2/guides/smart-contract-integration/getting-pair-addresses
+    ///@param _factory - Factory address of the Dex.
+    ///@param token0 - Token0 address.
+    ///@param token1 - Token1 address.
+    ///@param _initBytecode - Initialization bytecode of the factory contract.
+    function _getV2PairAddress(
+        address _factory,
+        address token0,
+        address token1,
+        bytes32 _initBytecode
+    ) internal pure returns (address pairAddress) {
+        pairAddress = address(
+            uint160(
+                uint256(
+                    keccak256(
+                        abi.encodePacked(
+                            hex"ff",
+                            _factory,
+                            keccak256(abi.encodePacked(token0, token1)),
+                            _initBytecode
+                        )
+                    )
+                )
+            )
+        );
+    }
+
+    /// @notice Helper function to return sorted token addresses.
+    /// @param tokenA - Address of tokenA.
+    /// @param tokenB - Address of tokenB.
+    function _sortTokens(address tokenA, address tokenB)
+        public
+        pure
+        returns (address token0, address token1)
+    {
+        require(tokenA != tokenB, "UniswapV2Library: IDENTICAL_ADDRESSES");
+        (token0, token1) = tokenA < tokenB
+            ? (tokenA, tokenB)
+            : (tokenB, tokenA);
+        require(token0 != address(0), "UniswapV2Library: ZERO_ADDRESS");
     }
 
     ///@notice Helper function to determine if a pool address is Uni V2 compatible.
