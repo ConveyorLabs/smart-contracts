@@ -16,7 +16,10 @@ contract OrderBook is GasOracle {
     constructor(address _gasOracle, address _limitOrderExecutor)
         GasOracle(_gasOracle)
     {
-        require(_limitOrderExecutor != address(0), "Invalid LimitOrderExecutor Address");
+        require(
+            _limitOrderExecutor != address(0),
+            "Invalid LimitOrderExecutor Address"
+        );
         EXECUTOR_ADDRESS = _limitOrderExecutor;
     }
 
@@ -228,66 +231,59 @@ contract OrderBook is GasOracle {
 
     /**@notice Updates an existing order. If the order exists and all order criteria is met, the order at the specified orderId will
     be updated to the newOrder's parameters. */
-    /**@param newOrder - Order struct containing the updated order parameters desired. 
+    /**@param orderId - OrderId of order to update.
+    ///@param price - Price to update the execution price of the order to. The price will stay the same if this field is set to 0.
+    ///@param quantity - Quantity to update the existing order quantity to. The quantity will stay the same if this field is set to 0.
     The newOrder should have the orderId that corresponds to the existing order that it should replace. */
-    function updateOrder(Order memory newOrder) public {
+    function updateOrder(
+        bytes32 orderId,
+        uint128 price,
+        uint128 quantity
+    ) public {
         ///@notice Check if the order exists
-        bool orderExists = addressToOrderIds[msg.sender][newOrder.orderId];
+        bool orderExists = addressToOrderIds[msg.sender][orderId];
 
         ///@notice If the order does not exist, revert.
         if (!orderExists) {
-            revert OrderDoesNotExist(newOrder.orderId);
+            revert OrderDoesNotExist(orderId);
         }
 
         ///@notice Get the existing order that will be replaced with the new order
-        Order memory oldOrder = orderIdToOrder[newOrder.orderId];
+        Order memory order = orderIdToOrder[orderId];
 
-        if (
-            oldOrder.tokenIn != newOrder.tokenIn ||
-            oldOrder.tokenOut != newOrder.tokenOut
-        ) {
-            revert InvalidOrderUpdate();
-        }
         ///@notice Get the total orders value for the msg.sender on the tokenIn
-        uint256 totalOrdersValue = _getTotalOrdersValue(oldOrder.tokenIn);
-
-        ///@notice Set the lastRefreshTimestamp on the new order to the old orders lastRefreshTimestamp.
-        newOrder.lastRefreshTimestamp = oldOrder.lastRefreshTimestamp;
+        uint256 totalOrdersValue = _getTotalOrdersValue(order.tokenIn);
 
         ///@notice Update the total orders value
-        totalOrdersValue += newOrder.quantity;
-        totalOrdersValue -= oldOrder.quantity;
+        totalOrdersValue += quantity;
+        totalOrdersValue -= order.quantity;
 
         ///@notice If the wallet does not have a sufficient balance for the updated total orders value, revert.
-        if (IERC20(newOrder.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
+        if (IERC20(order.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
             revert InsufficientWalletBalance();
         }
 
         ///@notice Update the total orders quantity
-        updateTotalOrdersQuantity(
-            newOrder.tokenIn,
-            msg.sender,
-            totalOrdersValue
-        );
+        updateTotalOrdersQuantity(order.tokenIn, msg.sender, totalOrdersValue);
 
         ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
-        uint256 totalApprovedQuantity = IERC20(newOrder.tokenIn).allowance(
+        uint256 totalApprovedQuantity = IERC20(order.tokenIn).allowance(
             msg.sender,
             address(EXECUTOR_ADDRESS)
         );
 
         ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
-        if (totalApprovedQuantity < newOrder.quantity) {
+        if (totalApprovedQuantity < order.quantity) {
             revert InsufficientAllowanceForOrderUpdate();
-        
         }
 
         ///@notice Update the order details stored in the system.
-        orderIdToOrder[oldOrder.orderId] = newOrder;
+        orderIdToOrder[order.orderId].price = price;
+        orderIdToOrder[order.orderId].quantity = quantity;
 
         ///@notice Emit an updated order event with the orderId that was updated
         bytes32[] memory orderIds = new bytes32[](1);
-        orderIds[0] = newOrder.orderId;
+        orderIds[0] = orderId;
         emit OrderUpdated(orderIds);
     }
 
