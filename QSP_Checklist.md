@@ -6,19 +6,37 @@ The changes also removed the need for the batching functions in `LimitOrderBatch
 
 ## Post Audit Changes
 
-### Contract `ConveyorTickMath`
+```solidity
+ConveyorTickMath.sol
+```
 Functions Modified: <br /> 
-`fromSqrtX96#L71` <br /> 
-`simulateAmountOutOnSqrtPriceX96#L104` <br /> 
+```solidity
+fromSqrtX96()
+``` 
+```solidity
+simulateAmountOutOnSqrtPriceX96()
+```  
 
-### Contract `SwapRouter`
-Functions Modified: <br /> 
-`getNextSqrtPriceV3#L551` <br /> 
-`_calculateV3SpotPrice#L751` <br /> 
 
-### Contract `LimitOrderRouter`
+```solidity
+SwapRouter.sol
+```
+
+Functions Modified: 
+```solidity
+getNextSqrtPriceV3()
+``` 
+```solidity
+_calculateV3SpotPrice()
+``` 
+
+```solidity
+LimitOrderRouter.sol
+```
 Functions Modified: <br /> 
-`executeOrders#L417` <br /> 
+```solidity
+executeOrders()
+``` 
 
 ## Uniswap V3 Changes
 ### Function `LimitOrderBatcher.calculateAmountOutMinAToWeth()`
@@ -90,7 +108,7 @@ Several functions are missing authorization validation and allow anyone to call 
 Execution functions were merged into a single execution contract called `LimitOrderExecutor.sol`. Validation was added to each execution function via a modifier called `onlyLimitOrderRouter`.
 
 
-```js
+```solidity
 modifier onlyLimitOrderRouter() {
     if (msg.sender != LIMIT_ORDER_ROUTER) {
         revert MsgSenderIsNotLimitOrderRouter();
@@ -126,7 +144,7 @@ The function updateOrder() allows the order owner to change the old order's para
 ### Resolution
 The `updateOrder()` function was updated to take a quantity and price, which are now the only fields that are updated instead of replacing the old order. If the user wants to update any other fields, they will have to cancel the order and place a new one. The function now has the following signature:
 
-```javascript
+```solidity
 function updateOrder(
     bytes32 orderId, 
     uint128 price, 
@@ -143,7 +161,7 @@ In the current implementation, if the input orderIds in the function executeOrde
 ### Resolution
 Logic was added within the `_resolveCompletedOrder()` function to check if the order exists in the orderIdToOrder mapping. Since the orderId gets cleaned up from this mapping after successful execution, if there is a duplicate orderId in the array of orderIds being executed, the orderToOrderId mapping will return 0 for the duplicated orderId, causing a reversion.
 
-```javascript=
+```solidity
 
     function _resolveCompletedOrder(bytes32 orderId) internal {
         ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
@@ -175,7 +193,7 @@ that are at risk of reentrancy: `LimitOrderRouter.executeOrders()`, `withdrawCon
 
 Logic to stop reentrancy has been added to `LimitOrderRouter.executeOrders()` and `withdrawConveyorFees()`. 
 
-```javascript=
+```solidity
 
 
     ///@notice Modifier to restrict reentrancy into a function.
@@ -197,7 +215,7 @@ Logic to stop reentrancy has been added to `LimitOrderRouter.executeOrders()` an
 ```
 
 
-```javascript=
+```solidity
 
     ///@notice Function to withdraw owner fee's accumulated
     function withdrawConveyorFees() external {
@@ -249,7 +267,7 @@ the old and new order are the same, this could update some completely unrelated 
 The updated order quantity now calculates the correct value.
 
 
-```javascript=
+```solidity
 
 totalOrdersValue += newQuantity;
 totalOrdersValue -= oldOrder.quantity;
@@ -364,7 +382,7 @@ implementation of executeTokenToTokenOrders() seems to be aware of the fact that
 **Recommendation**: Either get an exact array length and allocate the array with the correct size or try to override the array length before returning the array. Otherwise, consider adding a warning to the above functions to ensure callers are aware of the returned array potentially containing empty elements.
 While newer solidity versions no longer allow assigning the array length directly, it is still possible to do so using assembly:
 
-```js
+```solidity
 assembly {
     mstore(<:your_array_var>, <:reset_size>)
 }
