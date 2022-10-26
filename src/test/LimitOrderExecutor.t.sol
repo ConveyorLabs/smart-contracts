@@ -2446,11 +2446,11 @@ contract LimitOrderExecutorTest is DSTest {
             DAI,
             1,
             false,
-            false,
+            true,
             0,
             1,
-            5000000000000000000000, //5000 WETH
-            3000,
+            50000000000000000000000, //5000 WETH
+            500,
             0,
             0,
             MAX_U32
@@ -2461,11 +2461,11 @@ contract LimitOrderExecutorTest is DSTest {
             DAI,
             1,
             false,
-            false,
+            true,
             0,
             1,
-            5000000000000000000000, //5000 WETH
-            3000,
+            50000000000000000000000, //5000 WETH
+            500,
             0,
             0,
             MAX_U32
@@ -2475,11 +2475,11 @@ contract LimitOrderExecutorTest is DSTest {
             DAI,
             1,
             false,
-            false,
+            true,
             0,
             1,
-            5000000000000000000000, //5000 WETH
-            3000,
+            5000000000000000000000000, //5000 WETH
+            500,
             0,
             0,
             MAX_U32
@@ -2489,11 +2489,11 @@ contract LimitOrderExecutorTest is DSTest {
             DAI,
             1,
             false,
-            false,
+            true,
             0,
             1,
-            5000000000000000000000, //5000 WETH
-            3000,
+            5000000000000000000000000, //5000 WETH
+            500,
             0,
             0,
             MAX_U32
@@ -2503,11 +2503,11 @@ contract LimitOrderExecutorTest is DSTest {
             DAI,
             1,
             false,
-            false,
+            true,
             0,
             1,
-            5000000000000000000000, //5000 WETH
-            3000,
+            5000000000000000000000000, //5000 WETH
+            500,
             0,
             0,
             MAX_U32
@@ -2517,11 +2517,11 @@ contract LimitOrderExecutorTest is DSTest {
             DAI,
             1,
             false,
-            false,
+            true,
             0,
             1,
-            5000000000000000000000, //5000 WETH
-            3000,
+            5000000000000000000000000, //5000 WETH
+            500,
             0,
             0,
             MAX_U32
@@ -2629,73 +2629,73 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order memory order3 = newMockOrder(
-            USDC,
-            UNI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000, //5000 USDC
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
+        // OrderBook.Order memory order3 = newMockOrder(
+        //     USDC,
+        //     UNI,
+        //     1,
+        //     false,
+        //     false,
+        //     0,
+        //     1,
+        //     5000000000, //5000 USDC
+        //     3000,
+        //     3000,
+        //     0,
+        //     MAX_U32
+        // );
 
-        OrderBook.Order memory order4 = newMockOrder(
-            USDC,
-            UNI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000, //5000 USDC
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
+        // OrderBook.Order memory order4 = newMockOrder(
+        //     USDC,
+        //     UNI,
+        //     1,
+        //     false,
+        //     false,
+        //     0,
+        //     1,
+        //     5000000000, //5000 USDC
+        //     3000,
+        //     3000,
+        //     0,
+        //     MAX_U32
+        // );
 
-        OrderBook.Order memory order5 = newMockOrder(
-            USDC,
-            UNI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000, //5000 DAI
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
+        // OrderBook.Order memory order5 = newMockOrder(
+        //     USDC,
+        //     UNI,
+        //     1,
+        //     false,
+        //     false,
+        //     0,
+        //     1,
+        //     5000000000, //5000 DAI
+        //     3000,
+        //     3000,
+        //     0,
+        //     MAX_U32
+        // );
 
-        OrderBook.Order memory order6 = newMockOrder(
-            USDC,
-            UNI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000, //5000 DAI
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
+        // OrderBook.Order memory order6 = newMockOrder(
+        //     USDC,
+        //     UNI,
+        //     1,
+        //     false,
+        //     false,
+        //     0,
+        //     1,
+        //     5000000000, //5000 DAI
+        //     3000,
+        //     3000,
+        //     0,
+        //     MAX_U32
+        // );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](6);
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
-        orderBatch[2] = order3;
-        orderBatch[3] = order4;
-        orderBatch[4] = order5;
-        orderBatch[5] = order6;
+        // orderBatch[2] = order3;
+        // orderBatch[3] = order4;
+        // orderBatch[4] = order5;
+        // orderBatch[5] = order6;
 
         return placeMultipleMockOrder(orderBatch);
     }

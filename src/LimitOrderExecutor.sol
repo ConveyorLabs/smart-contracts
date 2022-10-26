@@ -2,7 +2,6 @@
 pragma solidity 0.8.16;
 
 import "./SwapRouter.sol";
-import "./interfaces/ILimitOrderQuoter.sol";
 import "./lib/ConveyorFeeMath.sol";
 import "./LimitOrderRouter.sol";
 
@@ -82,12 +81,93 @@ contract LimitOrderExecutor is SwapRouter {
         owner = msg.sender;
     }
 
+    ///@notice Function to return the index of the best price in the executionPrices array.
+    ///@param executionPrices - Array of execution prices to evaluate.
+    ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
+    ///@return bestPriceIndex - Index of the best price in the executionPrices array.
+    function _findBestTokenToWethExecutionPrice(
+        SwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
+        bool buyOrder
+    ) internal pure returns (uint256 bestPriceIndex) {
+        ///@notice If the order is a buy order, set the initial best price at 0.
+        if (buyOrder) {
+            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+
+            ///@notice For each exectution price in the executionPrices array.
+            for (uint256 i = 0; i < executionPrices.length; ) {
+                uint256 executionPrice = executionPrices[i].price;
+
+                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
+                if (executionPrice < bestPrice && executionPrice != 0) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
+
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            ///@notice If the order is a sell order, set the initial best price at max uint256.
+            uint256 bestPrice = 0;
+            for (uint256 i = 0; i < executionPrices.length; ) {
+                uint256 executionPrice = executionPrices[i].price;
+
+                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
+                if (executionPrice > bestPrice && executionPrice != 0) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
+
+                unchecked {
+                    ++i;
+                }
+            }
+        }
+    }
+
+    ///@notice Function to return the index of the best price in the executionPrices array.
+    ///@param executionPrices - Array of execution prices to evaluate.
+    ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
+    ///@return bestPriceIndex - Index of the best price in the executionPrices array.
+    function _findBestTokenToTokenExecutionPrice(
+        SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
+        bool buyOrder
+    ) internal pure returns (uint256 bestPriceIndex) {
+        ///@notice If the order is a buy order, set the initial best price at 0.
+        if (buyOrder) {
+            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+            ///@notice For each exectution price in the executionPrices array.
+            for (uint256 i = 0; i < executionPrices.length; ) {
+                uint256 executionPrice = executionPrices[i].price;
+                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
+                if (executionPrice < bestPrice && executionPrice != 0) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            uint256 bestPrice = 0;
+            ///@notice If the order is a sell order, set the initial best price at max uint256.
+            for (uint256 i = 0; i < executionPrices.length; i++) {
+                uint256 executionPrice = executionPrices[i].price;
+                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
+                if (executionPrice > bestPrice && executionPrice != 0) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
+            }
+        }
+    }
+
     ///@notice Function to execute a batch of Token to Weth Orders.
     ///@param orders The orders to be executed.
     function executeTokenToWethOrders(OrderBook.Order[] memory orders)
         external
         onlyLimitOrderRouter
-        returns (uint256, uint256)
     {
         ///@notice Get all of the execution prices on TokenIn to Weth for each dex.
         ///@notice Get all prices for the pairing
@@ -97,9 +177,8 @@ contract LimitOrderExecutor is SwapRouter {
         ) = _getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn);
 
         ///@notice Initialize all execution prices for the token pair.
-        TokenToWethExecutionPrice[] memory executionPrices = ILimitOrderQuoter(
-            LIMIT_ORDER_QUOTER
-        )._initializeTokenToWethExecutionPrices(
+        TokenToWethExecutionPrice[]
+            memory executionPrices = _initializeTokenToWethExecutionPrices(
                 spotReserveAToWeth,
                 lpAddressesAToWeth
             );
@@ -112,8 +191,7 @@ contract LimitOrderExecutor is SwapRouter {
 
         for (uint256 i = 0; i < orders.length; ) {
             ///@notice Create a variable to track the best execution price in the array of execution prices.
-            uint256 bestPriceIndex = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
-                ._findBestTokenToWethExecutionPrice(
+            uint256 bestPriceIndex = _findBestTokenToWethExecutionPrice(
                     executionPrices,
                     orders[i].buy
                 );
@@ -150,7 +228,7 @@ contract LimitOrderExecutor is SwapRouter {
         ///@notice Increment the conveyor balance.
         conveyorBalance += totalConveyorReward;
 
-        return (totalBeaconReward, totalConveyorReward);
+        
     }
 
     ///@notice Function to execute a single Token To Weth order.
@@ -200,7 +278,7 @@ contract LimitOrderExecutor is SwapRouter {
         if (_lpIsNotUniV3(lpAddressAToWeth)) {
             ///@notice Calculate the amountOutMin for the tokenA to Weth swap.
             batchAmountOutMinAToWeth = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
-                .calculateAmountOutMinAToWeth(
+                .calculateAmountOutMinAToWethV2(
                     lpAddressAToWeth,
                     orderQuantity,
                     order.taxIn,
@@ -243,12 +321,117 @@ contract LimitOrderExecutor is SwapRouter {
         amountOutWeth = amountOutWeth - (beaconReward + conveyorReward);
     }
 
+    ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
+    function _initializeTokenToWethExecutionPrices(
+        SwapRouter.SpotReserve[] memory spotReserveAToWeth,
+        address[] memory lpAddressesAToWeth
+    ) internal view returns (SwapRouter.TokenToWethExecutionPrice[] memory) {
+        ///@notice Initialize a new TokenToWethExecutionPrice array to store prices.
+        SwapRouter.TokenToWethExecutionPrice[]
+            memory executionPrices = new SwapRouter.TokenToWethExecutionPrice[](
+                spotReserveAToWeth.length
+            );
+
+        ///@notice Scoping to avoid stack too deep.
+        {
+            ///@notice For each spot reserve, initialize a token to weth execution price.
+            for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
+                executionPrices[i] = SwapRouter.TokenToWethExecutionPrice(
+                    spotReserveAToWeth[i].res0,
+                    spotReserveAToWeth[i].res1,
+                    spotReserveAToWeth[i].spotPrice,
+                    lpAddressesAToWeth[i],
+                    dexes[i].isUniV2
+                    
+                );
+            }
+        }
+
+        return (executionPrices);
+    }
+
+    ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
+    function _initializeTokenToTokenExecutionPrices(
+        address tokenIn,
+        SpotReserve[] memory spotReserveAToWeth,
+        address[] memory lpAddressesAToWeth,
+        SpotReserve[] memory spotReserveWethToB,
+        address[] memory lpAddressWethToB
+    ) internal view returns (TokenToTokenExecutionPrice[] memory) {
+        ///@notice Initialize a new TokenToTokenExecutionPrice array to store prices.
+        TokenToTokenExecutionPrice[]
+            memory executionPrices = new TokenToTokenExecutionPrice[](
+                spotReserveAToWeth.length * spotReserveWethToB.length
+            );
+
+        ///@notice If TokenIn is Weth
+        if (tokenIn == WETH) {
+            ///@notice Iterate through each SpotReserve on Weth to TokenB
+            for (uint256 i = 0; i < spotReserveWethToB.length; ++i) {
+                ///@notice Then set res0, and res1 for tokenInToWeth to 0 and lpAddressAToWeth to the 0 address
+                executionPrices[i] = TokenToTokenExecutionPrice(
+                    0,
+                    0,
+                    spotReserveWethToB[i].res0,
+                    spotReserveWethToB[i].res1,
+                    spotReserveWethToB[i].spotPrice,
+                    address(0),
+                    lpAddressWethToB[i],
+                    false,
+                    dexes[i].isUniV2
+                );
+            }
+        } else {
+            ///@notice Initialize index to 0
+            uint256 index = 0;
+            ///@notice Iterate through each SpotReserve on TokenA to Weth
+            for (uint256 i = 0; i < spotReserveAToWeth.length; ) {
+                ///@notice Iterate through each SpotReserve on Weth to TokenB
+                for (uint256 j = 0; j < spotReserveWethToB.length; ) {
+                    ///@notice Calculate the spot price from tokenA to tokenB represented as 128.128 fixed point.
+                    uint256 spotPriceFinal = uint256(
+                        _calculateTokenToWethToTokenSpotPrice(
+                            spotReserveAToWeth[i].spotPrice,
+                            spotReserveWethToB[j].spotPrice
+                        )
+                    ) << 64;
+
+                    ///@notice Set the executionPrices at index to TokenToTokenExecutionPrice
+                    executionPrices[index] = TokenToTokenExecutionPrice(
+                        spotReserveAToWeth[i].res0,
+                        spotReserveAToWeth[i].res1,
+                        spotReserveWethToB[j].res1,
+                        spotReserveWethToB[j].res0,
+                        spotPriceFinal,
+                        lpAddressesAToWeth[i],
+                        lpAddressWethToB[j],
+                        dexes[i].isUniV2,
+                        dexes[j].isUniV2
+                    );
+                    ///@notice Increment the index
+                    unchecked {
+                        ++index;
+                    }
+
+                    unchecked {
+                        ++j;
+                    }
+                }
+
+                unchecked {
+                    ++i;
+                }
+            }
+        }
+
+        return (executionPrices);
+    }
+
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
     function executeTokenToTokenOrders(OrderBook.Order[] memory orders)
         external
         onlyLimitOrderRouter
-        returns (uint256, uint256)
     {
         TokenToTokenExecutionPrice[] memory executionPrices;
         address tokenIn = orders[0].tokenIn;
@@ -269,25 +452,23 @@ contract LimitOrderExecutor is SwapRouter {
                 address[] memory lpAddressWethToB
             ) = _getAllPrices(WETH, orders[0].tokenOut, feeOut);
 
-            executionPrices = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
-                ._initializeTokenToTokenExecutionPrices(
-                    tokenIn,
-                    spotReserveAToWeth,
-                    lpAddressesAToWeth,
-                    spotReserveWethToB,
-                    lpAddressWethToB
-                );
+            executionPrices = _initializeTokenToTokenExecutionPrices(
+                tokenIn,
+                spotReserveAToWeth,
+                lpAddressesAToWeth,
+                spotReserveWethToB,
+                lpAddressWethToB
+            );
         }
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
         ///@notice Set totalConveyorReward to 0
         uint256 totalConveyorReward = 0;
-
+        bool wethIsToken0 = orders[0].tokenIn == WETH;
         ///@notice Loop through each Order.
         for (uint256 i = 0; i < orders.length; ) {
             ///@notice Create a variable to track the best execution price in the array of execution prices.
-            uint256 bestPriceIndex = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
-                ._findBestTokenToTokenExecutionPrice(
+            uint256 bestPriceIndex = _findBestTokenToTokenExecutionPrice(
                     executionPrices,
                     orders[i].buy
                 );
@@ -306,24 +487,9 @@ contract LimitOrderExecutor is SwapRouter {
             }
 
             {
-                if (!(orders.length == 1)) {
-                    address lpWethToB = executionPrices[bestPriceIndex].lpAddressWethToB;
-                    if (orders[0].tokenIn == WETH) {
-                        
-                        ///@notice Update the best execution price.
-                        (
-                            executionPrices[bestPriceIndex]
-                        ) = calculateNewExecutionPriceTokenToTokenWethToB(
-                            executionPrices,
-                            0,
-                            bestPriceIndex,
-                            orders[i],
-                            true
-                        );
-                        
-                    } else {
-                        uint256 spotPriceAToWeth;
-                       
+                
+                    uint256 spotPriceAToWeth;
+                    if (!wethIsToken0) {
                         ///@notice Update the best execution price.
                         (
                             executionPrices[bestPriceIndex],
@@ -333,20 +499,19 @@ contract LimitOrderExecutor is SwapRouter {
                             bestPriceIndex,
                             orders[i]
                         );
-                        ///@notice Update the best execution price.
-                        (
-                            executionPrices[bestPriceIndex]
-                        ) = calculateNewExecutionPriceTokenToTokenWethToB(
-                            executionPrices,
-                            spotPriceAToWeth,
-                            bestPriceIndex,
-                            orders[i],
-                            false
-                        );
                     }
-                } else {
-                    break;
-                }
+
+                    ///@notice Update the best execution price.
+                    (
+                        executionPrices[bestPriceIndex]
+                    ) = calculateNewExecutionPriceTokenToTokenWethToB(
+                        executionPrices,
+                        bestPriceIndex,
+                        wethIsToken0 ? 0 : spotPriceAToWeth,
+                        orders[i],
+                        wethIsToken0
+                    );
+                
             }
 
             unchecked {
@@ -357,8 +522,6 @@ contract LimitOrderExecutor is SwapRouter {
         transferBeaconReward(totalBeaconReward, tx.origin, WETH);
 
         conveyorBalance += totalConveyorReward;
-
-        return (totalBeaconReward, totalConveyorReward);
     }
 
     ///@notice Function to execute a single Token To Token order.

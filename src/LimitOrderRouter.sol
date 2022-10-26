@@ -455,9 +455,10 @@ contract LimitOrderRouter is OrderBook {
 
         ///@notice Get all of the orders by orderId and add them to a temporary orders array
         Order[] memory orders = new Order[](orderIds.length);
-
+        address[] memory orderOwners = new address[](orderIds.length);
         for (uint256 i = 0; i < orderIds.length; ) {
             orders[i] = getOrderById(orderIds[i]);
+            orderOwners[i]= orders[i].owner;
             ///@notice Revert if the order does not exist in the contract.
             if (orders[i].orderId == bytes32(0)) {
                 revert OrderDoesNotExist(orderIds[i]);
@@ -482,23 +483,17 @@ contract LimitOrderRouter is OrderBook {
             _validateOrderSequencing(orders);
         }
 
-        uint256 totalBeaconReward;
-        uint256 totalConveyorReward;
-
         ///@notice If the order is not taxed and the tokenOut on the order is Weth
         if (orders[0].tokenOut == WETH) {
-            (totalBeaconReward, totalConveyorReward) = ILimitOrderExecutor(
+            ILimitOrderExecutor(
                 LIMIT_ORDER_EXECUTOR
             ).executeTokenToWethOrders(orders);
         } else {
             ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
-            (totalBeaconReward, totalConveyorReward) = ILimitOrderExecutor(
+            ILimitOrderExecutor(
                 LIMIT_ORDER_EXECUTOR
             ).executeTokenToTokenOrders(orders);
         }
-
-        ///@notice Get the array of order owners.
-        address[] memory orderOwners = getOrderOwners(orders);
 
         ///@notice Iterate through all orderIds in the batch and delete the orders from queue post execution.
         for (uint256 i = 0; i < orderIds.length; ) {
@@ -527,22 +522,6 @@ contract LimitOrderRouter is OrderBook {
         safeTransferETH(msg.sender, executionGasCompensation);
     }
 
-    ///@notice Function to return an array of order owners.
-    ///@param orders - Array of orders.
-    ///@return orderOwners - An array of order owners in the orders array.
-    function getOrderOwners(Order[] memory orders)
-        internal
-        pure
-        returns (address[] memory orderOwners)
-    {
-        orderOwners = new address[](orders.length);
-        for (uint256 i = 0; i < orders.length; ) {
-            orderOwners[i] = orders[i].owner;
-            unchecked {
-                ++i;
-            }
-        }
-    }
 
     ///@notice Function to confirm ownership transfer of the contract.
     function confirmTransferOwnership() external {

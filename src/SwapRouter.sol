@@ -52,6 +52,8 @@ contract SwapRouter is ConveyorTickMath {
         uint256 price;
         address lpAddressAToWeth;
         address lpAddressWethToB;
+        bool lpAToWithIsV2;
+        bool lpWethToBIsV2;
     }
 
     ///@notice Struct to store price information for a tokenIn/Weth pairing.
@@ -64,6 +66,7 @@ contract SwapRouter is ConveyorTickMath {
         uint128 aToWethReserve1;
         uint256 price;
         address lpAddressAToWeth;
+        bool lpAToWithIsV2;
     }
 
     ///@notice Struct to represent the spot price and reserve values on a given LP address
@@ -376,7 +379,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@param _amountOutMin The minimum amount out in TokenOut post swap.
     ///@param _reciever The receiver of the tokens post swap.
     ///@param _sender The sender of TokenIn on the swap.
-    ///@return amountRecieved The amount of TokenOut received post swap.
+    ///@return amountReceived The amount of TokenOut received post swap.
     function _swapV3(
         address _lp,
         address _tokenIn,
@@ -386,20 +389,12 @@ contract SwapRouter is ConveyorTickMath {
         uint256 _amountOutMin,
         address _reciever,
         address _sender
-    ) internal returns (uint256 amountRecieved) {
+    ) internal returns (uint256 amountReceived) {
         ///@notice Initialize variables to prevent stack too deep.
-        uint160 _sqrtPriceLimitX96;
-        bool _zeroForOne;
 
         ///@notice Scope out logic to prevent stack too deep.
-        {
-            ///@notice Get the sqrtPriceLimitX96 and zeroForOne on the swap.
-            (_sqrtPriceLimitX96, _zeroForOne) = getNextSqrtPriceV3(
-                _lp,
-                _amountIn,
-                _tokenIn
-            );
-        }
+
+        bool _zeroForOne = _tokenIn < _tokenOut ? true : false;
 
         ///@notice Pack the relevant data to be retrieved in the swap callback.
         bytes memory data = abi.encode(
@@ -411,70 +406,29 @@ contract SwapRouter is ConveyorTickMath {
         );
 
         ///@notice Initialize Storage variable uniV3AmountOut to 0 prior to the swap.
-        uniV3AmountOut = 0;
+        uint256 amountBefore = IERC20(_tokenOut).balanceOf(_reciever);
 
         ///@notice Execute the swap on the lp for the amounts specified.
         IUniswapV3Pool(_lp).swap(
             _reciever,
             _zeroForOne,
             int256(_amountIn),
-            _sqrtPriceLimitX96,
+            _zeroForOne
+                ? TickMath.MIN_SQRT_RATIO + 1
+                : TickMath.MAX_SQRT_RATIO - 1,
             data
         );
 
         ///@notice Return the amountOut yielded from the swap.
-        return uniV3AmountOut;
-    }
-
-    ///@notice Function to calculate the nextSqrtPriceX96 for a Uniswap V3 swap.
-    ///@param _lp - Address of the liquidity pool to execute the swap on.
-    ///@param _alphaX - The input amount to calculate the nextSqrtPriceX96.
-    ///@param _tokenIn - The address of TokenIn.
-    ///@return _sqrtPriceLimitX96 - The nextSqrtPriceX96 after alphaX amount of TokenIn is introduced to the pool.
-    ///@return  _zeroForOne - Boolean indicating whether Token0 is being swapped for Token1 on the liquidity pool.
-    function getNextSqrtPriceV3(
-        address _lp,
-        uint256 _alphaX,
-        address _tokenIn
-    ) internal view returns (uint160 _sqrtPriceLimitX96, bool _zeroForOne) {
-        ///@notice Initialize token0 & token1 to prevent stack too deep.
-        address token0;
-        address token1;
-        ///@notice Scope out logic to prevent stack too deep.
-        {
-            ///@notice Retrieve token0 & token1 from the liquidity pool.
-            token0 = IUniswapV3Pool(_lp).token0();
-            token1 = IUniswapV3Pool(_lp).token1();
-
-            ///@notice Set boolean _zeroForOne.
-            _zeroForOne = token0 == _tokenIn ? true : false;
-        }
-
-        ///@notice Get the current sqrtPriceX96 from the liquidity pool.
-        (uint160 _srtPriceX96, , , , , , ) = IUniswapV3Pool(_lp).slot0();
-
-        ///@notice Get the liquditity from the liquidity pool.
-        uint128 liquidity = IUniswapV3Pool(_lp).liquidity();
-
-        ///@notice If swapping token1 for token0.
-
-        ///@notice Get the nextSqrtPrice after introducing alphaX into the token1 reserves.
-        _sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
-            _srtPriceX96,
-            liquidity,
-            _alphaX,
-            _zeroForOne
-        );
+        amountReceived = IERC20(_tokenOut).balanceOf(_reciever) - amountBefore;
     }
 
     function calculateNewExecutionPriceTokenToWeth(
         TokenToWethExecutionPrice[] memory executionPrices,
         uint256 bestPriceIndex,
         OrderBook.Order[] memory orders
-    ) internal returns (TokenToWethExecutionPrice memory) {
-        address bestPool = executionPrices[bestPriceIndex].lpAddressAToWeth;
-
-        if (_lpIsNotUniV3(bestPool)) {
+    ) internal view returns (TokenToWethExecutionPrice memory) {
+        if (executionPrices[bestPriceIndex].lpAToWithIsV2) {
             uint128 reserve0 = executionPrices[bestPriceIndex].aToWethReserve0;
             uint128 reserve1 = executionPrices[bestPriceIndex].aToWethReserve1;
             reserve1 = uint128(
@@ -515,43 +469,46 @@ contract SwapRouter is ConveyorTickMath {
         TokenToTokenExecutionPrice[] memory executionPrices,
         uint256 bestPriceIndex,
         OrderBook.Order memory order
-    ) internal returns (TokenToTokenExecutionPrice memory, uint256) {
-        address bestPool = executionPrices[bestPriceIndex].lpAddressAToWeth;
+    ) internal view returns (TokenToTokenExecutionPrice memory, uint256) {
+        if (executionPrices[bestPriceIndex].lpAToWithIsV2) {
+            unchecked {
+                uint128 reserve0 = executionPrices[bestPriceIndex]
+                    .aToWethReserve0;
 
-        if (_lpIsNotUniV3(bestPool)) {
-            uint128 reserve0 = executionPrices[bestPriceIndex].aToWethReserve0;
-
-            uint128 reserve1 = uint128(
-                FullMath.mulDiv(
-                    reserve0,
-                    executionPrices[bestPriceIndex].aToWethReserve1,
-                    reserve0 + order.quantity
-                )
-            );
-            reserve0 = reserve0 + order.quantity;
-            uint256 price = uint256(
-                ConveyorMath.div128x128(
-                    uint256(reserve1) << 128,
-                    uint256(reserve0) << 128
-                )
-            );
-            executionPrices[bestPriceIndex].aToWethReserve0 = reserve0;
-            executionPrices[bestPriceIndex].aToWethReserve1 = reserve1;
-            return (executionPrices[bestPriceIndex], price);
+                uint128 reserve1 = uint128(
+                    FullMath.mulDiv(
+                        reserve0,
+                        executionPrices[bestPriceIndex].aToWethReserve1,
+                        reserve0 + order.quantity
+                    )
+                );
+                reserve0 = reserve0 + order.quantity;
+                uint256 price = uint256(
+                    ConveyorMath.div128x128(
+                        uint256(reserve1) << 128,
+                        uint256(reserve0) << 128
+                    )
+                );
+                executionPrices[bestPriceIndex].aToWethReserve0 = reserve0;
+                executionPrices[bestPriceIndex].aToWethReserve1 = reserve1;
+                return (executionPrices[bestPriceIndex], price);
+            }
         } else {
             address tokenIn = order.tokenIn;
             address tokenOut = order.tokenOut;
             bool zeroForOne = tokenIn < tokenOut ? true : false;
-            (uint160 sqrtPriceX96Current, , , , , , ) = IUniswapV3Pool(
-                executionPrices[bestPriceIndex].lpAddressAToWeth
-            ).slot0();
-            uint256 price = fromSqrtX96(
-                sqrtPriceX96Current,
-                tokenIn < tokenOut,
-                zeroForOne ? tokenIn : tokenOut,
-                zeroForOne ? tokenOut : tokenIn
-            );
-            return (executionPrices[bestPriceIndex], price);
+            unchecked {
+                (uint160 sqrtPriceX96Current, , , , , , ) = IUniswapV3Pool(
+                    executionPrices[bestPriceIndex].lpAddressAToWeth
+                ).slot0();
+                uint256 price = fromSqrtX96(
+                    sqrtPriceX96Current,
+                    tokenIn < tokenOut,
+                    zeroForOne ? tokenIn : tokenOut,
+                    zeroForOne ? tokenOut : tokenIn
+                );
+                return (executionPrices[bestPriceIndex], price);
+            }
         }
     }
 
@@ -561,11 +518,11 @@ contract SwapRouter is ConveyorTickMath {
         uint256 spotPriceAToWeth,
         OrderBook.Order memory order,
         bool wethIsToken0
-    ) internal returns (TokenToTokenExecutionPrice memory) {
+    ) internal view returns (TokenToTokenExecutionPrice memory) {
         uint256 quantity = order.quantity;
         address pool = executionPrices[bestPriceIndex].lpAddressWethToB;
         uint256 wethToBPrice;
-        if (_lpIsNotUniV3(pool)) {
+        if (executionPrices[bestPriceIndex].lpWethToBIsV2) {
             unchecked {
                 uint128 quantityIn = wethIsToken0
                     ? order.quantity
@@ -667,11 +624,6 @@ contract SwapRouter is ConveyorTickMath {
             ///@notice Set contract storage variable to the amountOut from the swap.
             uniV3AmountOut = uint256(-amount0Delta);
         }
-
-        // ///@notice Require the amountOut from the swap is greater than or equal to the amountOutMin.
-        // if (uniV3AmountOut < amountOutMin) {
-        //     revert InsufficientOutputAmount();
-        // }
 
         ///@notice Set amountIn to the amountInDelta depending on boolean zeroForOne.
         uint256 amountIn = _zeroForOne
@@ -858,72 +810,36 @@ contract SwapRouter is ConveyorTickMath {
     /// @param token0 - Address of token0.
     /// @param token1 - Address of token1.
     /// @param FEE - The Uniswap V3 pool fee on the token pair.
-    /// @return prices - SpotReserve array holding the reserves and spot prices across all dexes.
-    /// @return lps - Pool address's on the token pair across all dexes.
     function _getAllPrices(
         address token0,
         address token1,
         uint24 FEE
-    )
-        internal
-        view
-        returns (SpotReserve[] memory prices, address[] memory lps)
-    {
+    ) internal view returns (SpotReserve[] memory spots, address[] memory lps) {
+        spots = new SpotReserve[](dexes.length);
+        lps = new address[](dexes.length);
         ///@notice Check if the token address' are identical.
-        if (token0 != token1) {
-            ///@notice Initialize SpotReserve and lp arrays of lenth dexes.length
-            SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
-            address[] memory _lps = new address[](dexes.length);
-
-            ///@notice Iterate through Dexs in dexes and check if isUniV2.
-            for (uint256 i = 0; i < dexes.length; ++i) {
-                if (dexes[i].isUniV2) {
-                    {
-                        ///@notice Get the Uniswap v2 spot price and lp address.
-                        (
-                            SpotReserve memory spotPrice,
-                            address poolAddress
-                        ) = _calculateV2SpotPrice(
-                                token0,
-                                token1,
-                                dexes[i].factoryAddress,
-                                dexes[i].initBytecode
-                            );
-                        ///@notice Set SpotReserve and lp values if the returned values are not null.
-                        if (spotPrice.spotPrice != 0) {
-                            _spotPrices[i] = spotPrice;
-                            _lps[i] = poolAddress;
-                        }
-                    }
-                } else {
-                    {
-                        {
-                            ///@notice Get the Uniswap v2 spot price and lp address.
-                            (
-                                SpotReserve memory spotPrice,
-                                address poolAddress
-                            ) = _calculateV3SpotPrice(
-                                    token0,
-                                    token1,
-                                    FEE,
-                                    dexes[i].factoryAddress
-                                );
-
-                            ///@notice Set SpotReserve and lp values if the returned values are not null.
-                            if (spotPrice.spotPrice != 0) {
-                                _lps[i] = poolAddress;
-                                _spotPrices[i] = spotPrice;
-                            }
-                        }
-                    }
-                }
+        if(token0==token1){
+            return (spots, lps);
+        }
+        ///@notice Iterate through Dexs in dexes and check if isUniV2.
+        for (uint256 i = 0; i < dexes.length; ++i) {
+            if (dexes[i].isUniV2) {
+                ///@notice Get the Uniswap v2 spot price and lp address.
+                (spots[i], lps[i]) = _calculateV2SpotPrice(
+                    token0,
+                    token1,
+                    dexes[i].factoryAddress,
+                    dexes[i].initBytecode
+                );
+            } else {
+                ///@notice Get the Uniswap v2 spot price and lp address.
+                (spots[i], lps[i]) = _calculateV3SpotPrice(
+                    token0,
+                    token1,
+                    FEE,
+                    dexes[i].factoryAddress
+                );
             }
-
-            return (_spotPrices, _lps);
-        } else {
-            SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
-            address[] memory _lps = new address[](dexes.length);
-            return (_spotPrices, _lps);
         }
     }
 

@@ -5,15 +5,6 @@ import "./ConveyorMath.sol";
 import "../../lib/libraries/QuadruplePrecision.sol";
 
 library ConveyorFeeMath {
-    uint128 constant MIN_FEE_64x64 = 18446744073709552;
-    uint128 constant MAX_UINT_128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
-    uint128 constant UNI_V2_FEE = 5534023222112865000;
-    uint256 constant MAX_UINT_256 =
-        0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-    uint256 constant ONE_128x128 = uint256(1) << 128;
-    uint24 constant ZERO_UINT24 = 0;
-    uint256 constant ZERO_POINT_NINE = 16602069666338597000 << 64;
-    uint256 constant ONE_POINT_TWO_FIVE = 23058430092136940000 << 64;
     uint128 constant ZERO_POINT_ONE = 1844674407370955300;
     uint128 constant ZERO_POINT_ZERO_ZERO_FIVE = 92233720368547760;
     uint128 constant ZERO_POINT_ZERO_ZERO_ONE = 18446744073709550;
@@ -38,34 +29,36 @@ library ConveyorFeeMath {
 
         ///@notice Initialize conveyorPercent to hold conveyors portion of the reward
         uint128 conveyorPercent;
+        unchecked {
+            ///@notice This is to prevent over flow initialize the fee to fee+ (0.005-fee)/2+0.001*10**2
+            if (percentFee <= ZERO_POINT_ZERO_ZERO_FIVE) {
+                int256 innerPartial = int256(
+                    uint256(ZERO_POINT_ZERO_ZERO_FIVE)
+                ) - int128(percentFee);
 
-        ///@notice This is to prevent over flow initialize the fee to fee+ (0.005-fee)/2+0.001*10**2
-        if (percentFee <= ZERO_POINT_ZERO_ZERO_FIVE) {
-            int256 innerPartial = int256(uint256(ZERO_POINT_ZERO_ZERO_FIVE)) -
-                int128(percentFee);
+                conveyorPercent =
+                    (percentFee +
+                        ConveyorMath.div64x64(
+                            uint128(uint256(innerPartial)),
+                            uint128(2) << 64
+                        ) +
+                        uint128(ZERO_POINT_ZERO_ZERO_ONE)) *
+                    10**2;
+            } else {
+                conveyorPercent = MAX_CONVEYOR_PERCENT;
+            }
 
-            conveyorPercent =
-                (percentFee +
-                    ConveyorMath.div64x64(
-                        uint128(uint256(innerPartial)),
-                        uint128(2) << 64
-                    ) +
-                    uint128(ZERO_POINT_ZERO_ZERO_ONE)) *
-                10**2;
-        } else {
-            conveyorPercent = MAX_CONVEYOR_PERCENT;
+            if (conveyorPercent < MIN_CONVEYOR_PERCENT) {
+                conveyorPercent = MIN_CONVEYOR_PERCENT;
+            }
+
+            ///@notice Multiply conveyorPercent by total reward to retrive conveyorReward
+            conveyorReward = uint128(
+                ConveyorMath.mul64I(conveyorPercent, totalWethReward)
+            );
+
+            beaconReward = uint128(totalWethReward) - conveyorReward;
         }
-
-        if (conveyorPercent < MIN_CONVEYOR_PERCENT) {
-            conveyorPercent = MIN_CONVEYOR_PERCENT;
-        }
-
-        ///@notice Multiply conveyorPercent by total reward to retrive conveyorReward
-        conveyorReward = uint128(
-            ConveyorMath.mul64I(conveyorPercent, totalWethReward)
-        );
-
-        beaconReward = uint128(totalWethReward) - conveyorReward;
 
         return (conveyorReward, beaconReward);
     }
@@ -97,7 +90,6 @@ library ConveyorFeeMath {
         );
     }
 
-
     /// @notice Helper function to return sorted token addresses.
     /// @param tokenA - Address of tokenA.
     /// @param tokenB - Address of tokenB.
@@ -112,5 +104,4 @@ library ConveyorFeeMath {
             : (tokenB, tokenA);
         require(token0 != address(0), "UniswapV2Library: ZERO_ADDRESS");
     }
-
 }

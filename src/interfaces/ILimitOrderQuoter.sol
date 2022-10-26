@@ -23,7 +23,7 @@ interface ILimitOrderQuoter {
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex);
 
-    function calculateAmountOutMinAToWeth(
+    function calculateAmountOutMinAToWethV2(
         address lpAddressAToWeth,
         uint256 amountInOrder,
         uint16 taxIn,

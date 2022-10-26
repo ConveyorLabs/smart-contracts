@@ -5,6 +5,6 @@ libs = ['lib']
 script= 'scripts'
 fuzz_runs = 200
 optimizer = true
-optimizer_runs = 20_000
+optimizer_runs = 20000
 gas_reports = ["*"]
 # See more config options https://github.com/gakonst/foundry/tree/master/config
