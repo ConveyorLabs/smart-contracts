@@ -524,13 +524,13 @@ contract SwapRouter is ConveyorTickMath {
         OrderBook.Order memory order,
         bool wethIsToken0
     ) internal view returns (TokenToTokenExecutionPrice memory) {
-        uint256 quantity = order.quantity;
+        uint128 quantity = order.quantity;
         address pool = executionPrices[bestPriceIndex].lpAddressWethToB;
         uint256 wethToBPrice;
         if (executionPrices[bestPriceIndex].lpWethToBIsV2) {
             unchecked {
                 uint128 quantityIn = wethIsToken0
-                    ? order.quantity
+                    ? quantity
                     : uint128(
                         ConveyorMath.mul64U(
                             17893341751498265000,

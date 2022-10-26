@@ -203,6 +203,94 @@ contract LimitOrderExecutorTest is DSTest {
         }
     }
 
+    function testExecuteTokenToTokenOrders() public {
+        uint128 amountIn = 100000000000000000000000;
+
+        cheatCodes.deal(address(this), 100 ether);
+        depositGasCreditsForMockOrders(100 ether);
+        
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+
+        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
+        ///@notice Get the spot price of DAI/WETH
+        (SwapRouter.SpotReserve memory spRes, ) = limitOrderExecutor
+            .calculateV3SpotPrice(
+                USDC,
+                UNI,
+                500,
+                0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640
+            );
+
+        ///@notice Slippage
+        uint128 _95_PERCENT = 970000000000000000;
+
+        ///@notice Decrement the amountExpectedOut by 95%
+        uint112 amountOutMin = uint112(
+            ConveyorMath.mul64U(
+                _95_PERCENT,
+                ConveyorMath.mul128U(spRes.spotPrice, amountIn)
+            )
+        );
+
+        //Get the fee
+        uint128 fee = limitOrderExecutor.calculateFee(amountIn, USDC, WETH);
+
+        //Get the minimum out amount expected
+        //Should be fee
+        uint112 balanceAfterMin = uint112(
+            ConveyorMath.mul64U(
+                ConveyorMath.div64x64(uint128(1), fee),
+                amountOutMin
+            )
+        );
+
+        uint128 feePerOrderPaid = amountOutMin-balanceAfterMin;
+
+        // ///@notice Get the expected reward per order.
+        (uint256 conveyorReward, uint256 beaconReward) = ConveyorFeeMath
+            .calculateReward(fee, feePerOrderPaid*4);
+
+        bytes32[]
+            memory tokenToTokenOrderBatch = placeNewMockTokenToTokenBatchFuzz(
+                uint112(amountIn)
+            );
+
+        OrderBook.Order[] memory orders = new OrderBook.Order[](
+            tokenToTokenOrderBatch.length
+        );
+
+        //check that the orders have been placed
+        for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
+            OrderBook.Order memory order = orderBook.getOrderById(
+                tokenToTokenOrderBatch[i]
+            );
+            orders[i] = order;
+
+            assert(order.orderId != bytes32(0));
+        }
+        uint256 conveyorBalanceBefore = IERC20(WETH).balanceOf(address(limitOrderExecutor));
+        uint256 amountBefore = IERC20(WETH).balanceOf(address(this));
+
+        cheatCodes.prank(address(limitOrderRouter));
+        limitOrderExecutor.executeTokenToWethOrders(orders);
+        
+        for (uint256 i = 0; i < orders.length; ++i) {
+            
+        
+            assertGe(
+                IERC20(WETH).balanceOf(address(limitOrderExecutor))-conveyorBalanceBefore,
+                uint256(conveyorReward) * 4
+            );
+            ///@notice Ensure the user was compensated.
+            assertGe(
+                IERC20(WETH).balanceOf(address(this))-amountBefore,
+                uint256(balanceAfterMin) * 4
+            );
+
+            
+        }
+    }
+
     //================================================================
     //==================== External Tests Execution ==================
     //================================================================
@@ -2801,6 +2889,113 @@ contract LimitOrderExecutorTest is DSTest {
             5000000000, //5000 USDC
             3000,
             3000,
+            0,
+            MAX_U32
+        );
+
+        // OrderBook.Order memory order3 = newMockOrder(
+        //     USDC,
+        //     UNI,
+        //     1,
+        //     false,
+        //     false,
+        //     0,
+        //     1,
+        //     5000000000, //5000 USDC
+        //     3000,
+        //     3000,
+        //     0,
+        //     MAX_U32
+        // );
+
+        // OrderBook.Order memory order4 = newMockOrder(
+        //     USDC,
+        //     UNI,
+        //     1,
+        //     false,
+        //     false,
+        //     0,
+        //     1,
+        //     5000000000, //5000 USDC
+        //     3000,
+        //     3000,
+        //     0,
+        //     MAX_U32
+        // );
+
+        // OrderBook.Order memory order5 = newMockOrder(
+        //     USDC,
+        //     UNI,
+        //     1,
+        //     false,
+        //     false,
+        //     0,
+        //     1,
+        //     5000000000, //5000 DAI
+        //     3000,
+        //     3000,
+        //     0,
+        //     MAX_U32
+        // );
+
+        // OrderBook.Order memory order6 = newMockOrder(
+        //     USDC,
+        //     UNI,
+        //     1,
+        //     false,
+        //     false,
+        //     0,
+        //     1,
+        //     5000000000, //5000 DAI
+        //     3000,
+        //     3000,
+        //     0,
+        //     MAX_U32
+        // );
+
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
+        orderBatch[0] = order1;
+        orderBatch[1] = order2;
+        // orderBatch[2] = order3;
+        // orderBatch[3] = order4;
+        // orderBatch[4] = order5;
+        // orderBatch[5] = order6;
+
+        return placeMultipleMockOrder(orderBatch);
+    }
+
+    function placeNewMockTokenToTokenBatchFuzz(uint112 amountIn)
+        internal
+        returns (bytes32[] memory)
+    {
+        swapHelper.swapEthForTokenWithUniV2(amountIn, USDC);
+
+        OrderBook.Order memory order1 = newMockOrder(
+            USDC,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            amountIn /10**12, //5000 USDC
+            500,
+            500,
+            0,
+            MAX_U32
+        );
+
+        OrderBook.Order memory order2 = newMockOrder(
+            USDC,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            amountIn /10**12, //5000 USDC
+            500,
+            500,
             0,
             MAX_U32
         );
