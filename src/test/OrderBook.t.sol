@@ -9,7 +9,6 @@ import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
 import "./utils/Swap.sol";
-import "../LimitOrderQuoter.sol";
 import "../LimitOrderExecutor.sol";
 import "../SwapRouter.sol";
 
@@ -29,7 +28,6 @@ interface CheatCodes {
 contract OrderBookTest is DSTest {
     CheatCodes cheatCodes;
     LimitOrderExecutor limitOrderExecutor;
-    LimitOrderQuoter limitOrderQuoter;
     Swap swapHelper;
 
     OrderBookWrapper orderBook;
@@ -73,15 +71,11 @@ contract OrderBookTest is DSTest {
         swapHelper = new Swap(_sushiSwapRouterAddress, wnato);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-        limitOrderQuoter = new LimitOrderQuoter(
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
-        );
+        
 
         limitOrderExecutor = new LimitOrderExecutor(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
-            address(limitOrderQuoter),
             _hexDems,
             _dexFactories,
             _isUniV2,

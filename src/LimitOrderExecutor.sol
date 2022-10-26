@@ -10,7 +10,6 @@ contract LimitOrderExecutor is SwapRouter {
     ///====================================Immutable Storage Variables==============================================//
     address immutable WETH;
     address immutable USDC;
-    address immutable LIMIT_ORDER_QUOTER;
     address public immutable LIMIT_ORDER_ROUTER;
 
     ///====================================Constants==============================================//
@@ -52,14 +51,12 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@param _weth The wrapped native token on the chain.
     ///@param _usdc Pegged stable token on the chain.
-    ///@param _limitOrderQuoterAddress The address of the LimitOrderQuoter contract.
     ///@param _deploymentByteCodes The deployment bytecodes of all dex factory contracts.
     ///@param _dexFactories The Dex factory addresses.
     ///@param _isUniV2 Array of booleans indication whether the Dex is V2 architecture.
     constructor(
         address _weth,
         address _usdc,
-        address _limitOrderQuoterAddress,
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
@@ -67,13 +64,9 @@ contract LimitOrderExecutor is SwapRouter {
     ) SwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
         require(_weth != address(0), "Invalid weth address");
         require(_usdc != address(0), "Invalid usdc address");
-        require(
-            _limitOrderQuoterAddress != address(0),
-            "Invalid LimitOrderQuoter address"
-        );
+        
         USDC = _usdc;
         WETH = _weth;
-        LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
         LIMIT_ORDER_ROUTER = address(
             new LimitOrderRouter(_gasOracle, _weth, address(this))
         );
@@ -277,13 +270,10 @@ contract LimitOrderExecutor is SwapRouter {
         uint256 batchAmountOutMinAToWeth = 0;
         if (_lpIsNotUniV3(lpAddressAToWeth)) {
             ///@notice Calculate the amountOutMin for the tokenA to Weth swap.
-            batchAmountOutMinAToWeth = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
-                .calculateAmountOutMinAToWethV2(
+            batchAmountOutMinAToWeth = calculateAmountOutMinAToWethV2(
                     lpAddressAToWeth,
                     orderQuantity,
-                    order.taxIn,
-                    feeIn,
-                    tokenIn
+                    order.taxIn
                 );
         }
 
@@ -523,6 +513,44 @@ contract LimitOrderExecutor is SwapRouter {
 
         conveyorBalance += totalConveyorReward;
     }
+    ///@notice Helper function to calculate amountOutMin value agnostically across dexes on the first hop from tokenA to WETH.
+    ///@param lpAddressAToWeth - The liquidity pool for tokenA to Weth.
+    ///@param amountInOrder - The amount in on the swap.
+    ///@param taxIn - The tax on the input token for the swap.
+    ///@return amountOutMinAToWeth - The amountOutMin in the swap.
+    function calculateAmountOutMinAToWethV2(
+        address lpAddressAToWeth,
+        uint256 amountInOrder,
+        uint16 taxIn
+    ) internal returns (uint256 amountOutMinAToWeth) {
+        ///@notice Otherwise if the lp is a UniV2 LP.
+
+        ///@notice Get the reserves from the pool.
+        (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(
+            lpAddressAToWeth
+        ).getReserves();
+
+        ///@notice Initialize the reserve0 and reserve1 depending on if Weth is token0 or token1.
+        if (WETH == IUniswapV2Pair(lpAddressAToWeth).token0()) {
+            uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
+
+            uint256 amountIn = amountInOrder - amountInBuffer;
+            amountOutMinAToWeth = getAmountOut(
+                amountIn,
+                uint256(reserve1),
+                uint256(reserve0)
+            );
+        } else {
+            uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
+
+            uint256 amountIn = amountInOrder - amountInBuffer;
+            amountOutMinAToWeth = getAmountOut(
+                amountIn,
+                uint256(reserve0),
+                uint256(reserve1)
+            );
+        }
+    }
 
     ///@notice Function to execute a single Token To Token order.
     ///@param order - The order to be executed.
@@ -654,5 +682,48 @@ contract LimitOrderExecutor is SwapRouter {
             revert InvalidAddress();
         }
         tempOwner = newOwner;
+    }
+
+    ///@notice Function to retrieve the buy/sell status of a single order.
+    ///@param order Order to determine buy/sell status on.
+    ///@return bool Boolean indicating the buy/sell status of the order.
+    function _buyOrSell(OrderBook.Order memory order)
+        internal
+        pure
+        returns (bool)
+    {
+        if (order.buy) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /// @notice Function to determine if an order meets the execution price.
+    ///@param orderPrice The Spot price for execution of the order.
+    ///@param executionPrice The current execution price of the best prices lp.
+    ///@param buyOrder The buy/sell status of the order.
+    function _orderMeetsExecutionPrice(
+        uint256 orderPrice,
+        uint256 executionPrice,
+        bool buyOrder
+    ) internal pure returns (bool) {
+        if (buyOrder) {
+            return executionPrice <= orderPrice;
+        } else {
+            return executionPrice >= orderPrice;
+        }
+    }
+
+    ///@notice Checks if order can complete without hitting slippage
+    ///@param spot_price The spot price of the liquidity pool.
+    ///@param order_quantity The input quantity of the order.
+    ///@param amountOutMin The slippage set by the order owner.
+    function _orderCanExecute(
+        uint256 spot_price,
+        uint256 order_quantity,
+        uint256 amountOutMin
+    ) internal pure returns (bool) {
+        return ConveyorMath.mul128I(spot_price, order_quantity) >= amountOutMin;
     }
 }

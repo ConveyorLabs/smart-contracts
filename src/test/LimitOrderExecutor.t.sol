@@ -11,7 +11,6 @@ import "./utils/Swap.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "./utils/ScriptRunner.sol";
 import "../LimitOrderRouter.sol";
-import "../LimitOrderQuoter.sol";
 import "../LimitOrderExecutor.sol";
 import "../interfaces/ILimitOrderRouter.sol";
 import "../interfaces/IOrderBook.sol";
@@ -35,7 +34,6 @@ contract LimitOrderExecutorTest is DSTest {
     ILimitOrderRouter limitOrderRouter;
     IOrderBook orderBook;
     LimitOrderExecutorWrapper limitOrderExecutor;
-    LimitOrderQuoter limitOrderQuoter;
 
     ScriptRunner scriptRunner;
 
@@ -91,15 +89,11 @@ contract LimitOrderExecutorTest is DSTest {
         swapHelper = new Swap(_sushiSwapRouterAddress, WETH);
         swapHelperUniV2 = new Swap(uniV2Addr, WETH);
 
-        limitOrderQuoter = new LimitOrderQuoter(
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
-        );
+        
 
         limitOrderExecutor = new LimitOrderExecutorWrapper(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
-            address(limitOrderQuoter),
             _hexDems,
             _dexFactories,
             _isUniV2,
@@ -2977,7 +2971,6 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
     constructor(
         address _weth,
         address _usdc,
-        address _limitOrderQuoter,
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
@@ -2986,7 +2979,6 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         LimitOrderExecutor(
             _weth,
             _usdc,
-            _limitOrderQuoter,
             _initBytecodes,
             _dexFactories,
             _isUniV2,
