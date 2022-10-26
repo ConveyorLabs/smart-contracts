@@ -391,7 +391,7 @@ contract SwapRouter is ConveyorTickMath {
 
         ///@notice Scope out logic to prevent stack too deep.
         {
-            (address token0, )= _sortTokens(_tokenIn, _tokenOut);
+            (address token0, ) = _sortTokens(_tokenIn, _tokenOut);
             _zeroForOne = token0 == _tokenIn ? true : false;
         }
 
@@ -405,20 +405,23 @@ contract SwapRouter is ConveyorTickMath {
             _sender
         );
 
-        ///@notice Initialize Storage variable uniV3AmountOut to 0 prior to the swap.
-        uniV3AmountOut = 0;
-
         ///@notice Execute the swap on the lp for the amounts specified.
         IUniswapV3Pool(_lp).swap(
             _reciever,
             _zeroForOne,
             int256(_amountIn),
-            _zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO -1,
+            _zeroForOne
+                ? TickMath.MIN_SQRT_RATIO + 1
+                : TickMath.MAX_SQRT_RATIO - 1,
             data
         );
 
+        ///@notice Cache the uniV3Amount.
+        uint256 amountOut = uniV3AmountOut;
+        ///@notice Set uniV3AmountOut to 0.
+        uniV3AmountOut = 0;
         ///@notice Return the amountOut yielded from the swap.
-        return uniV3AmountOut;
+        return amountOut;
     }
 
     ///@notice Uniswap V3 callback function called during a swap on a v3 liqudity pool.
@@ -593,10 +596,7 @@ contract SwapRouter is ConveyorTickMath {
         address _factory
     ) internal view returns (SpotReserve memory _spRes, address pool) {
         ///@notice Sort the tokens to retrieve token0, token1 in the pool.
-        (address _tokenX, address _tokenY) = _sortTokens(
-            token0,
-            token1
-        );
+        (address _tokenX, address _tokenY) = _sortTokens(token0, token1);
         ///@notice Get the pool address for token pair.
         pool = IUniswapV3Factory(_factory).getPool(token0, token1, fee);
         ///@notice Return an empty spot reserve if the pool address was not found.
