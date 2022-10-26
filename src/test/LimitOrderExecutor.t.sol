@@ -29,12 +29,12 @@ interface CheatCodes {
     ) external;
 }
 
-contract LimitOrderRouterTest is DSTest {
+contract LimitOrderExecutorTest is DSTest {
     //Initialize limit-v0 contract for testing
     LimitOrderRouterWrapper limitOrderRouterWrapper;
     ILimitOrderRouter limitOrderRouter;
     IOrderBook orderBook;
-    LimitOrderExecutor limitOrderExecutor;
+    LimitOrderExecutorWrapper limitOrderExecutor;
     LimitOrderQuoter limitOrderQuoter;
 
     ScriptRunner scriptRunner;
@@ -96,7 +96,7 @@ contract LimitOrderRouterTest is DSTest {
             0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
         );
 
-        limitOrderExecutor = new LimitOrderExecutor(
+        limitOrderExecutor = new LimitOrderExecutorWrapper(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             address(limitOrderQuoter),
@@ -292,50 +292,118 @@ contract LimitOrderRouterTest is DSTest {
     }
 
     ///@notice Teas To execute a single token to Weth order Dai/Weth
-    function testExecuteTokenToWethSingle() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
-        //Create a new mock order
-        OrderBook.Order memory order = newMockOrder(
-            DAI,
-            WETH,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 DAI
-            3000,
-            0,
-            0,
-            MAX_U32
-        );
-
-        bytes32 orderId = placeMockOrder(order);
-
-        bytes32[] memory orderBatch = new bytes32[](1);
-
-        orderBatch[0] = orderId;
-        //check that the orders have been placed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-
-            assert(order0.orderId != bytes32(0));
+    function testExecuteTokenToWethSingle(uint112 amountIn) public {
+        bool run = false;
+        if (amountIn < 1000000000000000000) {
+            run = false;
         }
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
+        if (run) {
+            cheatCodes.deal(address(this), MAX_UINT);
+            depositGasCreditsForMockOrders(MAX_UINT);
+            cheatCodes.deal(address(swapHelper), MAX_UINT);
+            swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+            IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
 
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
+            ///@notice Get the spot price of DAI/WETH
+            (SwapRouter.SpotReserve memory spRes, ) = limitOrderExecutor
+                .calculateV3SpotPrice(
+                    DAI,
+                    WETH,
+                    500,
+                    0x1F98431c8aD98523631AE4a59f267346ea31F984
+                );
+
+            ///@notice Slippage
+            uint128 _95_PERCENT = 970000000000000000;
+
+            ///@notice Decrement the amountExpectedOut by 95%
+            uint112 amountOutMin = uint112(
+                ConveyorMath.mul64I(
+                    _95_PERCENT,
+                    ConveyorMath.mul128I(spRes.spotPrice, amountIn)
+                )
             );
-            assert(order0.orderId == bytes32(0));
+            ///@notice Create a new mock order
+            OrderBook.Order memory order = newMockOrder(
+                DAI,
+                WETH,
+                1,
+                false,
+                false,
+                0,
+                amountOutMin,
+                5000000000000000000000, //5000 DAI
+                3000,
+                0,
+                0,
+                MAX_U32
+            );
+
+            //Place the order
+            bytes32 orderId = placeMockOrder(order);
+
+            bytes32[] memory orderBatch = new bytes32[](1);
+            orderBatch[0] = orderId;
+
+            //Get the fee
+            uint128 fee = limitOrderExecutor.calculateFee(amountIn, USDC, WETH);
+
+            //Get the minimum out amount expected
+            //Should be fee
+            uint256 balanceAfterMin = ConveyorMath.mul64I(
+                ConveyorMath.div64x64(uint128(1), fee),
+                amountOutMin
+            );
+
+            {
+                ///@notice Cache the executor balances before execution.
+                uint256 txOriginBalanceBefore = IERC20(WETH).balanceOf(
+                    tx.origin
+                );
+                uint256 gasCompensationBefore = address(tx.origin).balance;
+
+                ///@notice Get the gas price and set the lower and upper bound threshold.
+                uint256 gasPrice = limitOrderRouter.getGasPrice();
+                uint256 executionCostUpper = 300000; //Should be an upper bound
+                uint256 executionCostLower = 60000; //Should be a lower bound
+
+                ///@notice check that the orders have been placed
+                for (uint256 i = 0; i < orderBatch.length; ++i) {
+                    OrderBook.Order memory order0 = orderBook.getOrderById(
+                        orderBatch[i]
+                    );
+
+                    assert(order0.orderId != bytes32(0));
+                }
+                ///@notice Execute orders with an EOA.
+                cheatCodes.prank(tx.origin);
+                limitOrderRouter.executeOrders(orderBatch);
+                uint256 gasCompensationAfter = address(tx.origin).balance;
+                // check that the orders have been fufilled and removed
+                for (uint256 i = 0; i < orderBatch.length; ++i) {
+                    OrderBook.Order memory order0 = orderBook.getOrderById(
+                        orderBatch[i]
+                    );
+                    ///@notice Ensure tx.origin received the execution reward.
+                    assertGe(
+                        IERC20(WETH).balanceOf(tx.origin),
+                        txOriginBalanceBefore
+                    );
+                    ///@notice Ensure the user was compensated.
+                    assertGe(balanceAfterMin, order.amountOutMin);
+                    ///@notice Ensure the upper and lower execution thresholds were paid to the beacon.
+                    assertGe(
+                        gasCompensationAfter - gasCompensationBefore,
+                        executionCostLower * gasPrice
+                    );
+                    assertLe(
+                        gasCompensationAfter - gasCompensationBefore,
+                        executionCostUpper * gasPrice
+                    );
+                    ///@notice Ensure the order was removed from the contract.
+                    assert(order0.orderId == bytes32(0));
+                }
+            }
         }
     }
 
@@ -346,19 +414,20 @@ contract LimitOrderRouterTest is DSTest {
         depositGasCreditsForMockOrders(100 ether);
 
         cheatCodes.deal(address(swapHelper), MAX_UINT);
-        cheatCodes.deal(address(this), 500000000000 ether);
+        cheatCodes.deal(address(this), MAX_UINT);
 
         //Deposit weth to address(this)
-        (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
+        (bool depositSuccess, ) = address(WETH).call{value: 500000000 ether}(
             abi.encodeWithSignature("deposit()")
         );
 
         //require that the deposit was a success
         require(depositSuccess, "testDepositGasCredits: deposit failed");
 
-        IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
+        IERC20(WETH).approve(address(limitOrderExecutor), 5000000000 ether);
 
         bytes32[] memory tokenToWethOrderBatch = placeNewMockWethToTokenBatch();
+
         //Make sure the orders have been placed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
             OrderBook.Order memory order0 = orderBook.getOrderById(
@@ -367,62 +436,153 @@ contract LimitOrderRouterTest is DSTest {
 
             assert(order0.orderId != bytes32(0));
         }
+
+        ///@notice Cache the executor balances before execution.
+        uint256 txOriginBalanceBefore = IERC20(WETH).balanceOf(tx.origin);
+        uint256 gasCompensationBefore = address(tx.origin).balance;
+
+        ///@notice Get the gas price and set the lower and upper bound threshold.
+        uint256 gasPrice = limitOrderRouter.getGasPrice();
+
+        uint256 executionCostLower = 60000; //Should be a lower bound
+
         cheatCodes.prank(tx.origin);
         limitOrderRouter.executeOrders(tokenToWethOrderBatch);
-
+        uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
             OrderBook.Order memory order0 = orderBook.getOrderById(
                 tokenToWethOrderBatch[i]
             );
+            ///@notice Ensure tx.origin received the execution reward.
+            assertGe(IERC20(WETH).balanceOf(tx.origin), txOriginBalanceBefore);
+
+            ///@notice Ensure the upper and lower execution thresholds were paid to the beacon.
+            assertGe(
+                gasCompensationAfter - gasCompensationBefore,
+                executionCostLower * gasPrice * 6
+            );
+
             assert(order0.orderId == bytes32(0));
         }
     }
 
     ///@notice Test to execute a single token to token order. Dai/Uni
-    function testExecuteTokenToTokenSingle() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
-        OrderBook.Order memory order = newMockOrder(
-            DAI,
-            UNI,
-            1,
-            false,
-            false,
-            0,
-            1,
-            500000000000000000000, //5000 DAI
-            3000,
-            3000,
-            0,
-            MAX_U32
-        );
-
-        bytes32 orderId = placeMockOrder(order);
-
-        bytes32[] memory orderBatch = new bytes32[](1);
-
-        orderBatch[0] = orderId;
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-
-            assert(order0.orderId != bytes32(0));
+    function testExecuteTokenToTokenSingle(uint80 amountIn) public {
+        bool run = false;
+        if (amountIn < 1000000000000000000) {
+            run = false;
         }
+        if (run) {
+            cheatCodes.deal(address(this), MAX_UINT);
+            depositGasCreditsForMockOrders(MAX_UINT);
+            cheatCodes.deal(address(swapHelper), MAX_UINT);
+            swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+            IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
+            ///@notice Get the spot price of DAI/WETH
+            (SwapRouter.SpotReserve memory spRes, ) = limitOrderExecutor
+                .calculateV3SpotPrice(
+                    DAI,
+                    UNI,
+                    500,
+                    0x1F98431c8aD98523631AE4a59f267346ea31F984
+                );
 
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
+            ///@notice Slippage
+            uint128 _95_PERCENT = 970000000000000000;
 
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order0 = orderBook.getOrderById(
-                orderBatch[i]
+            ///@notice Decrement the amountExpectedOut by 95%
+            uint112 amountOutMin = uint112(
+                ConveyorMath.mul64I(
+                    _95_PERCENT,
+                    ConveyorMath.mul128I(spRes.spotPrice, amountIn)
+                )
             );
-            assert(order0.orderId == bytes32(0));
+
+            //Get the fee
+            uint128 fee = limitOrderExecutor.calculateFee(amountIn, USDC, WETH);
+
+            //Get the minimum out amount expected
+            //Should be fee
+            uint256 balanceAfterMin = ConveyorMath.mul64I(
+                ConveyorMath.div64x64(uint128(1), fee),
+                amountOutMin
+            );
+
+            OrderBook.Order memory order = newMockOrder(
+                DAI,
+                UNI,
+                1,
+                false,
+                false,
+                0,
+                amountOutMin,
+                amountIn, //5000 DAI
+                3000,
+                3000,
+                0,
+                MAX_U32
+            );
+
+            bytes32 orderId = placeMockOrder(order);
+
+            bytes32[] memory orderBatch = new bytes32[](1);
+
+            orderBatch[0] = orderId;
+            for (uint256 i = 0; i < orderBatch.length; ++i) {
+                OrderBook.Order memory order0 = orderBook.getOrderById(
+                    orderBatch[i]
+                );
+
+                assert(order0.orderId != bytes32(0));
+            }
+
+            {
+                ///@notice Cache the executor balances before execution.
+                uint256 txOriginBalanceBefore = IERC20(WETH).balanceOf(
+                    tx.origin
+                );
+                uint256 gasCompensationBefore = address(tx.origin).balance;
+
+                ///@notice Get the gas price and set the lower and upper bound threshold.
+                uint256 gasPrice = limitOrderRouter.getGasPrice();
+
+                uint256 executionCostLower = 60000; //Should be a lower bound
+
+                ///@notice check that the orders have been placed
+                for (uint256 i = 0; i < orderBatch.length; ++i) {
+                    OrderBook.Order memory order0 = orderBook.getOrderById(
+                        orderBatch[i]
+                    );
+
+                    assert(order0.orderId != bytes32(0));
+                }
+                ///@notice Execute orders with an EOA.
+                cheatCodes.prank(tx.origin);
+                limitOrderRouter.executeOrders(orderBatch);
+                uint256 gasCompensationAfter = address(tx.origin).balance;
+                // check that the orders have been fufilled and removed
+                for (uint256 i = 0; i < orderBatch.length; ++i) {
+                    OrderBook.Order memory order0 = orderBook.getOrderById(
+                        orderBatch[i]
+                    );
+                    ///@notice Ensure tx.origin received the execution reward.
+                    assertGe(
+                        IERC20(WETH).balanceOf(tx.origin),
+                        txOriginBalanceBefore
+                    );
+                    ///@notice Ensure the user was compensated.
+                    assertGe(balanceAfterMin, order.amountOutMin);
+                    ///@notice Ensure the upper and lower execution thresholds were paid to the beacon.
+                    assertGe(
+                        gasCompensationAfter - gasCompensationBefore,
+                        executionCostLower * gasPrice
+                    );
+
+                    ///@notice Ensure the order was removed from the contract.
+                    assert(order0.orderId == bytes32(0));
+                }
+            }
         }
     }
 
@@ -446,19 +606,39 @@ contract LimitOrderRouterTest is DSTest {
             assert(order.orderId != bytes32(0));
         }
 
+        ///@notice Cache the executor balances before execution.
+        uint256 txOriginBalanceBefore = IERC20(WETH).balanceOf(tx.origin);
+        uint256 gasCompensationBefore = address(tx.origin).balance;
+
+        ///@notice Get the gas price and set the lower and upper bound threshold.
+        uint256 gasPrice = limitOrderRouter.getGasPrice();
+
+        uint256 executionCostLower = 60000; //Should be a lower bound
+
         cheatCodes.prank(tx.origin);
         limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
-
+        uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 tokenToTokenOrderBatch[i]
             );
-            assert(order.orderId == bytes32(0));
+            ///@notice Ensure tx.origin received the execution reward.
+            assertGe(IERC20(WETH).balanceOf(tx.origin), txOriginBalanceBefore);
+
+            ///@notice Ensure the upper and lower execution thresholds were paid to the beacon.
+            assertGe(
+                gasCompensationAfter - gasCompensationBefore,
+                executionCostLower * gasPrice * 2
+            );
+
+            assert(order0.orderId == bytes32(0));
         }
     }
 
-    function testFailExecuteTokenToTokenBatch_InvalidNonEOAStoplossExecution() public {
+    function testFailExecuteTokenToTokenBatch_InvalidNonEOAStoplossExecution()
+        public
+    {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
@@ -524,59 +704,120 @@ contract LimitOrderRouterTest is DSTest {
     }
 
     ///@notice Test to execute a single weth to taxed order
-    function testExecuteWethToTaxedTokenSingle() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-
-        cheatCodes.deal(address(this), MAX_UINT);
-
-        (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
-            abi.encodeWithSignature("deposit()")
-        );
-
-        require(depositSuccess, "failure when depositing ether into weth");
-
-        IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
-        OrderBook.Order memory order = newMockOrder(
-            WETH,
-            TAXED_TOKEN,
-            1,
-            false,
-            true,
-            0,
-            1,
-            20000000000000000, //2,000,000
-            3000,
-            0,
-            0,
-            MAX_U32
-        );
-
-        bytes32 orderId = placeMockOrder(order);
-
-        bytes32[] memory orderBatch = new bytes32[](1);
-
-        orderBatch[0] = orderId;
-
-        //check that the orders have been placed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order1 = orderBook.getOrderById(
-                orderBatch[i]
-            );
-
-            assert(order1.orderId != bytes32(0));
+    ///@notice Requires via-ir to compile test
+    function testExecuteWethToTaxedTokenSingle(uint112 amountIn) public {
+        bool run = false;
+        if (amountIn < 1000000000000000000) {
+            run = false;
         }
+        if (run) {
+            cheatCodes.deal(address(this), MAX_UINT);
+            depositGasCreditsForMockOrders(MAX_UINT);
+            cheatCodes.deal(address(swapHelper), MAX_UINT);
 
-        cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
-
-        // check that the orders have been fufilled and removed
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            OrderBook.Order memory order1 = orderBook.getOrderById(
-                orderBatch[i]
+            cheatCodes.deal(address(this), MAX_UINT);
+            address(WETH).call{value: amountIn}(
+                abi.encodeWithSignature("deposit()")
             );
-            assert(order1.orderId == bytes32(0));
+
+            IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
+
+            ///@notice Get the spot price of DAI/WETH
+            (SwapRouter.SpotReserve memory spRes, ) = limitOrderExecutor
+                .calculateV2SpotPrice(
+                    WETH,
+                    TAXED_TOKEN,
+                    _uniV2FactoryAddress,
+                    _uniswapV2HexDem
+                );
+
+            ///@notice Slippage
+            uint128 _95_PERCENT = 970000000000000000;
+
+            ///@notice Decrement the amountExpectedOut by 95%
+            uint112 amountOutMin = uint112(
+                ConveyorMath.mul64I(
+                    _95_PERCENT,
+                    ConveyorMath.mul128I(spRes.spotPrice, amountIn)
+                )
+            );
+
+            //Get the fee
+            uint128 fee = limitOrderExecutor.calculateFee(amountIn, USDC, WETH);
+
+            {
+                //Get the minimum out amount expected
+                //Should be fee
+                uint256 balanceAfterMin = ConveyorMath.mul64I(
+                    ConveyorMath.div64x64(uint128(1), fee),
+                    amountOutMin
+                );
+                OrderBook.Order memory order = newMockOrder(
+                    WETH,
+                    TAXED_TOKEN,
+                    1,
+                    false,
+                    true,
+                    0,
+                    amountOutMin,
+                    amountIn,
+                    3000,
+                    0,
+                    0,
+                    MAX_U32
+                );
+
+                bytes32 orderId = placeMockOrder(order);
+
+                bytes32[] memory orderBatch = new bytes32[](1);
+
+                orderBatch[0] = orderId;
+
+                ///@notice Cache the executor balances before execution.
+                uint256 txOriginBalanceBefore = IERC20(WETH).balanceOf(
+                    tx.origin
+                );
+                uint256 gasCompensationBefore = address(tx.origin).balance;
+
+                ///@notice Get the gas price and set the lower and upper bound threshold.
+                uint256 gasPrice = limitOrderRouter.getGasPrice();
+
+                uint256 executionCostLower = 60000; //Should be a lower bound
+
+                ///@notice check that the orders have been placed
+                for (uint256 i = 0; i < orderBatch.length; ++i) {
+                    OrderBook.Order memory order0 = orderBook.getOrderById(
+                        orderBatch[i]
+                    );
+
+                    assert(order0.orderId != bytes32(0));
+                }
+                ///@notice Execute orders with an EOA.
+                cheatCodes.prank(tx.origin);
+                limitOrderRouter.executeOrders(orderBatch);
+                uint256 gasCompensationAfter = address(tx.origin).balance;
+                // check that the orders have been fufilled and removed
+                for (uint256 i = 0; i < orderBatch.length; ++i) {
+                    OrderBook.Order memory order0 = orderBook.getOrderById(
+                        orderBatch[i]
+                    );
+                    ///@notice Ensure tx.origin received the execution reward.
+                    assertGe(
+                        IERC20(WETH).balanceOf(tx.origin),
+                        txOriginBalanceBefore
+                    );
+                    ///@notice Ensure the user was compensated.
+                    assertGe(balanceAfterMin, order.amountOutMin);
+                    ///@notice Ensure the upper and lower execution thresholds were paid to the beacon.
+                    assertGe(
+                        gasCompensationAfter - gasCompensationBefore,
+                        executionCostLower * gasPrice
+                    );
+
+                    ///@notice Ensure the order was removed from the contract.
+                    assert(order0.orderId == bytes32(0));
+                }
+            }
         }
     }
 
@@ -607,15 +848,33 @@ contract LimitOrderRouterTest is DSTest {
             assert(order.orderId != bytes32(0));
         }
 
+        ///@notice Cache the executor balances before execution.
+        uint256 txOriginBalanceBefore = IERC20(WETH).balanceOf(tx.origin);
+        uint256 gasCompensationBefore = address(tx.origin).balance;
+
+        ///@notice Get the gas price and set the lower and upper bound threshold.
+        uint256 gasPrice = limitOrderRouter.getGasPrice();
+
+        uint256 executionCostLower = 60000; //Should be a lower bound
+
         cheatCodes.prank(tx.origin);
         limitOrderRouter.executeOrders(wethToTaxedOrderBatch);
-
+        uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < wethToTaxedOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 wethToTaxedOrderBatch[i]
             );
-            assert(order.orderId == bytes32(0));
+            ///@notice Ensure tx.origin received the execution reward.
+            assertGe(IERC20(WETH).balanceOf(tx.origin), txOriginBalanceBefore);
+
+            ///@notice Ensure the upper and lower execution thresholds were paid to the beacon.
+            assertGe(
+                gasCompensationAfter - gasCompensationBefore,
+                executionCostLower * gasPrice * 2
+            );
+
+            assert(order0.orderId == bytes32(0));
         }
     }
 
@@ -654,16 +913,42 @@ contract LimitOrderRouterTest is DSTest {
 
             assert(order0.orderId != bytes32(0));
         }
-        //Prank tx.origin since executeOrders is onlyEOA
-        cheatCodes.prank(tx.origin);
-        //Execute the batch
-        limitOrderRouter.executeOrders(orderBatch);
+        ///@notice Cache the executor balances before execution.
+        uint256 txOriginBalanceBefore = IERC20(WETH).balanceOf(tx.origin);
+        uint256 gasCompensationBefore = address(tx.origin).balance;
 
-        //Ensure the batch has been fulfilled
+        ///@notice Get the gas price and set the lower and upper bound threshold.
+        uint256 gasPrice = limitOrderRouter.getGasPrice();
+
+        uint256 executionCostLower = 60000; //Should be a lower bound
+
+        ///@notice check that the orders have been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
+
+            assert(order0.orderId != bytes32(0));
+        }
+        ///@notice Execute orders with an EOA.
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.executeOrders(orderBatch);
+        uint256 gasCompensationAfter = address(tx.origin).balance;
+        // check that the orders have been fufilled and removed
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            OrderBook.Order memory order0 = orderBook.getOrderById(
+                orderBatch[i]
+            );
+            ///@notice Ensure tx.origin received the execution reward.
+            assertGe(IERC20(WETH).balanceOf(tx.origin), txOriginBalanceBefore);
+
+            ///@notice Ensure the upper and lower execution thresholds were paid to the beacon.
+            assertGe(
+                gasCompensationAfter - gasCompensationBefore,
+                executionCostLower * gasPrice
+            );
+
+            ///@notice Ensure the order was removed from the contract.
             assert(order0.orderId == bytes32(0));
         }
     }
@@ -687,17 +972,34 @@ contract LimitOrderRouterTest is DSTest {
 
             assert(order.orderId != bytes32(0));
         }
+        ///@notice Cache the executor balances before execution.
+        uint256 txOriginBalanceBefore = IERC20(WETH).balanceOf(tx.origin);
+        uint256 gasCompensationBefore = address(tx.origin).balance;
+
+        ///@notice Get the gas price and set the lower and upper bound threshold.
+        uint256 gasPrice = limitOrderRouter.getGasPrice();
+
+        uint256 executionCostLower = 60000; //Should be a lower bound
 
         cheatCodes.prank(tx.origin);
-        //Execute the orders
         limitOrderRouter.executeOrders(tokenToWethOrderBatch);
-
+        uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
-            OrderBook.Order memory order = orderBook.getOrderById(
+            OrderBook.Order memory order0 = orderBook.getOrderById(
                 tokenToWethOrderBatch[i]
             );
-            assert(order.orderId == bytes32(0));
+
+            ///@notice Ensure tx.origin received the execution reward.
+            assert(IERC20(WETH).balanceOf(tx.origin) >= txOriginBalanceBefore);
+
+            ///@notice Ensure the upper and lower execution thresholds were paid to the beacon.
+            assertGe(
+                gasCompensationAfter - gasCompensationBefore,
+                executionCostLower * gasPrice * 2
+            );
+
+            assert(order0.orderId == bytes32(0));
         }
     }
 
@@ -728,7 +1030,16 @@ contract LimitOrderRouterTest is DSTest {
         orderGroup[0] = order;
         bytes32[] memory orderBatch = orderBook.placeOrder(orderGroup);
 
-        //Ensure the order has been placed
+        ///@notice Cache the executor balances before execution.
+        uint256 txOriginBalanceBefore = IERC20(WETH).balanceOf(tx.origin);
+        uint256 gasCompensationBefore = address(tx.origin).balance;
+
+        ///@notice Get the gas price and set the lower and upper bound threshold.
+        uint256 gasPrice = limitOrderRouter.getGasPrice();
+
+        uint256 executionCostLower = 60000; //Should be a lower bound
+
+        ///@notice check that the orders have been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
@@ -736,17 +1047,25 @@ contract LimitOrderRouterTest is DSTest {
 
             assert(order0.orderId != bytes32(0));
         }
-
+        ///@notice Execute orders with an EOA.
         cheatCodes.prank(tx.origin);
-
-        //Execute the order
         limitOrderRouter.executeOrders(orderBatch);
-
+        uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
+            ///@notice Ensure tx.origin received the execution reward.
+            assertGe(IERC20(WETH).balanceOf(tx.origin), txOriginBalanceBefore);
+
+            ///@notice Ensure the upper and lower execution thresholds were paid to the beacon.
+            assertGe(
+                gasCompensationAfter - gasCompensationBefore,
+                executionCostLower * gasPrice
+            );
+
+            ///@notice Ensure the order was removed from the contract.
             assert(order0.orderId == bytes32(0));
         }
     }
@@ -780,8 +1099,44 @@ contract LimitOrderRouterTest is DSTest {
 
         bytes32[] memory orderBatch = orderBook.placeOrder(orderGroup);
 
+        ///@notice Cache the executor balances before execution.
+        uint256 txOriginBalanceBefore = IERC20(WETH).balanceOf(tx.origin);
+        uint256 gasCompensationBefore = address(tx.origin).balance;
+
+        ///@notice Get the gas price and set the lower and upper bound threshold.
+        uint256 gasPrice = limitOrderRouter.getGasPrice();
+
+        uint256 executionCostLower = 60000; //Should be a lower bound
+
+        ///@notice check that the orders have been placed
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            OrderBook.Order memory order0 = orderBook.getOrderById(
+                orderBatch[i]
+            );
+
+            assert(order0.orderId != bytes32(0));
+        }
+        ///@notice Execute orders with an EOA.
         cheatCodes.prank(tx.origin);
         limitOrderRouter.executeOrders(orderBatch);
+        uint256 gasCompensationAfter = address(tx.origin).balance;
+        // check that the orders have been fufilled and removed
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            OrderBook.Order memory order0 = orderBook.getOrderById(
+                orderBatch[i]
+            );
+            ///@notice Ensure tx.origin received the execution reward.
+            assertGe(IERC20(WETH).balanceOf(tx.origin), txOriginBalanceBefore);
+
+            ///@notice Ensure the upper and lower execution thresholds were paid to the beacon.
+            assertGe(
+                gasCompensationAfter - gasCompensationBefore,
+                executionCostLower * gasPrice
+            );
+
+            ///@notice Ensure the order was removed from the contract.
+            assert(order0.orderId == bytes32(0));
+        }
     }
 
     ///@notice Test to execute a batch of taxed token to token orders
@@ -803,14 +1158,33 @@ contract LimitOrderRouterTest is DSTest {
             assert(order0.orderId != bytes32(0));
         }
 
+        ///@notice Cache the executor balances before execution.
+        uint256 txOriginBalanceBefore = IERC20(WETH).balanceOf(tx.origin);
+        uint256 gasCompensationBefore = address(tx.origin).balance;
+
+        ///@notice Get the gas price and set the lower and upper bound threshold.
+        uint256 gasPrice = limitOrderRouter.getGasPrice();
+
+        uint256 executionCostLower = 60000; //Should be a lower bound
+
         cheatCodes.prank(tx.origin);
         limitOrderRouter.executeOrders(orderBatch);
-
+        uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
+
+            ///@notice Ensure tx.origin received the execution reward.
+            assert(IERC20(WETH).balanceOf(tx.origin) >= txOriginBalanceBefore);
+
+            ///@notice Ensure the upper and lower execution thresholds were paid to the beacon.
+            assertGe(
+                gasCompensationAfter - gasCompensationBefore,
+                executionCostLower * gasPrice * 2
+            );
+
             assert(order0.orderId == bytes32(0));
         }
     }
@@ -834,14 +1208,33 @@ contract LimitOrderRouterTest is DSTest {
             assert(order0.orderId != bytes32(0));
         }
 
+        ///@notice Cache the executor balances before execution.
+        uint256 txOriginBalanceBefore = IERC20(WETH).balanceOf(tx.origin);
+        uint256 gasCompensationBefore = address(tx.origin).balance;
+
+        ///@notice Get the gas price and set the lower and upper bound threshold.
+        uint256 gasPrice = limitOrderRouter.getGasPrice();
+
+        uint256 executionCostLower = 60000; //Should be a lower bound
+
         cheatCodes.prank(tx.origin);
         limitOrderRouter.executeOrders(orderBatch);
-
+        uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
+
+            ///@notice Ensure tx.origin received the execution reward.
+            assert(IERC20(WETH).balanceOf(tx.origin) >= txOriginBalanceBefore);
+
+            ///@notice Ensure the upper and lower execution thresholds were paid to the beacon.
+            assertGe(
+                gasCompensationAfter - gasCompensationBefore,
+                executionCostLower * gasPrice * 2
+            );
+
             assert(order0.orderId == bytes32(0));
         }
     }
@@ -875,6 +1268,16 @@ contract LimitOrderRouterTest is DSTest {
 
         bytes32[] memory orderBatch = orderBook.placeOrder(orderGroup);
 
+        ///@notice Cache the executor balances before execution.
+        uint256 txOriginBalanceBefore = IERC20(WETH).balanceOf(tx.origin);
+        uint256 gasCompensationBefore = address(tx.origin).balance;
+
+        ///@notice Get the gas price and set the lower and upper bound threshold.
+        uint256 gasPrice = limitOrderRouter.getGasPrice();
+
+        uint256 executionCostLower = 60000; //Should be a lower bound
+
+        ///@notice check that the orders have been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
@@ -882,15 +1285,25 @@ contract LimitOrderRouterTest is DSTest {
 
             assert(order0.orderId != bytes32(0));
         }
-
+        ///@notice Execute orders with an EOA.
         cheatCodes.prank(tx.origin);
         limitOrderRouter.executeOrders(orderBatch);
-
+        uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             OrderBook.Order memory order0 = orderBook.getOrderById(
                 orderBatch[i]
             );
+            ///@notice Ensure tx.origin received the execution reward.
+            assertGe(IERC20(WETH).balanceOf(tx.origin), txOriginBalanceBefore);
+
+            ///@notice Ensure the upper and lower execution thresholds were paid to the beacon.
+            assertGe(
+                gasCompensationAfter - gasCompensationBefore,
+                executionCostLower * gasPrice
+            );
+
+            ///@notice Ensure the order was removed from the contract.
             assert(order0.orderId == bytes32(0));
         }
     }
@@ -918,7 +1331,7 @@ contract LimitOrderRouterTest is DSTest {
     ) internal view returns (OrderBook.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
-            stoploss:stoploss,
+            stoploss: stoploss,
             buy: buy,
             taxed: taxed,
             lastRefreshTimestamp: lastRefreshTimestamp,
@@ -952,7 +1365,7 @@ contract LimitOrderRouterTest is DSTest {
     ) internal view returns (OrderBook.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
-            stoploss:false,
+            stoploss: false,
             buy: buy,
             taxed: taxed,
             lastRefreshTimestamp: lastRefreshTimestamp,
@@ -1461,8 +1874,7 @@ contract LimitOrderRouterTest is DSTest {
         OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
-        orderBatch[2]=order3;
-        
+        orderBatch[2] = order3;
 
         return orderBatch;
     }
@@ -1523,7 +1935,7 @@ contract LimitOrderRouterTest is DSTest {
         OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
-        orderBatch[2]=order3;
+        orderBatch[2] = order3;
         bytes32[] memory orderIds = new bytes32[](3);
         bytes32[] memory returnIds = placeMultipleMockOrder(orderBatch);
         orderIds[0] = returnIds[0];
@@ -2217,73 +2629,73 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
-        // OrderBook.Order memory order3 = newMockOrder(
-        //     USDC,
-        //     UNI,
-        //     1,
-        //     false,
-        //     false,
-        //     0,
-        //     1,
-        //     5000000000, //5000 USDC
-        //     3000,
-        //     3000,
-        //     0,
-        //     MAX_U32
-        // );
+        OrderBook.Order memory order3 = newMockOrder(
+            USDC,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000, //5000 USDC
+            3000,
+            3000,
+            0,
+            MAX_U32
+        );
 
-        // OrderBook.Order memory order4 = newMockOrder(
-        //     USDC,
-        //     UNI,
-        //     1,
-        //     false,
-        //     false,
-        //     0,
-        //     1,
-        //     5000000000, //5000 USDC
-        //     3000,
-        //     3000,
-        //     0,
-        //     MAX_U32
-        // );
+        OrderBook.Order memory order4 = newMockOrder(
+            USDC,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000, //5000 USDC
+            3000,
+            3000,
+            0,
+            MAX_U32
+        );
 
-        // OrderBook.Order memory order5 = newMockOrder(
-        //     USDC,
-        //     UNI,
-        //     1,
-        //     false,
-        //     false,
-        //     0,
-        //     1,
-        //     5000000000, //5000 DAI
-        //     3000,
-        //     3000,
-        //     0,
-        //     MAX_U32
-        // );
+        OrderBook.Order memory order5 = newMockOrder(
+            USDC,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            MAX_U32
+        );
 
-        // OrderBook.Order memory order6 = newMockOrder(
-        //     USDC,
-        //     UNI,
-        //     1,
-        //     false,
-        //     false,
-        //     0,
-        //     1,
-        //     5000000000, //5000 DAI
-        //     3000,
-        //     3000,
-        //     0,
-        //     MAX_U32
-        // );
+        OrderBook.Order memory order6 = newMockOrder(
+            USDC,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            MAX_U32
+        );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](6);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
-        // orderBatch[2] = order3;
-        // orderBatch[3] = order4;
-        // orderBatch[4] = order5;
-        // orderBatch[5] = order6;
+        orderBatch[2] = order3;
+        orderBatch[3] = order4;
+        orderBatch[4] = order5;
+        orderBatch[5] = order6;
 
         return placeMultipleMockOrder(orderBatch);
     }
@@ -2326,12 +2738,9 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
-     
-
         OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
-        
 
         return placeMultipleMockOrder(orderBatch);
     }
@@ -2534,7 +2943,7 @@ contract LimitOrderRouterTest is DSTest {
     ) internal view returns (OrderBook.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
-            stoploss:false,
+            stoploss: false,
             buy: false,
             taxed: false,
             lastRefreshTimestamp: 0,
@@ -2561,5 +2970,142 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
         address _weth,
         address _limitOrderExecutor
     ) LimitOrderRouter(_gasOracle, _weth, _limitOrderExecutor) {}
+}
 
+//wrapper around SwapRouter to expose internal functions for testing
+contract LimitOrderExecutorWrapper is LimitOrderExecutor {
+    constructor(
+        address _weth,
+        address _usdc,
+        address _limitOrderQuoter,
+        bytes32[] memory _initBytecodes,
+        address[] memory _dexFactories,
+        bool[] memory _isUniV2,
+        address _gasOracle
+    )
+        LimitOrderExecutor(
+            _weth,
+            _usdc,
+            _limitOrderQuoter,
+            _initBytecodes,
+            _dexFactories,
+            _isUniV2,
+            _gasOracle
+        )
+    {}
+
+    function getV3PoolFee(address pairAddress)
+        public
+        view
+        returns (uint24 poolFee)
+    {
+        return getV3PoolFee(pairAddress);
+    }
+
+    function lpIsNotUniV3(address lp) public returns (bool) {
+        return _lpIsNotUniV3(lp);
+    }
+
+    // receive() external payable {}
+
+    function swapV2(
+        address _tokenIn,
+        address _tokenOut,
+        address _lp,
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        address _reciever,
+        address _sender
+    ) public returns (uint256) {
+        return
+            _swapV2(
+                _tokenIn,
+                _tokenOut,
+                _lp,
+                _amountIn,
+                _amountOutMin,
+                _reciever,
+                _sender
+            );
+    }
+
+    function swapV3(
+        address _lp,
+        address _tokenIn,
+        address _tokenOut,
+        uint24 _fee,
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        address _reciever,
+        address _sender
+    ) public returns (uint256) {
+        return
+            _swapV3(
+                _lp,
+                _tokenIn,
+                _tokenOut,
+                _fee,
+                _amountIn,
+                _amountOutMin,
+                _reciever,
+                _sender
+            );
+    }
+
+    function getAllPrices(
+        address token0,
+        address token1,
+        uint24 FEE
+    ) public view returns (SpotReserve[] memory prices, address[] memory lps) {
+        return _getAllPrices(token0, token1, FEE);
+    }
+
+    function calculateV2SpotPrice(
+        address token0,
+        address token1,
+        address _factory,
+        bytes32 _initBytecode
+    ) public view returns (SpotReserve memory spRes, address poolAddress) {
+        return _calculateV2SpotPrice(token0, token1, _factory, _initBytecode);
+    }
+
+    function calculateV3SpotPrice(
+        address token0,
+        address token1,
+        uint24 FEE,
+        address _factory
+    ) public returns (SpotReserve memory, address) {
+        return _calculateV3SpotPrice(token0, token1, FEE, _factory);
+    }
+
+    function calculateFee(
+        uint128 amountIn,
+        address usdc,
+        address weth
+    ) public view returns (uint128) {
+        return _calculateFee(amountIn, usdc, weth);
+    }
+
+    function _swap(
+        address _tokenIn,
+        address _tokenOut,
+        address _lp,
+        uint24 _fee,
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        address _reciever,
+        address _sender
+    ) public returns (uint256 amountRecieved) {
+        return
+            swap(
+                _tokenIn,
+                _tokenOut,
+                _lp,
+                _fee,
+                _amountIn,
+                _amountOutMin,
+                _reciever,
+                _sender
+            );
+    }
 }

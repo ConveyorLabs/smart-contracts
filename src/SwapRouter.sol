@@ -17,6 +17,7 @@ import "./lib/ConveyorFeeMath.sol";
 import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/token/SafeERC20.sol";
+import "./test/utils/Console.sol";
 
 /// @title SwapRouter
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
@@ -100,6 +101,7 @@ contract SwapRouter is ConveyorTickMath {
     uint128 constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
     uint256 constant MAX_UINT_256 =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+    uint128 constant UNI_V2_FEE = 5534023222112865000;
     uint256 constant ONE_128x128 = uint256(1) << 128;
     uint24 constant ZERO_UINT24 = 0;
     uint256 constant ZERO_POINT_NINE = 16602069666338597000 << 64;
@@ -107,7 +109,6 @@ contract SwapRouter is ConveyorTickMath {
     uint128 constant ZERO_POINT_ONE = 1844674407370955300;
     uint128 constant ZERO_POINT_ZERO_ZERO_FIVE = 92233720368547760;
     uint128 constant ZERO_POINT_ZERO_ZERO_ONE = 18446744073709550;
-    
 
     //======================Immutables================================
 
@@ -402,7 +403,6 @@ contract SwapRouter is ConveyorTickMath {
 
         ///@notice Pack the relevant data to be retrieved in the swap callback.
         bytes memory data = abi.encode(
-            _amountOutMin,
             _zeroForOne,
             _tokenIn,
             _tokenOut,
@@ -467,6 +467,168 @@ contract SwapRouter is ConveyorTickMath {
         );
     }
 
+    function calculateNewExecutionPriceTokenToWeth(
+        TokenToWethExecutionPrice[] memory executionPrices,
+        uint256 bestPriceIndex,
+        OrderBook.Order[] memory orders
+    ) internal returns (TokenToWethExecutionPrice memory) {
+        address bestPool = executionPrices[bestPriceIndex].lpAddressAToWeth;
+
+        if (_lpIsNotUniV3(bestPool)) {
+            uint128 reserve0 = executionPrices[bestPriceIndex].aToWethReserve0;
+            uint128 reserve1 = executionPrices[bestPriceIndex].aToWethReserve1;
+            reserve1 = uint128(
+                FullMath.mulDiv(
+                    reserve0,
+                    reserve1,
+                    reserve0 + orders[0].quantity
+                )
+            );
+            reserve0 = reserve0 + orders[0].quantity;
+            executionPrices[bestPriceIndex].price = uint256(
+                ConveyorMath.div128x128(
+                    uint256(reserve1) << 128,
+                    uint256(reserve0) << 128
+                )
+            );
+            executionPrices[bestPriceIndex].aToWethReserve0 = reserve0;
+            executionPrices[bestPriceIndex].aToWethReserve0 = reserve1;
+        } else {
+            address tokenIn = orders[0].tokenIn;
+            address tokenOut = orders[0].tokenOut;
+            bool zeroForOne = tokenIn < tokenOut ? true : false;
+            (uint160 sqrtPriceX96Current, , , , , , ) = IUniswapV3Pool(
+                executionPrices[bestPriceIndex].lpAddressAToWeth
+            ).slot0();
+            executionPrices[bestPriceIndex].price = fromSqrtX96(
+                sqrtPriceX96Current,
+                tokenIn < tokenOut,
+                zeroForOne ? tokenIn : tokenOut,
+                zeroForOne ? tokenOut : tokenIn
+            );
+        }
+
+        return executionPrices[bestPriceIndex];
+    }
+
+    function calculateNewExecutionPriceTokenToTokenAToWeth(
+        TokenToTokenExecutionPrice[] memory executionPrices,
+        uint256 bestPriceIndex,
+        OrderBook.Order memory order
+    ) internal returns (TokenToTokenExecutionPrice memory, uint256) {
+        address bestPool = executionPrices[bestPriceIndex].lpAddressAToWeth;
+
+        if (_lpIsNotUniV3(bestPool)) {
+            uint128 reserve0 = executionPrices[bestPriceIndex].aToWethReserve0;
+
+            uint128 reserve1 = uint128(
+                FullMath.mulDiv(
+                    reserve0,
+                    executionPrices[bestPriceIndex].aToWethReserve1,
+                    reserve0 + order.quantity
+                )
+            );
+            reserve0 = reserve0 + order.quantity;
+            uint256 price = uint256(
+                ConveyorMath.div128x128(
+                    uint256(reserve1) << 128,
+                    uint256(reserve0) << 128
+                )
+            );
+            executionPrices[bestPriceIndex].aToWethReserve0 = reserve0;
+            executionPrices[bestPriceIndex].aToWethReserve1 = reserve1;
+            return (executionPrices[bestPriceIndex], price);
+        } else {
+            address tokenIn = order.tokenIn;
+            address tokenOut = order.tokenOut;
+            bool zeroForOne = tokenIn < tokenOut ? true : false;
+            (uint160 sqrtPriceX96Current, , , , , , ) = IUniswapV3Pool(
+                executionPrices[bestPriceIndex].lpAddressAToWeth
+            ).slot0();
+            uint256 price = fromSqrtX96(
+                sqrtPriceX96Current,
+                tokenIn < tokenOut,
+                zeroForOne ? tokenIn : tokenOut,
+                zeroForOne ? tokenOut : tokenIn
+            );
+            return (executionPrices[bestPriceIndex], price);
+        }
+    }
+
+    function calculateNewExecutionPriceTokenToTokenWethToB(
+        TokenToTokenExecutionPrice[] memory executionPrices,
+        uint256 bestPriceIndex,
+        uint256 spotPriceAToWeth,
+        OrderBook.Order memory order,
+        bool wethIsToken0
+    ) internal returns (TokenToTokenExecutionPrice memory) {
+        uint256 quantity = order.quantity;
+        address pool = executionPrices[bestPriceIndex].lpAddressWethToB;
+        uint256 wethToBPrice;
+        if (_lpIsNotUniV3(pool)) {
+            unchecked {
+                uint128 quantityIn = wethIsToken0
+                    ? order.quantity
+                    : uint128(
+                        ConveyorMath.mul64I(
+                            17893341751498265000,
+                            ConveyorMath.mul128I(spotPriceAToWeth, quantity)
+                        )
+                    );
+
+                uint128 reserve0 = executionPrices[bestPriceIndex]
+                    .wethToBReserve1 + quantityIn;
+
+                uint128 reserve1 = uint128(
+                    FullMath.mulDiv(
+                        reserve0,
+                        executionPrices[bestPriceIndex].wethToBReserve1,
+                        reserve0 + quantityIn
+                    )
+                );
+
+                wethToBPrice = uint256(
+                    ConveyorMath.div128x128(
+                        uint256(reserve1) << 128,
+                        uint256(reserve0) << 128
+                    )
+                );
+
+                executionPrices[bestPriceIndex].price = wethIsToken0
+                    ? wethToBPrice
+                    : _calculateTokenToWethToTokenSpotPrice(
+                        spotPriceAToWeth,
+                        wethToBPrice
+                    );
+
+                executionPrices[bestPriceIndex].wethToBReserve0 = reserve0;
+                executionPrices[bestPriceIndex].wethToBReserve0 = reserve1;
+                return executionPrices[bestPriceIndex];
+            }
+        } else {
+            address tokenIn = order.tokenIn;
+            address tokenOut = order.tokenOut;
+            bool zeroForOne = tokenIn < tokenOut ? true : false;
+            unchecked {
+                (uint160 sqrtPriceX96Current, , , , , , ) = IUniswapV3Pool(pool)
+                    .slot0();
+                wethToBPrice = fromSqrtX96(
+                    sqrtPriceX96Current,
+                    tokenIn < tokenOut,
+                    zeroForOne ? tokenIn : tokenOut,
+                    zeroForOne ? tokenOut : tokenIn
+                );
+                executionPrices[bestPriceIndex].price = wethIsToken0
+                    ? wethToBPrice
+                    : _calculateTokenToWethToTokenSpotPrice(
+                        spotPriceAToWeth,
+                        wethToBPrice
+                    );
+                return executionPrices[bestPriceIndex];
+            }
+        }
+    }
+
     ///@notice Uniswap V3 callback function called during a swap on a v3 liqudity pool.
     ///@param amount0Delta - The change in token0 reserves from the swap.
     ///@param amount1Delta - The change in token1 reserves from the swap.
@@ -478,16 +640,12 @@ contract SwapRouter is ConveyorTickMath {
     ) external {
         ///@notice Decode all of the swap data.
         (
-            uint256 amountOutMin,
             bool _zeroForOne,
             address tokenIn,
             address tokenOut,
             uint24 fee,
             address _sender
-        ) = abi.decode(
-                data,
-                (uint256, bool, address, address, uint24, address)
-            );
+        ) = abi.decode(data, (bool, address, address, uint24, address));
 
         address poolAddress = IUniswapV3Factory(uniswapV3Factory).getPool(
             tokenIn,
@@ -510,10 +668,10 @@ contract SwapRouter is ConveyorTickMath {
             uniV3AmountOut = uint256(-amount0Delta);
         }
 
-        ///@notice Require the amountOut from the swap is greater than or equal to the amountOutMin.
-        if (uniV3AmountOut < amountOutMin) {
-            revert InsufficientOutputAmount();
-        }
+        // ///@notice Require the amountOut from the swap is greater than or equal to the amountOutMin.
+        // if (uniV3AmountOut < amountOutMin) {
+        //     revert InsufficientOutputAmount();
+        // }
 
         ///@notice Set amountIn to the amountInDelta depending on boolean zeroForOne.
         uint256 amountIn = _zeroForOne
@@ -767,5 +925,19 @@ contract SwapRouter is ConveyorTickMath {
             address[] memory _lps = new address[](dexes.length);
             return (_spotPrices, _lps);
         }
+    }
+
+    ///@notice Helper to calculate the multiplicative spot price over both router hops
+    ///@param spotPriceAToWeth spotPrice of Token A relative to Weth
+    ///@param spotPriceWethToB spotPrice of Weth relative to Token B
+    ///@return spotPriceFinal multiplicative finalSpot
+    function _calculateTokenToWethToTokenSpotPrice(
+        uint256 spotPriceAToWeth,
+        uint256 spotPriceWethToB
+    ) internal pure returns (uint128 spotPriceFinal) {
+        spotPriceFinal = ConveyorMath.mul64x64(
+            uint128(spotPriceAToWeth >> 64),
+            uint128(spotPriceWethToB >> 64)
+        );
     }
 }

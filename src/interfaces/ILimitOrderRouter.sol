@@ -19,4 +19,5 @@ interface ILimitOrderRouter {
     function confirmTransferOwnership() external;
 
     function transferOwnership(address newOwner) external;
+    function getGasPrice() external  returns (uint256);
 }

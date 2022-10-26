@@ -84,9 +84,11 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Function to execute a batch of Token to Weth Orders.
     ///@param orders The orders to be executed.
-    function executeTokenToWethOrders(
-        OrderBook.Order[] memory orders
-    ) external onlyLimitOrderRouter returns (uint256, uint256) {
+    function executeTokenToWethOrders(OrderBook.Order[] memory orders)
+        external
+        onlyLimitOrderRouter
+        returns (uint256, uint256)
+    {
         ///@notice Get all of the execution prices on TokenIn to Weth for each dex.
         ///@notice Get all prices for the pairing
         (
@@ -130,13 +132,13 @@ contract LimitOrderExecutor is SwapRouter {
                 totalConveyorReward += conveyorReward;
             }
 
-            ///@notice Update the best execution price.
-            executionPrices[bestPriceIndex] = ILimitOrderQuoter(
-                LIMIT_ORDER_QUOTER
-            ).simulateTokenToWethPriceChange(
-                    uint128(orders[i].quantity),
-                    executionPrices[bestPriceIndex]
-                );
+            executionPrices[
+                bestPriceIndex
+            ] = calculateNewExecutionPriceTokenToWeth(
+                executionPrices,
+                bestPriceIndex,
+                orders
+            );
 
             unchecked {
                 ++i;
@@ -194,16 +196,18 @@ contract LimitOrderExecutor is SwapRouter {
 
         uint24 feeIn = order.feeIn;
         address tokenIn = order.tokenIn;
-
-        ///@notice Calculate the amountOutMin for the tokenA to Weth swap.
-        uint256 batchAmountOutMinAToWeth = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
-            .calculateAmountOutMinAToWeth(
-                lpAddressAToWeth,
-                orderQuantity,
-                order.taxIn,
-                feeIn,
-                tokenIn
-            );
+        uint256 batchAmountOutMinAToWeth = 0;
+        if (_lpIsNotUniV3(lpAddressAToWeth)) {
+            ///@notice Calculate the amountOutMin for the tokenA to Weth swap.
+            batchAmountOutMinAToWeth = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
+                .calculateAmountOutMinAToWeth(
+                    lpAddressAToWeth,
+                    orderQuantity,
+                    order.taxIn,
+                    feeIn,
+                    tokenIn
+                );
+        }
 
         ///@notice Swap from tokenA to Weth.
         amountOutWeth = uint128(
@@ -241,16 +245,17 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
-    function executeTokenToTokenOrders(
-        OrderBook.Order[] memory orders
-    ) external onlyLimitOrderRouter returns (uint256, uint256) {
+    function executeTokenToTokenOrders(OrderBook.Order[] memory orders)
+        external
+        onlyLimitOrderRouter
+        returns (uint256, uint256)
+    {
         TokenToTokenExecutionPrice[] memory executionPrices;
         address tokenIn = orders[0].tokenIn;
-  
-        uint24 feeIn = orders[0].feeIn;
-        uint24 feeOut = orders[0].feeOut;
 
         {
+            uint24 feeIn = orders[0].feeIn;
+            uint24 feeOut = orders[0].feeOut;
             ///@notice Get all execution prices.
             ///@notice Get all prices for the pairing tokenIn to Weth
             (
@@ -272,7 +277,6 @@ contract LimitOrderExecutor is SwapRouter {
                     spotReserveWethToB,
                     lpAddressWethToB
                 );
-            
         }
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
@@ -301,13 +305,49 @@ contract LimitOrderExecutor is SwapRouter {
                 totalConveyorReward += conveyorReward;
             }
 
-            ///@notice Update the best execution price.
-            executionPrices[bestPriceIndex] = ILimitOrderQuoter(
-                LIMIT_ORDER_QUOTER
-            ).simulateTokenToTokenPriceChange(
-                    uint128(orders[i].quantity),
-                    executionPrices[bestPriceIndex]
-                );
+            {
+                if (!(orders.length == 1)) {
+                    address lpWethToB = executionPrices[bestPriceIndex].lpAddressWethToB;
+                    if (orders[0].tokenIn == WETH) {
+                        
+                        ///@notice Update the best execution price.
+                        (
+                            executionPrices[bestPriceIndex]
+                        ) = calculateNewExecutionPriceTokenToTokenWethToB(
+                            executionPrices,
+                            0,
+                            bestPriceIndex,
+                            orders[i],
+                            true
+                        );
+                        
+                    } else {
+                        uint256 spotPriceAToWeth;
+                       
+                        ///@notice Update the best execution price.
+                        (
+                            executionPrices[bestPriceIndex],
+                            spotPriceAToWeth
+                        ) = calculateNewExecutionPriceTokenToTokenAToWeth(
+                            executionPrices,
+                            bestPriceIndex,
+                            orders[i]
+                        );
+                        ///@notice Update the best execution price.
+                        (
+                            executionPrices[bestPriceIndex]
+                        ) = calculateNewExecutionPriceTokenToTokenWethToB(
+                            executionPrices,
+                            spotPriceAToWeth,
+                            bestPriceIndex,
+                            orders[i],
+                            false
+                        );
+                    }
+                } else {
+                    break;
+                }
+            }
 
             unchecked {
                 ++i;

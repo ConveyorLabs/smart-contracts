@@ -764,40 +764,14 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param feeIn - The fee on the swap.
     ///@param tokenIn - The address of tokenIn on the swap.
     ///@return amountOutMinAToWeth - The amountOutMin in the swap.
-    function calculateAmountOutMinAToWeth(
+    function calculateAmountOutMinAToWethV2(
         address lpAddressAToWeth,
         uint256 amountInOrder,
         uint16 taxIn,
         uint24 feeIn,
         address tokenIn
     ) external returns (uint256 amountOutMinAToWeth) {
-        ///@notice Check if the lp is UniV3
-        if (!_lpIsNotUniV3(lpAddressAToWeth)) {
-            ///@notice 1000==100% so divide amountInOrder *taxIn by 10**5 to adjust to correct base
-            ///@dev If the token is taxed there will be a transfer fee when the tokens are sent to the pool. So, decrement the amountIn on the swap by the amountIn - tokenTax
-            uint256 amountInBuffer = (amountInOrder * taxIn) / 10**5;
-            uint256 amountIn = amountInOrder - amountInBuffer;
-            ///@notice Get token0 in the pool.
-            address token0 = IUniswapV3Pool(lpAddressAToWeth).token0();
-
-            ///@notice Get the liqudiity and tick spacing storage variables from the pool.
-            uint128 liquidity = IUniswapV3Pool(lpAddressAToWeth).liquidity();
-            int24 tickSpacing = IUniswapV3Pool(lpAddressAToWeth).tickSpacing();
-
-            ///@notice Calculate the amountOutMin for the swap.
-            int256 _amountOutMinAToWeth = ConveyorTickMath
-                .simulateAmountOutOnSqrtPriceX96(
-                    token0,
-                    tokenIn,
-                    lpAddressAToWeth,
-                    amountIn,
-                    tickSpacing,
-                    liquidity,
-                    feeIn
-                );
-            ///@notice Negate the simulated amount and convert to an unsigned integer.
-            amountOutMinAToWeth = uint256(-_amountOutMinAToWeth);
-        } else {
+        
             ///@notice Otherwise if the lp is a UniV2 LP.
 
             ///@notice Get the reserves from the pool.
@@ -825,20 +799,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
                     uint256(reserve1)
                 );
             }
-        }
+        
     }
 
-    ///@notice Helper to calculate the multiplicative spot price over both router hops
-    ///@param spotPriceAToWeth spotPrice of Token A relative to Weth
-    ///@param spotPriceWethToB spotPrice of Weth relative to Token B
-    ///@return spotPriceFinal multiplicative finalSpot
-    function _calculateTokenToWethToTokenSpotPrice(
-        uint256 spotPriceAToWeth,
-        uint256 spotPriceWethToB
-    ) internal pure returns (uint128 spotPriceFinal) {
-        spotPriceFinal = ConveyorMath.mul64x64(
-            uint128(spotPriceAToWeth >> 64),
-            uint128(spotPriceWethToB >> 64)
-        );
-    }
+   
 }
