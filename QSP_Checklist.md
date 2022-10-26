@@ -1,27 +1,10 @@
-# Major Architecture Changes 
+# Architecture Changes 
 
-As per the Quantstamp teams reccomendation we removed batch execution, and changed the execution logic to a linear flow with each order executing indivually in sequence. The change to linear execution removed the need for a `TaxedTokenLimitOrderExecution` contract. The reduced contract sizes allowed us to combine `TokenToTokenLimitOrderExecution.sol` and `TokenToWethLimitOrderExecution.sol` into one contract `LimitOrderExecutor.sol`. Further, we were able to allow the `LimitOrderExecutor`to inherit `SwapRouter` to eliminated unnecessary external calls. <br /> 
+We changed the execution logic to a linear flow with each order executing indivually in sequence. The change to linear execution removed the need for a `TaxedTokenLimitOrderExecution` contract. The reduced contract sizes allowed us to combine `TokenToTokenLimitOrderExecution.sol` and `TokenToWethLimitOrderExecution.sol` into one contract `LimitOrderExecutor.sol`. Further, we were able to allow the `LimitOrderExecutor`to inherit `SwapRouter` to eliminated unnecessary external calls. <br /> 
 
 The changes also removed the need for the batching functions in `LimitOrderBatcher.sol`. We changed the batcher contract name to `LimitOrderQuoter.sol` which only holds the functions from `LimitOrderBatcher.sol` that were still needed. The last change to the contract architecture was we removed some of the pure functions from `SwapRouter.sol` for fee calculations into a library `src/lib/ConveyorFeeMath.sol` to reduce the size of `LimitOrderExecutor.sol`.<br /> 
 
 ## Post Audit Changes
-
-### Library `ConveyorFeeMath`
-Functions Modified: <br /> 
-None
-
-### Contract `LimitOrderQuoter`
-Functions Modified: <br /> 
-`calculateAmountOutMinAToWeth#L767` <br /> 
-`calculateNextSqrtPriceX96#L617` <br /> 
-
-### Contract `LimitOrderExecutor`
-Functions Modified: <br /> 
-`executeTokenToWethOrders#L59` <br /> 
-`_executeTokenToWethOrder#L138` <br /> 
-`_executeSwapTokenToWethOrder#L168` <br /> 
-`executeTokenToTokenOrders#L229` <br /> 
-`_executeTokenToTokenOrder#L317` <br /> 
 
 ### Contract `ConveyorTickMath`
 Functions Modified: <br /> 
@@ -37,47 +20,26 @@ Functions Modified: <br />
 Functions Modified: <br /> 
 `executeOrders#L417` <br /> 
 
-
-
 ## Uniswap V3 Changes
 ### Function `LimitOrderBatcher.calculateAmountOutMinAToWeth()`
-As per the Quant Stamp teams reccomendation we decided to eliminate the use of the v3 Quoter completely in the contract. In order to remove the quoter we wrote our own internal logic to quote an accurate `amountOutMin` modeled after Uniswap V3 internal swap logic  (https://github.com/Uniswap/v3-core/blob/main/contracts/UniswapV3Pool.sol#L596).
+We eliminated the use of the v3 Quoter in the contract. Our quoting logic was modeled after: (https://github.com/Uniswap/v3-core/blob/main/contracts/UniswapV3Pool.sol#L596).
 
-The implementation is located in `src/lib/ConveyorTickMath.sol#L88` within the function `simulateAmountOutOnSqrtPriceX96`. 
-
-```
-function simulateAmountOutOnSqrtPriceX96(
-        address token0,
-        address tokenIn,
-        address lpAddressAToWeth,
-        uint256 amountIn,
-        int24 tickSpacing,
-        uint128 liquidity,
-        uint24 fee
-    ) internal returns (int256 amountOut)
-```
-
-This function is called in `src/LimitOrderQuoter.sol#L785` within `calculateAmountOutMinAToWeth` to derive the `amountOutMin` on the first swap (Token->Weth) for a Token->Token order.<br /> 
+The implementation is located in `src/lib/ConveyorTickMath.sol` within the function `simulateAmountOutOnSqrtPriceX96`. 
+This function is called in `src/LimitOrderQuoter.sol` within `calculateAmountOutMinAToWeth` </br>
 
 Tests:<br />
-Reference `src/test/LimitOrderQuoter.t.sol#L241-319` for `calculateAmountOutMinAToWeth` tests.<br />
-Reference `src/test/ConveyorTickMath.t.sol#L110-265` for `simulateAmountOutOnSqrtPriceX96` tests. <br />
-
+Reference `src/test/LimitOrderQuoter.t.sol` for `calculateAmountOutMinAToWeth` tests.<br />
+Reference `src/test/ConveyorTickMath.t.sol` for `simulateAmountOutOnSqrtPriceX96` tests. <br />
 
 ### Function `_calculateV3SpotPrice`
-The V3 spot price calculation has been modified to be more gas efficient by simply calling `slot0()` on the pool, and converting `sqrtPriceX96` to `128.128` fixed point representation of `sqrtPriceX96**2`. Reference `src/SwapRouter.sol#L751` for the new implementation. 
-New Functions:
-`fromSqrtX96` Reference `src/lib/ConveyorTickMath.sol#L71`<br />
-Tests: <br />
-Reference `src/test/ConveyorTickMath.t.sol#267-282` for `fromSqrtX96` tests. <br />
-Reference `src/test/OrderRouter.t.sol#282-313` for `_calculateV3SpotPrice` tests. <br />
+The V3 spot price calculation has been modified to be more gas efficient by simply calling `slot0()` on the pool, and converting `sqrtPriceX96` to `128.128` fixed point representation of `sqrtPriceX96**2`. 
 
 ### Function `LimitOrderBatcher.calculateNextSqrtPriceX96`
 This function was modified to be more gas efficient by eliminating all calls to the v3 quoter, and calculating the amountOut return value by simply calling `ConveyorTickMath.simulateAmountOutOnSqrtPriceX96`. 
 
 ### Function `SwapRouter.getNextSqrtPriceV3`
 This has been simplified to be more gas efficient by eliminating all calls to the quoter. <br />
-Reference `SwapRouter#L551`
+Reference `SwapRouter`
 
 # QSP-1 Stealing User and Contract Funds ✅
 Severity: 🔴**High Risk**🔴
@@ -104,7 +66,7 @@ The `SwapRouter.uniswapV3SwapCallback()` function does not verify that it is cal
 
 The Uniswapv3 swap callback now has verification that the caller is a Uniswapv3 pool. First, the pool address is derived by calling the Uniswapv3 Factory. Then the function checks if the msg.sender is the pool address.
 
-```jav    
+```solidity 
      address poolAddress = IUniswapV3Factory(uniswapV3Factory).getPool(
             tokenIn,
             tokenOut,
@@ -201,6 +163,7 @@ checks for each execution price whether that price is less than the current best
 the function will always return the default value of bestPriceIndex, which is 0. Similarly for sell orders, the bestPrice is already the best it can be and will always return 0.
 
 ### Resolution
+Changed `_findBestTokenToWethExecutionPrice()` to initialize the bestPrice as type(uint256).max for buys and 0 for sells.
 
 # QSP-8 Reentrancy ✅
 ### Description
@@ -271,6 +234,7 @@ We noticed that the ConveyorMath library implements changes from the ABDK librar
 the signed integers or with 128 bits. The overflow can lead to a miscalculation of the fees and rewards in the SwapRouter contract.
 
 ### Resolution
+All reccomendations have been implemented in their corresponding functions. 
 
 # QSP-12 Updating Order Performs Wrong Total Order Quantity Accounting ✅
 ### Description
@@ -299,7 +263,7 @@ beaconReward value is not returned as part of the function. The _executeTokenToT
 _executeSwapTokenToWethOrder() function.
 
 ### Resolution
-
+The taxed execution contracts have been removed with the new architecture. `_executeSwapTokenToWethOrder()` Now returns the conveyor/beacon reward. Further, the execution tests now have assertions validating executor payment after execution has completed.
 
 # QSP-14 Denial of Service Due to Unbound Iteration ❌
 ### Description
@@ -349,7 +313,8 @@ Updated _validateOrderSequencing() to check for congruent `feeIn` and `feeOut`. 
 Severity: 🔵Informational🔵
 ## Description: 
 The code has the concept of a `maxBeaconReward` to cap the max beacon reward sent to the executor. So whenever the raw `beaconReward` is greater than the `maxBeaconReward`, the executor will get the `maxBeaconReward`. However, the implementation will lock the difference between the two in the contract.
-
+### Resolution Details
+This issue has been resolved by subtracting the `amountOutInWeth` by the beaconReward after the cap has been computer. Along with this we decided to remove the maxBeaconReward for all order types except stoplosses.
 ## QSP-19_1
 `TaxedTokenLimitOrderExecution._executeTokenToWethTaxedSingle()`: The function calls the `_executeTokenToWethOrder()` function on L133 and the `_executeTokenToWethOrder() `function will return `uint256(amountOutWeth - (beaconReward + conveyorReward))` (L192) as the `amountOut`. The `amountOut` is the final amount transferred to the order's owner. Later on L148-150, the raw `beaconReward` is capped to the `maxBeaconReward`. The difference will be left and locked in the contract.
 
@@ -437,14 +402,14 @@ When placing an order, the contract will check if users set a high enough allowa
 the function updateOrder().
 ### Resolution
 Added a check that ensures the allowance of the sender on the `LimitOrderExecutor` contract >= the `newOrder.quantity`. Reference `OrderBook.sol#L277-281` for the fix:
-```
+```solidity
         ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
         if (totalApprovedQuantity < newOrder.quantity) {
             revert InsufficientAllowanceForOrderUpdate();
         }
 ```
 Test Reference `OrderBook.t.sol#L363-401`:
-```
+```solidity
     ///@notice Test fail update order insufficient allowance
     function testFailUpdateOrder_InsufficientAllowanceForOrderUpdate(
         uint128 price,
@@ -494,7 +459,7 @@ In the function `fromUInt256()`, if the input `x` is an unsigned integer and `x 
 the restriction for `x` is set to `<= 0x7FFFFFFFFFFFFFFF` in the current implementation.
 ### Resolution
 Changed the require statement to the reccomended validation logic. Reference `ConveyorMath.sol#L20-25`.
-```
+```solidity
 function fromUInt256(uint256 x) internal pure returns (uint128) {
     unchecked {
         require(x <= 0xFFFFFFFFFFFFFFFF);
@@ -514,7 +479,7 @@ Changes made to mitigate Gas consumption in execution:
     As per the reccomendation of the quant stamp team we changed the execution architecture of the contract to a stricly linear flow. The changes to linear execution architecture immediately reduced the gas consumption overall, most significantly when a V3 pool was utilized during execution because of a reduced amount of calls to the quoter. Further, we eliminated using the v3 quoter completely from the contract, and built our own internal logic to simulate the amountOut yielded on a V3 swap. Reference `Contract Architecture Changes/Uniswap V3` for a detailed report of the code, and it's implementation throughout the contract. 
 
 Relevant Gas Snapshot Post Changes:
-```
+```solidity
 ╭────────────────────────────────────────────────────┬─────────────────┬───────┬────────┬───────┬─────────╮
 │ src/LimitOrderQuoter.sol:LimitOrderQuoter contract ┆                 ┆       ┆        ┆       ┆         │
 ╞════════════════════════════════════════════════════╪═════════════════╪═══════╪════════╪═══════╪═════════╡
@@ -566,7 +531,13 @@ Relevant Gas Snapshot Post Changes:
 ╰───────────────────────────────────────────────────────────────┴─────────────────┴────────┴────────┴────────┴─────────╯
 ```
 
-# QSP-26 Issues in Maximum Beacon Reward Calculation ❌
+# QSP-26 Issues in Maximum Beacon Reward Calculation 
+### Resolution
+We decided to remove the `alphaX` and `maxBeaconReward` functions from the contract because of the gas consumed from the computation. We also decided capping the reward was not necessary for any limit order other than a stop loss. We added a constant: 
+```solidity
+uint128 constant STOP_LOSS_MAX_BEACON_REWARD = 50000000000000000;
+```
+This constant is used in place of the `maxBeaconReward` in the case of stoploss orders. 
 
 # QSP-27 Verifier's Dilemma ❌
 
