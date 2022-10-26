@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import "../lib/AggregatorV3Interface.sol";
 
 /// @title GasOracle
-/// @author LeytonTaylor, 0xKitsune
+/// @author 0xOsiris, 0xKitsune
 /// @notice This contract fetches the latest fast gas price from the Chainlink Gas Oracle
 contract GasOracle {
     ///@notice The gasOracleAddress is the address of the Chainlink Gas Oracle.

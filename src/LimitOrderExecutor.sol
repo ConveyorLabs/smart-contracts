@@ -6,6 +6,9 @@ import "./interfaces/ILimitOrderQuoter.sol";
 import "./lib/ConveyorFeeMath.sol";
 import "./LimitOrderRouter.sol";
 
+/// @title LimitOrderExecutor
+/// @author 0xOsiris, 0xKitsune
+/// @notice This contract handles all order execution.
 contract LimitOrderExecutor is SwapRouter {
     using SafeERC20 for IERC20;
     ///====================================Immutable Storage Variables==============================================//
@@ -438,6 +441,8 @@ contract LimitOrderExecutor is SwapRouter {
         if (msg.sender != tempOwner) {
             revert UnauthorizedCaller();
         }
+        ///@notice Cleanup tempOwner storage.
+        tempOwner = address(0);
         owner = msg.sender;
     }
 

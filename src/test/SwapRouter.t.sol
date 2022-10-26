@@ -341,7 +341,7 @@ contract SwapRouterTest is DSTest {
 
             ///@notice Calculate the weth amount in usd
             uint256 amountInUsdcDollarValue = uint256(
-                ConveyorMath.mul128I(spotPrice, uint256(_amount)) /
+                ConveyorMath.mul128U(spotPrice, uint256(_amount)) /
                     uint256(10**18)
             );
             console.logUint(amountInUsdcDollarValue);

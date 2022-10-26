@@ -4,6 +4,9 @@ pragma solidity 0.8.16;
 import "./SwapRouter.sol";
 import "./lib/ConveyorTickMath.sol";
 
+/// @title LimitOrderExecutor
+/// @author 0xOsiris, 0xKitsune
+/// @notice This contract handles all CFMM quoting logic.
 contract LimitOrderQuoter is ConveyorTickMath {
     address immutable WETH;
 
@@ -92,7 +95,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
         SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex) {
-        ///@notice If the order is a buy order, set the initial best price at 0.
+        ///@notice If the order is a buy order, set the initial best price at type(uint256).max.
         if (buyOrder) {
             uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
             ///@notice For each exectution price in the executionPrices array.
@@ -262,7 +265,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
         uint256 order_quantity,
         uint256 amountOutMin
     ) internal pure returns (bool) {
-        return ConveyorMath.mul128I(spot_price, order_quantity) >= amountOutMin;
+        return ConveyorMath.mul128U(spot_price, order_quantity) >= amountOutMin;
     }
 
     ///@notice Function to simulate the TokenToToken price change on a pair.

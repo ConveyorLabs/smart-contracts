@@ -586,7 +586,7 @@ Relevant Gas Snapshot Post Changes:
 ## Add `@param` comment for the field `taxIn` of the struct Order **(L44-73)** in `OrderBook.sol`.
 ## Consider adding a warning for the `SwapRouter.calculateFee()` function that the amountIn can only be the amount **WETH (or 18 decimal tokens)**.
 ## The onlyOwner modifier implemented in the `LimitOrderExecution.sol` contracts has documentation that states that the modifier should be applied to the function `transferOwnership()`. As there is no transferOwnership() function in those contracts, either add one or remove it from the modifier documentation.
-## `ConveyorMath.mul128I()#L167`, **"multiply unsigned 64.64" should be "128.128"**.
+## `ConveyorMath.mul128U()#L167`, **"multiply unsigned 64.64" should be "128.128"**.
 ## `ConveyorMath.div128x128()#L213`, **"@return unsigned uint128 64.64" should be "128.128"**.
 ## `ConveyorMath.divUI()#L229`, **"helper function to divide two 64.64 fixed point numbers" should be "... two integers"**.
 ## `ConveyorMath.divUI128x128()#L310`, **"helper function to divide two unsigned 64.64 fixed point" should be "... two integers".**
@@ -611,8 +611,8 @@ Relevant Gas Snapshot Post Changes:
 ## The `@return` documentation for the following functions is unclear:
        `ConveyorMath.mul64x64()` (expecting unsigned 64.64).
        `ConveyorMath.mul128x64() (expecting unsigned 128.128).
-       `ConveyorMath.mul64I()` (expecting unsigned integer).
-       `ConveyorMath.mul128I()` (expecting unsigned integer).
+       `ConveyorMath.mul64U()` (expecting unsigned integer).
+       `ConveyorMath.mul128U()` (expecting unsigned integer).
        
 # **Adherence to Best Practices**
 ## Remove the unused function `OrderBook._resolveCompletedOrderAndEmitOrderFufilled()` (L371-392).
@@ -622,7 +622,7 @@ Relevant Gas Snapshot Post Changes:
 ## Consider setting the tempOwner to zero in the `LimitOrderRouter.confirmTransferOwnership()` function once the owner is set. By cleaning up the storage, the EVM will refund some gas.
 ## Consider replacing the assembly block with simply `initalTxGas = gasleft()` in `LimitOrderRouter.sol#434-436`(within the `executeOrders()` function). The gas saved with the assembly is negligible (around 10).
 ## Consider removing the `LimitOrderBatcher._buyOrSell()` function. The code using this function can replace it simply with `firstOrder.buy on L44` and L207.
-## Consider renaming the `ConveyorMath.mul64I() (L149)` and the `ConveyorMath.mul128I()` (L171) functions to `mul64U()` and `mul128U()` instead. The functions handle unsigned integers instead of signed integers.
+## Consider renaming the `ConveyorMath.mul64U() (L149)` and the `ConveyorMath.mul128U()` (L171) functions to `mul64U()` and `mul128U()` instead. The functions handle unsigned integers instead of signed integers.
 ## GasOracle.getGasPrice() tends to get called multiple times per execution. Consider whether it's possible to cache it to avoid multiple external calls.
 ## `OrderBook.addressToOrderIds` seems unnecessary. It is used to check whether orders exist via: `bool orderExists = addressToOrderIds[msg.sender] [newOrder.orderId];`. This can also be done through `bool orderExists = orderIdToOrder[newOrder.orderId].owner == msg.sender`.
 ## `OrderBook.orderIdToOrder` should be declared as internal since the generated getter function leads to "stack too deep" errors when compiled without optimizations, which is required for collecting code coverage.
