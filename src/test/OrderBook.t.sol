@@ -300,8 +300,7 @@ contract OrderBookTest is DSTest {
         uint64 quantity,
         uint128 amountOutMin,
         uint128 newPrice,
-        uint64 newQuantity,
-        uint128 newAmountOutMin
+        uint64 newQuantity
     ) public {
         cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
@@ -321,16 +320,10 @@ contract OrderBookTest is DSTest {
         //place a mock order
         bytes32 orderId = placeMockOrder(order);
 
-        uint32 initialLastRefreshTimestamp = orderBook
-            .getOrderById(orderId)
-            .lastRefreshTimestamp;
-
         //submit the updated order
         orderBook.updateOrder(orderId, newPrice, newQuantity);
 
-        OrderBook.Order memory contractStateOrder = orderBook.getOrderById(
-            orderId
-        );
+        OrderBook.Order memory updatedOrder = orderBook.getOrderById(orderId);
 
         //Cache the total orders value after the update
         uint256 totalOrdersValueAfter = orderBook.getTotalOrdersValue(
@@ -339,13 +332,8 @@ contract OrderBookTest is DSTest {
 
         //Make sure the order was updated properly
         assertEq(newQuantity, totalOrdersValueAfter);
-        assertEq(newQuantity, contractStateOrder.quantity);
-        assertEq(newPrice, contractStateOrder.price);
-        assertEq(
-            initialLastRefreshTimestamp,
-            contractStateOrder.lastRefreshTimestamp
-        );
-        assertEq(newAmountOutMin, contractStateOrder.amountOutMin);
+        assertEq(newQuantity, updatedOrder.quantity);
+        assertEq(newPrice, updatedOrder.price);
     }
 
     ///@notice Test fail update order insufficient allowance
@@ -353,8 +341,7 @@ contract OrderBookTest is DSTest {
         uint128 price,
         uint64 quantity,
         uint128 amountOutMin,
-        uint128 newPrice,
-        uint128 newAmountOutMin
+        uint128 newPrice
     ) public {
         cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(limitOrderExecutor), quantity);
@@ -696,7 +683,7 @@ contract OrderBookTest is DSTest {
     ) internal view returns (OrderBook.Order memory order) {
         //Initialize mock order
         order = OrderBook.Order({
-            stoploss:false,
+            stoploss: false,
             buy: false,
             taxed: false,
             lastRefreshTimestamp: 0,
