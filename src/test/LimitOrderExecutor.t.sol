@@ -3099,7 +3099,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         uint256 _amountOutMin,
         address _reciever,
         address _sender
-    ) public returns (uint256 amountRecieved) {
+    ) public returns (uint256 amountReceived) {
         return
             swap(
                 _tokenIn,

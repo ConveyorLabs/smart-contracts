@@ -645,9 +645,9 @@ This would also allow removing the dependency on the Quoter contract for the Swa
 ## The function `mostSignificantBit()` exists in both ConveyorBitMath.sol and QuadruplePrecision.sol. Remove one of them.
 ## Typos in variables:
 ### Several variables contain the typo fufilled instead of fulfilled. Some of these are externally visible.
-    parameter _reciever in `SwapRouter._swapV2()` should be renamed to _receiver, the return variable amountRecieved should be amountReceived
-    parameter _reciever in `SwapRouter._swapV3()` should be renamed to _receiver, the return variable amountRecieved should be amountReceived
-    parameter _reciever in `SwapRouter._swap()` should be renamed to _receiver, the return variable amountRecieved should be amountReceived.
+    parameter _reciever in `SwapRouter._swapV2()` should be renamed to _receiver, the return variable amountReceived should be amountReceived
+    parameter _reciever in `SwapRouter._swapV3()` should be renamed to _receiver, the return variable amountReceived should be amountReceived
+    parameter _reciever in `SwapRouter._swap()` should be renamed to _receiver, the return variable amountReceived should be amountReceived.
 ## OrderBook.sol#L240 could use storage instead of memory to save gas.
 ## Internal function `_executeSwapTokenToWethOrder()` in `TokenToWethLimitOrderExecution.sol` is never used and can be removed.
 

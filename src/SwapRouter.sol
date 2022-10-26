@@ -271,7 +271,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@param _amountOutMin - AmountOutMin for the swap.
     ///@param _reciever - Address to receive the amountOut.
     ///@param _sender - Address to send the tokenIn.
-    ///@return amountRecieved - Amount received from the swap.
+    ///@return amountReceived - Amount received from the swap.
     function _swapV2(
         address _tokenIn,
         address _tokenOut,
@@ -280,7 +280,7 @@ contract SwapRouter is ConveyorTickMath {
         uint256 _amountOutMin,
         address _reciever,
         address _sender
-    ) internal returns (uint256 amountRecieved) {
+    ) internal returns (uint256 amountReceived) {
         ///@notice If the sender is not the current context
         ///@dev This can happen when swapping taxed tokens to avoid being double taxed by sending the tokens to the contract instead of directly to the lp
         if (_sender != address(this)) {
@@ -311,14 +311,14 @@ contract SwapRouter is ConveyorTickMath {
         );
 
         ///@notice calculate the amount recieved
-        amountRecieved = IERC20(_tokenOut).balanceOf(_reciever) - balanceBefore;
+        amountReceived = IERC20(_tokenOut).balanceOf(_reciever) - balanceBefore;
 
         ///@notice if the amount recieved is less than the amount out min, revert
-        if (amountRecieved < _amountOutMin) {
+        if (amountReceived < _amountOutMin) {
             revert InsufficientOutputAmount();
         }
 
-        return amountRecieved;
+        return amountReceived;
     }
 
     receive() external payable {}
@@ -332,7 +332,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@param _amountOutMin - AmountOutMin for the swap.
     ///@param _reciever - Address to receive the amountOut.
     ///@param _sender - Address to send the tokenIn.
-    ///@return amountRecieved - Amount received from the swap.
+    ///@return amountReceived - Amount received from the swap.
     function swap(
         address _tokenIn,
         address _tokenOut,
@@ -342,9 +342,9 @@ contract SwapRouter is ConveyorTickMath {
         uint256 _amountOutMin,
         address _reciever,
         address _sender
-    ) internal returns (uint256 amountRecieved) {
+    ) internal returns (uint256 amountReceived) {
         if (_lpIsNotUniV3(_lp)) {
-            amountRecieved = _swapV2(
+            amountReceived = _swapV2(
                 _tokenIn,
                 _tokenOut,
                 _lp,
@@ -354,7 +354,7 @@ contract SwapRouter is ConveyorTickMath {
                 _sender
             );
         } else {
-            amountRecieved = _swapV3(
+            amountReceived = _swapV3(
                 _lp,
                 _tokenIn,
                 _tokenOut,
@@ -375,7 +375,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@param _amountOutMin The minimum amount out in TokenOut post swap.
     ///@param _reciever The receiver of the tokens post swap.
     ///@param _sender The sender of TokenIn on the swap.
-    ///@return amountRecieved The amount of TokenOut received post swap.
+    ///@return amountReceived The amount of TokenOut received post swap.
     function _swapV3(
         address _lp,
         address _tokenIn,
@@ -385,7 +385,7 @@ contract SwapRouter is ConveyorTickMath {
         uint256 _amountOutMin,
         address _reciever,
         address _sender
-    ) internal returns (uint256 amountRecieved) {
+    ) internal returns (uint256 amountReceived) {
         ///@notice Initialize variables to prevent stack too deep.
         bool _zeroForOne;
 
@@ -556,6 +556,7 @@ contract SwapRouter is ConveyorTickMath {
         ///@notice Return pool address and populated SpotReserve struct.
         (spRes, poolAddress) = (_spRes, pairAddress);
     }
+
 
     ///@notice Helper function to convert reserve values to common 18 decimal base.
     ///@param tok0 - Address of token0.

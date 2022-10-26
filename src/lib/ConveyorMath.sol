@@ -115,7 +115,7 @@ library ConveyorMath {
     function mul64x64(uint128 x, uint128 y) internal pure returns (uint128) {
         unchecked {
             uint256 answer = (uint256(x) * y) >> 64;
-            require(answer <= MAX_64x64, "here you hit");
+            require(answer <= MAX_64x64);
             return uint128(answer);
         }
     }
