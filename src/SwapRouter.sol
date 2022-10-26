@@ -477,6 +477,7 @@ contract SwapRouter is ConveyorTickMath {
     function calculateNewExecutionPriceTokenToTokenAToWeth(
         TokenToTokenExecutionPrice[] memory executionPrices,
         uint256 bestPriceIndex,
+        address weth,
         OrderBook.Order memory order
     ) internal view returns (TokenToTokenExecutionPrice memory, uint256) {
         if (executionPrices[bestPriceIndex].lpAToWethIsV2) {
@@ -505,7 +506,7 @@ contract SwapRouter is ConveyorTickMath {
         } else {
             address tokenIn = order.tokenIn;
             address tokenOut = order.tokenOut;
-            bool zeroForOne = tokenIn < tokenOut ? true : false;
+            bool zeroForOne = tokenIn < weth ? true : false;
             unchecked {
                 (uint160 sqrtPriceX96Current, , , , , , ) = IUniswapV3Pool(
                     executionPrices[bestPriceIndex].lpAddressAToWeth
@@ -516,8 +517,8 @@ contract SwapRouter is ConveyorTickMath {
                 uint256 price = fromSqrtX96(
                     nextSqrtPrice,
                     zeroForOne,
-                    zeroForOne ? tokenIn : tokenOut,
-                    zeroForOne ? tokenOut : tokenIn
+                    zeroForOne ? tokenIn : weth,
+                    zeroForOne ? weth : tokenIn
                 );
                 return (executionPrices[bestPriceIndex], price);
             }

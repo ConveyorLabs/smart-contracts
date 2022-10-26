@@ -472,7 +472,7 @@ contract SwapRouterTest is DSTest {
                 ///@notice Create a new mock order
                 OrderBook.Order memory order = newMockOrder(
                     USDC,
-                    WETH,
+                    DAI,
                     1,
                     false,
                     true,
@@ -489,6 +489,7 @@ contract SwapRouterTest is DSTest {
                     ._calculateNewExecutionPriceTokenToTokenAToWeth(
                         executionPrices,
                         bestPriceIndex,
+                        WETH,
                         order
                     );
 
@@ -1102,12 +1103,14 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
     function _calculateNewExecutionPriceTokenToTokenAToWeth(
         TokenToTokenExecutionPrice[] memory executionPrices,
         uint256 bestPriceIndex,
+        address weth,
         OrderBook.Order memory order
     ) public view returns (TokenToTokenExecutionPrice memory, uint256) {
         return
             calculateNewExecutionPriceTokenToTokenAToWeth(
                 executionPrices,
                 bestPriceIndex,
+                weth,
                 order
             );
     }

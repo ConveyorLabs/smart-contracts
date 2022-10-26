@@ -240,6 +240,7 @@ contract LimitOrderExecutor is SwapRouter {
                         ) = calculateNewExecutionPriceTokenToTokenAToWeth(
                             executionPrices,
                             bestPriceIndex,
+                            WETH,
                             orders[i]
                         );
                     }
