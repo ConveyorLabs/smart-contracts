@@ -87,8 +87,10 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Function to execute a batch of Token to Weth Orders.
     ///@param orders The orders to be executed.
+
     function executeTokenToWethOrders(
         OrderBook.Order[] memory orders
+
     ) external onlyLimitOrderRouter returns (uint256, uint256) {
         ///@notice Get all of the execution prices on TokenIn to Weth for each dex.
         ///@notice Get all prices for the pairing
@@ -104,6 +106,7 @@ contract LimitOrderExecutor is SwapRouter {
                 spotReserveAToWeth,
                 lpAddressesAToWeth
             );
+
 
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
@@ -244,8 +247,10 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
+
     function executeTokenToTokenOrders(
         OrderBook.Order[] memory orders
+
     ) external onlyLimitOrderRouter returns (uint256, uint256) {
         TokenToTokenExecutionPrice[] memory executionPrices;
         address tokenIn = orders[0].tokenIn;
@@ -275,7 +280,24 @@ contract LimitOrderExecutor is SwapRouter {
                     spotReserveWethToB,
                     lpAddressWethToB
                 );
-            
+
+            ///@notice Get the Max beacon reward on the SpotReserves
+            maxBeaconReward = isStopLossExecution
+                ? (
+                    WETH != tokenIn
+                        ? calculateMaxBeaconReward(
+                            spotReserveAToWeth,
+                            orders,
+                            false
+                        )
+                        : calculateMaxBeaconReward(
+                            spotReserveWethToB,
+                            orders,
+                            true
+                        )
+                )
+                : type(uint128).max;
+
         }
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;

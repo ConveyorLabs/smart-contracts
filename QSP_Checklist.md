@@ -554,6 +554,7 @@ This constant is used in place of the `maxBeaconReward` in the case of stoploss 
 
 # QSP-27 Verifier's Dilemma ❌
 
+
 # QSP-28 Taxed Token Swaps Using Uniswap V3 Might Fail ❌
 
 # **Code Documentation**
