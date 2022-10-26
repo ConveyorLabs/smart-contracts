@@ -74,88 +74,6 @@ contract LimitOrderExecutor is SwapRouter {
         owner = msg.sender;
     }
 
-    ///@notice Function to return the index of the best price in the executionPrices array.
-    ///@param executionPrices - Array of execution prices to evaluate.
-    ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
-    ///@return bestPriceIndex - Index of the best price in the executionPrices array.
-    function _findBestTokenToWethExecutionPrice(
-        SwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
-        bool buyOrder
-    ) internal pure returns (uint256 bestPriceIndex) {
-        ///@notice If the order is a buy order, set the initial best price at 0.
-        if (buyOrder) {
-            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-
-            ///@notice For each exectution price in the executionPrices array.
-            for (uint256 i = 0; i < executionPrices.length; ) {
-                uint256 executionPrice = executionPrices[i].price;
-
-                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
-                if (executionPrice < bestPrice && executionPrice != 0) {
-                    bestPrice = executionPrice;
-                    bestPriceIndex = i;
-                }
-
-                unchecked {
-                    ++i;
-                }
-            }
-        } else {
-            ///@notice If the order is a sell order, set the initial best price at max uint256.
-            uint256 bestPrice = 0;
-            for (uint256 i = 0; i < executionPrices.length; ) {
-                uint256 executionPrice = executionPrices[i].price;
-
-                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
-                if (executionPrice > bestPrice && executionPrice != 0) {
-                    bestPrice = executionPrice;
-                    bestPriceIndex = i;
-                }
-
-                unchecked {
-                    ++i;
-                }
-            }
-        }
-    }
-
-    ///@notice Function to return the index of the best price in the executionPrices array.
-    ///@param executionPrices - Array of execution prices to evaluate.
-    ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
-    ///@return bestPriceIndex - Index of the best price in the executionPrices array.
-    function _findBestTokenToTokenExecutionPrice(
-        SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
-        bool buyOrder
-    ) internal pure returns (uint256 bestPriceIndex) {
-        ///@notice If the order is a buy order, set the initial best price at 0.
-        if (buyOrder) {
-            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-            ///@notice For each exectution price in the executionPrices array.
-            for (uint256 i = 0; i < executionPrices.length; ) {
-                uint256 executionPrice = executionPrices[i].price;
-                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
-                if (executionPrice < bestPrice && executionPrice != 0) {
-                    bestPrice = executionPrice;
-                    bestPriceIndex = i;
-                }
-                unchecked {
-                    ++i;
-                }
-            }
-        } else {
-            uint256 bestPrice = 0;
-            ///@notice If the order is a sell order, set the initial best price at max uint256.
-            for (uint256 i = 0; i < executionPrices.length; i++) {
-                uint256 executionPrice = executionPrices[i].price;
-                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
-                if (executionPrice > bestPrice && executionPrice != 0) {
-                    bestPrice = executionPrice;
-                    bestPriceIndex = i;
-                }
-            }
-        }
-    }
-
     ///@notice Function to execute a batch of Token to Weth Orders.
     ///@param orders The orders to be executed.
     function executeTokenToWethOrders(OrderBook.Order[] memory orders)
@@ -663,6 +581,90 @@ contract LimitOrderExecutor is SwapRouter {
         ///@notice Set the reentrancy status to false after the conveyorBalance has been decremented to prevent reentrancy.
         reentrancyStatus = false;
     }
+
+
+    ///@notice Function to return the index of the best price in the executionPrices array.
+    ///@param executionPrices - Array of execution prices to evaluate.
+    ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
+    ///@return bestPriceIndex - Index of the best price in the executionPrices array.
+    function _findBestTokenToWethExecutionPrice(
+        SwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
+        bool buyOrder
+    ) internal pure returns (uint256 bestPriceIndex) {
+        ///@notice If the order is a buy order, set the initial best price at 0.
+        if (buyOrder) {
+            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+
+            ///@notice For each exectution price in the executionPrices array.
+            for (uint256 i = 0; i < executionPrices.length; ) {
+                uint256 executionPrice = executionPrices[i].price;
+
+                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
+                if (executionPrice < bestPrice && executionPrice != 0) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
+
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            ///@notice If the order is a sell order, set the initial best price at max uint256.
+            uint256 bestPrice = 0;
+            for (uint256 i = 0; i < executionPrices.length; ) {
+                uint256 executionPrice = executionPrices[i].price;
+
+                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
+                if (executionPrice > bestPrice && executionPrice != 0) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
+
+                unchecked {
+                    ++i;
+                }
+            }
+        }
+    }
+
+    ///@notice Function to return the index of the best price in the executionPrices array.
+    ///@param executionPrices - Array of execution prices to evaluate.
+    ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
+    ///@return bestPriceIndex - Index of the best price in the executionPrices array.
+    function _findBestTokenToTokenExecutionPrice(
+        SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
+        bool buyOrder
+    ) internal pure returns (uint256 bestPriceIndex) {
+        ///@notice If the order is a buy order, set the initial best price at 0.
+        if (buyOrder) {
+            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+            ///@notice For each exectution price in the executionPrices array.
+            for (uint256 i = 0; i < executionPrices.length; ) {
+                uint256 executionPrice = executionPrices[i].price;
+                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
+                if (executionPrice < bestPrice && executionPrice != 0) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            uint256 bestPrice = 0;
+            ///@notice If the order is a sell order, set the initial best price at max uint256.
+            for (uint256 i = 0; i < executionPrices.length; i++) {
+                uint256 executionPrice = executionPrices[i].price;
+                ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
+                if (executionPrice > bestPrice && executionPrice != 0) {
+                    bestPrice = executionPrice;
+                    bestPriceIndex = i;
+                }
+            }
+        }
+    }
+
 
     ///@notice Function to confirm ownership transfer of the contract.
     function confirmTransferOwnership() external {
