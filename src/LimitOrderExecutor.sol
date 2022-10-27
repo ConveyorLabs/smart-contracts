@@ -253,7 +253,7 @@ contract LimitOrderExecutor is SwapRouter {
                         bestPriceIndex,
                         wethIsToken0 ? 0 : spotPriceAToWeth,
                         orders[i],
-                        wethIsToken0
+                        WETH
                     );
                 
             }

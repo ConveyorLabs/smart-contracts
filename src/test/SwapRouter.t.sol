@@ -532,27 +532,30 @@ contract SwapRouterTest is DSTest {
         }
     }
 
-    function testCalculateNewExecutionPriceTokenToTokenWethToB(uint32 amountIn)
+    function testCalculateNewExecutionPriceTokenToTokenWethToB(uint112 amountIn)
         public
     {
         bool run = true;
-        if (amountIn < 1000000) {
-            run = false;
+        {
+            if (amountIn < 100000000 || amountIn > 1000000000000 ) {
+                run = false;
+            }
         }
+        SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices;
+        SwapRouter.SpotReserve[] memory spotsUsdc;
+        address[] memory poolsUsdc;
         if (run) {
             cheatCodes.deal(address(this), MAX_UINT);
-            SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices;
-            SwapRouter.SpotReserve[] memory spotsUsdc;
-            address[] memory poolsUsdc;
             {
-                (
-                    spotsUsdc,
-                    poolsUsdc
-                ) = limitOrderExecutor.getAllPrices(USDC, WETH, 500);
+                (spotsUsdc, poolsUsdc) = limitOrderExecutor.getAllPrices(
+                    USDC,
+                    WETH,
+                    500
+                );
                 (
                     SwapRouter.SpotReserve[] memory spotsWeth,
                     address[] memory poolsWeth
-                ) = limitOrderExecutor.getAllPrices(WETH, DAI, 500);
+                ) = limitOrderExecutor.getAllPrices(WETH, DAI, 3000);
                 executionPrices = limitOrderExecutor
                     .initializeTokenToTokenExecutionPrices(
                         USDC,
@@ -562,50 +565,43 @@ contract SwapRouterTest is DSTest {
                         poolsWeth
                     );
             }
-            uint256 bestPrice = type(uint256).max;
-            uint256 bestPriceIndex;
 
+            ///@notice Create a new mock order
+            OrderBook.Order memory order = newMockOrder(
+                USDC,
+                DAI,
+                1,
+                false,
+                true,
+                0,
+                1,
+                uint112(amountIn),
+                500,
+                3000,
+                0,
+                type(uint32).max
+            );
+            (uint256 bestAToWethPrice, uint256 bestPrice, uint256 bestPriceIndex) =findBestExecutionPriceBuy(executionPrices, spotsUsdc, order);
             {
-                for (uint256 i = 0; i < executionPrices.length; ++i) {
-                    if (executionPrices[i].price < bestPrice) {
-                        bestPrice = executionPrices[i].price;
-                        bestPriceIndex = i;
-                    }
-                }
-            }
+                executionPrices[bestPriceIndex] = limitOrderExecutor
+                    ._calculateNewExecutionPriceTokenToTokenWethToB(
+                        executionPrices,
+                        bestPriceIndex,
+                        bestAToWethPrice,
+                        order,
+                        WETH
+                    );
 
-            {
-                
-                ///@notice Create a new mock order
-                OrderBook.Order memory order = newMockOrder(
-                    USDC,
-                    DAI,
-                    1,
-                    false,
-                    true,
-                    0,
-                    1,
-                    amountIn,
-                    500,
-                    0,
-                    0,
-                    type(uint32).max
+                address(WETH).call{value: 500000000000 ether}(
+                    abi.encodeWithSignature("deposit()")
                 );
-
-                SwapRouter.TokenToTokenExecutionPrice
-                    memory executionP = limitOrderExecutor
-                        ._calculateNewExecutionPriceTokenToTokenWethToB(
-                            executionPrices,
-                            bestPriceIndex,
-                            spotsUsdc[2].spotPrice,
-                            order,
-                            false
-                        );
-
-                address(WETH).call{
-                    value: 500000000000 ether
-                }(abi.encodeWithSignature("deposit()"));
-
+                uint128 amIn =uint128(
+                ConveyorMath.mul128U(
+                    bestAToWethPrice,
+                    amountIn
+                )*10**12);
+            
+                console.log(amIn);
                 IERC20(WETH).approve(address(limitOrderExecutor), amountIn);
 
                 limitOrderExecutor._swap(
@@ -613,7 +609,7 @@ contract SwapRouterTest is DSTest {
                     DAI,
                     0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8,
                     3000,
-                    amountIn,
+                    amIn,
                     1,
                     address(this),
                     address(this)
@@ -627,20 +623,45 @@ contract SwapRouterTest is DSTest {
                         0x1F98431c8aD98523631AE4a59f267346ea31F984
                     );
 
-                uint128 spotToValidate64X = uint128(executionP.price >> 64);
-                uint128 newSpot64X = uint128(newSpot.spotPrice >> 64);
-                uint128 divergence = ConveyorMath.div64x64(
-                    spotToValidate64X < newSpot64X
-                        ? newSpot64X
-                        : spotToValidate64X,
-                    spotToValidate64X > newSpot64X
-                        ? newSpot64X
-                        : spotToValidate64X
-                ) - (uint128(1) << 64);
+                console.log(newSpot.spotPrice);
+                uint128 spotToValidate64X = uint128(
+                    executionPrices[bestPriceIndex].price >> 64
+                );
+                uint128 newSpot64XFin = ConveyorMath.mul64x64(
+                    uint128(bestAToWethPrice >> 64),
+                    uint128(newSpot.spotPrice >> 64)
+                );
 
-                assertLe(divergence, 18446744073709);
+                assertEq(spotToValidate64X, newSpot64XFin);
             }
         }
+    }
+
+    function findBestExecutionPriceBuy(SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices, SwapRouter.SpotReserve[] memory spotsUsdc, OrderBook.Order memory order) public view returns (uint256 bestAToWethPrice, uint256 bestPrice,uint256 bestPriceIndex) {
+        bestPrice = type(uint256).max;
+        bestAToWethPrice = type(uint256).max;
+        bestPriceIndex;
+
+        {
+            for (uint256 i = 0; i < executionPrices.length; ++i) {
+                if (executionPrices[i].price < bestPrice) {
+                    bestPrice = executionPrices[i].price;
+                    bestPriceIndex = i;
+                }
+            }
+            for (uint256 i = 0; i < spotsUsdc.length; ++i) {
+                if (spotsUsdc[i].spotPrice < bestAToWethPrice) {
+                    bestAToWethPrice = spotsUsdc[i].spotPrice;
+                }
+            }
+        }
+        (, bestAToWethPrice) = limitOrderExecutor
+                    ._calculateNewExecutionPriceTokenToTokenAToWeth(
+                        executionPrices,
+                        bestPriceIndex,
+                        WETH,
+                        order
+                    );
     }
 
     //================================================================================================
@@ -1120,7 +1141,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         uint256 bestPriceIndex,
         uint256 spotPriceAToWeth,
         OrderBook.Order memory order,
-        bool wethIsToken0
+        address weth
     ) public view returns (TokenToTokenExecutionPrice memory) {
         return
             calculateNewExecutionPriceTokenToTokenWethToB(
@@ -1128,7 +1149,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
                 bestPriceIndex,
                 spotPriceAToWeth,
                 order,
-                wethIsToken0
+                weth
             );
     }
 

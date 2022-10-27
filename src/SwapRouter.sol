@@ -437,11 +437,7 @@ contract SwapRouter is ConveyorTickMath {
             uint128 reserve0 = executionPrices[bestPriceIndex].aToWethReserve0;
             uint128 reserve1 = executionPrices[bestPriceIndex].aToWethReserve1;
             reserve1 = uint128(
-                FullMath.mulDiv(
-                    reserve0,
-                    reserve1,
-                    reserve0 + order.quantity
-                )
+                FullMath.mulDiv(reserve0, reserve1, reserve0 + order.quantity)
             );
             reserve0 = reserve0 + order.quantity;
             executionPrices[bestPriceIndex].price = uint256(
@@ -459,10 +455,17 @@ contract SwapRouter is ConveyorTickMath {
             (uint160 sqrtPriceX96Current, , , , , , ) = IUniswapV3Pool(
                 executionPrices[bestPriceIndex].lpAddressAToWeth
             ).slot0();
-            uint128 liquidity = IUniswapV3Pool(executionPrices[bestPriceIndex].lpAddressAToWeth).liquidity();
+            uint128 liquidity = IUniswapV3Pool(
+                executionPrices[bestPriceIndex].lpAddressAToWeth
+            ).liquidity();
 
-            uint160 nextSqrtPrice = SqrtPriceMath.getNextSqrtPriceFromInput(sqrtPriceX96Current, liquidity, order.quantity, zeroForOne);
-            
+            uint160 nextSqrtPrice = SqrtPriceMath.getNextSqrtPriceFromInput(
+                sqrtPriceX96Current,
+                liquidity,
+                order.quantity,
+                zeroForOne
+            );
+
             executionPrices[bestPriceIndex].price = fromSqrtX96(
                 nextSqrtPrice,
                 zeroForOne,
@@ -505,15 +508,22 @@ contract SwapRouter is ConveyorTickMath {
             }
         } else {
             address tokenIn = order.tokenIn;
-            address tokenOut = order.tokenOut;
+            
             bool zeroForOne = tokenIn < weth ? true : false;
             unchecked {
                 (uint160 sqrtPriceX96Current, , , , , , ) = IUniswapV3Pool(
                     executionPrices[bestPriceIndex].lpAddressAToWeth
                 ).slot0();
-                uint128 liquidity = IUniswapV3Pool(executionPrices[bestPriceIndex].lpAddressAToWeth).liquidity();
+                uint128 liquidity = IUniswapV3Pool(
+                    executionPrices[bestPriceIndex].lpAddressAToWeth
+                ).liquidity();
 
-                uint160 nextSqrtPrice = SqrtPriceMath.getNextSqrtPriceFromInput(sqrtPriceX96Current, liquidity, order.quantity, zeroForOne);
+                uint160 nextSqrtPrice = SqrtPriceMath.getNextSqrtPriceFromInput(
+                    sqrtPriceX96Current,
+                    liquidity,
+                    order.quantity,
+                    zeroForOne
+                );
                 uint256 price = fromSqrtX96(
                     nextSqrtPrice,
                     zeroForOne,
@@ -530,71 +540,81 @@ contract SwapRouter is ConveyorTickMath {
         uint256 bestPriceIndex,
         uint256 spotPriceAToWeth,
         OrderBook.Order memory order,
-        bool wethIsToken0
+        address weth
     ) internal view returns (TokenToTokenExecutionPrice memory) {
         uint128 quantity = order.quantity;
         address pool = executionPrices[bestPriceIndex].lpAddressWethToB;
         uint256 wethToBPrice;
-        if (executionPrices[bestPriceIndex].lpWethToBIsV2) {
-            unchecked {
-                uint128 quantityIn = wethIsToken0
-                    ? quantity
-                    : uint128(
-                        ConveyorMath.mul64U(
-                            17893341751498265000,
-                            ConveyorMath.mul128U(spotPriceAToWeth, quantity)
+        uint128 quantityIn = order.tokenIn == weth
+            ? quantity
+            : uint128(
+                ConveyorMath.mul64U(
+                    17893341751498265000,
+                    ConveyorMath.mul128U(spotPriceAToWeth, quantity)
+                )
+            );
+        {
+            if (executionPrices[bestPriceIndex].lpWethToBIsV2) {
+                unchecked {
+                    uint128 reserve0 = executionPrices[bestPriceIndex]
+                        .wethToBReserve1 + quantityIn;
+
+                    uint128 reserve1 = uint128(
+                        FullMath.mulDiv(
+                            reserve0,
+                            executionPrices[bestPriceIndex].wethToBReserve1,
+                            reserve0 + quantityIn
                         )
                     );
 
-                uint128 reserve0 = executionPrices[bestPriceIndex]
-                    .wethToBReserve1 + quantityIn;
-
-                uint128 reserve1 = uint128(
-                    FullMath.mulDiv(
-                        reserve0,
-                        executionPrices[bestPriceIndex].wethToBReserve1,
-                        reserve0 + quantityIn
-                    )
-                );
-
-                wethToBPrice = uint256(
-                    ConveyorMath.div128x128(
-                        uint256(reserve1) << 128,
-                        uint256(reserve0) << 128
-                    )
-                );
-
-                executionPrices[bestPriceIndex].price = wethIsToken0
-                    ? wethToBPrice
-                    : _calculateTokenToWethToTokenSpotPrice(
-                        spotPriceAToWeth,
-                        wethToBPrice
+                    wethToBPrice = uint256(
+                        ConveyorMath.div128x128(
+                            uint256(reserve1) << 128,
+                            uint256(reserve0) << 128
+                        )
                     );
 
-                executionPrices[bestPriceIndex].wethToBReserve0 = reserve0;
-                executionPrices[bestPriceIndex].wethToBReserve0 = reserve1;
-                return executionPrices[bestPriceIndex];
-            }
-        } else {
-            address tokenIn = order.tokenIn;
-            address tokenOut = order.tokenOut;
-            bool zeroForOne = tokenIn < tokenOut ? true : false;
-            unchecked {
-                (uint160 sqrtPriceX96Current, , , , , , ) = IUniswapV3Pool(pool)
-                    .slot0();
-                wethToBPrice = fromSqrtX96(
-                    sqrtPriceX96Current,
-                    tokenIn < tokenOut,
-                    zeroForOne ? tokenIn : tokenOut,
-                    zeroForOne ? tokenOut : tokenIn
-                );
-                executionPrices[bestPriceIndex].price = wethIsToken0
-                    ? wethToBPrice
-                    : _calculateTokenToWethToTokenSpotPrice(
-                        spotPriceAToWeth,
-                        wethToBPrice
+                    executionPrices[bestPriceIndex].price = uint256(_calculateTokenToWethToTokenSpotPrice(
+                            spotPriceAToWeth,
+                            wethToBPrice
+                        )<<64);
+
+                    executionPrices[bestPriceIndex].wethToBReserve0 = reserve0;
+                    executionPrices[bestPriceIndex].wethToBReserve0 = reserve1;
+                    return executionPrices[bestPriceIndex];
+                }
+            } else {
+                address tokenOut = order.tokenOut;
+                bool wethIsToken0 = weth < tokenOut ? true : false;
+                unchecked {
+                    (uint160 sqrtPriceX96Current, , , , , , ) = IUniswapV3Pool(
+                        pool
+                    ).slot0();
+
+                    uint128 liquidity = IUniswapV3Pool(
+                        executionPrices[bestPriceIndex].lpAddressAToWeth
+                    ).liquidity();
+
+                    sqrtPriceX96Current = SqrtPriceMath
+                        .getNextSqrtPriceFromInput(
+                            sqrtPriceX96Current,
+                            liquidity,
+                            quantityIn,
+                            wethIsToken0
+                        );
+                    wethToBPrice = fromSqrtX96(
+                        sqrtPriceX96Current,
+                        wethIsToken0,
+                        wethIsToken0 ? weth : tokenOut,
+                        wethIsToken0 ? tokenOut : weth
                     );
-                return executionPrices[bestPriceIndex];
+                    executionPrices[bestPriceIndex].price =
+                         uint256(_calculateTokenToWethToTokenSpotPrice(
+                            spotPriceAToWeth,
+                            wethToBPrice
+                        )<<64);
+                    return executionPrices[bestPriceIndex];
+                }
             }
         }
     }
@@ -722,7 +742,6 @@ contract SwapRouter is ConveyorTickMath {
         ///@notice Return pool address and populated SpotReserve struct.
         (spRes, poolAddress) = (_spRes, pairAddress);
     }
-
 
     ///@notice Helper function to convert reserve values to common 18 decimal base.
     ///@param tok0 - Address of token0.
@@ -872,7 +891,7 @@ contract SwapRouter is ConveyorTickMath {
         spots = new SpotReserve[](dexes.length);
         lps = new address[](dexes.length);
         ///@notice Check if the token address' are identical.
-        if(token0==token1){
+        if (token0 == token1) {
             return (spots, lps);
         }
         ///@notice Iterate through Dexs in dexes and check if isUniV2.
@@ -911,7 +930,6 @@ contract SwapRouter is ConveyorTickMath {
         );
     }
 
-
     ///@notice Function to get the amountOut from a UniV2 lp.
     ///@param amountIn - AmountIn for the swap.
     ///@param reserveIn - tokenIn reserve for the swap.
@@ -939,5 +957,4 @@ contract SwapRouter is ConveyorTickMath {
         uint256 denominator = reserveIn * 1000 + (amountInWithFee);
         amountOut = numerator / denominator;
     }
-
 }
