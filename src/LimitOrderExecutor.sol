@@ -5,6 +5,7 @@ import "./SwapRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./lib/ConveyorFeeMath.sol";
 import "./LimitOrderRouter.sol";
+import "./SandboxRouter.sol";
 
 /// @title LimitOrderExecutor
 /// @author 0xOsiris, 0xKitsune
@@ -16,6 +17,7 @@ contract LimitOrderExecutor is SwapRouter {
     address immutable USDC;
     address immutable LIMIT_ORDER_QUOTER;
     address public immutable LIMIT_ORDER_ROUTER;
+    address public immutable SANDBOX_ROUTER;
 
     ///====================================Constants==============================================//
     ///@notice The Maximum Reward a beacon can receive from stoploss execution.
@@ -40,6 +42,23 @@ contract LimitOrderExecutor is SwapRouter {
         }
         _;
     }
+
+    ///@notice Modifier to restrict smart contracts from calling a function.
+    modifier onlySandboxRouter() {
+        if (msg.sender != SANDBOX_ROUTER) {
+            revert MsgSenderIsNotLimitOrderRouter();
+        }
+        _;
+    }
+
+    bool entered = false;
+    ///@notice Reentrancy modifier for transferToSandBoxRouter.
+    modifier nonReentrant(){
+      require(!entered, "Unauthorized Callback from SandboxRouter");
+      entered = true;
+      _;
+      entered = false;
+   }
 
     ///@notice Temporary owner storage variable when transferring ownership of the contract.
     address tempOwner;
@@ -78,9 +97,14 @@ contract LimitOrderExecutor is SwapRouter {
         USDC = _usdc;
         WETH = _weth;
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
-        LIMIT_ORDER_ROUTER = address(
-            new LimitOrderRouter(_gasOracle, _weth, address(this))
+        SANDBOX_ROUTER=address(
+            new SandboxRouter(address(this))
         );
+
+        LIMIT_ORDER_ROUTER = address(
+            new LimitOrderRouter(_gasOracle, _weth, address(this),SANDBOX_ROUTER)
+        );
+        
 
         owner = msg.sender;
     }
@@ -247,10 +271,8 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
-
     function executeTokenToTokenOrders(
         OrderBook.Order[] memory orders
-
     ) external onlyLimitOrderRouter returns (uint256, uint256) {
         TokenToTokenExecutionPrice[] memory executionPrices;
         address tokenIn = orders[0].tokenIn;
@@ -282,7 +304,7 @@ contract LimitOrderExecutor is SwapRouter {
                 );
 
         }
-        
+
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
         ///@notice Set totalConveyorReward to 0
@@ -417,6 +439,11 @@ contract LimitOrderExecutor is SwapRouter {
             address(this),
             order.quantity
         );
+    }
+
+    function executeMultiCallOrders(bytes memory data) external onlySandboxRouter nonReentrant {
+        (bool success,)=address(LIMIT_ORDER_ROUTER).delegatecall(abi.encodeWithSignature("initializeMulticallCallbackState(bytes)", data));
+        require(success);
     }
 
     ///@notice Function to withdraw owner fee's accumulated

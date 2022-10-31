@@ -6,6 +6,7 @@ import "./OrderBook.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "./SwapRouter.sol";
+import "./SandboxRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 
@@ -13,6 +14,7 @@ import "./interfaces/ILimitOrderExecutor.sol";
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
 contract LimitOrderRouter is OrderBook {
+    using SafeERC20 for IERC20;
     // ========================================= Modifiers =============================================
 
     ///@notice Modifier to restrict smart contracts from calling a function.
@@ -41,6 +43,14 @@ contract LimitOrderRouter is OrderBook {
         reentrancyStatus = true;
         _;
         reentrancyStatus = false;
+    }
+
+    ///@notice Modifier to restrict smart contracts from calling a function.
+    modifier onlyLimitOrderExecutor() {
+        if (msg.sender != LIMIT_ORDER_EXECUTOR) {
+            revert MsgSenderIsNotLimitOrderRouter();
+        }
+        _;
     }
 
     // ========================================= Constants  =============================================
@@ -75,6 +85,7 @@ contract LimitOrderRouter is OrderBook {
     address immutable WETH;
 
     address immutable LIMIT_ORDER_EXECUTOR;
+    address immutable SAND_BOX_ROUTER;
 
     // ========================================= Constructor =============================================
 
@@ -84,16 +95,19 @@ contract LimitOrderRouter is OrderBook {
     constructor(
         address _gasOracle,
         address _weth,
-        address _limitOrderExecutor
+        address _limitOrderExecutor,
+        address _sandboxRouter
     ) OrderBook(_gasOracle, _limitOrderExecutor) {
         require(
             _limitOrderExecutor != address(0),
             "Invalid LimitOrderExecutor address"
         );
+
         require(_weth != address(0), "Invalid weth address");
+        
         WETH = _weth;
         owner = msg.sender;
-
+        SAND_BOX_ROUTER=_sandboxRouter;
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
     }
 
@@ -176,6 +190,24 @@ contract LimitOrderRouter is OrderBook {
         safeTransferETH(msg.sender, value);
 
         return true;
+    }
+
+    function initializeMulticallCallbackState(bytes memory data) external onlyLimitOrderExecutor {
+        (SandboxRouter.MultiCall memory calls)= abi.decode(data,(SandboxRouter.MultiCall));
+        bytes32[] memory orderIds = calls.orderIds;
+        
+        MultiCallOrder[] memory orders = new MultiCallOrder[](orderIds.length);
+        //Transfer the tokens from the order owners to the sandbox router contract
+        for(uint256 i=0; i< orderIds.length;++i){
+            orders[i]= getMulticallById(orderIds[i]);
+            IERC20(orders[i].tokenIn).safeTransferFrom(orders[i].owner, address(SAND_BOX_ROUTER), orders[i].amountInRemaining);
+            orders[i].amountInRemaining= 0;
+        }
+        ///@notice Call the SAND_BOX_ROUTER callback to execute the target calldata
+        (bool success, )=address(SAND_BOX_ROUTER).call(abi.encodeWithSignature("executeMultiCallCallback(MultiCallOrder, calls)", orders, calls));
+
+        ///Require SandboxRouter balance is sufficient to cover compensation on all orders else revert
+        
     }
 
     /// @notice Function to refresh an order for another 30 days.

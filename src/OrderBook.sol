@@ -148,6 +148,15 @@ contract OrderBook is GasOracle {
         order = orderIdToOrder[orderId];
         return order;
     }
+    ///@notice This function gets an order by the orderId. If the order does not exist, the order returned will be empty.
+    function getMulticallById(bytes32 orderId)
+        public
+        view
+        returns (MultiCallOrder memory order)
+    {
+        order = orderIdToMulticallOrder[orderId];
+        return order;
+    }
 
     ///@notice Places a new order (or group of orders) into the system.
     ///@param orderGroup - List of newly created orders to be placed.
