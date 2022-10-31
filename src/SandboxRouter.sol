@@ -5,13 +5,14 @@ import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
-
-/// @title LimitOrderRouter
+import "./LimitOrderRouter.sol";
+/// @title SandboxRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
 contract SandboxRouter {
 
     address immutable LIMIT_ORDER_EXECUTOR;
+    address immutable LIMIT_ORDER_ROUTER;
 
     ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlyLimitOrderExecutor() {
@@ -33,22 +34,22 @@ contract SandboxRouter {
     }
 
     ///@notice Constructor for the sandbox router contract.
-    constructor(address _limitOrderExecutor) {
+    constructor(address _limitOrderExecutor, address _limitOrderRouter) {
         LIMIT_ORDER_EXECUTOR=_limitOrderExecutor;
+        LIMIT_ORDER_ROUTER=_limitOrderRouter;
     }
 
     ///@notice Function to execute multiple OrderGroups
-    function executeMultipleGroups(MultiCall calldata calls) public {
-        bytes memory data = abi.encode(calls);
+    function executeMulticall(MultiCall calldata calls) external {
         ///@notice Upon initialization call the LimitOrderExecutor to transfer the tokens to the contract. 
-        (bool succeeded, )=address(LIMIT_ORDER_EXECUTOR).call(abi.encodeWithSignature("executeMultiCallOrders(Multicall)", data));
-        require(succeeded);
-        
+        address(LIMIT_ORDER_ROUTER).initializeMulticallCallbackState(calls);
     }
 
-    function executeMultiCallCallback(bytes memory data) external onlyLimitOrderExecutor {
-        (MultiCall memory calls) = abi.decode(data,(MultiCall));
-        
+    ///@notice Function called by the LimitOrderExecutor contract to execute the multicall.
+    ///@param calls - The multicall calldata.
+    function executeMultiCallCallback(MultiCall memory calls) external onlyLimitOrderExecutor {
+       
+
         for (uint256 k = 0; k < calls.targets.length; ) {
             ///@notice Call the target address on the specified calldata
             (bool success, ) = calls.targets[k].call(calls.callData[k]);

@@ -191,22 +191,41 @@ contract LimitOrderRouter is OrderBook {
 
         return true;
     }
-
-    function initializeMulticallCallbackState(bytes memory data) external onlyLimitOrderExecutor {
-        (SandboxRouter.MultiCall memory calls)= abi.decode(data,(SandboxRouter.MultiCall));
-        bytes32[] memory orderIds = calls.orderIds;
+    ///@notice Initializes the state of the LimitOrderRouter contract 
+    function initializeMulticallCallbackState(SandboxRouter.MultiCall memory calls) external {
         
-        MultiCallOrder[] memory orders = new MultiCallOrder[](orderIds.length);
-        //Transfer the tokens from the order owners to the sandbox router contract
-        for(uint256 i=0; i< orderIds.length;++i){
-            orders[i]= getMulticallById(orderIds[i]);
-            IERC20(orders[i].tokenIn).safeTransferFrom(orders[i].owner, address(SAND_BOX_ROUTER), orders[i].amountInRemaining);
-            orders[i].amountInRemaining= 0;
-        }
-        ///@notice Call the SAND_BOX_ROUTER callback to execute the target calldata
-        (bool success, )=address(SAND_BOX_ROUTER).call(abi.encodeWithSignature("executeMultiCallCallback(MultiCallOrder, calls)", orders, calls));
+        ///@notice Create a new array of MultiCallOrders.
+        MultiCallOrder[] memory orders = new MultiCallOrder[](calls.orderIds.length);
 
-        ///Require SandboxRouter balance is sufficient to cover compensation on all orders else revert
+        ///@notice Initialize arrays to hold post execution validation state.
+        uint128[] memory amountOutRequired = new uint128[](calls.orderIds.length);
+        uint128[] memory cachedInitialBalancesOut = new uint128[](calls.orderIds.length);
+        uint128[] memory cachedInitialBalancesIn = new uint128[](calls.orderIds.length);
+
+        ///@notice Transfer the tokens from the order owners to the sandbox router contract. 
+        ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
+        for(uint256 i=0; i< calls.orderIds.length;++i){
+            ///@notice Get the order from the orderId.
+            orders[i]= getMulticallById(calls.orderIds[i]);
+            ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
+            require(calls.amountSpecifiedToFill[i]<=orders[i].amountInRemaining, "Cannot Fill more than Order size");
+            ///@notice Decrement the amountInRemaining by amountSpecifiedToFill set by the off chain executor.
+            orders[i].amountInRemaining-= calls.amountSpecifiedToFill[i];
+            ///@notice Multiply the total amountInRemaining by the price to get the required amountOut.
+            amountOutRequired[i]= ConveyorMath.mul64U(orders[i].price,orders[i].amountInRemaining);
+            cachedInitialBalancesOut[i]= IERC20(orders[i].tokenOut).balanceOf(orders[i].owner);
+            cachedInitialBalancesIn[i]= IERC20(orders[i].tokenIn).balanceOf(orders[i].owner);
+        }
+
+        ///@notice Call the limit order executor to transfer all of the order owners tokens to the contract.
+        address(LIMIT_ORDER_EXECUTOR).executeMultiCallOrders(orders, calls.amountSpecifiedToFill);
+        
+        ///@notice Verify all of the order owners have received their out amounts. 
+        for(uint256 k=0;k<orders.length;++k){
+            require(IERC20(orders[k].tokenOut).balanceOf(address(orders[k].owner))-cachedInitialBalancesOut>=amountOutRequired);
+            require(cachedInitialBalancesIn-IERC20(orders[k].tokenIn).balanceOf(address(orders[k].owner))==calls.amountSpecifiedToFill[k]);
+            
+        }
         
     }
 

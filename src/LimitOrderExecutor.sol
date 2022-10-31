@@ -97,12 +97,13 @@ contract LimitOrderExecutor is SwapRouter {
         USDC = _usdc;
         WETH = _weth;
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
-        SANDBOX_ROUTER=address(
-            new SandboxRouter(address(this))
-        );
 
         LIMIT_ORDER_ROUTER = address(
-            new LimitOrderRouter(_gasOracle, _weth, address(this),SANDBOX_ROUTER)
+            new LimitOrderRouter(_gasOracle, _weth, address(this))
+        );
+
+        SANDBOX_ROUTER=address(
+            new SandboxRouter(address(this), LIMIT_ORDER_ROUTER)
         );
         
 
@@ -440,10 +441,16 @@ contract LimitOrderExecutor is SwapRouter {
             order.quantity
         );
     }
+    ///@notice Function to execute multicall orders from the context of LimitOrderExecutor.
+    ///@param orders The orders to be executed. 
+    ///@param amountSpecifiedToFill Array of amounts to be transferred to the contract. 
+    function executeMultiCallOrders(OrderBook.MultiCallOrder[] memory orders, uint128[] memory amountSpecifiedToFill, SandboxRouter.MultiCall memory calls) external onlyLimitOrderRouter nonReentrant {
+        for(uint256 i=0; i<orders.length; ++i){
+            require(amountSpecifiedToFill[i]<=orders[i].amountInRemaining);
+            IERC20(orders[i].tokenIn).safeTransferFrom(orders[i].owner, address(SANDBOX_ROUTER), amountSpecifiedToFill[i]);
+        }
+        address(SANDBOX_ROUTER).executeMultiCallCallback(calls);
 
-    function executeMultiCallOrders(bytes memory data) external onlySandboxRouter nonReentrant {
-        (bool success,)=address(LIMIT_ORDER_ROUTER).delegatecall(abi.encodeWithSignature("initializeMulticallCallbackState(bytes)", data));
-        require(success);
     }
 
     ///@notice Function to withdraw owner fee's accumulated
