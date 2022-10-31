@@ -192,6 +192,7 @@ contract LimitOrderRouter is OrderBook {
         return true;
     }
     ///@notice Initializes the state of the LimitOrderRouter contract 
+    ///@param calls The calldata being executed in SandboxRouter
     function initializeMulticallCallbackState(SandboxRouter.MultiCall memory calls) external {
         
         ///@notice Create a new array of MultiCallOrders.
@@ -213,18 +214,20 @@ contract LimitOrderRouter is OrderBook {
             orders[i].amountInRemaining-= calls.amountSpecifiedToFill[i];
             ///@notice Multiply the total amountInRemaining by the price to get the required amountOut.
             amountOutRequired[i]= uint128(ConveyorMath.mul64U(orders[i].price,orders[i].amountInRemaining));
+            ///@notice Cache the balance of the in/out token prior to execution for accurate validation of balances post execution.
             cachedInitialBalancesOut[i]= uint128(IERC20(orders[i].tokenOut).balanceOf(orders[i].owner));
             cachedInitialBalancesIn[i]= uint128(IERC20(orders[i].tokenIn).balanceOf(orders[i].owner));
         }
 
         ///@notice Call the limit order executor to transfer all of the order owners tokens to the contract.
         ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeMultiCallOrders(orders, calls.amountSpecifiedToFill, calls, SAND_BOX_ROUTER);
-        
+
         ///@notice Verify all of the order owners have received their out amounts. 
         for(uint256 k=0;k<orders.length;++k){
+            ///@notice Require that the order owners tokenOut balance - the initial state balance is at least amountOutRequired, else revert.
             require(IERC20(orders[k].tokenOut).balanceOf(address(orders[k].owner))-cachedInitialBalancesOut[k]>=amountOutRequired[k]);
+            ///@notice Require that the owners initial balance - their current balance is exactly amountSpecifiedToFill.
             require(cachedInitialBalancesIn[k]-IERC20(orders[k].tokenIn).balanceOf(address(orders[k].owner))==calls.amountSpecifiedToFill[k]);
-            
         }
         
     }

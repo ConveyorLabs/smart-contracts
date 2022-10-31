@@ -10,7 +10,7 @@ import "./ConveyorErrors.sol";
 contract SandboxRouter {
 
     address immutable LIMIT_ORDER_EXECUTOR;
-    address immutable LIMIT_ORDER_ROUTER;
+    address LIMIT_ORDER_ROUTER;
 
     ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlyLimitOrderExecutor() {
@@ -32,6 +32,8 @@ contract SandboxRouter {
     }
 
     ///@notice Constructor for the sandbox router contract.
+    ///@param _limitOrderExecutor - The LimitOrderExecutor contract address.
+    ///@param _limitOrderRouter - The LimitOrderRouter contract address.
     constructor(address _limitOrderExecutor, address _limitOrderRouter) {
         LIMIT_ORDER_EXECUTOR=_limitOrderExecutor;
         LIMIT_ORDER_ROUTER=_limitOrderRouter;
@@ -40,10 +42,20 @@ contract SandboxRouter {
     ///@notice Function to execute multiple OrderGroups
     ///@param calls The calldata to be executed by the contract.
     function executeMulticall(MultiCall calldata calls) external {
+        /**@notice 
+                ✨This function is to be used exclusively for non stoploss. The Multicall contract works by accepting arbitrary calldata passed from the off chain executor. 
+                The first order of logic calls initializeMulticallCallbackState() to the LimitOrderRouter contract where the state prior to execution of all the order owners balances is stored. 
+                The LimitOrderRouter makes a single external call to the LimitOrderExecutor which calls safeTransferFrom() on the users wallet to the SandboxRouter contract. The LimitOrderExecutor
+                then calls executeMultiCallCallback() on the SandboxRouter. The SandboxRouter optimistically executes the calldata passed by the offchain executor. Once all the callback has finished 
+                the LimitOrderRouter contract then cross references the Initial State vs the Current State of Token balances in the contract to determine if all Orders have received their target quantity
+                based on the amountSpecifiedToFill*order.price. The SandboxRouter works in a much different way than traditional LimitOrder systems to date. It allows for Executors to be creative in the
+                strategies they employ for execution. To be clear, the only rule when executing with the SandboxRouter is there are no rules. An executor is welcome to do whatever they want with the funds
+                during execution, so long as each Order gets filled their exact amount. Further, any profit reaped on the multicall goes 100% back to the executor.✨
+         **/ 
+        ///@notice Bool indicating whether low level call was successful.
         bool success;
-        ///@notice Upon initialization call the LimitOrderExecutor to transfer the tokens to the contract. 
+        ///@notice Upon initialization call the LimitOrderRouter contract to cache the initial state prior to execution. 
         bytes memory bytesSig = abi.encodeWithSignature("initializeMulticallCallbackState(MultiCall)", calls);
-        address limitOrderRouter= LIMIT_ORDER_ROUTER;
         
         assembly {
             mstore(
@@ -53,7 +65,7 @@ contract SandboxRouter {
 
             success := call(
                 gas(), // gas remaining
-                limitOrderRouter, // destination address
+                LIMIT_ORDER_ROUTER.slot, // destination address
                 0, // no ether
                 0x00, // input buffer (starts after the first 32 bytes in the `data` array)
                 0x04, // input length (loaded from the first 32 bytes in the `data` array)
