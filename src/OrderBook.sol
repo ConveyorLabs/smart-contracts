@@ -82,10 +82,38 @@ contract OrderBook is GasOracle {
         bytes32 orderId;
     }
 
+    ///@notice Struct containing Order details for any limit order
+    ///@param buy - Indicates if the order is a buy or sell
+    ///@param lastRefreshTimestamp - Unix timestamp representing the last time the order was refreshed.
+    ///@param expirationTimestamp - Unix timestamp representing when the order should expire.
+    ///@param price - The execution price representing the spot price of tokenIn/tokenOut that the order should be filled at. This is simply amountOutRemaining/amountInRemaining.
+    ///@param amountOutRemaining - The exact amountOut out that the order owner is willing to accept. This value is represented in tokenOut.
+    ///@param amountInRemaining - The exact amountIn of tokenIn that the order will be supplying to the contract for the limit order.
+    ///@param owner - The owner of the order. This is set to the msg.sender at order placement.
+    ///@param tokenIn - The tokenIn for the order.
+    ///@param tokenOut - The tokenOut for the order.
+    ///@param orderId - Unique identifier for the order.
+    struct MultiCallOrder {
+        bool buy;
+        uint32 lastRefreshTimestamp;
+        uint32 expirationTimestamp;
+        uint16 taxIn;
+        uint128 price;
+        uint128 amountOutRemaining;
+        uint128 amountInRemaining;
+        address owner;
+        address tokenIn;
+        address tokenOut;
+        bytes32 orderId;
+    }
+
     //----------------------State Structures------------------------------------//
 
     ///@notice Mapping from an orderId to its order.
     mapping(bytes32 => Order) internal orderIdToOrder;
+
+    ///@notice Mapping from an orderId to its order.
+    mapping(bytes32 => MultiCallOrder) internal orderIdToMulticallOrder;
 
     ///@notice Mapping to find the total orders quantity for a specific token, for an individual account
     ///@notice The key is represented as: keccak256(abi.encode(owner, token));
@@ -185,6 +213,90 @@ contract OrderBook is GasOracle {
 
             ///@notice Add the newly created order to the orderIdToOrder mapping
             orderIdToOrder[orderId] = newOrder;
+
+            ///@notice Add the orderId to the addressToOrderIds mapping
+            addressToOrderIds[msg.sender][orderId] = true;
+
+            ///@notice Increment the total orders per address for the msg.sender
+            ++totalOrdersPerAddress[msg.sender];
+
+            ///@notice Add the orderId to the orderIds array for the PlaceOrder event emission and increment the orderIdIndex
+            orderIds[i] = orderId;
+
+            ///@notice Add the orderId to the addressToAllOrderIds structure
+            addressToAllOrderIds[msg.sender].push(orderId);
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+        ///@notice Places a new order (or group of orders) into the system.
+    ///@param orderGroup - List of newly created orders to be placed.
+    /// @return orderIds - Returns a list of orderIds corresponding to the newly placed orders.
+    function placeMulticallOrder(MultiCallOrder[] calldata orderGroup)
+        public
+        returns (bytes32[] memory)
+    {
+        ///@notice Initialize a new list of bytes32 to store the newly created orderIds.
+        bytes32[] memory orderIds = new bytes32[](orderGroup.length);
+
+        ///@notice Initialize the orderToken for the newly placed orders.
+        /**@dev When placing a new group of orders, the tokenIn and tokenOut must be the same on each order. New orders are placed
+        this way to securely validate if the msg.sender has the tokens required when placing a new order as well as enough gas credits
+        to cover order execution cost.*/
+        address orderToken = orderGroup[0].tokenIn;
+
+        ///@notice Get the value of all orders on the orderToken that are currently placed for the msg.sender.
+        uint256 updatedTotalOrdersValue = _getTotalOrdersValue(orderToken);
+
+        ///@notice Get the current balance of the orderToken that the msg.sender has in their account.
+        uint256 tokenBalance = IERC20(orderToken).balanceOf(msg.sender);
+
+        ///@notice For each order within the list of orders passed into the function.
+        for (uint256 i = 0; i < orderGroup.length; ) {
+            ///@notice Get the order details from the orderGroup.
+            MultiCallOrder memory newOrder = orderGroup[i];
+
+            ///@notice Increment the total value of orders by the quantity of the new order
+            updatedTotalOrdersValue += newOrder.amountInRemaining;
+
+            ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
+            if (!(orderToken == newOrder.tokenIn)) {
+                revert IncongruentTokenInOrderGroup();
+            }
+
+            ///@notice If the msg.sender does not have a sufficent balance to cover the order, revert.
+            if (tokenBalance < updatedTotalOrdersValue) {
+                revert InsufficientWalletBalance();
+            }
+
+            ///@notice Create a new orderId from the orderNonce and current block timestamp
+            bytes32 orderId = keccak256(
+                abi.encode(orderNonce, block.timestamp)
+            );
+
+            ///@notice increment the orderNonce
+            /**@dev This is unchecked because the orderNonce and block.timestamp will never be the same, so even if the 
+            orderNonce overflows, it will still produce unique orderIds because the timestamp will be different.
+            */
+            unchecked {
+                ++orderNonce;
+            }
+
+            ///@notice Set the new order's owner to the msg.sender
+            newOrder.owner = msg.sender;
+
+            ///@notice update the newOrder's Id to the orderId generated from the orderNonce
+            newOrder.orderId = orderId;
+
+            ///@notice update the newOrder's last refresh timestamp
+            ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
+            newOrder.lastRefreshTimestamp = uint32(block.timestamp);
+
+            ///@notice Add the newly created order to the orderIdToOrder mapping
+            orderIdToMulticallOrder[orderId] = newOrder;
 
             ///@notice Add the orderId to the addressToOrderIds mapping
             addressToOrderIds[msg.sender][orderId] = true;

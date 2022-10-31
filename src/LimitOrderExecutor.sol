@@ -281,24 +281,8 @@ contract LimitOrderExecutor is SwapRouter {
                     lpAddressWethToB
                 );
 
-            ///@notice Get the Max beacon reward on the SpotReserves
-            maxBeaconReward = isStopLossExecution
-                ? (
-                    WETH != tokenIn
-                        ? calculateMaxBeaconReward(
-                            spotReserveAToWeth,
-                            orders,
-                            false
-                        )
-                        : calculateMaxBeaconReward(
-                            spotReserveWethToB,
-                            orders,
-                            true
-                        )
-                )
-                : type(uint128).max;
-
         }
+        
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
         ///@notice Set totalConveyorReward to 0
