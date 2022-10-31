@@ -38,6 +38,7 @@ contract SandboxRouter {
     }
 
     ///@notice Function to execute multiple OrderGroups
+    ///@param calls The calldata to be executed by the contract.
     function executeMulticall(MultiCall calldata calls) external {
         bool success;
         ///@notice Upon initialization call the LimitOrderExecutor to transfer the tokens to the contract. 
@@ -45,7 +46,6 @@ contract SandboxRouter {
         address limitOrderRouter= LIMIT_ORDER_ROUTER;
         
         assembly {
-            //store the function sig for  "fee()"
             mstore(
                 0x00,
                 bytesSig
@@ -66,7 +66,7 @@ contract SandboxRouter {
     ///@notice Function called by the LimitOrderExecutor contract to execute the multicall.
     ///@param calls - The multicall calldata.
     function executeMultiCallCallback(MultiCall memory calls) external onlyLimitOrderExecutor {
-       
+        ///@notice Iterate through each target in the calls, and optimistically call the calldata.
         for (uint256 k = 0; k < calls.targets.length; ) {
             ///@notice Call the target address on the specified calldata
             (bool success, ) = calls.targets[k].call(calls.callData[k]);
