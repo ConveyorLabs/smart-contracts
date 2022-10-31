@@ -87,6 +87,7 @@ contract OrderBook is GasOracle {
     ///@param lastRefreshTimestamp - Unix timestamp representing the last time the order was refreshed.
     ///@param expirationTimestamp - Unix timestamp representing when the order should expire.
     ///@param price - The execution price representing the spot price of tokenIn/tokenOut that the order should be filled at. This is simply amountOutRemaining/amountInRemaining.
+    ///@param executionFee - The fee paid in WETH for Order execution.
     ///@param amountOutRemaining - The exact amountOut out that the order owner is willing to accept. This value is represented in tokenOut.
     ///@param amountInRemaining - The exact amountIn of tokenIn that the order will be supplying to the contract for the limit order.
     ///@param owner - The owner of the order. This is set to the msg.sender at order placement.
@@ -97,8 +98,8 @@ contract OrderBook is GasOracle {
         bool buy;
         uint32 lastRefreshTimestamp;
         uint32 expirationTimestamp;
-        uint16 taxIn;
         uint128 price;
+        uint128 executionFee;
         uint128 amountOutRemaining;
         uint128 amountInRemaining;
         address owner;
@@ -230,6 +231,29 @@ contract OrderBook is GasOracle {
                 ++i;
             }
         }
+
+        ///@notice Update the total orders value on the orderToken for the msg.sender.
+        updateTotalOrdersQuantity(
+            orderToken,
+            msg.sender,
+            updatedTotalOrdersValue
+        );
+
+        ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
+        uint256 totalApprovedQuantity = IERC20(orderToken).allowance(
+            msg.sender,
+            address(EXECUTOR_ADDRESS)
+        );
+
+        ///@notice If the total approved quantity is less than the updatedTotalOrdersValue, revert.
+        if (totalApprovedQuantity < updatedTotalOrdersValue) {
+            revert InsufficientAllowanceForOrderPlacement();
+        }
+
+        ///@notice Emit an OrderPlaced event to notify the off-chain executors that a new order has been placed.
+        emit OrderPlaced(orderIds);
+
+        return orderIds;
     }
 
         ///@notice Places a new order (or group of orders) into the system.
@@ -261,6 +285,9 @@ contract OrderBook is GasOracle {
 
             ///@notice Increment the total value of orders by the quantity of the new order
             updatedTotalOrdersValue += newOrder.amountInRemaining;
+
+            ///@notice Calculate the Orders execution fee, and pack it into the Order struct.
+            newOrder.executionFee= _calculateMultiCallFee(newOrder.amountInRemaining);
 
             ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
             if (!(orderToken == newOrder.tokenIn)) {
@@ -337,6 +364,10 @@ contract OrderBook is GasOracle {
         emit OrderPlaced(orderIds);
 
         return orderIds;
+    }
+
+    function _calculateMultiCallFee(uint128 amountInRemaining) internal returns (uint128 executionFee){
+        executionFee=5;
     }
 
     /**@notice Updates an existing order. If the order exists and all order criteria is met, the order at the specified orderId will
