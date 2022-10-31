@@ -5,7 +5,7 @@ import "./SwapRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./lib/ConveyorFeeMath.sol";
 import "./LimitOrderRouter.sol";
-import "./SandboxRouter.sol";
+
 
 /// @title LimitOrderExecutor
 /// @author 0xOsiris, 0xKitsune
@@ -17,7 +17,6 @@ contract LimitOrderExecutor is SwapRouter {
     address immutable USDC;
     address immutable LIMIT_ORDER_QUOTER;
     address public immutable LIMIT_ORDER_ROUTER;
-    address public immutable SANDBOX_ROUTER;
 
     ///====================================Constants==============================================//
     ///@notice The Maximum Reward a beacon can receive from stoploss execution.
@@ -38,14 +37,6 @@ contract LimitOrderExecutor is SwapRouter {
     ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlyLimitOrderRouter() {
         if (msg.sender != LIMIT_ORDER_ROUTER) {
-            revert MsgSenderIsNotLimitOrderRouter();
-        }
-        _;
-    }
-
-    ///@notice Modifier to restrict smart contracts from calling a function.
-    modifier onlySandboxRouter() {
-        if (msg.sender != SANDBOX_ROUTER) {
             revert MsgSenderIsNotLimitOrderRouter();
         }
         _;
@@ -101,11 +92,6 @@ contract LimitOrderExecutor is SwapRouter {
         LIMIT_ORDER_ROUTER = address(
             new LimitOrderRouter(_gasOracle, _weth, address(this))
         );
-
-        SANDBOX_ROUTER=address(
-            new SandboxRouter(address(this), LIMIT_ORDER_ROUTER)
-        );
-        
 
         owner = msg.sender;
     }
@@ -444,13 +430,37 @@ contract LimitOrderExecutor is SwapRouter {
     ///@notice Function to execute multicall orders from the context of LimitOrderExecutor.
     ///@param orders The orders to be executed. 
     ///@param amountSpecifiedToFill Array of amounts to be transferred to the contract. 
-    function executeMultiCallOrders(OrderBook.MultiCallOrder[] memory orders, uint128[] memory amountSpecifiedToFill, SandboxRouter.MultiCall memory calls) external onlyLimitOrderRouter nonReentrant {
+    function executeMultiCallOrders(OrderBook.MultiCallOrder[] memory orders, uint128[] memory amountSpecifiedToFill, SandboxRouter.MultiCall memory calls, address sandBoxRouter) external onlyLimitOrderRouter nonReentrant {
+        
         for(uint256 i=0; i<orders.length; ++i){
             require(amountSpecifiedToFill[i]<=orders[i].amountInRemaining);
-            IERC20(orders[i].tokenIn).safeTransferFrom(orders[i].owner, address(SANDBOX_ROUTER), amountSpecifiedToFill[i]);
+            IERC20(orders[i].tokenIn).safeTransferFrom(orders[i].owner, address(sandBoxRouter), amountSpecifiedToFill[i]);
         }
-        address(SANDBOX_ROUTER).executeMultiCallCallback(calls);
 
+        bool success;
+        ///@notice Upon initialization call the LimitOrderExecutor to transfer the tokens to the contract. 
+        bytes memory bytesSig = abi.encodeWithSignature("executeMultiCallCallback(MultiCall)", calls);
+    
+        assembly {
+            //store the function sig for  "fee()"
+            mstore(
+                0x00,
+                bytesSig
+            )
+
+            success := call(
+                gas(), // gas remaining
+                sandBoxRouter, // destination address
+                0, // no ether
+                0x00, // input buffer (starts after the first 32 bytes in the `data` array)
+                0x04, // input length (loaded from the first 32 bytes in the `data` array)
+                0x00, // output buffer
+                0x00 // output length
+            )
+        }
+
+        require(success);
+        
     }
 
     ///@notice Function to withdraw owner fee's accumulated

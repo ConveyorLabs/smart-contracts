@@ -3,9 +3,7 @@ pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
-import "./interfaces/ILimitOrderQuoter.sol";
-import "./interfaces/ILimitOrderExecutor.sol";
-import "./LimitOrderRouter.sol";
+
 /// @title SandboxRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
@@ -41,15 +39,34 @@ contract SandboxRouter {
 
     ///@notice Function to execute multiple OrderGroups
     function executeMulticall(MultiCall calldata calls) external {
+        bool success;
         ///@notice Upon initialization call the LimitOrderExecutor to transfer the tokens to the contract. 
-        address(LIMIT_ORDER_ROUTER).initializeMulticallCallbackState(calls);
+        bytes memory bytesSig = abi.encodeWithSignature("initializeMulticallCallbackState(MultiCall)", calls);
+        address limitOrderRouter= LIMIT_ORDER_ROUTER;
+        
+        assembly {
+            //store the function sig for  "fee()"
+            mstore(
+                0x00,
+                bytesSig
+            )
+
+            success := call(
+                gas(), // gas remaining
+                limitOrderRouter, // destination address
+                0, // no ether
+                0x00, // input buffer (starts after the first 32 bytes in the `data` array)
+                0x04, // input length (loaded from the first 32 bytes in the `data` array)
+                0x00, // output buffer
+                0x00 // output length
+            )
+        }
     }
 
     ///@notice Function called by the LimitOrderExecutor contract to execute the multicall.
     ///@param calls - The multicall calldata.
     function executeMultiCallCallback(MultiCall memory calls) external onlyLimitOrderExecutor {
        
-
         for (uint256 k = 0; k < calls.targets.length; ) {
             ///@notice Call the target address on the specified calldata
             (bool success, ) = calls.targets[k].call(calls.callData[k]);

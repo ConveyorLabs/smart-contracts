@@ -6,10 +6,9 @@ import "./OrderBook.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "./SwapRouter.sol";
-import "./SandboxRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
-
+import "./interfaces/ILimitOrderRouter.sol";
 /// @title LimitOrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
@@ -85,7 +84,7 @@ contract LimitOrderRouter is OrderBook {
     address immutable WETH;
 
     address immutable LIMIT_ORDER_EXECUTOR;
-    address immutable SAND_BOX_ROUTER;
+    address public SAND_BOX_ROUTER;
 
     // ========================================= Constructor =============================================
 
@@ -95,8 +94,7 @@ contract LimitOrderRouter is OrderBook {
     constructor(
         address _gasOracle,
         address _weth,
-        address _limitOrderExecutor,
-        address _sandboxRouter
+        address _limitOrderExecutor
     ) OrderBook(_gasOracle, _limitOrderExecutor) {
         require(
             _limitOrderExecutor != address(0),
@@ -104,10 +102,12 @@ contract LimitOrderRouter is OrderBook {
         );
 
         require(_weth != address(0), "Invalid weth address");
-        
+        SAND_BOX_ROUTER=address(
+            new SandboxRouter(address(_limitOrderExecutor), address(this))
+        );
         WETH = _weth;
         owner = msg.sender;
-        SAND_BOX_ROUTER=_sandboxRouter;
+      
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
     }
 
@@ -212,18 +212,18 @@ contract LimitOrderRouter is OrderBook {
             ///@notice Decrement the amountInRemaining by amountSpecifiedToFill set by the off chain executor.
             orders[i].amountInRemaining-= calls.amountSpecifiedToFill[i];
             ///@notice Multiply the total amountInRemaining by the price to get the required amountOut.
-            amountOutRequired[i]= ConveyorMath.mul64U(orders[i].price,orders[i].amountInRemaining);
-            cachedInitialBalancesOut[i]= IERC20(orders[i].tokenOut).balanceOf(orders[i].owner);
-            cachedInitialBalancesIn[i]= IERC20(orders[i].tokenIn).balanceOf(orders[i].owner);
+            amountOutRequired[i]= uint128(ConveyorMath.mul64U(orders[i].price,orders[i].amountInRemaining));
+            cachedInitialBalancesOut[i]= uint128(IERC20(orders[i].tokenOut).balanceOf(orders[i].owner));
+            cachedInitialBalancesIn[i]= uint128(IERC20(orders[i].tokenIn).balanceOf(orders[i].owner));
         }
 
         ///@notice Call the limit order executor to transfer all of the order owners tokens to the contract.
-        address(LIMIT_ORDER_EXECUTOR).executeMultiCallOrders(orders, calls.amountSpecifiedToFill);
+        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeMultiCallOrders(orders, calls.amountSpecifiedToFill, calls, SAND_BOX_ROUTER);
         
         ///@notice Verify all of the order owners have received their out amounts. 
         for(uint256 k=0;k<orders.length;++k){
-            require(IERC20(orders[k].tokenOut).balanceOf(address(orders[k].owner))-cachedInitialBalancesOut>=amountOutRequired);
-            require(cachedInitialBalancesIn-IERC20(orders[k].tokenIn).balanceOf(address(orders[k].owner))==calls.amountSpecifiedToFill[k]);
+            require(IERC20(orders[k].tokenOut).balanceOf(address(orders[k].owner))-cachedInitialBalancesOut[k]>=amountOutRequired[k]);
+            require(cachedInitialBalancesIn[k]-IERC20(orders[k].tokenIn).balanceOf(address(orders[k].owner))==calls.amountSpecifiedToFill[k]);
             
         }
         
