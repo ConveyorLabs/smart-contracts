@@ -95,9 +95,10 @@ contract SwapRouter is ConveyorTickMath {
     event UniV3SwapError(string indexed reason);
 
     //======================Constants================================
-    uint128 constant SUFFICIENTLY_LIQUID= 1000000000000000000000; //Over 1 million should cover slippage epsilon on fees.
-    uint128 constant SUFFICIENTLY_SQRT_LIQUID= 1000000000000000000000;
+    uint128 constant SUFFICIENTLY_LIQUID = 1000000000000000000000; //Over 1 million should cover slippage epsilon on fees.
+    uint128 constant SUFFICIENTLY_SQRT_LIQUID = 1000000000000000000000;
     uint128 constant MIN_FEE_64x64 = 18446744073709552;
+    uint128 constant BASE_SWAP_FEE = 55340232221128660;
     uint128 constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
     uint256 constant MAX_UINT_256 =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
@@ -242,44 +243,108 @@ contract SwapRouter is ConveyorTickMath {
         return calculated_fee_64x64;
     }
 
-    function calculateMultiCallFeeAmount(address tokenIn, address tokenOut, address weth, uint128 amountIn, uint128 targetPrice) external view returns (uint128 feeAmountWeth) {
-        SpotReserve[] memory spotPricesWethTokenOut;
+    ///@notice Function to calculate the expected fee received from the Order at execution time if the user chooses to not pay the fee at order placement.
+    ///@param tokenIn - The tokenIn on the limit order.
+    ///@param tokenOut - The tokenOut on the limit order.
+    ///@param buy - The buy/sell status of the order.
+    ///@param weth - Native wrapped token address on the chain.
+    ///@param amountIn - The quantity of tokenIn on the limit order.
+    ///@param amountOut - The amountOut received from the limit order. Determines the price.
+    ///@param usdc - Usdc or pegged token address on the chain.
+    ///@return minOrderFee - The minimum amount received in WETH from conveyor at execution time.
+    function calculateMultiCallFeeAmount(
+        address tokenIn,
+        address tokenOut,
+        bool buy,
+        address weth,
+        uint128 amountIn,
+        uint128 amountOut,
+        address usdc
+    ) external view returns (uint128 minOrderFee) {
+        ///@notice Initialize spotReserve struct to hold the v2/v3 spot price calculations.
         SpotReserve[] memory spotPricesTokenInWeth;
 
-        uint256 isLiquidAWeth;
-        uint256 isLiquidWethB;
+        ///@notice Initialize liquidFeeQuoteSpot liquidFeeQuotePool to hold the pool, and spot for the most liquid pool.
+        uint256 liquidFeeQuoteSpot;
+        address liquidFeeQuotePool;
+        uint128 liquidity;
+        ///@notice Quote the token that will appreciete in price to the limit price.
+        ///@dev Will be takenOut at execution time on the input or output token depending on the limit order type. Users can optionally pay the fee at OrderPlacement as an alternative.
+        address quote = buy ? tokenIn : tokenOut;
+        
+        ///@notice Putting this on hold temporarily, trying to consider if there are any more lightweight options, as this will be costly for a user.
+        for (uint256 i = 0; i < dexes.length; ++i) {
+            if (dexes[i].isUniV2) {
+                ///@notice Get the v2 spot price and pool if it exists for the quote and weth.
+                (
+                    spotPricesTokenInWeth[i],
+                    liquidFeeQuotePool
+                ) = _calculateV2SpotPrice(
+                    quote,
+                    weth,
+                    dexes[i].factoryAddress,
+                    dexes[i].initBytecode
+                );
+                ///@notice If the weth reserve is above the minimum accepted threshold set the spot price to liquidFeeQuoteSpot and break the loop to save gas.
+                if (
+                    !spotPricesTokenInWeth[i].token0IsReserve0
+                        ? (liquidity=spotPricesTokenInWeth[i].res0) >= SUFFICIENTLY_LIQUID
+                        : (liquidity=spotPricesTokenInWeth[i].res1) >= SUFFICIENTLY_LIQUID
+                ) {
+                    liquidFeeQuoteSpot = spotPricesTokenInWeth[i].spotPrice;
+                    if (
+                        liquidFeeQuoteSpot != 0 &&
+                        liquidFeeQuotePool != address(0)
+                          
+                    ) {
+                        break;
+                    }
+                }
+            }
 
-        address liquidWethB;
-        ///Putting this on hold temporarily, trying to consider if there are any more lightweight options, as this will be costly for a user.
-        // for(uint256 i=0; i<dexes.length; ++i){
-        //     if(dexes[i].isUniV2){
-               
-        //         (spotPricesTokenInWeth[i],  liquidWethB) = _calculateV2SpotPrice(tokenOut,weth,dexes[i].factoryAddress, dexes[i].initBytecode);
-        //         if(spotPricesTokenInWeth[i].token0IsReserve0 ? spotPricesTokenInWeth[i].res0 >= SUFFICIENTLY_LIQUID : spotPricesTokenInWeth[i].res1 >= SUFFICIENTLY_LIQUID){
-        //             isLiquidAWeth = spotPricesTokenInWeth[i].spotPrice;
-        //         }
-        //         if(spotPricesWethTokenOut[i].token0IsReserve0 ? spotPricesWethTokenOut[i].res0 >= SUFFICIENTLY_LIQUID : spotPricesWethTokenOut[i].res1 >= SUFFICIENTLY_LIQUID){
-        //             isLiquidWethB = spotPricesTokenInWeth[i].spotPrice;
-                   
-        //         }
-        //         if(isLiquidAWeth!=0 && isLiquidWethB!=0 && !(liquidWethB==address(0))){
-        //             break;
-        //         }
-        //     }
-
-        //     if(!dexes[i].isUniV2){
-                
-        //         (spotPricesTokenInWeth[i],  liquidWethB) = _calculateV3SpotPrice(tokenOut,weth,500,dexes[i].factoryAddress);
-                
-        //         if(IUniswapV3Pool(liquidWethB).liquidity()>=SUFFICIENTLY_SQRT_LIQUID){
-        //             isLiquidWethB = spotPricesTokenInWeth[i].spotPrice;
-        //         }
-
-        //         if(isLiquidWethB !=0 && !(liquidWethB==address(0))){
-        //             break;
-        //         }
-        //     }
-        // }
+            if (!dexes[i].isUniV2) {
+                ///@notice Get the v3 spot and pool on 500 fee tier pool. Usually most liquid on the Dex.
+                (
+                    spotPricesTokenInWeth[i],
+                    liquidFeeQuotePool
+                ) = _calculateV3SpotPrice(
+                    quote,
+                    weth,
+                    500,
+                    dexes[i].factoryAddress
+                );
+                ///@notice If the pool is above the liquidity threshold set the spot price and pool and break.
+                if (
+                    IUniswapV3Pool(liquidFeeQuotePool).liquidity()  >=
+                    SUFFICIENTLY_SQRT_LIQUID
+                ) {
+                    liquidity=IUniswapV3Pool(liquidFeeQuotePool).liquidity();
+                    liquidFeeQuoteSpot = spotPricesTokenInWeth[i].spotPrice;
+                    if (
+                        liquidFeeQuoteSpot != 0 &&
+                        liquidFeeQuotePool != address(0)
+                    ) {
+                        break;
+                    }
+                }
+            }
+        }
+        ///@notice Calculate the quoteSpot*quoteAmount to get base weth. 
+        ///@dev C(e)>=K*r_0*min{e^2, sqrt(e)} where e is percent change in the pool. Do a standard CPMM calculation to save gas, if cpmm is k^=x*y this calculation should still be a lower bound.
+        {
+            uint256 amountExpectedWeth = buy
+                ? ConveyorMath.mul128U(liquidFeeQuoteSpot, amountIn)
+                : ConveyorMath.mul128U(liquidFeeQuoteSpot, amountOut);
+            uint128 fee = _calculateFee(
+                uint128(amountExpectedWeth),
+                usdc,
+                weth
+            );
+            minOrderFee = uint128(ConveyorMath.mul64U(fee, amountExpectedWeth));
+            
+            uint128 epsilon = ConveyorMath.divUU(amountExpectedWeth,liquidity); //Obviously a rough approximation, notice this is simply used as a lower bound on the expected slippage by relating the fee proportion to the total usable liquidity
+            minOrderFee= uint128(ConveyorMath.mul64U(epsilon,ConveyorMath.mul64U(BASE_SWAP_FEE, amountExpectedWeth)));
+        }
     }
 
     function transferTokensOutToOwner(
@@ -597,7 +662,6 @@ contract SwapRouter is ConveyorTickMath {
         ///@notice Return pool address and populated SpotReserve struct.
         (spRes, poolAddress) = (_spRes, pairAddress);
     }
-
 
     ///@notice Helper function to convert reserve values to common 18 decimal base.
     ///@param tok0 - Address of token0.
