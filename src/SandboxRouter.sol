@@ -8,9 +8,9 @@ import "./ConveyorErrors.sol";
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice ChaosRouter uses a MultiCall Architecture to execute LimitOrders. 
 contract ChaosRouter {
-
+    ///@notice LimitOrderExecutor & LimitOrderRouter Addresses.
     address immutable LIMIT_ORDER_EXECUTOR;
-    address LIMIT_ORDER_ROUTER;
+    address immutable LIMIT_ORDER_ROUTER;
 
     ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlyLimitOrderExecutor() {
@@ -57,6 +57,8 @@ contract ChaosRouter {
         ///@notice Upon initialization call the LimitOrderRouter contract to cache the initial state prior to execution. 
         bytes memory bytesSig = abi.encodeWithSignature("initializeMulticallCallbackState(MultiCall)", calls);
         
+        ///@notice Cast to memory.
+        address limitOrderRouter = LIMIT_ORDER_ROUTER;
         assembly {
             mstore(
                 0x00,
@@ -65,7 +67,7 @@ contract ChaosRouter {
 
             success := call(
                 gas(), // gas remaining
-                LIMIT_ORDER_ROUTER.offset, // destination address
+                limitOrderRouter, // destination address
                 0, // no ether
                 0x00, // input buffer (starts after the first 32 bytes in the `data` array)
                 0x04, // input length (loaded from the first 32 bytes in the `data` array)

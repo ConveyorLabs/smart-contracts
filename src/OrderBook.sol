@@ -5,26 +5,34 @@ import "../lib/interfaces/token/IERC20.sol";
 import "./GasOracle.sol";
 import "./ConveyorErrors.sol";
 import "./interfaces/IOrderBook.sol";
+import "./interfaces/ISwapRouter.sol";
 
 /// @title OrderBook
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
 contract OrderBook is GasOracle {
-    address immutable EXECUTOR_ADDRESS;
+    address immutable LIMIT_ORDER_EXECUTOR;
 
     uint256 constant GAS_CREDIT_SHIFT = 150;
     uint256 constant GAS_CREDIT_SHIFT_NORMALIZED = 100;
+    ///@notice Fee subsidy if paying fee at Order Placement time. 
+    ///@dev Fee must either be paid to the placeOrder function or be viable to be paid from the gas credit balance. The order will get a 20% discount on the fee if paid at placement but this is not a requirement.
+    uint128 constant FEE_SUBSIDY =14757395258967642000; 
+    address immutable WETH;
+    address immutable USDC;
 
     //----------------------Constructor------------------------------------//
 
-    constructor(address _gasOracle, address _limitOrderExecutor)
+    constructor(address _gasOracle, address _limitOrderExecutor, address _weth, address _usdc)
         GasOracle(_gasOracle)
     {
         require(
             _limitOrderExecutor != address(0),
             "Invalid LimitOrderExecutor Address"
         );
-        EXECUTOR_ADDRESS = _limitOrderExecutor;
+        WETH=_weth;
+        USDC=_usdc;
+        LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
     }
 
     //----------------------Events------------------------------------//
@@ -97,10 +105,11 @@ contract OrderBook is GasOracle {
     ///@param orderId - Unique identifier for the order.
     struct MultiCallOrder {
         bool buy;
+        bool feePaid;
         uint32 lastRefreshTimestamp;
         uint32 expirationTimestamp;
-        uint128 price;
-        uint128 executionFee;
+        uint128 minFeeReceived;
+        address quoteWethLiquidSwapPool;
         uint128 amountOutRemaining;
         uint128 amountInRemaining;
         address owner;
@@ -135,6 +144,12 @@ contract OrderBook is GasOracle {
     mapping(address => mapping(bytes32 => bool))
         public addressToFufilledOrderIds;
 
+    ///@notice Mapping to hold fee balances for accounts.
+    mapping(address => uint256) public feeBalance;
+
+    ///@notice Mapping to hold locked fee balances for accounts.
+    mapping(address => uint256) public lockedFeeBalance;
+
     ///@notice The orderNonce is a unique value is used to create orderIds and increments every time a new order is placed.
     uint256 orderNonce;
 
@@ -149,6 +164,7 @@ contract OrderBook is GasOracle {
         order = orderIdToOrder[orderId];
         return order;
     }
+
     ///@notice This function gets an order by the orderId. If the order does not exist, the order returned will be empty.
     function getMulticallById(bytes32 orderId)
         public
@@ -252,7 +268,7 @@ contract OrderBook is GasOracle {
         ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
         uint256 totalApprovedQuantity = IERC20(orderToken).allowance(
             msg.sender,
-            address(EXECUTOR_ADDRESS)
+            address(LIMIT_ORDER_EXECUTOR)
         );
 
         ///@notice If the total approved quantity is less than the updatedTotalOrdersValue, revert.
@@ -271,6 +287,7 @@ contract OrderBook is GasOracle {
     /// @return orderIds - Returns a list of orderIds corresponding to the newly placed orders.
     function placeMulticallOrder(MultiCallOrder[] calldata orderGroup)
         public
+        payable
         returns (bytes32[] memory)
     {
         ///@notice Initialize a new list of bytes32 to store the newly created orderIds.
@@ -295,9 +312,28 @@ contract OrderBook is GasOracle {
 
             ///@notice Increment the total value of orders by the quantity of the new order
             updatedTotalOrdersValue += newOrder.amountInRemaining;
-
-            ///@notice Calculate the Orders execution fee, and pack it into the Order struct.
-            newOrder.executionFee= _calculateMultiCallFee(newOrder.amountInRemaining);
+            {
+                if(newOrder.feePaid){
+                    uint128 tokenAWethSpotPrice = ISwapRouter(LIMIT_ORDER_EXECUTOR)._calculateV2SpotPrice(orderToken, weth, address(LIMIT_ORDER_EXECUTOR).dexes[0].factoryAddress, address(LIMIT_ORDER_EXECUTOR).dexes[0].initBytecode)[0].spotPrice;
+                    if(!tokenAWethSpotPrice==0){
+                        uint256 relativeWethValue = ConveyorMath.mul128U(tokenAWethSpotPrice,newOrder.amountInRemaining);
+                        newOrder.minFeeReceived = ConveyorMath.mul64U(ConveyorMath.mul64x64(ISwapRouter(LIMIT_ORDER_EXECUTOR)._calculateFee(relativeWethValue, usdc, weth), FEE_SUBSIDY),relativeWethValue);
+                        require(feeBalance[msg.sender]+msg.value >= newOrder.minFeeReceived,"Insufficient Fee balance");
+                        if(msg.value < newOrder.minFeeReceived){
+                            lockedFeeBalance[msg.sender]+=(newOrder.minFeeReceived-msg.value)+msg.value;
+                            feeBalance[msg.sender]-=newOrder.minFeeReceived-msg.value;
+                        }else{
+                            lockedFeeBalance[msg.sender]+=(msg.value)-(msg.value-newOrder.minFeeReceived);
+                            feeBalance[msg.sender]+=msg.value-newOrder.minFeeReceived;
+                        }
+                        
+                    }
+                    
+                }else{
+                    newOrder.minFeeReceived = ISwapRouter(LIMIT_ORDER_EXECUTOR).calculateMultiCallFeeAmount(newOrder.tokenIn, newOrder.tokenOut, newOrder.buy, WETH, newOrder.amountInRemaining, newOrder.amountOutRemaining, USDC);
+                }
+            }
+            
 
             ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
             if (!(orderToken == newOrder.tokenIn)) {
@@ -374,10 +410,6 @@ contract OrderBook is GasOracle {
         emit OrderPlaced(orderIds);
 
         return orderIds;
-    }
-
-    function _calculateMultiCallFee(uint128 amountInRemaining) internal returns (uint128 executionFee){
-        executionFee=5;
     }
 
     /**@notice Updates an existing order. If the order exists and all order criteria is met, the order at the specified orderId will

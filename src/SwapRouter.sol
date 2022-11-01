@@ -181,7 +181,7 @@ contract SwapRouter is ConveyorTickMath {
         uint128 amountIn,
         address usdc,
         address weth
-    ) internal view returns (uint128) {
+    ) public view returns (uint128) {
         uint128 calculated_fee_64x64;
 
         ///@notice Initialize spot reserve structure to retrive the spot price from uni v2
@@ -605,7 +605,7 @@ contract SwapRouter is ConveyorTickMath {
         address token1,
         address _factory,
         bytes32 _initBytecode
-    ) internal view returns (SpotReserve memory spRes, address poolAddress) {
+    ) public view returns (SpotReserve memory spRes, address poolAddress) {
         ///@notice Require token address's are not identical
         require(token0 != token1, "Invalid Token Pair, IDENTICAL Address's");
 

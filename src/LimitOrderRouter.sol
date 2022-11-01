@@ -76,7 +76,7 @@ contract LimitOrderRouter is OrderBook{
 
     ///@notice Mapping to hold gas credit balances for accounts.
     mapping(address => uint256) public gasCreditBalance;
-
+    
     ///@notice The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
     uint256 public constant ORDER_EXECUTION_GAS_COST = 300000;
 
@@ -90,9 +90,6 @@ contract LimitOrderRouter is OrderBook{
     ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
     address owner;
 
-    address immutable WETH;
-
-    address immutable LIMIT_ORDER_EXECUTOR;
     address public SAND_BOX_ROUTER;
 
     // ========================================= Constructor =============================================
@@ -103,8 +100,9 @@ contract LimitOrderRouter is OrderBook{
     constructor(
         address _gasOracle,
         address _weth,
+        address _usdc,
         address _limitOrderExecutor
-    ) OrderBook(_gasOracle, _limitOrderExecutor) {
+    ) OrderBook(_gasOracle, _limitOrderExecutor, _weth, _usdc) {
         require(
             _limitOrderExecutor != address(0),
             "Invalid LimitOrderExecutor address"
@@ -114,10 +112,9 @@ contract LimitOrderRouter is OrderBook{
         SAND_BOX_ROUTER=address(
             new ChaosRouter(address(_limitOrderExecutor), address(this))
         );
-        WETH = _weth;
+        
         owner = msg.sender;
       
-        LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
     }
 
     // ========================================= Events  =============================================
