@@ -76,7 +76,7 @@ contract LimitOrderRouter is OrderBook{
 
     ///@notice Mapping to hold gas credit balances for accounts.
     mapping(address => uint256) public gasCreditBalance;
-    
+
     ///@notice The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
     uint256 public constant ORDER_EXECUTION_GAS_COST = 300000;
 
@@ -121,6 +121,9 @@ contract LimitOrderRouter is OrderBook{
 
     ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
     event GasCreditEvent(address indexed sender, uint256 indexed balance);
+
+    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
+    event FeeCreditEvent(address indexed sender, uint256 indexed balance);
 
     ///@notice Event that notifies off-chain executors when an order has been refreshed.
     event OrderRefreshed(
@@ -197,6 +200,55 @@ contract LimitOrderRouter is OrderBook{
 
         return true;
     }
+
+    /// @notice Function to deposit fee credits.
+    /// @return success - Boolean that indicates if the deposit completed successfully.
+    function depositFeeCredits() public payable returns (bool success) {
+        if (msg.value == 0) {
+            revert InsufficientMsgValue();
+        }
+        ///@notice Increment the gas credit balance for the user by the msg.value
+        uint256 newBalance = feeBalance[msg.sender] + msg.value;
+
+        ///@notice Set the gas credit balance of the sender to the new balance.
+        feeBalance[msg.sender] = newBalance;
+
+        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
+        emit FeeCreditEvent(msg.sender, newBalance);
+
+        return true;
+    }
+
+    /**@notice Function to withdraw fee credits from an account's balance. If the withdraw results in the account's fee credit
+    balance required to execute existing orders, those orders must be canceled before the fee credits can be withdrawn.
+    */
+    /// @param value - The amount to withdraw from the fee credit balance.
+    /// @return success - Boolean that indicates if the withdraw completed successfully.
+    function withdrawFeeCredits(uint256 value)
+        public
+        nonReentrant
+        returns (bool success)
+    {
+        ///@notice Require that account's credit balance is larger than withdraw amount
+        if (feeBalance[msg.sender] < value) {
+            revert InsufficientFeeCreditBalance();
+        }
+
+        ///@notice Decrease the account's gas credit balance
+        uint256 newBalance = feeBalance[msg.sender] - value;
+
+        ///@notice Set the senders new gas credit balance.
+        feeBalance[msg.sender] = newBalance;
+
+        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
+        emit FeeCreditEvent(msg.sender, newBalance);
+
+        ///@notice Transfer the withdraw amount to the account.
+        safeTransferETH(msg.sender, value);
+
+        return true;
+    }
+
     ///@notice Initializes the state of the LimitOrderRouter contract 
     ///@param calls The calldata being executed in ChaosRouter
     function initializeMulticallCallbackState(ChaosRouter.MultiCall memory calls) external onlySandboxRouter {

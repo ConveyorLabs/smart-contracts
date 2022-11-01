@@ -282,7 +282,7 @@ contract OrderBook is GasOracle {
         return orderIds;
     }
 
-        ///@notice Places a new order (or group of orders) into the system.
+    ///@notice Places a new order of multicall type (or group of orders) into the system.
     ///@param orderGroup - List of newly created orders to be placed.
     /// @return orderIds - Returns a list of orderIds corresponding to the newly placed orders.
     function placeMulticallOrder(MultiCallOrder[] calldata orderGroup)
@@ -313,23 +313,38 @@ contract OrderBook is GasOracle {
             ///@notice Increment the total value of orders by the quantity of the new order
             updatedTotalOrdersValue += newOrder.amountInRemaining;
             {
+                ///@notice Boolean indicating if user wants to cover the fee from the fee credit balance, or by calling placeOrder with payment.
                 if(newOrder.feePaid){
+                    ///@notice Calculate the spot price of the input token to WETH on Uni v2.
                     uint128 tokenAWethSpotPrice = ISwapRouter(LIMIT_ORDER_EXECUTOR)._calculateV2SpotPrice(orderToken, weth, address(LIMIT_ORDER_EXECUTOR).dexes[0].factoryAddress, address(LIMIT_ORDER_EXECUTOR).dexes[0].initBytecode)[0].spotPrice;
+                    
                     if(!tokenAWethSpotPrice==0){
+                        ///@notice Multiply the amountIn*spotPrice to get the value of the input amount in weth.
                         uint256 relativeWethValue = ConveyorMath.mul128U(tokenAWethSpotPrice,newOrder.amountInRemaining);
-                        newOrder.minFeeReceived = ConveyorMath.mul64U(ConveyorMath.mul64x64(ISwapRouter(LIMIT_ORDER_EXECUTOR)._calculateFee(relativeWethValue, usdc, weth), FEE_SUBSIDY),relativeWethValue);
-                        require(feeBalance[msg.sender]+msg.value >= newOrder.minFeeReceived,"Insufficient Fee balance");
-                        if(msg.value < newOrder.minFeeReceived){
-                            lockedFeeBalance[msg.sender]+=(newOrder.minFeeReceived-msg.value)+msg.value;
+                        ///@notice Set the minimum fee to the fee*wethValue*subsidy.
+                        uint128 minFeeReceived = ConveyorMath.mul64U(ConveyorMath.mul64x64(ISwapRouter(LIMIT_ORDER_EXECUTOR)._calculateFee(relativeWethValue, usdc, weth), FEE_SUBSIDY),relativeWethValue);
+                        ///@notice If the msg.value + unlocked balance can't cover the fee revert.
+                        if(!(feeBalance[msg.sender]+msg.value >= minFeeReceived)){
+                            revert InsufficientFeeCreditBalance();
+                        }
+                        ///@notice If the msg.value is less than minFeeReceived then use the addresses feeBalance to cover the difference.
+                        if(msg.value < minFeeReceived){
+                            ///@notice Increment the locked fee balance 
+                            lockedFeeBalance[msg.sender]+=minFeeReceived;
+                            ///@notice Decrement the feeBalance of the msg.sender by the amount used to cover the fee.
                             feeBalance[msg.sender]-=newOrder.minFeeReceived-msg.value;
                         }else{
-                            lockedFeeBalance[msg.sender]+=(msg.value)-(msg.value-newOrder.minFeeReceived);
+                            ///@notice If the msg.value can cover the minFeeReceived then simply increment the locked fee balance by minFeeReceived.
+                            lockedFeeBalance[msg.sender]+=minFeeReceived;
+                            ///@notice Increment the senders feeBalance by msg.value -minFeeReceived to account for over paying.
                             feeBalance[msg.sender]+=msg.value-newOrder.minFeeReceived;
                         }
-                        
+                        ///@notice Set the minFeeReceived to 0 as the fee has already been paid at placement.
+                        newOrder.minFeeReceived=0;
                     }
                     
                 }else{
+                    ///@notice Calculate the minimum fee for the order to be taken out at execution time.
                     newOrder.minFeeReceived = ISwapRouter(LIMIT_ORDER_EXECUTOR).calculateMultiCallFeeAmount(newOrder.tokenIn, newOrder.tokenOut, newOrder.buy, WETH, newOrder.amountInRemaining, newOrder.amountOutRemaining, USDC);
                 }
             }

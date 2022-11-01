@@ -43,3 +43,4 @@ error VerifierDilemmaGasPrice();
 error InvalidCalldata();
 error InsufficientMsgValue();
 error InsufficientAllowanceForOrderUpdate();
+error InsufficientFeeCreditBalanceForOrderExecution();
