@@ -4,6 +4,7 @@ pragma solidity 0.8.16;
 import "../lib/interfaces/token/IERC20.sol";
 import "./GasOracle.sol";
 import "./ConveyorErrors.sol";
+import "./interfaces/IOrderBook.sol";
 
 /// @title OrderBook
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs

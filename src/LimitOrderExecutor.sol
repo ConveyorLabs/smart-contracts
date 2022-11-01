@@ -10,7 +10,7 @@ import "./LimitOrderRouter.sol";
 /// @title LimitOrderExecutor
 /// @author 0xOsiris, 0xKitsune
 /// @notice This contract handles all order execution.
-contract LimitOrderExecutor is SwapRouter {
+contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
     using SafeERC20 for IERC20;
     ///====================================Immutable Storage Variables==============================================//
     address immutable WETH;
@@ -45,7 +45,7 @@ contract LimitOrderExecutor is SwapRouter {
     bool entered = false;
     ///@notice Reentrancy modifier for transferToSandBoxRouter.
     modifier nonReentrant(){
-      require(!entered, "Unauthorized Callback from SandboxRouter");
+      require(!entered, "Unauthorized Callback from ChaosRouter");
       entered = true;
       _;
       entered = false;
@@ -430,7 +430,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@notice Function to execute multicall orders from the context of LimitOrderExecutor.
     ///@param orders The orders to be executed. 
     ///@param amountSpecifiedToFill Array of amounts to be transferred to the contract. 
-    function executeMultiCallOrders(OrderBook.MultiCallOrder[] memory orders, uint128[] memory amountSpecifiedToFill, SandboxRouter.MultiCall memory calls, address sandBoxRouter) external onlyLimitOrderRouter nonReentrant {
+    function executeMultiCallOrders(OrderBook.MultiCallOrder[] memory orders, uint128[] memory amountSpecifiedToFill, ChaosRouter.MultiCall memory calls, address sandBoxRouter) external onlyLimitOrderRouter nonReentrant {
         
         for(uint256 i=0; i<orders.length; ++i){
             require(amountSpecifiedToFill[i]<=orders[i].amountInRemaining);

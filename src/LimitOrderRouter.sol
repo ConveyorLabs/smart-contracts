@@ -6,13 +6,14 @@ import "./OrderBook.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "./SwapRouter.sol";
+
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./interfaces/ILimitOrderRouter.sol";
 /// @title LimitOrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
-contract LimitOrderRouter is OrderBook {
+contract LimitOrderRouter is OrderBook{
     using SafeERC20 for IERC20;
     // ========================================= Modifiers =============================================
 
@@ -46,6 +47,14 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlyLimitOrderExecutor() {
+        if (msg.sender != LIMIT_ORDER_EXECUTOR) {
+            revert MsgSenderIsNotLimitOrderRouter();
+        }
+        _;
+    }
+
+    ///@notice Modifier to restrict smart contracts from calling a function.
+    modifier onlySandboxRouter() {
         if (msg.sender != LIMIT_ORDER_EXECUTOR) {
             revert MsgSenderIsNotLimitOrderRouter();
         }
@@ -103,7 +112,7 @@ contract LimitOrderRouter is OrderBook {
 
         require(_weth != address(0), "Invalid weth address");
         SAND_BOX_ROUTER=address(
-            new SandboxRouter(address(_limitOrderExecutor), address(this))
+            new ChaosRouter(address(_limitOrderExecutor), address(this))
         );
         WETH = _weth;
         owner = msg.sender;
@@ -192,8 +201,8 @@ contract LimitOrderRouter is OrderBook {
         return true;
     }
     ///@notice Initializes the state of the LimitOrderRouter contract 
-    ///@param calls The calldata being executed in SandboxRouter
-    function initializeMulticallCallbackState(SandboxRouter.MultiCall memory calls) external {
+    ///@param calls The calldata being executed in ChaosRouter
+    function initializeMulticallCallbackState(ChaosRouter.MultiCall memory calls) external onlySandboxRouter {
         
         ///@notice Create a new array of MultiCallOrders.
         MultiCallOrder[] memory orders = new MultiCallOrder[](calls.orderIds.length);

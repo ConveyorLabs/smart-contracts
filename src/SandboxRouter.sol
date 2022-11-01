@@ -4,10 +4,10 @@ pragma solidity 0.8.16;
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 
-/// @title SandboxRouter
+/// @title ChaosRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
-/// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
-contract SandboxRouter {
+/// @notice ChaosRouter uses a MultiCall Architecture to execute LimitOrders. 
+contract ChaosRouter {
 
     address immutable LIMIT_ORDER_EXECUTOR;
     address LIMIT_ORDER_ROUTER;
@@ -45,11 +45,11 @@ contract SandboxRouter {
         /**@notice 
                 ✨This function is to be used exclusively for non stoploss. The Multicall contract works by accepting arbitrary calldata passed from the off chain executor. 
                 The first order of logic calls initializeMulticallCallbackState() to the LimitOrderRouter contract where the state prior to execution of all the order owners balances is stored. 
-                The LimitOrderRouter makes a single external call to the LimitOrderExecutor which calls safeTransferFrom() on the users wallet to the SandboxRouter contract. The LimitOrderExecutor
-                then calls executeMultiCallCallback() on the SandboxRouter. The SandboxRouter optimistically executes the calldata passed by the offchain executor. Once all the callback has finished 
+                The LimitOrderRouter makes a single external call to the LimitOrderExecutor which calls safeTransferFrom() on the users wallet to the ChaosRouter contract. The LimitOrderExecutor
+                then calls executeMultiCallCallback() on the ChaosRouter. The ChaosRouter optimistically executes the calldata passed by the offchain executor. Once all the callback has finished 
                 the LimitOrderRouter contract then cross references the Initial State vs the Current State of Token balances in the contract to determine if all Orders have received their target quantity
-                based on the amountSpecifiedToFill*order.price. The SandboxRouter works in a much different way than traditional LimitOrder systems to date. It allows for Executors to be creative in the
-                strategies they employ for execution. To be clear, the only rule when executing with the SandboxRouter is there are no rules. An executor is welcome to do whatever they want with the funds
+                based on the amountSpecifiedToFill*order.price. The ChaosRouter works in a much different way than traditional LimitOrder systems to date. It allows for Executors to be creative in the
+                strategies they employ for execution. To be clear, the only rule when executing with the ChaosRouter is there are no rules. An executor is welcome to do whatever they want with the funds
                 during execution, so long as each Order gets filled their exact amount. Further, any profit reaped on the multicall goes 100% back to the executor.✨
          **/ 
         ///@notice Bool indicating whether low level call was successful.
@@ -65,7 +65,7 @@ contract SandboxRouter {
 
             success := call(
                 gas(), // gas remaining
-                LIMIT_ORDER_ROUTER.slot, // destination address
+                LIMIT_ORDER_ROUTER.offset, // destination address
                 0, // no ether
                 0x00, // input buffer (starts after the first 32 bytes in the `data` array)
                 0x04, // input length (loaded from the first 32 bytes in the `data` array)

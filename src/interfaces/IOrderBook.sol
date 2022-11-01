@@ -24,4 +24,5 @@ interface IOrderBook {
         external
         view
         returns (bytes32[][] memory);
+    function getGasPrice() external view returns (uint256); 
 }

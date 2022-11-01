@@ -12,6 +12,6 @@ interface ILimitOrderExecutor {
     function executeTokenToTokenOrders(OrderBook.Order[] memory orders)
         external
         returns (uint256, uint256);
-        
-    function executeMultiCallOrders(OrderBook.MultiCallOrder[] memory orders, uint128[] memory amountSpecifiedToFill, SandboxRouter.MultiCall memory calls, address sandBoxRouter) external;
+
+    function executeMultiCallOrders(OrderBook.MultiCallOrder[] memory orders, uint128[] memory amountSpecifiedToFill, ChaosRouter.MultiCall memory calls, address sandBoxRouter) external;
 }
