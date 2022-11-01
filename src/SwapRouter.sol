@@ -335,15 +335,19 @@ contract SwapRouter is ConveyorTickMath {
             uint256 amountExpectedWeth = buy
                 ? ConveyorMath.mul128U(liquidFeeQuoteSpot, amountIn)
                 : ConveyorMath.mul128U(liquidFeeQuoteSpot, amountOut);
+
+            ///@notice Calculate the amountExpectedWeth from the fee. 
             uint128 fee = _calculateFee(
                 uint128(amountExpectedWeth),
                 usdc,
                 weth
             );
+            ///@notice Multiply the fee by the quote/weth target amount.
             minOrderFee = uint128(ConveyorMath.mul64U(fee, amountExpectedWeth));
-            
-            uint128 epsilon = ConveyorMath.divUU(amountExpectedWeth,liquidity); //Obviously a rough approximation, notice this is simply used as a lower bound on the expected slippage by relating the fee proportion to the total usable liquidity
-            minOrderFee= uint128(ConveyorMath.mul64U(epsilon,ConveyorMath.mul64U(BASE_SWAP_FEE, amountExpectedWeth)));
+            ///@notice Calculate an epsilon relating the proportion of minOrderFee to total usable liquidity in the pool to form a lower bound on amount received. 
+            uint128 epsilon = ConveyorMath.divUU(minOrderFee,liquidity); //Obviously a rough approximation, notice this is simply used as a lower bound on the expected slippage by relating the fee proportion to the total usable liquidity
+            ///@notice Set the minOrderFee to minOrderFee shifted by epsilon the and max swap fee expected to form a proper lower bound.
+            minOrderFee= uint128(ConveyorMath.mul64U((uint128(1)<<64)-epsilon,ConveyorMath.mul64U((uint128(1)<<64)-BASE_SWAP_FEE, amountExpectedWeth)));
         }
     }
 
