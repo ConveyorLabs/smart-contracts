@@ -95,7 +95,8 @@ contract SwapRouter is ConveyorTickMath {
     event UniV3SwapError(string indexed reason);
 
     //======================Constants================================
-
+    uint128 constant SUFFICIENTLY_LIQUID= 1000000000000000000000; //Over 1 million should cover slippage epsilon on fees.
+    uint128 constant SUFFICIENTLY_SQRT_LIQUID= 1000000000000000000000;
     uint128 constant MIN_FEE_64x64 = 18446744073709552;
     uint128 constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
     uint256 constant MAX_UINT_256 =
@@ -239,6 +240,46 @@ contract SwapRouter is ConveyorTickMath {
         );
 
         return calculated_fee_64x64;
+    }
+
+    function calculateMultiCallFeeAmount(address tokenIn, address tokenOut, address weth, uint128 amountIn, uint128 targetPrice) external view returns (uint128 feeAmountWeth) {
+        SpotReserve[] memory spotPricesWethTokenOut;
+        SpotReserve[] memory spotPricesTokenInWeth;
+
+        uint256 isLiquidAWeth;
+        uint256 isLiquidWethB;
+
+        address liquidWethB;
+        ///Putting this on hold temporarily, trying to consider if there are any more lightweight options, as this will be costly for a user.
+        // for(uint256 i=0; i<dexes.length; ++i){
+        //     if(dexes[i].isUniV2){
+               
+        //         (spotPricesTokenInWeth[i],  liquidWethB) = _calculateV2SpotPrice(tokenOut,weth,dexes[i].factoryAddress, dexes[i].initBytecode);
+        //         if(spotPricesTokenInWeth[i].token0IsReserve0 ? spotPricesTokenInWeth[i].res0 >= SUFFICIENTLY_LIQUID : spotPricesTokenInWeth[i].res1 >= SUFFICIENTLY_LIQUID){
+        //             isLiquidAWeth = spotPricesTokenInWeth[i].spotPrice;
+        //         }
+        //         if(spotPricesWethTokenOut[i].token0IsReserve0 ? spotPricesWethTokenOut[i].res0 >= SUFFICIENTLY_LIQUID : spotPricesWethTokenOut[i].res1 >= SUFFICIENTLY_LIQUID){
+        //             isLiquidWethB = spotPricesTokenInWeth[i].spotPrice;
+                   
+        //         }
+        //         if(isLiquidAWeth!=0 && isLiquidWethB!=0 && !(liquidWethB==address(0))){
+        //             break;
+        //         }
+        //     }
+
+        //     if(!dexes[i].isUniV2){
+                
+        //         (spotPricesTokenInWeth[i],  liquidWethB) = _calculateV3SpotPrice(tokenOut,weth,500,dexes[i].factoryAddress);
+                
+        //         if(IUniswapV3Pool(liquidWethB).liquidity()>=SUFFICIENTLY_SQRT_LIQUID){
+        //             isLiquidWethB = spotPricesTokenInWeth[i].spotPrice;
+        //         }
+
+        //         if(isLiquidWethB !=0 && !(liquidWethB==address(0))){
+        //             break;
+        //         }
+        //     }
+        // }
     }
 
     function transferTokensOutToOwner(
