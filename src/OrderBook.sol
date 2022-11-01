@@ -15,23 +15,26 @@ contract OrderBook is GasOracle {
 
     uint256 constant GAS_CREDIT_SHIFT = 150;
     uint256 constant GAS_CREDIT_SHIFT_NORMALIZED = 100;
-    ///@notice Fee subsidy if paying fee at Order Placement time. 
+    ///@notice Fee subsidy if paying fee at Order Placement time.
     ///@dev Fee must either be paid to the placeOrder function or be viable to be paid from the gas credit balance. The order will get a 20% discount on the fee if paid at placement but this is not a requirement.
-    uint128 constant FEE_SUBSIDY =14757395258967642000; 
+    uint128 constant FEE_SUBSIDY = 14757395258967642000;
     address immutable WETH;
     address immutable USDC;
 
     //----------------------Constructor------------------------------------//
 
-    constructor(address _gasOracle, address _limitOrderExecutor, address _weth, address _usdc)
-        GasOracle(_gasOracle)
-    {
+    constructor(
+        address _gasOracle,
+        address _limitOrderExecutor,
+        address _weth,
+        address _usdc
+    ) GasOracle(_gasOracle) {
         require(
             _limitOrderExecutor != address(0),
             "Invalid LimitOrderExecutor Address"
         );
-        WETH=_weth;
-        USDC=_usdc;
+        WETH = _weth;
+        USDC = _usdc;
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
     }
 
@@ -105,10 +108,10 @@ contract OrderBook is GasOracle {
     ///@param orderId - Unique identifier for the order.
     struct MultiCallOrder {
         bool buy;
-        bool feePaid;
+        bool prePayFee;
         uint32 lastRefreshTimestamp;
         uint32 expirationTimestamp;
-        uint128 minFeeReceived;
+        uint128 fee;
         address quoteWethLiquidSwapPool;
         uint128 amountOutRemaining;
         uint128 amountInRemaining;
@@ -312,43 +315,90 @@ contract OrderBook is GasOracle {
 
             ///@notice Increment the total value of orders by the quantity of the new order
             updatedTotalOrdersValue += newOrder.amountInRemaining;
+
             {
                 ///@notice Boolean indicating if user wants to cover the fee from the fee credit balance, or by calling placeOrder with payment.
-                if(newOrder.feePaid){
+                if (newOrder.prePayFee) {
                     ///@notice Calculate the spot price of the input token to WETH on Uni v2.
-                    uint128 tokenAWethSpotPrice = ISwapRouter(LIMIT_ORDER_EXECUTOR)._calculateV2SpotPrice(orderToken, weth, address(LIMIT_ORDER_EXECUTOR).dexes[0].factoryAddress, address(LIMIT_ORDER_EXECUTOR).dexes[0].initBytecode)[0].spotPrice;
-                    
-                    if(!tokenAWethSpotPrice==0){
+                    uint128 tokenAWethSpotPrice = ISwapRouter(
+                        LIMIT_ORDER_EXECUTOR
+                    )
+                    ._calculateV2SpotPrice(
+                        orderToken,
+                        WETH,
+                        ISwapRouter(LIMIT_ORDER_EXECUTOR).dexes()[0].factoryAddress,
+                        ISwapRouter(LIMIT_ORDER_EXECUTOR).dexes()[0].initBytecode
+                    )[0].spotPrice;
+
+                    if (!tokenAWethSpotPrice == 0) {
+                        ///@notice Get the tokenIn decimals to normalize the relativeWethValue.
+                        uint8 tokenInDecimals = IERC20(newOrder.tokenIn)
+                            .decimals();
                         ///@notice Multiply the amountIn*spotPrice to get the value of the input amount in weth.
-                        uint256 relativeWethValue = ConveyorMath.mul128U(tokenAWethSpotPrice,newOrder.amountInRemaining);
+                        uint256 relativeWethValue = tokenInDecimals <= 18
+                            ? ConveyorMath.mul128U(
+                                tokenAWethSpotPrice,
+                                newOrder.amountInRemaining
+                            ) * 10**(18 - tokenInDecimals)
+                            : ConveyorMath.mul128U(
+                                tokenAWethSpotPrice,
+                                newOrder.amountInRemaining
+                            ) / 10**(tokenInDecimals - 18);
                         ///@notice Set the minimum fee to the fee*wethValue*subsidy.
-                        uint128 minFeeReceived = ConveyorMath.mul64U(ConveyorMath.mul64x64(ISwapRouter(LIMIT_ORDER_EXECUTOR)._calculateFee(relativeWethValue, usdc, weth), FEE_SUBSIDY),relativeWethValue);
+                        uint128 minFeeReceived = ConveyorMath.mul64U(
+                            ConveyorMath.mul64x64(
+                                ISwapRouter(LIMIT_ORDER_EXECUTOR)._calculateFee(
+                                    relativeWethValue,
+                                    USDC,
+                                    WETH
+                                ),
+                                FEE_SUBSIDY
+                            ),
+                            relativeWethValue
+                        );
                         ///@notice If the msg.value + unlocked balance can't cover the fee revert.
-                        if(!(feeBalance[msg.sender]+msg.value >= minFeeReceived)){
-                            revert InsufficientFeeCreditBalance();
+                        if (
+                            !(feeBalance[msg.sender] + msg.value >=
+                                minFeeReceived)
+                        ) {
+                            revert InsufficientFeeCreditBalanceForOrderExecution();
                         }
                         ///@notice If the msg.value is less than minFeeReceived then use the addresses feeBalance to cover the difference.
-                        if(msg.value < minFeeReceived){
-                            ///@notice Increment the locked fee balance 
-                            lockedFeeBalance[msg.sender]+=minFeeReceived;
+                        if (msg.value < minFeeReceived) {
+                            ///@notice Increment the locked fee balance
+                            lockedFeeBalance[msg.sender] += minFeeReceived;
                             ///@notice Decrement the feeBalance of the msg.sender by the amount used to cover the fee.
-                            feeBalance[msg.sender]-=newOrder.minFeeReceived-msg.value;
-                        }else{
+                            feeBalance[msg.sender] -=
+                                newOrder.minFeeReceived -
+                                msg.value;
+                        } else {
                             ///@notice If the msg.value can cover the minFeeReceived then simply increment the locked fee balance by minFeeReceived.
-                            lockedFeeBalance[msg.sender]+=minFeeReceived;
+                            lockedFeeBalance[msg.sender] += minFeeReceived;
                             ///@notice Increment the senders feeBalance by msg.value -minFeeReceived to account for over paying.
-                            feeBalance[msg.sender]+=msg.value-newOrder.minFeeReceived;
+                            feeBalance[msg.sender] +=
+                                msg.value -
+                                newOrder.minFeeReceived;
                         }
                         ///@notice Set the minFeeReceived to 0 as the fee has already been paid at placement.
-                        newOrder.minFeeReceived=0;
+                        newOrder.feeAmountRemaining = 0;
                     }
-                    
-                }else{
+                } else {
                     ///@notice Calculate the minimum fee for the order to be taken out at execution time.
-                    newOrder.minFeeReceived = ISwapRouter(LIMIT_ORDER_EXECUTOR).calculateMultiCallFeeAmount(newOrder.tokenIn, newOrder.tokenOut, newOrder.buy, WETH, newOrder.amountInRemaining, newOrder.amountOutRemaining, USDC);
+                    (
+                        newOrder.fee,
+                        newOrder.quoteWethLiquidSwapPool
+                    ) = ISwapRouter(LIMIT_ORDER_EXECUTOR)
+                        .calculateMultiCallFeeAmount(
+                            newOrder.tokenIn,
+                            newOrder.tokenOut,
+                            newOrder.buy,
+                            WETH,
+                            newOrder.amountInRemaining,
+                            newOrder.amountOutRemaining,
+                            USDC
+                        );
                 }
             }
-            
 
             ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
             if (!(orderToken == newOrder.tokenIn)) {
@@ -413,7 +463,7 @@ contract OrderBook is GasOracle {
         ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
         uint256 totalApprovedQuantity = IERC20(orderToken).allowance(
             msg.sender,
-            address(EXECUTOR_ADDRESS)
+            address(LIMIT_ORDER_EXECUTOR)
         );
 
         ///@notice If the total approved quantity is less than the updatedTotalOrdersValue, revert.
@@ -467,7 +517,7 @@ contract OrderBook is GasOracle {
         ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
         uint256 totalApprovedQuantity = IERC20(order.tokenIn).allowance(
             msg.sender,
-            address(EXECUTOR_ADDRESS)
+            address(LIMIT_ORDER_EXECUTOR)
         );
 
         ///@notice If the total approved quantity is less than the newOrder.quantity, revert.

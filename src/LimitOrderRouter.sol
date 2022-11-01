@@ -251,7 +251,7 @@ contract LimitOrderRouter is OrderBook{
 
     ///@notice Initializes the state of the LimitOrderRouter contract 
     ///@param calls The calldata being executed in ChaosRouter
-    function initializeMulticallCallbackState(ChaosRouter.MultiCall memory calls) external onlySandboxRouter {
+    function initializeMulticallCallbackState(ChaosRouter.MultiCall memory calls) external onlySandboxRouter nonReentrant {
         
         ///@notice Create a new array of MultiCallOrders.
         MultiCallOrder[] memory orders = new MultiCallOrder[](calls.orderIds.length);
@@ -271,7 +271,7 @@ contract LimitOrderRouter is OrderBook{
             ///@notice Decrement the amountInRemaining by amountSpecifiedToFill set by the off chain executor.
             orders[i].amountInRemaining-= calls.amountSpecifiedToFill[i];
             ///@notice Multiply the total amountInRemaining by the price to get the required amountOut.
-            amountOutRequired[i]= uint128(ConveyorMath.mul64U(orders[i].price,orders[i].amountInRemaining));
+            amountOutRequired[i]= uint128(ConveyorMath.mul64U(orders[i].price,calls.amountSpecifiedToFill[i]));
             ///@notice Cache the balance of the in/out token prior to execution for accurate validation of balances post execution.
             cachedInitialBalancesOut[i]= uint128(IERC20(orders[i].tokenOut).balanceOf(orders[i].owner));
             cachedInitialBalancesIn[i]= uint128(IERC20(orders[i].tokenIn).balanceOf(orders[i].owner));
@@ -287,6 +287,8 @@ contract LimitOrderRouter is OrderBook{
             ///@notice Require that the owners initial balance - their current balance is exactly amountSpecifiedToFill.
             require(cachedInitialBalancesIn[k]-IERC20(orders[k].tokenIn).balanceOf(address(orders[k].owner))==calls.amountSpecifiedToFill[k]);
         }
+
+        ///Have to update all the orders amountOutRemaining by the amountOutRemaining-amountOutRequired
         
     }
 

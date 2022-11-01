@@ -44,3 +44,4 @@ error InvalidCalldata();
 error InsufficientMsgValue();
 error InsufficientAllowanceForOrderUpdate();
 error InsufficientFeeCreditBalanceForOrderExecution();
+error InsufficientLiquidityForDynamicFee();

@@ -28,6 +28,7 @@ contract ChaosRouter {
         bytes32[] orderIds;
         address[] targets;
         bytes[] callData;
+        ///TODO: Fix me possibly
         uint128[] amountSpecifiedToFill;
     }
 
@@ -52,13 +53,16 @@ contract ChaosRouter {
                 strategies they employ for execution. To be clear, the only rule when executing with the ChaosRouter is there are no rules. An executor is welcome to do whatever they want with the funds
                 during execution, so long as each Order gets filled their exact amount. Further, any profit reaped on the multicall goes 100% back to the executor.✨
          **/ 
+
         ///@notice Bool indicating whether low level call was successful.
         bool success;
+        
         ///@notice Upon initialization call the LimitOrderRouter contract to cache the initial state prior to execution. 
         bytes memory bytesSig = abi.encodeWithSignature("initializeMulticallCallbackState(MultiCall)", calls);
-        
+
         ///@notice Cast to memory.
         address limitOrderRouter = LIMIT_ORDER_ROUTER;
+    
         assembly {
             mstore(
                 0x00,

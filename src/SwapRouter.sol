@@ -17,7 +17,8 @@ import "./lib/ConveyorFeeMath.sol";
 import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/token/SafeERC20.sol";
-
+import "./ConveyorErrors.sol";
+import "./interfaces/ISwapRouter.sol";
 /// @title SwapRouter
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution.
@@ -260,7 +261,7 @@ contract SwapRouter is ConveyorTickMath {
         uint128 amountIn,
         uint128 amountOut,
         address usdc
-    ) external view returns (uint128 minOrderFee) {
+    ) external view returns (uint128 fee, address quoteWethLiquidSwapPool) {
         ///@notice Initialize spotReserve struct to hold the v2/v3 spot price calculations.
         SpotReserve[] memory spotPricesTokenInWeth;
 
@@ -268,9 +269,6 @@ contract SwapRouter is ConveyorTickMath {
         uint256 liquidFeeQuoteSpot;
         address liquidFeeQuotePool;
         uint128 liquidity;
-        ///@notice Quote the token that will appreciete in price to the limit price.
-        ///@dev Will be takenOut at execution time on the input or output token depending on the limit order type. Users can optionally pay the fee at OrderPlacement as an alternative.
-        address quote = buy ? tokenIn : tokenOut;
         
         ///@notice Putting this on hold temporarily, trying to consider if there are any more lightweight options, as this will be costly for a user.
         for (uint256 i = 0; i < dexes.length; ++i) {
@@ -280,7 +278,7 @@ contract SwapRouter is ConveyorTickMath {
                     spotPricesTokenInWeth[i],
                     liquidFeeQuotePool
                 ) = _calculateV2SpotPrice(
-                    quote,
+                    tokenIn,
                     weth,
                     dexes[i].factoryAddress,
                     dexes[i].initBytecode
@@ -308,7 +306,7 @@ contract SwapRouter is ConveyorTickMath {
                     spotPricesTokenInWeth[i],
                     liquidFeeQuotePool
                 ) = _calculateV3SpotPrice(
-                    quote,
+                    tokenIn,
                     weth,
                     500,
                     dexes[i].factoryAddress
@@ -328,26 +326,27 @@ contract SwapRouter is ConveyorTickMath {
                     }
                 }
             }
+
         }
-        ///@notice Calculate the quoteSpot*quoteAmount to get base weth. 
-        ///@dev C(e)>=K*r_0*min{e^2, sqrt(e)} where e is percent change in the pool. Do a standard CPMM calculation to save gas, if cpmm is k^2=x*y this calculation should still be a lower bound.
+        ///@notice If there are not any liquid tokenA to Weth swap pools. User must pay fee ahead of time.
+        if(liquidFeeQuotePool==address(0)){
+            revert InsufficientLiquidityForDynamicFee();
+        }
+
+        ///@notice Calculate the quoteSpot*quoteAmount to get amount of quote to take out at execution. 
         {
-            uint256 amountExpectedWeth = buy
-                ? ConveyorMath.mul128U(liquidFeeQuoteSpot, amountIn)
-                : ConveyorMath.mul128U(liquidFeeQuoteSpot, amountOut);
+            uint8 tokenInDecimals= IERC20(tokenIn).decimals();
+            uint256 amountExpectedWeth =tokenInDecimals<=18 ? ConveyorMath.mul128U(liquidFeeQuoteSpot, amountIn)*10**(18-tokenInDecimals) : ConveyorMath.mul128U(liquidFeeQuoteSpot, amountIn)/10**(tokenInDecimals-18);
 
             ///@notice Calculate the amountExpectedWeth from the fee. 
-            uint128 fee = _calculateFee(
+            fee = _calculateFee(
                 uint128(amountExpectedWeth),
                 usdc,
                 weth
             );
-            ///@notice Multiply the fee by the quote/weth target amount.
-            minOrderFee = uint128(ConveyorMath.mul64U(fee, amountExpectedWeth));
-            ///@notice Calculate an epsilon relating the proportion of minOrderFee to total usable liquidity in the pool to form a lower bound on amount received. 
-            uint128 epsilon = ConveyorMath.divUU(minOrderFee,liquidity); //Obviously a rough approximation, notice this is simply used as a lower bound on the expected slippage by relating the fee proportion to the total usable liquidity
-            ///@notice Set the minOrderFee to minOrderFee shifted by epsilon the and max swap fee expected to form a proper lower bound.
-            minOrderFee= uint128(ConveyorMath.mul64U((uint128(1)<<64)-epsilon,ConveyorMath.mul64U((uint128(1)<<64)-BASE_SWAP_FEE, amountExpectedWeth)));
+
+            
+            quoteWethLiquidSwapPool = liquidFeeQuotePool;
         }
     }
 

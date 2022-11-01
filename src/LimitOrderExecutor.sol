@@ -5,7 +5,7 @@ import "./SwapRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./lib/ConveyorFeeMath.sol";
 import "./LimitOrderRouter.sol";
-
+import "./interfaces/ISwapRouter.sol";
 
 /// @title LimitOrderExecutor
 /// @author 0xOsiris, 0xKitsune
@@ -427,18 +427,19 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
             order.quantity
         );
     }
+
     ///@notice Function to execute multicall orders from the context of LimitOrderExecutor.
     ///@param orders The orders to be executed. 
     ///@param amountSpecifiedToFill Array of amounts to be transferred to the contract. 
     function executeMultiCallOrders(OrderBook.MultiCallOrder[] memory orders, uint128[] memory amountSpecifiedToFill, ChaosRouter.MultiCall memory calls, address sandBoxRouter) external onlyLimitOrderRouter nonReentrant {
-        
+        ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
         for(uint256 i=0; i<orders.length; ++i){
-            require(amountSpecifiedToFill[i]<=orders[i].amountInRemaining);
             IERC20(orders[i].tokenIn).safeTransferFrom(orders[i].owner, address(sandBoxRouter), amountSpecifiedToFill[i]);
         }
 
         bool success;
-        ///@notice Upon initialization call the LimitOrderExecutor to transfer the tokens to the contract. 
+        ///@notice Upon initialization call the LimitOrderExecutor to transfer the tokens to the contract.
+        ///TODO: Get function sig 
         bytes memory bytesSig = abi.encodeWithSignature("executeMultiCallCallback(MultiCall)", calls);
     
         assembly {
@@ -460,7 +461,8 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         }
 
         require(success);
-        
+
+        ///TODO: Transfer all fees back to 
     }
 
     ///@notice Function to withdraw owner fee's accumulated
