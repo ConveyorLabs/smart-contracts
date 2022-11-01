@@ -330,7 +330,7 @@ contract SwapRouter is ConveyorTickMath {
             }
         }
         ///@notice Calculate the quoteSpot*quoteAmount to get base weth. 
-        ///@dev C(e)>=K*r_0*min{e^2, sqrt(e)} where e is percent change in the pool. Do a standard CPMM calculation to save gas, if cpmm is k^=x*y this calculation should still be a lower bound.
+        ///@dev C(e)>=K*r_0*min{e^2, sqrt(e)} where e is percent change in the pool. Do a standard CPMM calculation to save gas, if cpmm is k^2=x*y this calculation should still be a lower bound.
         {
             uint256 amountExpectedWeth = buy
                 ? ConveyorMath.mul128U(liquidFeeQuoteSpot, amountIn)
