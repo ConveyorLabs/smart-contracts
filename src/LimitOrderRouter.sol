@@ -251,8 +251,8 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice Initializes the state of the LimitOrderRouter contract
     ///@param calls The calldata being executed in ChaosRouter
-    function initializeMulticallCallbackState(
-        ChaosRouter.MultiCall memory calls
+    function executeOrdersViaSandboxMulticall(
+        SandboxRouter.SandboxMulticall memory calls
     ) external onlySandboxRouter nonReentrant {
         ///@notice Create a new array of MultiCallOrders.
         MultiCallOrder[] memory orders = new MultiCallOrder[](

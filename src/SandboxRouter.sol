@@ -3,6 +3,7 @@ pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
+import "./interfaces/ILimitOrderRouter.sol";
 
 /// @title SandboxRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
@@ -64,26 +65,30 @@ contract SandboxRouter {
                 during execution, so long as each Order gets filled their exact amount. Further, any profit reaped on the multicall goes 100% back to the executor.✨
          **/
 
-        ///@notice Bool indicating whether low level call was successful.
-        bool success;
-
-        ///@notice Upon initialization call the LimitOrderRouter contract to cache the initial state prior to execution.    
-        ILimit
+        ///@notice Upon initialization call the LimitOrderRouter contract to cache the initial state prior to execution.
+        ILimitOrderRouter(LIMIT_ORDER_ROUTER).executeOrdersViaSandboxMulticall(
+            sandboxMultiCall
+        );
     }
 
-    ///@notice Function called by the LimitOrderExecutor contract to execute the multicall.
-    ///@param calls - The multicall calldata.
-    function executeMultiCallCallback(SandboxMulticall memory calls)
+    ///@notice Callback function that executes a sandbox multicall and is only accessible by the limitOrderExecutor.
+    ///@param sandBoxMulticall //TODO
+    function sandboxRouterCallback(SandboxMulticall memory sandBoxMulticall)
         external
         onlyLimitOrderExecutor
     {
         ///@notice Iterate through each target in the calls, and optimistically call the calldata.
-        for (uint256 k = 0; k < calls.targets.length; ) {
+        for (uint256 i = 0; i < sandBoxMulticall.calls.length; ) {
+            Call memory sandBoxCall = sandBoxMulticall.calls[i];
             ///@notice Call the target address on the specified calldata
-            (bool success, ) = calls.targets[k].call(calls.callData[k]);
-            require(success, "Call failed in multicall");
+            (bool success, ) = sandBoxCall.target.call(sandBoxCall.callData);
+
+            if (!success) {
+                revert SandboxCallFailed();
+            }
+
             unchecked {
-                ++k;
+                ++i;
             }
         }
     }

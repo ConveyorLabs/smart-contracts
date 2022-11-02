@@ -1,3 +1,5 @@
+import "../SandboxRouter.sol";
+
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
@@ -16,9 +18,13 @@ interface ILimitOrderRouter {
 
     function executeOrders(bytes32[] calldata orderIds) external;
 
+    function executeOrdersViaSandboxMulticall(
+        SandboxRouter.SandboxMulticall calldata sandboxMulticall
+    ) external;
+
     function confirmTransferOwnership() external;
 
     function transferOwnership(address newOwner) external;
-    
+
     function getGasPrice() external view returns (uint256);
 }
