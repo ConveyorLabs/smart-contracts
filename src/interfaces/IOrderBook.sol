@@ -8,13 +8,17 @@ interface IOrderBook {
     function getOrderById(bytes32 orderId)
         external
         view
-        returns (OrderBook.Order memory order);
+        returns (bytes memory order);
 
-    function placeOrder(OrderBook.Order[] calldata orderGroup)
+    function placeLimitOrder(OrderBook.LimitOrder[] calldata orderGroup)
         external
         returns (bytes32[] memory);
 
-    function updateOrder(OrderBook.Order memory newOrder) external;
+    function updateOrder(
+        bytes32 orderId,
+        uint128 price,
+        uint128 quantity
+    ) external;
 
     function cancelOrder(bytes32 orderId) external;
 
@@ -24,5 +28,6 @@ interface IOrderBook {
         external
         view
         returns (bytes32[][] memory);
-    function getGasPrice() external view returns (uint256); 
+
+    function getGasPrice() external view returns (uint256);
 }

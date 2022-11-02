@@ -92,6 +92,4 @@ contract SandboxRouter {
             }
         }
     }
-
-    //TODO: function for arbitrary execution, ensuring that the user has their tokens at the end
 }

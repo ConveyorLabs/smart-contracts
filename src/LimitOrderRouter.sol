@@ -255,7 +255,7 @@ contract LimitOrderRouter is OrderBook {
         SandboxRouter.SandboxMulticall memory calls
     ) external onlySandboxRouter nonReentrant {
         ///@notice Create a new array of MultiCallOrders.
-        MultiCallOrder[] memory orders = new MultiCallOrder[](
+        SandboxLimitOrder[] memory orders = new SandboxLimitOrder[](
             calls.orderIds.length
         );
 
