@@ -569,17 +569,25 @@ contract OrderBook is GasOracle {
         //TODO:
     }
 
-    ///@notice Remove an order from the system if the order exists.
-    /// @param orderId - The orderId that corresponds to the order that should be cancelled.
     function cancelOrder(bytes32 orderId) public {
-        ///@notice Check if the orderId exists.
-        bool orderExists = addressToOrderIds[msg.sender][orderId];
+        ///@notice Check if the order exists
+        OrderType orderType = addressToOrderIds[msg.sender][orderId];
 
-        ///@notice If the orderId does not exist, revert.
-        if (!orderExists) {
+        if (orderType == OrderType.None) {
+            ///@notice If the order does not exist, revert.
             revert OrderDoesNotExist(orderId);
         }
 
+        if (orderType == OrderType.LimitOrder) {
+            cancelLimitOrder(orderId);
+        } else {
+            cancelSandBoxLimitOrder(orderId);
+        }
+    }
+
+    ///@notice Remove an order from the system if the order exists.
+    /// @param orderId - The orderId that corresponds to the order that should be cancelled.
+    function cancelLimitOrder(bytes32 orderId) internal {
         ///@notice Get the order details
         Order memory order = orderIdToOrder[orderId];
 
@@ -605,47 +613,27 @@ contract OrderBook is GasOracle {
         emit OrderCancelled(orderIds);
     }
 
-    /// @notice cancel all orders relevant in ActiveOders mapping to the msg.sender i.e the function caller
+    ///@notice Remove an order from the system if the order exists.
+    /// @param orderId - The orderId that corresponds to the order that should be cancelled.
+    function cancelSandBoxLimitOrder(bytes32 orderId) internal {
+        //TODO:
+    }
+
+    /// @notice cancel all orders relevant in ActiveOrders mapping to the msg.sender i.e the function caller
     function cancelOrders(bytes32[] memory orderIds) public {
         bytes32[] memory canceledOrderIds = new bytes32[](orderIds.length);
 
         //check that there is one or more orders
-        for (uint256 i = 0; i < orderIds.length; ++i) {
-            bytes32 orderId = orderIds[i];
+        for (uint256 i = 0; i < orderIds.length; ) {
+            cancelOrder(orderIds[i]);
 
-            ///@notice Check if the orderId exists.
-            bool orderExists = addressToOrderIds[msg.sender][orderId];
-
-            ///@notice If the orderId does not exist, revert.
-            if (!orderExists) {
-                revert OrderDoesNotExist(orderId);
+            unchecked {
+                ++i;
             }
-
-            ///@notice Get the order details
-            Order memory order = orderIdToOrder[orderId];
-
-            ///@notice Delete the order from orderIdToOrder mapping
-            delete orderIdToOrder[orderId];
-
-            ///@notice Delete the orderId from addressToOrderIds mapping
-            delete addressToOrderIds[msg.sender][orderId];
-
-            ///@notice Decrement the total orders for the msg.sender
-            --totalOrdersPerAddress[msg.sender];
-
-            ///@notice Decrement the order quantity from the total orders quantity
-            decrementTotalOrdersQuantity(
-                order.tokenIn,
-                order.owner,
-                order.quantity
-            );
-
-            canceledOrderIds[i] = orderId;
         }
-
-        ///@notice Emit an event to notify the off-chain executors that the orders have been cancelled.
-        emit OrderCancelled(canceledOrderIds);
     }
+
+    //TODO: handle this for limit order sand sandbox limit orders
 
     ///@notice Function to remove an order from the system.
     ///@param order - The order that should be removed from the system.
