@@ -429,15 +429,17 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         );
     }
 
+    //TODO: can we make the sandbox router address an immutable instead of a something that gets passed in?
+
     ///@notice Function to execute multicall orders from the context of LimitOrderExecutor.
     ///@param orders The orders to be executed.
     ///@param feeAmounts The calls to be executed.
     ///@param calls The feeAmounts to be removed from the input quantities.
     ///@param sandBoxRouter The address of the multicall contract.
     function executeMultiCallOrders(
-        OrderBook.MultiCallOrder[] memory orders,
+        OrderBook.SandboxLimitOrder[] memory orders,
         uint128[] memory feeAmounts,
-        ChaosRouter.MultiCall memory calls,
+        SandboxRouter.SandboxMulticall memory calls,
         address sandBoxRouter
     ) external onlyLimitOrderRouter nonReentrant {
         ///@notice Create an array of swap tokens to be swapped out into weth. At max there will be orders.length

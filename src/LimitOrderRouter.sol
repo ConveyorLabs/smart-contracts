@@ -111,7 +111,7 @@ contract LimitOrderRouter is OrderBook {
 
         require(_weth != address(0), "Invalid weth address");
         SAND_BOX_ROUTER = address(
-            new ChaosRouter(address(_limitOrderExecutor), address(this))
+            new SandboxRouter(address(_limitOrderExecutor), address(this))
         );
 
         owner = msg.sender;
@@ -252,7 +252,7 @@ contract LimitOrderRouter is OrderBook {
     ///@notice Initializes the state of the LimitOrderRouter contract
     ///@param calls The calldata being executed in ChaosRouter
     function executeOrdersViaSandboxMulticall(
-        SandboxRouter.SandboxMulticall memory calls
+        SandboxRouter.SandboxMulticall memory sandboxMulticall
     ) external onlySandboxRouter nonReentrant {
         ///@notice Create a new array of MultiCallOrders.
         SandboxLimitOrder[] memory orders = new SandboxLimitOrder[](
@@ -364,7 +364,7 @@ contract LimitOrderRouter is OrderBook {
 
             ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
             if (block.timestamp > order.expirationTimestamp) {
-                _cancelOrder(order);
+                _cancelLimitOrder(order);
 
                 unchecked {
                     ++i;
@@ -375,7 +375,7 @@ contract LimitOrderRouter is OrderBook {
 
             ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
             if (gasCreditBalance[order.owner] < REFRESH_FEE) {
-                _cancelOrder(order);
+                _cancelLimitOrder(order);
 
                 unchecked {
                     ++i;
@@ -406,7 +406,7 @@ contract LimitOrderRouter is OrderBook {
                     )
                 )
             ) {
-                _cancelOrder(order);
+                _cancelLimitOrder(order);
 
                 unchecked {
                     ++i;
@@ -490,7 +490,7 @@ contract LimitOrderRouter is OrderBook {
             )
         ) {
             ///@notice Remove the order from the limit order system.
-            _cancelOrder(order);
+            _cancelLimitOrder(order);
 
             return true;
         }
@@ -500,7 +500,10 @@ contract LimitOrderRouter is OrderBook {
     /// @notice Internal helper function to cancel an order. This function is only called after cancel order validation.
     /// @param order - The order to cancel.
     /// @return success - Boolean to indicate if the order was successfully cancelled.
-    function _cancelOrder(Order memory order) internal returns (bool success) {
+    function _cancelLimitOrder(LimitOrder memory order)
+        internal
+        returns (bool success)
+    {
         ///@notice Get the current gas price from the v3 Aggregator.
         uint256 gasPrice = getGasPrice();
 
@@ -537,7 +540,10 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice Function to validate the congruency of an array of orders.
     ///@param orders Array of orders to be validated
-    function _validateOrderSequencing(Order[] memory orders) internal pure {
+    function _validateOrderSequencing(LimitOrder[] memory orders)
+        internal
+        pure
+    {
         ///@notice Iterate through the length of orders -1.
         for (uint256 i = 0; i < orders.length - 1; i++) {
             ///@notice Cache order at index i, and i+1
@@ -698,7 +704,7 @@ contract LimitOrderRouter is OrderBook {
     ///@notice Function to return an array of order owners.
     ///@param orders - Array of orders.
     ///@return orderOwners - An array of order owners in the orders array.
-    function getOrderOwners(Order[] memory orders)
+    function getOrderOwners(LimitOrder[] memory orders)
         internal
         pure
         returns (address[] memory orderOwners)
