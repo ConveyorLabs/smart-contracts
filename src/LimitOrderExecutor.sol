@@ -44,12 +44,12 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
 
     bool entered = false;
     ///@notice Reentrancy modifier for transferToSandBoxRouter.
-    modifier nonReentrant(){
-      require(!entered, "Unauthorized Callback from ChaosRouter");
-      entered = true;
-      _;
-      entered = false;
-   }
+    modifier nonReentrant() {
+        require(!entered, "Unauthorized Callback from ChaosRouter");
+        entered = true;
+        _;
+        entered = false;
+    }
 
     ///@notice Temporary owner storage variable when transferring ownership of the contract.
     address tempOwner;
@@ -99,10 +99,11 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
     ///@notice Function to execute a batch of Token to Weth Orders.
     ///@param orders The orders to be executed.
 
-    function executeTokenToWethOrders(
-        OrderBook.Order[] memory orders
-
-    ) external onlyLimitOrderRouter returns (uint256, uint256) {
+    function executeTokenToWethOrders(OrderBook.Order[] memory orders)
+        external
+        onlyLimitOrderRouter
+        returns (uint256, uint256)
+    {
         ///@notice Get all of the execution prices on TokenIn to Weth for each dex.
         ///@notice Get all prices for the pairing
         (
@@ -117,7 +118,6 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
                 spotReserveAToWeth,
                 lpAddressesAToWeth
             );
-
 
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
@@ -258,12 +258,14 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
-    function executeTokenToTokenOrders(
-        OrderBook.Order[] memory orders
-    ) external onlyLimitOrderRouter returns (uint256, uint256) {
+    function executeTokenToTokenOrders(OrderBook.Order[] memory orders)
+        external
+        onlyLimitOrderRouter
+        returns (uint256, uint256)
+    {
         TokenToTokenExecutionPrice[] memory executionPrices;
         address tokenIn = orders[0].tokenIn;
-  
+
         uint24 feeIn = orders[0].feeIn;
         uint24 feeOut = orders[0].feeOut;
 
@@ -289,7 +291,6 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
                     spotReserveWethToB,
                     lpAddressWethToB
                 );
-
         }
 
         ///@notice Set totalBeaconReward to 0
@@ -429,25 +430,90 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
     }
 
     ///@notice Function to execute multicall orders from the context of LimitOrderExecutor.
-    ///@param orders The orders to be executed. 
-    ///@param amountSpecifiedToFill Array of amounts to be transferred to the contract. 
-    function executeMultiCallOrders(OrderBook.MultiCallOrder[] memory orders, uint128[] memory amountSpecifiedToFill, ChaosRouter.MultiCall memory calls, address sandBoxRouter) external onlyLimitOrderRouter nonReentrant {
+    ///@param orders The orders to be executed.
+    ///@param calls The calls to be executed.
+    ///@param feeAmounts The feeAmounts to be removed from the input quantities.
+    ///@param sandBoxRouter The address of the multicall contract.
+    function executeMultiCallOrders(
+        OrderBook.MultiCallOrder[] memory orders,
+        ChaosRouter.MultiCall memory calls,
+        uint128[] feeAmounts,
+        address sandBoxRouter
+    ) external onlyLimitOrderRouter nonReentrant {
+        ///@notice Create an array of swap tokens to be swapped out into weth. At max there will be orders.length
+        address[] memory swapTokens = new address[](orders.length);
         ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
-        for(uint256 i=0; i<orders.length; ++i){
-            IERC20(orders[i].tokenIn).safeTransferFrom(orders[i].owner, address(sandBoxRouter), amountSpecifiedToFill[i]);
+        for (uint256 i = 0; i < orders.length; ++i) {
+            swapTokens[i] = orders[i].tokenIn;
+            IERC20(orders[i].tokenIn).safeTransferFrom(
+                orders[i].owner,
+                address(sandBoxRouter),
+                amountSpecifiedToFill[i]
+            ) - feeAmounts[i];
+            IERC20(orders[i].tokenIn).safeTransferFrom(
+                order[i].owner,
+                address(this),
+                feeAmounts[i]
+            );
         }
+        
+        ///@notice Iterate through all the swapTokens and transfer the funds to the Conveyor Contract.
+        {
+            ///@notice Cache the balance prior to swapping the tokens. 
+            uint256 balanceBeforeWeth = IERC20(WETH).balanceOf(address(this));
+            for (uint256 j = 0; j < swapTokens.length; ) {
+                ///@notice Cache the contract balance on the swapToken. 
+                uint256 tokenBalance = IERC20(swapTokens[j]).balanceOf(
+                    address(this)
+                );
+                ///@notice Only swap if we haven't swapped on this token already. 
+                if (tokenBalance > 0) {
+                    ///@notice Only used for v3 since the tick upper/lower are derived in the swap logic. 
+                    uint256 amountOutMin = 0;
+                    if (_lpIsNotUniV3(orders[j].liquidFeeQuotePool)) {
+                        ///@notice Get the reserves on the pool. 
+                        (uint128 r0, uint128 r1) = IUniswapV2Pair(
+                            orders[i].liquidFeeQuotePool
+                        ).getReserves();
+                        ///@notice If the swap is on v2 derive a proper amountOutMin.
+                        amountOutMin = getAmountOut(
+                            tokenBalance,
+                            orders[j].tokenIn < WETH ? r0 : r1,
+                            tokenIn < WETH ? r1 : r0
+                        );
+                    }
+                    ///@notice Swap all of orders fees on the current token. 
+                    swap(
+                        swapTokens[j],
+                        WETH,
+                        orders[i].liquidFeeQuotePool,
+                        500,
+                        tokenBalance,
+                        amountOutMin,
+                        address(this),
+                        address(this)
+                    );
+                }
+                unchecked {
+                    ++j;
+                }
+            }
+            ///@notice Increment the conveyor balance by the difference of its current balance and the balance prior to the swap. 
+            conveyorBalance += IERC20(WETH).balanceOf(address(this))-balanceBefore;
+        }
+
 
         bool success;
         ///@notice Upon initialization call the LimitOrderExecutor to transfer the tokens to the contract.
-        ///TODO: Get function sig 
-        bytes memory bytesSig = abi.encodeWithSignature("executeMultiCallCallback(MultiCall)", calls);
-    
+        ///TODO: Get function sig
+        bytes memory bytesSig = abi.encodeWithSignature(
+            "executeMultiCallCallback(MultiCall)",
+            calls
+        );
+
         assembly {
-            //store the function sig for  "fee()"
-            mstore(
-                0x00,
-                bytesSig
-            )
+            
+            mstore(0x00, bytesSig)
 
             success := call(
                 gas(), // gas remaining
@@ -462,7 +528,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
 
         require(success);
 
-        ///TODO: Transfer all fees back to 
+        
     }
 
     ///@notice Function to withdraw owner fee's accumulated
@@ -508,5 +574,33 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
             revert InvalidAddress();
         }
         tempOwner = newOwner;
+    }
+
+    ///@notice Function to get the amountOut from a UniV2 lp.
+    ///@param amountIn - AmountIn for the swap.
+    ///@param reserveIn - tokenIn reserve for the swap.
+    ///@param reserveOut - tokenOut reserve for the swap.
+    ///@return amountOut - AmountOut from the given parameters.
+    function getAmountOut(
+        uint256 amountIn,
+        uint256 reserveIn,
+        uint256 reserveOut
+    ) internal pure returns (uint256 amountOut) {
+        if (amountIn == 0) {
+            revert InsufficientInputAmount();
+        }
+
+        if (reserveIn == 0) {
+            revert InsufficientLiquidity();
+        }
+
+        if (reserveOut == 0) {
+            revert InsufficientLiquidity();
+        }
+
+        uint256 amountInWithFee = amountIn * 997;
+        uint256 numerator = amountInWithFee * reserveOut;
+        uint256 denominator = reserveIn * 1000 + (amountInWithFee);
+        amountOut = numerator / denominator;
     }
 }

@@ -231,7 +231,7 @@ contract LimitOrderRouter is OrderBook{
     {
         ///@notice Require that account's credit balance is larger than withdraw amount
         if (feeBalance[msg.sender] < value) {
-            revert InsufficientFeeCreditBalance();
+            revert InsufficientFeeCreditBalanceForOrderExecution();
         }
 
         ///@notice Decrease the account's gas credit balance
@@ -260,25 +260,30 @@ contract LimitOrderRouter is OrderBook{
         uint128[] memory amountOutRequired = new uint128[](calls.orderIds.length);
         uint128[] memory cachedInitialBalancesOut = new uint128[](calls.orderIds.length);
         uint128[] memory cachedInitialBalancesIn = new uint128[](calls.orderIds.length);
+        uint128[] memory feeAmounts = new uint128[](calls.orderIds.length);
 
         ///@notice Transfer the tokens from the order owners to the sandbox router contract. 
         ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
         for(uint256 i=0; i< calls.orderIds.length;++i){
+            ///@notice Cache the price of the order. i.e. amountOutRemaining/amountInRemaining.
+            uint128 price = ConveyorMath.divUU(orders[i].amountOutRemaining, orders[i].amountInRemaining);
+            ///@notice Get the fee amount to be taken from the input quantity. 
+            feeAmounts[i] = ConveyorMath.mul64U(orders[i].fee,calls.amountSpecifiedToFill[i]);
             ///@notice Get the order from the orderId.
             orders[i]= getMulticallById(calls.orderIds[i]);
             ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
             require(calls.amountSpecifiedToFill[i]<=orders[i].amountInRemaining, "Cannot Fill more than Order size");
             ///@notice Decrement the amountInRemaining by amountSpecifiedToFill set by the off chain executor.
             orders[i].amountInRemaining-= calls.amountSpecifiedToFill[i];
-            ///@notice Multiply the total amountInRemaining by the price to get the required amountOut.
-            amountOutRequired[i]= uint128(ConveyorMath.mul64U(orders[i].price,calls.amountSpecifiedToFill[i]));
+            ///@notice Multiply the total amountInRemaining by the price to get the required amountOut. Subtract off the feeAmount on the fill quantity.
+            amountOutRequired[i]= uint128(ConveyorMath.mul64U(price,calls.amountSpecifiedToFill[i]-feeAmounts[i]));
             ///@notice Cache the balance of the in/out token prior to execution for accurate validation of balances post execution.
             cachedInitialBalancesOut[i]= uint128(IERC20(orders[i].tokenOut).balanceOf(orders[i].owner));
             cachedInitialBalancesIn[i]= uint128(IERC20(orders[i].tokenIn).balanceOf(orders[i].owner));
         }
 
         ///@notice Call the limit order executor to transfer all of the order owners tokens to the contract.
-        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeMultiCallOrders(orders, calls.amountSpecifiedToFill, calls, SAND_BOX_ROUTER);
+        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeMultiCallOrders(orders, calls, feeAmounts,SAND_BOX_ROUTER);
 
         ///@notice Verify all of the order owners have received their out amounts. 
         for(uint256 k=0;k<orders.length;++k){
@@ -286,9 +291,11 @@ contract LimitOrderRouter is OrderBook{
             require(IERC20(orders[k].tokenOut).balanceOf(address(orders[k].owner))-cachedInitialBalancesOut[k]>=amountOutRequired[k]);
             ///@notice Require that the owners initial balance - their current balance is exactly amountSpecifiedToFill.
             require(cachedInitialBalancesIn[k]-IERC20(orders[k].tokenIn).balanceOf(address(orders[k].owner))==calls.amountSpecifiedToFill[k]);
+            ///@notice Update the Order data after execution requirements have been met. 
+            orders[k].amountOutRemaining -= amountOutRequired;
         }
 
-        ///Have to update all the orders amountOutRemaining by the amountOutRemaining-amountOutRequired
+        
         
     }
 
