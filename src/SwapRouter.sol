@@ -19,6 +19,7 @@ import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/token/SafeERC20.sol";
 import "./ConveyorErrors.sol";
 import "./interfaces/ISwapRouter.sol";
+
 /// @title SwapRouter
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution.
@@ -242,111 +243,6 @@ contract SwapRouter is ConveyorTickMath {
         );
 
         return calculated_fee_64x64;
-    }
-
-    ///@notice Function to calculate the expected fee received from the Order at execution time if the user chooses to not pay the fee at order placement.
-    ///@param tokenIn - The tokenIn on the limit order.
-    ///@param tokenOut - The tokenOut on the limit order.
-    ///@param buy - The buy/sell status of the order.
-    ///@param weth - Native wrapped token address on the chain.
-    ///@param amountIn - The quantity of tokenIn on the limit order.
-    ///@param amountOut - The amountOut received from the limit order. Determines the price.
-    ///@param usdc - Usdc or pegged token address on the chain.
-    function calculateMultiCallFeeAmount(
-        address tokenIn,
-        address tokenOut,
-        bool buy,
-        address weth,
-        uint128 amountIn,
-        uint128 amountOut,
-        address usdc
-    ) external view returns (uint128 fee, address quoteWethLiquidSwapPool) {
-        ///@notice Initialize spotReserve struct to hold the v2/v3 spot price calculations.
-        SpotReserve[] memory spotPricesTokenInWeth;
-
-        ///@notice Initialize liquidFeeQuoteSpot liquidFeeQuotePool to hold the pool, and spot for the most liquid pool.
-        uint256 liquidFeeQuoteSpot;
-        address liquidFeeQuotePool;
-        uint128 liquidity;
-        
-        ///@notice Putting this on hold temporarily, trying to consider if there are any more lightweight options, as this will be costly for a user.
-        for (uint256 i = 0; i < dexes.length; ++i) {
-            if (dexes[i].isUniV2) {
-                ///@notice Get the v2 spot price and pool if it exists for the quote and weth.
-                (
-                    spotPricesTokenInWeth[i],
-                    liquidFeeQuotePool
-                ) = _calculateV2SpotPrice(
-                    tokenIn,
-                    weth,
-                    dexes[i].factoryAddress,
-                    dexes[i].initBytecode
-                );
-                ///@notice If the weth reserve is above the minimum accepted threshold set the spot price to liquidFeeQuoteSpot and break the loop to save gas.
-                if (
-                    !spotPricesTokenInWeth[i].token0IsReserve0
-                        ? (liquidity=spotPricesTokenInWeth[i].res0) >= SUFFICIENTLY_LIQUID
-                        : (liquidity=spotPricesTokenInWeth[i].res1) >= SUFFICIENTLY_LIQUID
-                ) {
-                    liquidFeeQuoteSpot = spotPricesTokenInWeth[i].spotPrice;
-                    if (
-                        liquidFeeQuoteSpot != 0 &&
-                        liquidFeeQuotePool != address(0)
-                          
-                    ) {
-                        break;
-                    }
-                }
-            }
-
-            if (!dexes[i].isUniV2) {
-                ///@notice Get the v3 spot and pool on 500 fee tier pool. Usually most liquid on the Dex.
-                (
-                    spotPricesTokenInWeth[i],
-                    liquidFeeQuotePool
-                ) = _calculateV3SpotPrice(
-                    tokenIn,
-                    weth,
-                    500,
-                    dexes[i].factoryAddress
-                );
-                ///@notice If the pool is above the liquidity threshold set the spot price and pool and break.
-                if (
-                    IUniswapV3Pool(liquidFeeQuotePool).liquidity()  >=
-                    SUFFICIENTLY_SQRT_LIQUID
-                ) {
-                    liquidity=IUniswapV3Pool(liquidFeeQuotePool).liquidity();
-                    liquidFeeQuoteSpot = spotPricesTokenInWeth[i].spotPrice;
-                    if (
-                        liquidFeeQuoteSpot != 0 &&
-                        liquidFeeQuotePool != address(0)
-                    ) {
-                        break;
-                    }
-                }
-            }
-
-        }
-        ///@notice If there are not any liquid tokenA to Weth swap pools. User must pay fee ahead of time.
-        if(liquidFeeQuotePool==address(0)){
-            revert InsufficientLiquidityForDynamicFee();
-        }
-
-        ///@notice Calculate the quoteSpot*quoteAmount to get amount of quote to take out at execution. 
-        {
-            uint8 tokenInDecimals= IERC20(tokenIn).decimals();
-            uint256 amountExpectedWeth =tokenInDecimals<=18 ? ConveyorMath.mul128U(liquidFeeQuoteSpot, amountIn)*10**(18-tokenInDecimals) : ConveyorMath.mul128U(liquidFeeQuoteSpot, amountIn)/10**(tokenInDecimals-18);
-
-            ///@notice Calculate the amountExpectedWeth from the fee. 
-            fee = _calculateFee(
-                uint128(amountExpectedWeth),
-                usdc,
-                weth
-            );
-
-            
-            quoteWethLiquidSwapPool = liquidFeeQuotePool;
-        }
     }
 
     function transferTokensOutToOwner(
