@@ -7,6 +7,7 @@ import "./ConveyorErrors.sol";
 import "./interfaces/IOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
+
 /// @title OrderBook
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
@@ -31,7 +32,7 @@ contract OrderBook is GasOracle {
     ) GasOracle(_gasOracle) {
         require(
             _limitOrderExecutor != address(0),
-            "Invalid LimitOrderExecutor Address"
+            "limitOrderExecutor address is address(0)"
         );
         WETH = _weth;
         USDC = _usdc;
@@ -61,9 +62,6 @@ contract OrderBook is GasOracle {
 
     //----------------------Structs------------------------------------//
 
-
-change this to StoplossOrder
-
     ///@notice Struct containing Order details for any limit order
     ///@param buy - Indicates if the order is a buy or sell
     ///@param taxed - Indicates if the tokenIn or tokenOut is taxed. This will be set to true if one or both tokens are taxed.
@@ -79,7 +77,7 @@ change this to StoplossOrder
     ///@param tokenIn - The tokenIn for the order.
     ///@param tokenOut - The tokenOut for the order.
     ///@param orderId - Unique identifier for the order.
-    struct Order {
+    struct LimitOrder {
         bool buy;
         bool taxed;
         bool stoploss;
@@ -97,10 +95,6 @@ change this to StoplossOrder
         bytes32 orderId;
     }
 
-
-
-change this to LimitOrder
-
     ///@notice Struct containing Order details for any limit order
     ///@param buy - Indicates if the order is a buy or sell
     ///@param lastRefreshTimestamp - Unix timestamp representing the last time the order was refreshed.
@@ -113,7 +107,7 @@ change this to LimitOrder
     ///@param tokenIn - The tokenIn for the order.
     ///@param tokenOut - The tokenOut for the order.
     ///@param orderId - Unique identifier for the order.
-    struct MultiCallOrder {
+    struct SandboxLimitOrder {
         bool buy;
         bool prePayFee;
         uint32 lastRefreshTimestamp;
@@ -128,18 +122,19 @@ change this to LimitOrder
         bytes32 orderId;
     }
 
+    enum OrderType {
+        None,
+        LimitOrder,
+        SandboxLimitOrder
+    }
+
     //----------------------State Structures------------------------------------//
 
-
-change this to orderIdToStoplossOrder
+    ///@notice Mapping from an orderId to its order.
+    mapping(bytes32 => LimitOrder) internal orderIdToLimitOrder;
 
     ///@notice Mapping from an orderId to its order.
-    mapping(bytes32 => Order) internal orderIdToOrder;
-
-
-change this to orderIdToLimitOrder
-    ///@notice Mapping from an orderId to its order.
-    mapping(bytes32 => MultiCallOrder) internal orderIdToMulticallOrder;
+    mapping(bytes32 => SandboxOrder) internal orderIdToSandboxLimitOrder;
 
     ///@notice Mapping to find the total orders quantity for a specific token, for an individual account
     ///@notice The key is represented as: keccak256(abi.encode(owner, token));
@@ -147,7 +142,7 @@ change this to orderIdToLimitOrder
 
     ///@notice Mapping to check if an order exists, as well as get all the orders for an individual account.
     ///@dev ownerAddress -> orderId -> bool
-    mapping(address => mapping(bytes32 => bool)) public addressToOrderIds;
+    mapping(address => mapping(bytes32 => OrderType)) public addressToOrderIds;
 
     ///@notice Mapping to store the number of total orders for an individual account
     mapping(address => uint256) public totalOrdersPerAddress;
@@ -171,32 +166,31 @@ change this to orderIdToLimitOrder
     //----------------------Functions------------------------------------//
 
     ///@notice This function gets an order by the orderId. If the order does not exist, the order returned will be empty.
-    function getOrderById(bytes32 orderId)
-        public
-        view
-        returns (Order memory order)
-    {
-        order = orderIdToOrder[orderId];
+    function getOrderById(bytes32 orderId) public view returns (bytes memory) {
+        ///@notice Check if the order exists
+        OrderType orderType = addressToOrderIds[msg.sender][orderId];
+
+        if (orderType == OrderType.None) {
+            ///@notice If the order does not exist, revert.
+            return bytes(0);
+        }
+
+        if (orderType == OrderType.LimitOrder) {
+            LimitOrder order = orderIdToLimitOrder[orderId];
+            return abi.encode(OrderType.LimitOrder, order);
+        } else {
+            SandboxLimitOrder order = orderIdToSandboxLimitOrder[orderId];
+            return abi.encode(OrderType.SandboxLimitOrder, order);
+        }
+
+        addressToOrderIds[orderid] order = orderIdToOrder[orderId];
         return order;
     }
-
-    ///@notice This function gets an order by the orderId. If the order does not exist, the order returned will be empty.
-    function getMulticallById(bytes32 orderId)
-        public
-        view
-        returns (MultiCallOrder memory order)
-    {
-        order = orderIdToMulticallOrder[orderId];
-        return order;
-    }
-
-
-change this to place StoplossOrder
 
     ///@notice Places a new order (or group of orders) into the system.
     ///@param orderGroup - List of newly created orders to be placed.
     /// @return orderIds - Returns a list of orderIds corresponding to the newly placed orders.
-    function placeOrder(Order[] calldata orderGroup)
+    function placeLimitOrder(Order[] calldata orderGroup)
         public
         returns (bytes32[] memory)
     {
@@ -300,13 +294,10 @@ change this to place StoplossOrder
         return orderIds;
     }
 
-
-
-change this to place LimitOrder
     ///@notice Places a new order of multicall type (or group of orders) into the system.
     ///@param orderGroup - List of newly created orders to be placed.
     /// @return orderIds - Returns a list of orderIds corresponding to the newly placed orders.
-    function placeMulticallOrder(MultiCallOrder[] calldata orderGroup)
+    function placeSandboxLimitOrder(SandboxOrder[] calldata orderGroup)
         public
         payable
         returns (bytes32[] memory)
@@ -338,14 +329,16 @@ change this to place LimitOrder
                 ///@notice Boolean indicating if user wants to cover the fee from the fee credit balance, or by calling placeOrder with payment.
                 if (newOrder.prePayFee) {
                     ///@notice Calculate the spot price of the input token to WETH on Uni v2.
-                     (SwapRouter.SpotReserve memory spRes,)= IOrderRouter(
+                    (SwapRouter.SpotReserve memory spRes, ) = IOrderRouter(
                         LIMIT_ORDER_EXECUTOR
                     )._calculateV2SpotPrice(
-                        orderToken,
-                        WETH,
-                        IOrderRouter(LIMIT_ORDER_EXECUTOR).dexes()[0].factoryAddress,
-                        IOrderRouter(LIMIT_ORDER_EXECUTOR).dexes()[0].initBytecode
-                    );
+                            orderToken,
+                            WETH,
+                            IOrderRouter(LIMIT_ORDER_EXECUTOR)
+                            .dexes()[0].factoryAddress,
+                            IOrderRouter(LIMIT_ORDER_EXECUTOR)
+                            .dexes()[0].initBytecode
+                        );
                     uint256 tokenAWethSpotPrice = spRes.spotPrice;
 
                     if (!(tokenAWethSpotPrice == 0)) {
@@ -363,17 +356,20 @@ change this to place LimitOrder
                                 newOrder.amountInRemaining
                             ) / 10**(tokenInDecimals - 18);
                         ///@notice Set the minimum fee to the fee*wethValue*subsidy.
-                        uint128 minFeeReceived = uint128(ConveyorMath.mul64U(
-                            ConveyorMath.mul64x64(
-                                IOrderRouter(LIMIT_ORDER_EXECUTOR)._calculateFee(
-                                    uint128(relativeWethValue),
-                                    USDC,
-                                    WETH
+                        uint128 minFeeReceived = uint128(
+                            ConveyorMath.mul64U(
+                                ConveyorMath.mul64x64(
+                                    IOrderRouter(LIMIT_ORDER_EXECUTOR)
+                                        ._calculateFee(
+                                            uint128(relativeWethValue),
+                                            USDC,
+                                            WETH
+                                        ),
+                                    FEE_SUBSIDY
                                 ),
-                                FEE_SUBSIDY
-                            ),
-                            relativeWethValue
-                        ));
+                                relativeWethValue
+                            )
+                        );
                         ///@notice If the msg.value + unlocked balance can't cover the fee revert.
                         if (
                             !(feeBalance[msg.sender] + msg.value >=
@@ -507,13 +503,25 @@ change this to place LimitOrder
         uint128 quantity
     ) public {
         ///@notice Check if the order exists
-        bool orderExists = addressToOrderIds[msg.sender][orderId];
+        OrderType orderType = addressToOrderIds[msg.sender][orderId];
 
-        ///@notice If the order does not exist, revert.
-        if (!orderExists) {
+        if (orderType == OrderType.None) {
+            ///@notice If the order does not exist, revert.
             revert OrderDoesNotExist(orderId);
         }
 
+        if (orderType == OrderType.LimitOrder) {
+            updateLimitOrder(orderId, price, quantity);
+        } else {
+            updateSandboxLimitOrder(orderId, price, quantity);
+        }
+    }
+
+    function updateLimitOrder(
+        bytes32 orderId,
+        uint128 price,
+        uint128 quantity
+    ) internal {
         ///@notice Get the existing order that will be replaced with the new order
         Order memory order = orderIdToOrder[orderId];
 
@@ -551,6 +559,14 @@ change this to place LimitOrder
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = orderId;
         emit OrderUpdated(orderIds);
+    }
+
+    function updateSandboxLimitOrder(
+        bytes32 orderId,
+        uint128 price,
+        uint128 quantity
+    ) internal {
+        //TODO:
     }
 
     ///@notice Remove an order from the system if the order exists.
