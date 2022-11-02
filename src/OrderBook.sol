@@ -114,8 +114,8 @@ contract OrderBook is GasOracle {
         uint32 expirationTimestamp;
         uint128 fee;
         address quoteWethLiquidSwapPool;
-        uint128 amountOutRemaining;
         uint128 amountInRemaining;
+        uint128 amountOutRemaining;
         address owner;
         address tokenIn;
         address tokenOut;
@@ -450,7 +450,8 @@ contract OrderBook is GasOracle {
             orderIdToSandboxLimitOrder[orderId] = newOrder;
 
             ///@notice Add the orderId to the addressToOrderIds mapping
-            addressToOrderIds[msg.sender][orderId] = true;
+            addressToOrderIds[msg.sender][orderId] = OrderType
+                .SandboxLimitOrder;
 
             ///@notice Increment the total orders per address for the msg.sender
             ++totalOrdersPerAddress[msg.sender];
@@ -632,6 +633,30 @@ contract OrderBook is GasOracle {
         }
     }
 
+    ///TODO: need to update this
+    function _partialFillSandboxLimitOrder(
+        uint128 amountInFilled,
+        uint128 amountOutFilled,
+        bytes32 orderId
+    ) internal {
+        SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
+
+        ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
+        decrementTotalOrdersQuantity(
+            order.tokenIn,
+            order.owner,
+            amountInFilled
+        );
+
+        orderIdToSandboxLimitOrder[orderId].amountInRemaining =
+            order.amountInRemaining -
+            amountInFilled;
+
+        orderIdToSandboxLimitOrder[orderId].amountOutRemaining =
+            order.amountOutRemaining -
+            amountOutFilled;
+    }
+
     ///@notice Function to remove an order from the system.
     ///@param orderId - The orderId that should be removed from the system.
     function _removeOrderFromSystem(bytes32 orderId, OrderType orderType)
@@ -668,7 +693,7 @@ contract OrderBook is GasOracle {
             decrementTotalOrdersQuantity(
                 order.tokenIn,
                 order.owner,
-                order.quantity
+                order.amountInRemaining
             );
         }
     }
@@ -722,7 +747,7 @@ contract OrderBook is GasOracle {
             decrementTotalOrdersQuantity(
                 order.tokenIn,
                 order.owner,
-                order.quantity
+                order.amountInRemaining
             );
         }
     }
