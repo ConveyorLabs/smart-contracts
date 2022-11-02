@@ -252,7 +252,6 @@ contract SwapRouter is ConveyorTickMath {
     ///@param amountIn - The quantity of tokenIn on the limit order.
     ///@param amountOut - The amountOut received from the limit order. Determines the price.
     ///@param usdc - Usdc or pegged token address on the chain.
-    ///@return minOrderFee - The minimum amount received in WETH from conveyor at execution time.
     function calculateMultiCallFeeAmount(
         address tokenIn,
         address tokenOut,

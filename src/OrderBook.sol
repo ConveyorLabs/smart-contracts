@@ -6,7 +6,7 @@ import "./GasOracle.sol";
 import "./ConveyorErrors.sol";
 import "./interfaces/IOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
-
+import "./lib/ConveyorMath.sol";
 /// @title OrderBook
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
@@ -320,17 +320,17 @@ contract OrderBook is GasOracle {
                 ///@notice Boolean indicating if user wants to cover the fee from the fee credit balance, or by calling placeOrder with payment.
                 if (newOrder.prePayFee) {
                     ///@notice Calculate the spot price of the input token to WETH on Uni v2.
-                    uint128 tokenAWethSpotPrice = ISwapRouter(
+                     (SwapRouter.SpotReserve memory spRes,)= IOrderRouter(
                         LIMIT_ORDER_EXECUTOR
-                    )
-                    ._calculateV2SpotPrice(
+                    )._calculateV2SpotPrice(
                         orderToken,
                         WETH,
-                        ISwapRouter(LIMIT_ORDER_EXECUTOR).dexes()[0].factoryAddress,
-                        ISwapRouter(LIMIT_ORDER_EXECUTOR).dexes()[0].initBytecode
-                    )[0].spotPrice;
+                        IOrderRouter(LIMIT_ORDER_EXECUTOR).dexes()[0].factoryAddress,
+                        IOrderRouter(LIMIT_ORDER_EXECUTOR).dexes()[0].initBytecode
+                    );
+                    uint256 tokenAWethSpotPrice = spRes.spotPrice;
 
-                    if (!tokenAWethSpotPrice == 0) {
+                    if (!(tokenAWethSpotPrice == 0)) {
                         ///@notice Get the tokenIn decimals to normalize the relativeWethValue.
                         uint8 tokenInDecimals = IERC20(newOrder.tokenIn)
                             .decimals();
@@ -345,17 +345,17 @@ contract OrderBook is GasOracle {
                                 newOrder.amountInRemaining
                             ) / 10**(tokenInDecimals - 18);
                         ///@notice Set the minimum fee to the fee*wethValue*subsidy.
-                        uint128 minFeeReceived = ConveyorMath.mul64U(
+                        uint128 minFeeReceived = uint128(ConveyorMath.mul64U(
                             ConveyorMath.mul64x64(
-                                ISwapRouter(LIMIT_ORDER_EXECUTOR)._calculateFee(
-                                    relativeWethValue,
+                                IOrderRouter(LIMIT_ORDER_EXECUTOR)._calculateFee(
+                                    uint128(relativeWethValue),
                                     USDC,
                                     WETH
                                 ),
                                 FEE_SUBSIDY
                             ),
                             relativeWethValue
-                        );
+                        ));
                         ///@notice If the msg.value + unlocked balance can't cover the fee revert.
                         if (
                             !(feeBalance[msg.sender] + msg.value >=
@@ -369,7 +369,7 @@ contract OrderBook is GasOracle {
                             lockedFeeBalance[msg.sender] += minFeeReceived;
                             ///@notice Decrement the feeBalance of the msg.sender by the amount used to cover the fee.
                             feeBalance[msg.sender] -=
-                                newOrder.minFeeReceived -
+                                minFeeReceived -
                                 msg.value;
                         } else {
                             ///@notice If the msg.value can cover the minFeeReceived then simply increment the locked fee balance by minFeeReceived.
@@ -377,17 +377,17 @@ contract OrderBook is GasOracle {
                             ///@notice Increment the senders feeBalance by msg.value -minFeeReceived to account for over paying.
                             feeBalance[msg.sender] +=
                                 msg.value -
-                                newOrder.minFeeReceived;
+                                minFeeReceived;
                         }
                         ///@notice Set the minFeeReceived to 0 as the fee has already been paid at placement.
-                        newOrder.feeAmountRemaining = 0;
+                        newOrder.fee = 0;
                     }
                 } else {
                     ///@notice Calculate the minimum fee for the order to be taken out at execution time.
                     (
                         newOrder.fee,
                         newOrder.quoteWethLiquidSwapPool
-                    ) = ISwapRouter(LIMIT_ORDER_EXECUTOR)
+                    ) = IOrderRouter(LIMIT_ORDER_EXECUTOR)
                         .calculateMultiCallFeeAmount(
                             newOrder.tokenIn,
                             newOrder.tokenOut,

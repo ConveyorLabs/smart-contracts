@@ -116,6 +116,7 @@ contract LimitOrderExecutorTest is DSTest {
         limitOrderRouterWrapper = new LimitOrderRouterWrapper(
             aggregatorV3Address,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             address(limitOrderExecutor)
         );
     }
@@ -2972,8 +2973,9 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
     constructor(
         address _gasOracle,
         address _weth,
+        address _usdc,
         address _limitOrderExecutor
-    ) LimitOrderRouter(_gasOracle, _weth, _limitOrderExecutor) {}
+    ) LimitOrderRouter(_gasOracle, _weth,_usdc, _limitOrderExecutor) {}
 }
 
 //wrapper around SwapRouter to expose internal functions for testing

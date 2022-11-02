@@ -90,7 +90,9 @@ contract OrderBookTest is DSTest {
 
         orderBook = new OrderBookWrapper(
             aggregatorV3Address,
-            address(limitOrderExecutor)
+            address(limitOrderExecutor),
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
         );
     }
 
@@ -719,8 +721,8 @@ contract OrderBookTest is DSTest {
 
 ///@notice wrapper around the OrderBook contract to expose internal functions for testing
 contract OrderBookWrapper is OrderBook {
-    constructor(address _gasOracle, address _limitOrderExecutor)
-        OrderBook(_gasOracle, _limitOrderExecutor)
+    constructor(address _gasOracle, address _limitOrderExecutor, address _weth, address _usdc)
+        OrderBook(_gasOracle, _limitOrderExecutor,_weth,_usdc)
     {}
 
     function calculateMinGasCredits(

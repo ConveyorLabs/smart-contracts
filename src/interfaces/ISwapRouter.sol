@@ -3,8 +3,8 @@ pragma solidity 0.8.16;
 
 import "../SwapRouter.sol";
 
-interface ISwapRouter {
-    function dexes() external view returns(SwapRouter.Dex[]);
+interface IOrderRouter {
+    function dexes() external view returns(SwapRouter.Dex[] memory);
     
     function calculateMultiCallFeeAmount(
         address tokenIn,

@@ -90,7 +90,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
 
         LIMIT_ORDER_ROUTER = address(
-            new LimitOrderRouter(_gasOracle, _weth, address(this))
+            new LimitOrderRouter(_gasOracle, _weth, _usdc,address(this))
         );
 
         owner = msg.sender;
@@ -431,13 +431,13 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
 
     ///@notice Function to execute multicall orders from the context of LimitOrderExecutor.
     ///@param orders The orders to be executed.
-    ///@param calls The calls to be executed.
-    ///@param feeAmounts The feeAmounts to be removed from the input quantities.
+    ///@param feeAmounts The calls to be executed.
+    ///@param calls The feeAmounts to be removed from the input quantities.
     ///@param sandBoxRouter The address of the multicall contract.
     function executeMultiCallOrders(
         OrderBook.MultiCallOrder[] memory orders,
+        uint128[] memory feeAmounts,
         ChaosRouter.MultiCall memory calls,
-        uint128[] feeAmounts,
         address sandBoxRouter
     ) external onlyLimitOrderRouter nonReentrant {
         ///@notice Create an array of swap tokens to be swapped out into weth. At max there will be orders.length
@@ -448,10 +448,10 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
             IERC20(orders[i].tokenIn).safeTransferFrom(
                 orders[i].owner,
                 address(sandBoxRouter),
-                amountSpecifiedToFill[i]
-            ) - feeAmounts[i];
+                calls.amountSpecifiedToFill[i]- feeAmounts[i]
+            );
             IERC20(orders[i].tokenIn).safeTransferFrom(
-                order[i].owner,
+                orders[i].owner,
                 address(this),
                 feeAmounts[i]
             );
@@ -460,7 +460,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         ///@notice Iterate through all the swapTokens and transfer the funds to the Conveyor Contract.
         {
             ///@notice Cache the balance prior to swapping the tokens. 
-            uint256 balanceBeforeWeth = IERC20(WETH).balanceOf(address(this));
+            uint256 balanceBefore = IERC20(WETH).balanceOf(address(this));
             for (uint256 j = 0; j < swapTokens.length; ) {
                 ///@notice Cache the contract balance on the swapToken. 
                 uint256 tokenBalance = IERC20(swapTokens[j]).balanceOf(
@@ -470,23 +470,23 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
                 if (tokenBalance > 0) {
                     ///@notice Only used for v3 since the tick upper/lower are derived in the swap logic. 
                     uint256 amountOutMin = 0;
-                    if (_lpIsNotUniV3(orders[j].liquidFeeQuotePool)) {
+                    if (_lpIsNotUniV3(orders[j].quoteWethLiquidSwapPool)) {
                         ///@notice Get the reserves on the pool. 
-                        (uint128 r0, uint128 r1) = IUniswapV2Pair(
-                            orders[i].liquidFeeQuotePool
+                        (uint128 r0, uint128 r1,) = IUniswapV2Pair(
+                            orders[j].quoteWethLiquidSwapPool
                         ).getReserves();
                         ///@notice If the swap is on v2 derive a proper amountOutMin.
                         amountOutMin = getAmountOut(
                             tokenBalance,
                             orders[j].tokenIn < WETH ? r0 : r1,
-                            tokenIn < WETH ? r1 : r0
+                            orders[j].tokenIn < WETH ? r1 : r0
                         );
                     }
                     ///@notice Swap all of orders fees on the current token. 
                     swap(
                         swapTokens[j],
                         WETH,
-                        orders[i].liquidFeeQuotePool,
+                        orders[j].quoteWethLiquidSwapPool,
                         500,
                         tokenBalance,
                         amountOutMin,
