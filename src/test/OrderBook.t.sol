@@ -181,6 +181,12 @@ contract OrderBookTest is DSTest {
         } catch {}
     }
 
+    ///@notice Fuzz test to validate Multicall Order placement.
+    function testPlaceMulticallOrder() public {}
+
+    ///@notice Fuzz test to fail on owner fee balance below threshold to place multicall when feePaid bool is true. 
+    function testFailPlaceMulticallOrder_InsufficientFeeCreditBalanceForOrderExecution() public {}
+    
     ///@notice Test fail place order InsufficientAlllowanceForOrderPlacement
     function testFailPlaceOrder_InsufficientAllowanceForOrderPlacement(
         uint256 swapAmount,
