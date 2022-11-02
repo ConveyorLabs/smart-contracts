@@ -10,10 +10,11 @@ import "./SwapRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./interfaces/ILimitOrderRouter.sol";
+
 /// @title LimitOrderRouter
 /// @author LeytonTaylor, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
-contract LimitOrderRouter is OrderBook{
+contract LimitOrderRouter is OrderBook {
     using SafeERC20 for IERC20;
     // ========================================= Modifiers =============================================
 
@@ -48,7 +49,7 @@ contract LimitOrderRouter is OrderBook{
     ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlyLimitOrderExecutor() {
         if (msg.sender != LIMIT_ORDER_EXECUTOR) {
-            revert MsgSenderIsNotLimitOrderRouter();
+            revert MsgSenderIsNotLimitOrderExecutor();
         }
         _;
     }
@@ -56,7 +57,7 @@ contract LimitOrderRouter is OrderBook{
     ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlySandboxRouter() {
         if (msg.sender != LIMIT_ORDER_EXECUTOR) {
-            revert MsgSenderIsNotLimitOrderRouter();
+            revert MsgSenderIsNotSandboxRouter();
         }
         _;
     }
@@ -109,12 +110,11 @@ contract LimitOrderRouter is OrderBook{
         );
 
         require(_weth != address(0), "Invalid weth address");
-        SAND_BOX_ROUTER=address(
+        SAND_BOX_ROUTER = address(
             new ChaosRouter(address(_limitOrderExecutor), address(this))
         );
-        
+
         owner = msg.sender;
-      
     }
 
     // ========================================= Events  =============================================
@@ -249,54 +249,95 @@ contract LimitOrderRouter is OrderBook{
         return true;
     }
 
-    ///@notice Initializes the state of the LimitOrderRouter contract 
+    ///@notice Initializes the state of the LimitOrderRouter contract
     ///@param calls The calldata being executed in ChaosRouter
-    function initializeMulticallCallbackState(ChaosRouter.MultiCall memory calls) external onlySandboxRouter nonReentrant {
-        
+    function initializeMulticallCallbackState(
+        ChaosRouter.MultiCall memory calls
+    ) external onlySandboxRouter nonReentrant {
         ///@notice Create a new array of MultiCallOrders.
-        MultiCallOrder[] memory orders = new MultiCallOrder[](calls.orderIds.length);
+        MultiCallOrder[] memory orders = new MultiCallOrder[](
+            calls.orderIds.length
+        );
 
         ///@notice Initialize arrays to hold post execution validation state.
-        uint128[] memory amountOutRequired = new uint128[](calls.orderIds.length);
-        uint128[] memory cachedInitialBalancesOut = new uint128[](calls.orderIds.length);
-        uint128[] memory cachedInitialBalancesIn = new uint128[](calls.orderIds.length);
+        uint128[] memory amountOutRequired = new uint128[](
+            calls.orderIds.length
+        );
+        uint128[] memory cachedInitialBalancesOut = new uint128[](
+            calls.orderIds.length
+        );
+        uint128[] memory cachedInitialBalancesIn = new uint128[](
+            calls.orderIds.length
+        );
         uint128[] memory feeAmounts = new uint128[](calls.orderIds.length);
 
-        ///@notice Transfer the tokens from the order owners to the sandbox router contract. 
+        ///@notice Transfer the tokens from the order owners to the sandbox router contract.
         ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
-        for(uint256 i=0; i< calls.orderIds.length;++i){
+        for (uint256 i = 0; i < calls.orderIds.length; ++i) {
             ///@notice Cache the price of the order. i.e. amountOutRemaining/amountInRemaining.
-            uint128 price = ConveyorMath.divUU(orders[i].amountOutRemaining, orders[i].amountInRemaining);
-            ///@notice Get the fee amount to be taken from the input quantity. 
-            feeAmounts[i] = uint128(ConveyorMath.mul64U(orders[i].fee,calls.amountSpecifiedToFill[i]));
+            uint128 price = ConveyorMath.divUU(
+                orders[i].amountOutRemaining,
+                orders[i].amountInRemaining
+            );
+            ///@notice Get the fee amount to be taken from the input quantity.
+            feeAmounts[i] = uint128(
+                ConveyorMath.mul64U(
+                    orders[i].fee,
+                    calls.amountSpecifiedToFill[i]
+                )
+            );
             ///@notice Get the order from the orderId.
-            orders[i]= getMulticallById(calls.orderIds[i]);
+            orders[i] = getMulticallById(calls.orderIds[i]);
             ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
-            require(calls.amountSpecifiedToFill[i]<=orders[i].amountInRemaining, "Cannot Fill more than Order size");
+            require(
+                calls.amountSpecifiedToFill[i] <= orders[i].amountInRemaining,
+                "Cannot Fill more than Order size"
+            );
             ///@notice Decrement the amountInRemaining by amountSpecifiedToFill set by the off chain executor.
-            orders[i].amountInRemaining-= calls.amountSpecifiedToFill[i];
+            orders[i].amountInRemaining -= calls.amountSpecifiedToFill[i];
             ///@notice Multiply the total amountInRemaining by the price to get the required amountOut. Subtract off the feeAmount on the fill quantity.
-            amountOutRequired[i]= uint128(ConveyorMath.mul64U(price,calls.amountSpecifiedToFill[i]-feeAmounts[i]));
+            amountOutRequired[i] = uint128(
+                ConveyorMath.mul64U(
+                    price,
+                    calls.amountSpecifiedToFill[i] - feeAmounts[i]
+                )
+            );
             ///@notice Cache the balance of the in/out token prior to execution for accurate validation of balances post execution.
-            cachedInitialBalancesOut[i]= uint128(IERC20(orders[i].tokenOut).balanceOf(orders[i].owner));
-            cachedInitialBalancesIn[i]= uint128(IERC20(orders[i].tokenIn).balanceOf(orders[i].owner));
+            cachedInitialBalancesOut[i] = uint128(
+                IERC20(orders[i].tokenOut).balanceOf(orders[i].owner)
+            );
+            cachedInitialBalancesIn[i] = uint128(
+                IERC20(orders[i].tokenIn).balanceOf(orders[i].owner)
+            );
         }
 
         ///@notice Call the limit order executor to transfer all of the order owners tokens to the contract.
-        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeMultiCallOrders(orders, feeAmounts,calls,SAND_BOX_ROUTER);
+        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeMultiCallOrders(
+            orders,
+            feeAmounts,
+            calls,
+            SAND_BOX_ROUTER
+        );
 
-        ///@notice Verify all of the order owners have received their out amounts. 
-        for(uint256 k=0;k<orders.length;++k){
+        ///@notice Verify all of the order owners have received their out amounts.
+        for (uint256 k = 0; k < orders.length; ++k) {
             ///@notice Require that the order owners tokenOut balance - the initial state balance is at least amountOutRequired, else revert.
-            require(IERC20(orders[k].tokenOut).balanceOf(address(orders[k].owner))-cachedInitialBalancesOut[k]>=amountOutRequired[k]);
+            require(
+                IERC20(orders[k].tokenOut).balanceOf(address(orders[k].owner)) -
+                    cachedInitialBalancesOut[k] >=
+                    amountOutRequired[k]
+            );
             ///@notice Require that the owners initial balance - their current balance is exactly amountSpecifiedToFill.
-            require(cachedInitialBalancesIn[k]-IERC20(orders[k].tokenIn).balanceOf(address(orders[k].owner))==calls.amountSpecifiedToFill[k]);
-            ///@notice Update the Order data after execution requirements have been met. 
+            require(
+                cachedInitialBalancesIn[k] -
+                    IERC20(orders[k].tokenIn).balanceOf(
+                        address(orders[k].owner)
+                    ) ==
+                    calls.amountSpecifiedToFill[k]
+            );
+            ///@notice Update the Order data after execution requirements have been met.
             orders[k].amountOutRemaining -= amountOutRequired[k];
         }
-
-        
-        
     }
 
     /// @notice Function to refresh an order for another 30 days.
