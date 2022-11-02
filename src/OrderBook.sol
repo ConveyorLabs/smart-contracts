@@ -61,6 +61,9 @@ contract OrderBook is GasOracle {
 
     //----------------------Structs------------------------------------//
 
+
+change this to StoplossOrder
+
     ///@notice Struct containing Order details for any limit order
     ///@param buy - Indicates if the order is a buy or sell
     ///@param taxed - Indicates if the tokenIn or tokenOut is taxed. This will be set to true if one or both tokens are taxed.
@@ -94,6 +97,10 @@ contract OrderBook is GasOracle {
         bytes32 orderId;
     }
 
+
+
+change this to LimitOrder
+
     ///@notice Struct containing Order details for any limit order
     ///@param buy - Indicates if the order is a buy or sell
     ///@param lastRefreshTimestamp - Unix timestamp representing the last time the order was refreshed.
@@ -123,9 +130,14 @@ contract OrderBook is GasOracle {
 
     //----------------------State Structures------------------------------------//
 
+
+change this to orderIdToStoplossOrder
+
     ///@notice Mapping from an orderId to its order.
     mapping(bytes32 => Order) internal orderIdToOrder;
 
+
+change this to orderIdToLimitOrder
     ///@notice Mapping from an orderId to its order.
     mapping(bytes32 => MultiCallOrder) internal orderIdToMulticallOrder;
 
@@ -177,6 +189,9 @@ contract OrderBook is GasOracle {
         order = orderIdToMulticallOrder[orderId];
         return order;
     }
+
+
+change this to place StoplossOrder
 
     ///@notice Places a new order (or group of orders) into the system.
     ///@param orderGroup - List of newly created orders to be placed.
@@ -285,6 +300,9 @@ contract OrderBook is GasOracle {
         return orderIds;
     }
 
+
+
+change this to place LimitOrder
     ///@notice Places a new order of multicall type (or group of orders) into the system.
     ///@param orderGroup - List of newly created orders to be placed.
     /// @return orderIds - Returns a list of orderIds corresponding to the newly placed orders.
