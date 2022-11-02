@@ -504,8 +504,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
 
 
         bool success;
-        ///@notice Upon initialization call the LimitOrderExecutor to transfer the tokens to the contract.
-        ///TODO: Get function sig
+        ///@notice Call the ChaosRouter to execute the calls. 
         bytes memory bytesSig = abi.encodeWithSignature(
             "executeMultiCallCallback(MultiCall)",
             calls
@@ -527,8 +526,6 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         }
 
         require(success);
-
-        
     }
 
     ///@notice Function to withdraw owner fee's accumulated
