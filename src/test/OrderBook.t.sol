@@ -113,7 +113,9 @@ contract OrderBookTest is DSTest {
         //place a mock order
         bytes32 orderId = placeMockOrder(order);
 
-        OrderBook.LimitOrder memory returnedOrder = orderBook.getLimitOrderById(orderId);
+        OrderBook.LimitOrder memory returnedOrder = orderBook.getLimitOrderById(
+            orderId
+        );
 
         // assert that the two orders are the same
         assertEq(returnedOrder.tokenIn, order.tokenIn);
@@ -124,7 +126,7 @@ contract OrderBookTest is DSTest {
     }
 
     //Test to get SandboxLimitOrder
-    function getOrderByIdSandBox() public {
+    function testGetOrderByIdSandBox() public {
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
         swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
@@ -140,7 +142,8 @@ contract OrderBookTest is DSTest {
         //place a mock order
         bytes32 orderId = placeMockSandboxLimitOrder(order);
 
-        OrderBook.SandboxLimitOrder memory returnedOrder = orderBook.getSandboxLimitOrderById(orderId);
+        OrderBook.SandboxLimitOrder memory returnedOrder = orderBook
+            .getSandboxLimitOrderById(orderId);
 
         // assert that the two orders are the same
         assertEq(returnedOrder.tokenIn, order.tokenIn);
@@ -184,7 +187,8 @@ contract OrderBookTest is DSTest {
             );
 
             //create a new array of orders
-            OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](1);
+            OrderBook.LimitOrder[]
+                memory orderGroup = new OrderBook.LimitOrder[](1);
             //add the order to the arrOrder and add the arrOrder to the orderGroup
             orderGroup[0] = order;
 
@@ -204,6 +208,56 @@ contract OrderBookTest is DSTest {
 
             assertEq(orderBook.totalOrdersPerAddress(address(this)), 1);
         } catch {}
+    }
+
+    ///@notice Test palce order fuzz test
+    function testPlaceSandboxOrder(
+        uint80 amountInRemaining,
+        uint112 amountOutRemaining
+    ) public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+        if (!(amountInRemaining < 1000000000000000)) {
+            //if the fuzzed amount is enough to complete the swap
+            try
+                swapHelper.swapEthForTokenWithUniV2(
+                    amountInRemaining,
+                    swapToken
+                )
+            returns (uint256 amountOut) {
+                OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
+                    swapToken,
+                    wnato,
+                    false,
+                    uint112(amountOut),
+                    uint112(amountOutRemaining)
+                );
+
+                //create a new array of orders
+                OrderBook.SandboxLimitOrder[]
+                    memory orderGroup = new OrderBook.SandboxLimitOrder[](1);
+                //add the order to the arrOrder and add the arrOrder to the orderGroup
+                orderGroup[0] = order;
+
+                //place order
+                bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
+                    orderGroup
+                );
+                bytes32 orderId = orderIds[0];
+
+                //check that the orderId is not zero value
+                assert((orderId != bytes32(0)));
+
+                assertEq(
+                    orderBook.totalOrdersQuantity(
+                        keccak256(abi.encode(address(this), swapToken))
+                    ),
+                    amountOut
+                );
+
+                assertEq(orderBook.totalOrdersPerAddress(address(this)), 1);
+            } catch {}
+        }
     }
 
     ///@notice Test fail place order InsufficientAlllowanceForOrderPlacement
@@ -226,7 +280,8 @@ contract OrderBookTest is DSTest {
             );
 
             //create a new array of orders
-            OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](1);
+            OrderBook.LimitOrder[]
+                memory orderGroup = new OrderBook.LimitOrder[](1);
             //add the order to the arrOrder and add the arrOrder to the orderGroup
             orderGroup[0] = order;
 
@@ -263,7 +318,9 @@ contract OrderBookTest is DSTest {
         );
 
         //create a new array of orders
-        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](1);
+        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](
+            1
+        );
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
 
@@ -306,7 +363,8 @@ contract OrderBookTest is DSTest {
                 );
 
                 //create a new array of orders
-                OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](2);
+                OrderBook.LimitOrder[]
+                    memory orderGroup = new OrderBook.LimitOrder[](2);
                 //add the order to the arrOrder and add the arrOrder to the orderGroup
                 orderGroup[0] = order1;
                 orderGroup[1] = order2;
@@ -350,7 +408,9 @@ contract OrderBookTest is DSTest {
         //submit the updated order
         orderBook.updateOrder(orderId, newPrice, newQuantity);
 
-        OrderBook.LimitOrder memory updatedOrder = orderBook.getLimitOrderById(orderId);
+        OrderBook.LimitOrder memory updatedOrder = orderBook.getLimitOrderById(
+            orderId
+        );
 
         //Cache the total orders value after the update
         uint256 totalOrdersValueAfter = orderBook.getTotalOrdersValue(
@@ -533,7 +593,9 @@ contract OrderBookTest is DSTest {
         );
 
         //create a new array of orders
-        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](2);
+        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](
+            2
+        );
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order1;
         orderGroup[1] = order2;
@@ -757,7 +819,9 @@ contract OrderBookTest is DSTest {
         returns (bytes32 orderId)
     {
         //create a new array of orders
-        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](1);
+        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](
+            1
+        );
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
 
@@ -771,9 +835,8 @@ contract OrderBookTest is DSTest {
         OrderBook.SandboxLimitOrder memory order
     ) internal returns (bytes32 orderId) {
         //create a new array of orders
-        OrderBook.SandboxLimitOrder[] memory orderGroup = new OrderBook.SandboxLimitOrder[](
-            1
-        );
+        OrderBook.SandboxLimitOrder[]
+            memory orderGroup = new OrderBook.SandboxLimitOrder[](1);
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
 

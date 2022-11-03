@@ -338,7 +338,7 @@ contract OrderBook is GasOracle {
 
         ///@notice Get the current balance of the orderToken that the msg.sender has in their account.
         uint256 tokenBalance = IERC20(orderToken).balanceOf(msg.sender);
-
+    
         ///@notice For each order within the list of orders passed into the function.
         for (uint256 i = 0; i < orderGroup.length; ) {
             ///@notice Get the order details from the orderGroup.
@@ -346,7 +346,7 @@ contract OrderBook is GasOracle {
 
             ///@notice Increment the total value of orders by the quantity of the new order
             updatedTotalOrdersValue += newOrder.amountInRemaining;
-
+            
             {
                 ///@notice Boolean indicating if user wants to cover the fee from the fee credit balance, or by calling placeOrder with payment.
                 if (newOrder.prePayFee) {
@@ -362,7 +362,7 @@ contract OrderBook is GasOracle {
                             .dexes()[0].initBytecode
                         );
                     uint256 tokenAWethSpotPrice = spRes.spotPrice;
-
+                    
                     if (!(tokenAWethSpotPrice == 0)) {
                         ///@notice Get the tokenIn decimals to normalize the relativeWethValue.
                         uint8 tokenInDecimals = IERC20(newOrder.tokenIn)
@@ -419,12 +419,13 @@ contract OrderBook is GasOracle {
                         newOrder.fee = 0;
                     }
                 } else {
+                    
                     ///@notice Calculate the minimum fee for the order to be taken out at execution time.
                     (
                         newOrder.fee,
                         newOrder.quoteWethLiquidSwapPool
                     ) = IOrderRouter(LIMIT_ORDER_EXECUTOR)
-                        .calculateMultiCallFeeAmount(
+                        .calculateSandboxFeeAmount(
                             newOrder.tokenIn,
                             newOrder.tokenOut,
                             newOrder.buy,
@@ -434,6 +435,7 @@ contract OrderBook is GasOracle {
                             USDC
                         );
                 }
+
             }
 
             ///@notice If the newOrder's tokenIn does not match the orderToken, revert.

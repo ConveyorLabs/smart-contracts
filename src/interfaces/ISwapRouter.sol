@@ -6,7 +6,7 @@ import "../SwapRouter.sol";
 interface IOrderRouter {
     function dexes() external view returns(SwapRouter.Dex[] memory);
     
-    function calculateMultiCallFeeAmount(
+    function calculateSandboxFeeAmount(
         address tokenIn,
         address tokenOut,
         bool buy,
