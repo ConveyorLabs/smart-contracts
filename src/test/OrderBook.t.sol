@@ -123,6 +123,11 @@ contract OrderBookTest is DSTest {
         assertEq(returnedOrder.quantity, order.quantity);
     }
 
+    //Test to get SandboxLimitOrder
+    // function getOrderByIdSandBox() public {
+    //     ///TODO:;
+    // }
+
     ///@notice Test fail get order by id order does not exist
     function testFailGetOrderById_OrderDoesNotExist() public {
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
@@ -703,6 +708,30 @@ contract OrderBookTest is DSTest {
         });
     }
 
+    function newSandboxLimitOrder(
+        address tokenIn,
+        address tokenOut,
+        bool prePaid,
+        uint128 amountInRemaining,
+        uint128 amountOutReamining
+    ) internal view returns (OrderBook.SandboxLimitOrder memory order) {
+        //Initialize mock order
+        order = OrderBook.SandboxLimitOrder({
+            buy: false,
+            prePayFe: false,
+            lastRefreshTimestamp: 0,
+            expirationTimestamp: uint32(MAX_UINT),
+            fee: 0,
+            price: price,
+            amountInRemaining: amountOutMin,
+            amountOutRemaining: amountOutRemaining,
+            owner: address(this),
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            orderId: bytes32(0)
+        });
+    }
+
     function placeMockOrder(OrderBook.Order memory order)
         internal
         returns (bytes32 orderId)
@@ -713,7 +742,25 @@ contract OrderBookTest is DSTest {
         orderGroup[0] = order;
 
         //place order
-        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
+        bytes32[] memory orderIds = orderBook.placeLimitOrder(orderGroup);
+
+        orderId = orderIds[0];
+    }
+
+    function placeMockSandboxLimitOrder(
+        OrderBook.SandboxLimitOrder memory order
+    ) internal returns (bytes32 orderId) {
+        //create a new array of orders
+        OrderBook.SandboxLimitOrder[] memory orderGroup = new OrderBook.Order[](
+            1
+        );
+        //add the order to the arrOrder and add the arrOrder to the orderGroup
+        orderGroup[0] = order;
+
+        //place order
+        bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
+            orderGroup
+        );
 
         orderId = orderIds[0];
     }
@@ -721,9 +768,12 @@ contract OrderBookTest is DSTest {
 
 ///@notice wrapper around the OrderBook contract to expose internal functions for testing
 contract OrderBookWrapper is OrderBook {
-    constructor(address _gasOracle, address _limitOrderExecutor, address _weth, address _usdc)
-        OrderBook(_gasOracle, _limitOrderExecutor,_weth,_usdc)
-    {}
+    constructor(
+        address _gasOracle,
+        address _limitOrderExecutor,
+        address _weth,
+        address _usdc
+    ) OrderBook(_gasOracle, _limitOrderExecutor, _weth, _usdc) {}
 
     function calculateMinGasCredits(
         uint256 gasPrice,

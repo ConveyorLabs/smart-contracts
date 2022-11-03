@@ -362,10 +362,12 @@ contract LimitOrderRouter is OrderBook {
                 orderId
             );
 
+            
             ///@notice Check if order exists, otherwise revert.
             if (orderType = OrderType.None) {
                 revert OrderDoesNotExist(orderId);
             }
+
 
             ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
             if (block.timestamp > order.expirationTimestamp) {
