@@ -100,7 +100,6 @@ contract SwapRouterTest is DSTest {
         assert(!limitOrderExecutor.lpIsNotUniV3(uniV3LPAddress));
     }
 
-
     ///@notice Test calculate V2 spot price on sushi
     function testCalculateV2SpotSushiTest1() public {
         //Test token address's
@@ -766,7 +765,6 @@ contract LimitOrderExecutorWrapper is SwapRouter {
     {
         return getV3PoolFee(pairAddress);
     }
-
 
     function lpIsNotUniV3(address lp) public returns (bool) {
         return _lpIsNotUniV3(lp);

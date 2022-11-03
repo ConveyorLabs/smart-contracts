@@ -190,11 +190,22 @@ contract OrderBook is GasOracle {
         }
     }
 
-    function getLimitOrderById(bytes32 orderId) public view returns (LimitOrder memory order){
-        return orderIdToLimitOrder[orderId];
+    //TODO: check if these can be internal
+    function getLimitOrderById(bytes32 orderId)
+        public
+        view
+        returns (LimitOrder memory)
+    {
+        LimitOrder memory order =  orderIdToLimitOrder[orderId];
+        return order;
     }
 
-    function getSandBoxOrderById(bytes32 orderId) public view returns (SandboxLimitOrder memory order){
+    //TODO: check if these can be internal
+    function getSandboxLimitOrderById(bytes32 orderId)
+        public
+        view
+        returns (SandboxLimitOrder memory)
+    {
         return orderIdToSandboxLimitOrder[orderId];
     }
 
@@ -593,7 +604,7 @@ contract OrderBook is GasOracle {
         if (orderType == OrderType.LimitOrder) {
             _cancelLimitOrder(orderId);
         } else {
-            _cancelSandBoxLimitOrder(orderId);
+            _cancelSandboxLimitOrder(orderId);
         }
     }
 
@@ -627,7 +638,7 @@ contract OrderBook is GasOracle {
 
     ///@notice Remove an order from the system if the order exists.
     /// @param orderId - The orderId that corresponds to the order that should be cancelled.
-    function _cancelSandBoxLimitOrder(bytes32 orderId) internal {
+    function _cancelSandboxLimitOrder(bytes32 orderId) internal {
         //TODO:
     }
 
@@ -668,6 +679,9 @@ contract OrderBook is GasOracle {
             order.amountOutRemaining -
             amountOutFilled;
     }
+
+    //TODO: there are a lot of places where we have the order details and then pass in the orderId which is redundant, we can save gas
+    //by passing the order or having two separate remove order form system functions.
 
     ///@notice Function to remove an order from the system.
     ///@param orderId - The orderId that should be removed from the system.

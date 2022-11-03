@@ -169,9 +169,7 @@ contract LimitOrderRouterTest is DSTest {
         limitOrderRouterWrapper.validateOrderSequencing(orderBatch);
     }
 
-    function testFailValidateOrderSequence_IncongruentStoplossStatus()
-        public
-    {
+    function testFailValidateOrderSequence_IncongruentStoplossStatus() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
@@ -325,8 +323,8 @@ contract LimitOrderRouterTest is DSTest {
             underflow := gt(sub(bal, _amount), bal)
         }
 
-        if(_amount ==0){
-            underflow=true;
+        if (_amount == 0) {
+            underflow = true;
         }
 
         if (!underflow) {
@@ -1227,8 +1225,7 @@ contract LimitOrderRouterTest is DSTest {
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
-        orderBatch[2]=order3;
-        
+        orderBatch[2] = order3;
 
         return orderBatch;
     }
@@ -1289,7 +1286,7 @@ contract LimitOrderRouterTest is DSTest {
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
-        orderBatch[2]=order3;
+        orderBatch[2] = order3;
         bytes32[] memory orderIds = new bytes32[](3);
         bytes32[] memory returnIds = placeMultipleMockOrder(orderBatch);
         orderIds[0] = returnIds[0];
@@ -1791,8 +1788,6 @@ contract LimitOrderRouterTest is DSTest {
         return orderBatch;
     }
 
-
-
     function placeNewMockTokenToTokenStoplossBatch()
         internal
         returns (bytes32[] memory)
@@ -1836,7 +1831,6 @@ contract LimitOrderRouterTest is DSTest {
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](2);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
-        
 
         return placeMultipleMockOrder(orderBatch);
     }
@@ -1888,7 +1882,6 @@ contract LimitOrderRouterTest is DSTest {
         duplicateIdArray[2] = returnIds[1]; //Duplicate id in batch should cause revert
         return duplicateIdArray;
     }
-
 
     function newMockTokenToTokenBatch()
         internal
@@ -1948,7 +1941,6 @@ contract LimitOrderRouterTest is DSTest {
 
         return orderBatch;
     }
-
 
     function placeNewMockTokenToTokenBatch()
         internal
@@ -2093,7 +2085,7 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
         address _weth,
         address _usdc,
         address _limitOrderExecutor
-    ) LimitOrderRouter(_gasOracle, _weth,_usdc, _limitOrderExecutor) {}
+    ) LimitOrderRouter(_gasOracle, _weth, _usdc, _limitOrderExecutor) {}
 
     function invokeOnlyEOA() public onlyEOA {}
 

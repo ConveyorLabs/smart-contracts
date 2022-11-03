@@ -97,7 +97,7 @@ contract OrderBookTest is DSTest {
     }
 
     ///@notice Test get order by id
-    function testGetOrderById() public {
+    function testgetLimitOrderById() public {
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
         swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
@@ -129,7 +129,7 @@ contract OrderBookTest is DSTest {
     // }
 
     ///@notice Test fail get order by id order does not exist
-    function testFailGetOrderById_OrderDoesNotExist() public {
+    function testFailgetLimitOrderById_OrderDoesNotExist() public {
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
         //create a new order
@@ -143,7 +143,7 @@ contract OrderBookTest is DSTest {
         //place a mock order
         placeMockOrder(order);
 
-        orderBook.getOrderById(bytes32(0));
+        orderBook.getLimitOrderById(bytes32(0));
     }
 
     ///@notice Test palce order fuzz test
