@@ -250,56 +250,55 @@ contract LimitOrderRouter is OrderBook {
     }
 
     ///@notice Initializes the state of the LimitOrderRouter contract
-    ///@param calls The calldata being executed in ChaosRouter
+    ///@param sandboxMulticall
     function executeOrdersViaSandboxMulticall(
         SandboxRouter.SandboxMulticall memory sandboxMulticall
     ) external onlySandboxRouter nonReentrant {
+        uint256 orderIdLength = sandboxMulticall.orderIds.length;
+
         ///@notice Create a new array of MultiCallOrders.
         SandboxLimitOrder[] memory orders = new SandboxLimitOrder[](
-            calls.orderIds.length
+            orderIdLength
         );
 
         ///@notice Initialize arrays to hold post execution validation state.
-        uint128[] memory amountOutRequired = new uint128[](
-            calls.orderIds.length
-        );
+        uint128[] memory amountOutRequired = new uint128[](orderIdLength);
         uint128[] memory cachedInitialBalancesOut = new uint128[](
-            calls.orderIds.length
+            orderIdLength
         );
-        uint128[] memory cachedInitialBalancesIn = new uint128[](
-            calls.orderIds.length
-        );
-        uint128[] memory feeAmounts = new uint128[](calls.orderIds.length);
+        uint128[] memory cachedInitialBalancesIn = new uint128[](orderIdLength);
+        uint128[] memory feeAmounts = new uint128[](orderIdLength);
 
         ///@notice Transfer the tokens from the order owners to the sandbox router contract.
         ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
-        for (uint256 i = 0; i < calls.orderIds.length; ++i) {
+        for (uint256 i = 0; i < orderIdLength; ++i) {
             ///@notice Cache the price of the order. i.e. amountOutRemaining/amountInRemaining.
             uint128 price = ConveyorMath.divUU(
                 orders[i].amountOutRemaining,
                 orders[i].amountInRemaining
             );
+
+            uint128 amountSpecifiedToFill = sandboxMulticall[i]
+                .amountSpecifiedToFill[i];
+
             ///@notice Get the fee amount to be taken from the input quantity.
             feeAmounts[i] = uint128(
-                ConveyorMath.mul64U(
-                    orders[i].fee,
-                    calls.amountSpecifiedToFill[i]
-                )
+                ConveyorMath.mul64U(orders[i].fee, amountSpecifiedToFill)
             );
             ///@notice Get the order from the orderId.
             orders[i] = getMulticallById(calls.orderIds[i]);
             ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
             require(
-                calls.amountSpecifiedToFill[i] <= orders[i].amountInRemaining,
+                amountSpecifiedToFill <= orders[i].amountInRemaining,
                 "Cannot Fill more than Order size"
             );
             ///@notice Decrement the amountInRemaining by amountSpecifiedToFill set by the off chain executor.
-            orders[i].amountInRemaining -= calls.amountSpecifiedToFill[i];
+            orders[i].amountInRemaining -= amountSpecifiedToFill;
             ///@notice Multiply the total amountInRemaining by the price to get the required amountOut. Subtract off the feeAmount on the fill quantity.
             amountOutRequired[i] = uint128(
                 ConveyorMath.mul64U(
                     price,
-                    calls.amountSpecifiedToFill[i] - feeAmounts[i]
+                    amountSpecifiedToFill - feeAmounts[i]
                 )
             );
             ///@notice Cache the balance of the in/out token prior to execution for accurate validation of balances post execution.
@@ -315,7 +314,7 @@ contract LimitOrderRouter is OrderBook {
         ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeMultiCallOrders(
             orders,
             feeAmounts,
-            calls,
+            sandboxMulticall,
             SAND_BOX_ROUTER
         );
 
@@ -333,13 +332,14 @@ contract LimitOrderRouter is OrderBook {
                     IERC20(orders[k].tokenIn).balanceOf(
                         address(orders[k].owner)
                     ) ==
-                    calls.amountSpecifiedToFill[k]
+                    sandboxMulticall.amountSpecifiedToFill[k]
             );
             ///@notice Update the Order data after execution requirements have been met.
             orders[k].amountOutRemaining -= amountOutRequired[k];
         }
     }
 
+    //TODO: handle for both cases
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
     function refreshOrder(bytes32[] memory orderIds) external nonReentrant {
