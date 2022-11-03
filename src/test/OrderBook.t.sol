@@ -124,9 +124,29 @@ contract OrderBookTest is DSTest {
     }
 
     //Test to get SandboxLimitOrder
-    // function getOrderByIdSandBox() public {
-    //     ///TODO:;
-    // }
+    function getOrderByIdSandBox() public {
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+
+        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+
+        //create a new order
+        OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
+            swapToken,
+            wnato,
+            false,
+            5,
+            5
+        );
+        //place a mock order
+        bytes32 orderId = placeMockSandboxLimitOrder(order);
+
+        OrderBook.SandboxLimitOrder memory returnedOrder = orderBook.getSandboxLimitOrderById(orderId);
+
+        // assert that the two orders are the same
+        assertEq(returnedOrder.tokenIn, order.tokenIn);
+        assertEq(returnedOrder.tokenOut, order.tokenOut);
+        assertEq(returnedOrder.orderId, orderId);
+    }
 
     ///@notice Test fail get order by id order does not exist
     function testFailgetLimitOrderById_OrderDoesNotExist() public {

@@ -372,7 +372,9 @@ contract LimitOrderRouter is OrderBook {
                 }
             }
 
-            
+            unchecked{
+                ++i;
+            }
         }
 
         ///@notice Transfer the refresh fee to off-chain executor who called the function.
@@ -530,7 +532,7 @@ contract LimitOrderRouter is OrderBook {
         (OrderType orderType, bytes memory orderBytes) = getOrderById(orderId);
 
         address orderOwner;
-        bytes32 orderId;
+        
 
         ///@notice Check if order exists, otherwise revert.
         if (orderType == OrderType.None) {
@@ -708,10 +710,7 @@ contract LimitOrderRouter is OrderBook {
         LimitOrder[] memory orders = new LimitOrder[](orderIds.length);
 
         for (uint256 i = 0; i < orderIds.length; ) {
-            (OrderType orderType,bytes memory orderBytes) = getOrderById(orderIds[i]);
-            if(orderType == OrderType.LimitOrder){
-                orders[i]= abi.decode(orderBytes,(LimitOrder));
-            }
+            orders[i] = getLimitOrderById(orderIds[i]);
             ///@notice Revert if the order does not exist in the contract.
             if (orders[i].orderId == bytes32(0)) {
                 revert OrderDoesNotExist(orderIds[i]);
