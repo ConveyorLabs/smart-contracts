@@ -100,7 +100,6 @@ contract SwapRouterTest is DSTest {
         assert(!limitOrderExecutor.lpIsNotUniV3(uniV3LPAddress));
     }
 
-
     ///@notice Test calculate V2 spot price on sushi
     function testCalculateV2SpotSushiTest1() public {
         //Test token address's
@@ -487,10 +486,10 @@ contract SwapRouterTest is DSTest {
         uint16 feeOut,
         uint32 lastRefreshTimestamp,
         uint32 expirationTimestamp
-    ) internal view returns (OrderBook.Order memory order) {
+    ) internal view returns (OrderBook.LimitOrder memory order) {
         //Initialize mock order
-        order = OrderBook.Order({
-            stoploss:false,
+        order = OrderBook.LimitOrder({
+            stoploss: false,
             buy: buy,
             taxed: taxed,
             lastRefreshTimestamp: lastRefreshTimestamp,
@@ -766,7 +765,6 @@ contract LimitOrderExecutorWrapper is SwapRouter {
     {
         return getV3PoolFee(pairAddress);
     }
-
 
     function lpIsNotUniV3(address lp) public returns (bool) {
         return _lpIsNotUniV3(lp);

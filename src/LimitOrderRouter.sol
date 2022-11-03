@@ -278,7 +278,7 @@ contract LimitOrderRouter is OrderBook {
                 orders[i].amountInRemaining
             );
 
-            uint128 amountSpecifiedToFill = sandboxMulticall[i]
+            uint128 amountSpecifiedToFill = sandboxMulticall
                 .amountSpecifiedToFill[i];
 
             ///@notice Get the fee amount to be taken from the input quantity.
@@ -363,81 +363,25 @@ contract LimitOrderRouter is OrderBook {
             );
 
             ///@notice Check if order exists, otherwise revert.
-            if (orderType = OrderType.None) {
+            if (orderType == OrderType.None) {
                 revert OrderDoesNotExist(orderId);
+            } else if (orderType == OrderType.LimitOrder) {
+                LimitOrder memory limitOrder = abi.decode(
+                    orderBytes,
+                    (LimitOrder)
+                );
+
+                totalRefreshFees += _refreshLimitOrder(limitOrder, gasPrice);
+            } else {
+                SandboxLimitOrder memory sandboxLimitOrder = abi.decode(
+                    orderBytes,
+                    (SandboxLimitOrder)
+                );
+                totalRefreshFees += _refreshSandboxLimitOrder(
+                    sandboxLimitOrder,
+                    gasPrice
+                );
             }
-
-            ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
-            if (block.timestamp > order.expirationTimestamp) {
-                _cancelLimitOrder(order);
-
-                unchecked {
-                    ++i;
-                }
-
-                continue;
-            }
-
-            ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
-            if (gasCreditBalance[order.owner] < REFRESH_FEE) {
-                _cancelLimitOrder(order);
-
-                unchecked {
-                    ++i;
-                }
-
-                continue;
-            }
-
-            ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
-            if (
-                block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL
-            ) {
-                unchecked {
-                    ++i;
-                }
-
-                continue;
-            }
-
-            ///@notice Require that account has enough gas for order execution after the refresh, otherwise, cancel the order and continue the loop.
-            if (
-                !(
-                    _hasMinGasCredits(
-                        gasPrice,
-                        ORDER_EXECUTION_GAS_COST,
-                        order.owner,
-                        gasCreditBalance[order.owner] - REFRESH_FEE
-                    )
-                )
-            ) {
-                _cancelLimitOrder(order);
-
-                unchecked {
-                    ++i;
-                }
-
-                continue;
-            }
-
-            ///@notice Accumulate the REFRESH_FEE.
-            totalRefreshFees += REFRESH_FEE;
-
-            ///@notice Decrement the order.owner's gas credit balance
-            gasCreditBalance[order.owner] -= REFRESH_FEE;
-
-            ///@notice update the order's last refresh timestamp
-            ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
-            orderIdToOrder[orderId].lastRefreshTimestamp = uint32(
-                block.timestamp % (2**32 - 1)
-            );
-
-            ///@notice Emit an event to notify the off-chain executors that the order has been refreshed.
-            emit OrderRefreshed(
-                orderId,
-                order.lastRefreshTimestamp,
-                order.expirationTimestamp
-            );
 
             unchecked {
                 ++i;
@@ -447,6 +391,69 @@ contract LimitOrderRouter is OrderBook {
         ///@notice Transfer the refresh fee to off-chain executor who called the function.
         safeTransferETH(msg.sender, totalRefreshFees);
     }
+
+    function _refreshLimitOrder(LimitOrder memory order, uint256 gasPrice)
+        internal
+        returns (uint256 refreshFee)
+    {
+        ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
+        if (block.timestamp > order.expirationTimestamp) {
+            //TODO: instead of returning 0, return the fee earned from cancel limit order instead so you can send it as one big fee
+            _cancelLimitOrder(order);
+            return 0;
+        }
+
+        ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
+        if (gasCreditBalance[order.owner] < REFRESH_FEE) {
+            _cancelLimitOrder(order);
+            return 0;
+        }
+
+        ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
+        if (block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL) {
+            return 0;
+        }
+
+        ///@notice Require that account has enough gas for order execution after the refresh, otherwise, cancel the order and continue the loop.
+        if (
+            !(
+                _hasMinGasCredits(
+                    gasPrice,
+                    ORDER_EXECUTION_GAS_COST,
+                    order.owner,
+                    gasCreditBalance[order.owner] - REFRESH_FEE
+                )
+            )
+        ) {
+            _cancelLimitOrder(order);
+            return 0;
+        }
+
+        ///@notice Decrement the order.owner's gas credit balance
+        gasCreditBalance[order.owner] -= REFRESH_FEE;
+
+        ///@notice update the order's last refresh timestamp
+        ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
+        orderIdToLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
+            block.timestamp % (2**32 - 1)
+        );
+
+        ///@notice Emit an event to notify the off-chain executors that the order has been refreshed.
+        emit OrderRefreshed(
+            order.orderId,
+            order.lastRefreshTimestamp,
+            order.expirationTimestamp
+        );
+
+        ///@notice Accumulate the REFRESH_FEE.
+        return REFRESH_FEE;
+    }
+
+    //TODO:
+    function _refreshSandboxLimitOrder(
+        SandboxLimitOrder memory order,
+        uint256 gasPrice
+    ) internal returns (uint256 refreshFee) {}
 
     ///@notice Transfer ETH to a specific address and require that the call was successful.
     ///@param to - The address that should be sent Ether.
@@ -472,16 +479,32 @@ contract LimitOrderRouter is OrderBook {
         nonReentrant
         returns (bool success)
     {
-        ///@notice Cache the order to run validation checks before cancellation.
-        Order memory order = orderIdToOrder[orderId];
-
-        ///@notice Check if order exists, otherwise revert.
-        if (order.owner == address(0)) {
-            revert OrderDoesNotExist(orderId);
-        }
-
         ///@notice Get the current gas price from the v3 Aggregator.
         uint256 gasPrice = getGasPrice();
+
+        ///@notice Cache the order in memory.
+        (OrderType orderType, bytes memory orderBytes) = getOrderById(orderId);
+
+        address orderOwner;
+        bytes32 orderId;
+
+        ///@notice Check if order exists, otherwise revert.
+        if (orderType == OrderType.None) {
+            revert OrderDoesNotExist(orderId);
+        } else if (orderType == OrderType.LimitOrder) {
+            LimitOrder memory limitOrder = abi.decode(orderBytes, (LimitOrder));
+
+            orderOwner = limitOrder.owner;
+            orderId = limitOrder.orderId;
+        } else {
+            SandboxLimitOrder memory sandboxLimitOrder = abi.decode(
+                orderBytes,
+                (SandboxLimitOrder)
+            );
+
+            orderOwner = sandboxLimitOrder.owner;
+            orderId = sandboxLimitOrder.orderId;
+        }
 
         ///@notice Check if the account has the minimum gas credits for
         if (
@@ -489,16 +512,21 @@ contract LimitOrderRouter is OrderBook {
                 _hasMinGasCredits(
                     gasPrice,
                     ORDER_EXECUTION_GAS_COST,
-                    order.owner,
-                    gasCreditBalance[order.owner]
+                    orderOwner,
+                    gasCreditBalance[orderOwner]
                 )
             )
         ) {
             ///@notice Remove the order from the limit order system.
-            _cancelLimitOrder(order);
 
+            if (orderType == OrderType.LimitOrder) {
+                _cancelLimitOrder(orderId);
+            } else {
+                _cancelSandboxLimitOrder(orderId);
+            }
             return true;
         }
+
         return false;
     }
 
@@ -517,7 +545,7 @@ contract LimitOrderRouter is OrderBook {
             ORDER_EXECUTION_GAS_COST;
 
         ///@notice Remove the order from the limit order system.
-        _removeOrderFromSystem(order);
+        _removeOrderFromSystem(order.orderId, OrderType.LimitOrder);
 
         uint256 orderOwnerGasCreditBalance = gasCreditBalance[order.owner];
 
@@ -552,8 +580,8 @@ contract LimitOrderRouter is OrderBook {
         ///@notice Iterate through the length of orders -1.
         for (uint256 i = 0; i < orders.length - 1; i++) {
             ///@notice Cache order at index i, and i+1
-            Order memory currentOrder = orders[i];
-            Order memory nextOrder = orders[i + 1];
+            LimitOrder memory currentOrder = orders[i];
+            LimitOrder memory nextOrder = orders[i + 1];
 
             ///@notice Check if the current order is less than or equal to the next order
             if (currentOrder.quantity > nextOrder.quantity) {
@@ -633,10 +661,10 @@ contract LimitOrderRouter is OrderBook {
         }
 
         ///@notice Get all of the orders by orderId and add them to a temporary orders array
-        Order[] memory orders = new Order[](orderIds.length);
+        LimitOrder[] memory orders = new LimitOrder[](orderIds.length);
 
         for (uint256 i = 0; i < orderIds.length; ) {
-            orders[i] = getOrderById(orderIds[i]);
+            orders[i] = getLimitOrderById(orderIds[i]);
             ///@notice Revert if the order does not exist in the contract.
             if (orders[i].orderId == bytes32(0)) {
                 revert OrderDoesNotExist(orderIds[i]);
@@ -683,7 +711,7 @@ contract LimitOrderRouter is OrderBook {
         for (uint256 i = 0; i < orderIds.length; ) {
             bytes32 orderId = orderIds[i];
             ///@notice Mark the order as resolved from the system.
-            _resolveCompletedOrder(orderId);
+            _resolveCompletedOrder(orderId, OrderType.LimitOrder);
 
             ///@notice Mark order as fulfilled in addressToFufilledOrderIds mapping
             addressToFufilledOrderIds[orderOwners[i]][orderIds[i]] = true;
