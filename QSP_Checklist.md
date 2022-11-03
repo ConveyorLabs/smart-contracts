@@ -442,7 +442,7 @@ Test Reference `OrderBook.t.sol#L363-401`:
         swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
 
         //create a new order
-        OrderBook.Order memory order = newOrder(
+        OrderBook.LimitOrder memory order = newOrder(
             swapToken,
             wnato,
             price,
@@ -454,7 +454,7 @@ Test Reference `OrderBook.t.sol#L363-401`:
         bytes32 orderId = placeMockOrder(order);
 
         //create a new order to replace the old order
-        OrderBook.Order memory updatedOrder = newOrder(
+        OrderBook.LimitOrder memory updatedOrder = newOrder(
             swapToken,
             wnato,
             newPrice,

@@ -228,7 +228,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@notice Function to retrieve the buy/sell status of a single order.
     ///@param order Order to determine buy/sell status on.
     ///@return bool Boolean indicating the buy/sell status of the order.
-    function _buyOrSell(OrderBook.Order memory order)
+    function _buyOrSell(OrderBook.LimitOrder memory order)
         internal
         pure
         returns (bool)

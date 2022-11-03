@@ -30,4 +30,8 @@ interface IOrderBook {
         returns (bytes32[][] memory);
 
     function getGasPrice() external view returns (uint256);
+
+    function getLimitOrderById(bytes32 orderId) external view returns (OrderBook.LimitOrder memory);
+    function getSandBoxOrderById(bytes32 orderId) external view returns (OrderBook.SandboxLimitOrder memory);
+
 }
