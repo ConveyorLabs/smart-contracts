@@ -166,23 +166,27 @@ contract OrderBook is GasOracle {
     //----------------------Functions------------------------------------//
 
     ///@notice This function gets an order by the orderId. If the order does not exist, the return value will be bytes(0)
-    function getOrderById(bytes32 orderId) public view returns (bytes memory) {
+    function getOrderById(bytes32 orderId)
+        public
+        view
+        returns (OrderType, bytes memory)
+    {
         ///@notice Check if the order exists
         OrderType orderType = addressToOrderIds[msg.sender][orderId];
 
         if (orderType == OrderType.None) {
             ///@notice If the order does not exist, revert.
 
-            return new bytes(0);
+            return (OrderType.None, new bytes(0));
         }
 
         if (orderType == OrderType.LimitOrder) {
             LimitOrder memory limitOrder = orderIdToLimitOrder[orderId];
-            return abi.encode(OrderType.LimitOrder, limitOrder);
+            return (OrderType.LimitOrder, abi.encode(limitOrder));
         } else {
             SandboxLimitOrder
                 memory sandboxLimitOrder = orderIdToSandboxLimitOrder[orderId];
-            return abi.encode(OrderType.SandboxLimitOrder, sandboxLimitOrder);
+            return (OrderType.SandboxLimitOrder, abi.encode(sandboxLimitOrder));
         }
     }
 

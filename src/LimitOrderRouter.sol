@@ -250,7 +250,7 @@ contract LimitOrderRouter is OrderBook {
     }
 
     ///@notice Initializes the state of the LimitOrderRouter contract
-    ///@param sandboxMulticall
+    ///@param sandboxMulticall -
     function executeOrdersViaSandboxMulticall(
         SandboxRouter.SandboxMulticall memory sandboxMulticall
     ) external onlySandboxRouter nonReentrant {
@@ -286,7 +286,10 @@ contract LimitOrderRouter is OrderBook {
                 ConveyorMath.mul64U(orders[i].fee, amountSpecifiedToFill)
             );
             ///@notice Get the order from the orderId.
-            orders[i] = getMulticallById(calls.orderIds[i]);
+            orders[i] = orderIdToSandboxLimitOrder[
+                sandboxMulticall.orderIds[i]
+            ];
+
             ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
             require(
                 amountSpecifiedToFill <= orders[i].amountInRemaining,
@@ -355,10 +358,12 @@ contract LimitOrderRouter is OrderBook {
             bytes32 orderId = orderIds[i];
 
             ///@notice Cache the order in memory.
-            Order memory order = getOrderById(orderId);
+            (OrderType orderType, bytes memory orderBytes) = getOrderById(
+                orderId
+            );
 
             ///@notice Check if order exists, otherwise revert.
-            if (order.owner == address(0)) {
+            if (orderType = OrderType.None) {
                 revert OrderDoesNotExist(orderId);
             }
 
