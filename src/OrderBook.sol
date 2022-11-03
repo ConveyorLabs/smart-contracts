@@ -190,12 +190,22 @@ contract OrderBook is GasOracle {
         }
     }
 
+    //TODO: check if these can be internal
     function getLimitOrderById(bytes32 orderId)
         public
         view
         returns (LimitOrder memory)
     {
         return orderIdToLimitOrder[orderId];
+    }
+
+    //TODO: check if these can be internal
+    function getSandboxLimitOrderById(bytes32 orderId)
+        public
+        view
+        returns (SandboxLimitOrder memory)
+    {
+        return orderIdToSandboxLimitOrder[orderId];
     }
 
     ///@notice Places a new order (or group of orders) into the system.
