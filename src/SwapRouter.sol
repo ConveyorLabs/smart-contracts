@@ -772,19 +772,13 @@ contract SwapRouter is ConveyorTickMath {
 
     ///@notice Function to calculate the expected fee received from the Order at execution time if the user chooses to not pay the fee at order placement.
     ///@param tokenIn - The tokenIn on the limit order.
-    ///@param tokenOut - The tokenOut on the limit order.
-    ///@param buy - The buy/sell status of the order.
     ///@param weth - Native wrapped token address on the chain.
     ///@param amountIn - The quantity of tokenIn on the limit order.
-    ///@param amountOut - The amountOut received from the limit order. Determines the price.
     ///@param usdc - Usdc or pegged token address on the chain.
     function calculateSandboxFeeAmount(
         address tokenIn,
-        address tokenOut,
-        bool buy,
         address weth,
         uint128 amountIn,
-        uint128 amountOut,
         address usdc
     ) external view returns (uint128 fee, address quoteWethLiquidSwapPool) {
         ///TODO: get this working

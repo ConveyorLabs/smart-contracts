@@ -426,11 +426,8 @@ contract OrderBook is GasOracle {
                     ) = IOrderRouter(LIMIT_ORDER_EXECUTOR)
                         .calculateSandboxFeeAmount(
                             newOrder.tokenIn,
-                            newOrder.tokenOut,
-                            newOrder.buy,
                             WETH,
                             newOrder.amountInRemaining,
-                            newOrder.amountOutRemaining,
                             USDC
                         );
                 }
