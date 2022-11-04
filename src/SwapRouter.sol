@@ -789,7 +789,9 @@ contract SwapRouter is ConveyorTickMath {
     ) external view returns (uint128 fee, address quoteWethLiquidSwapPool) {
         ///TODO: get this working
         ///@notice Initialize spotReserve struct to hold the v2/v3 spot price calculations.
-        SpotReserve[] memory spotPricesTokenInWeth = new SpotReserve[](dexes.length);
+        SpotReserve[] memory spotPricesTokenInWeth = new SpotReserve[](
+            dexes.length
+        );
         ///@notice Initialize liquidFeeQuoteSpot liquidFeeQuotePool to hold the pool, and spot for the most liquid pool.
         uint256 liquidFeeQuoteSpot;
         address liquidFeeQuotePool;

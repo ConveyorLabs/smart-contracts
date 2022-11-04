@@ -358,21 +358,32 @@ contract LimitOrderRouter is OrderBook {
             bytes32 orderId = orderIds[i];
 
             ///@notice Cache the order in memory.
-            (OrderType orderType, bytes memory orderBytes) = getOrderById(orderId);
+            (OrderType orderType, bytes memory orderBytes) = getOrderById(
+                orderId
+            );
 
-            if(orderType == OrderType.None){
+            if (orderType == OrderType.None) {
                 continue;
-            }else{
-                if(orderType == OrderType.LimitOrder){
-                    LimitOrder memory order = abi.decode(orderBytes,(LimitOrder));
-                   totalRefreshFees+= _refreshLimitOrder(order, gasPrice);
-                }else if(orderType == OrderType.SandboxLimitOrder){
-                    SandboxLimitOrder memory order = abi.decode(orderBytes, (SandboxLimitOrder));
-                     totalRefreshFees+= _refreshSandboxLimitOrder(order, gasPrice);
+            } else {
+                if (orderType == OrderType.LimitOrder) {
+                    LimitOrder memory order = abi.decode(
+                        orderBytes,
+                        (LimitOrder)
+                    );
+                    totalRefreshFees += _refreshLimitOrder(order, gasPrice);
+                } else if (orderType == OrderType.SandboxLimitOrder) {
+                    SandboxLimitOrder memory order = abi.decode(
+                        orderBytes,
+                        (SandboxLimitOrder)
+                    );
+                    totalRefreshFees += _refreshSandboxLimitOrder(
+                        order,
+                        gasPrice
+                    );
                 }
             }
 
-            unchecked{
+            unchecked {
                 ++i;
             }
         }
@@ -381,27 +392,27 @@ contract LimitOrderRouter is OrderBook {
         safeTransferETH(msg.sender, totalRefreshFees);
     }
 
-    function _refreshSandboxLimitOrder(SandboxLimitOrder memory order, uint256 gasPrice) internal returns (uint256){
+    function _refreshSandboxLimitOrder(
+        SandboxLimitOrder memory order,
+        uint256 gasPrice
+    ) internal returns (uint256) {
         ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
-            if (block.timestamp > order.expirationTimestamp) {
-                _cancelSandboxLimitOrder(order.orderId);
-                return 0;
-            }
-        
+        if (block.timestamp > order.expirationTimestamp) {
+            _cancelSandboxLimitOrder(order.orderId);
+            return 0;
+        }
 
-            ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
-            if (gasCreditBalance[order.owner] < REFRESH_FEE) {
-                _cancelSandboxLimitOrder(order.orderId);
+        ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
+        if (gasCreditBalance[order.owner] < REFRESH_FEE) {
+            _cancelSandboxLimitOrder(order.orderId);
 
-                return 0;
-            }
+            return 0;
+        }
 
-            ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
-            if (
-                block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL
-            ) {
-                return 0;
-            }
+        ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
+        if (block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL) {
+            return 0;
+        }
 
         ///@notice Require that account has enough gas for order execution after the refresh, otherwise, cancel the order and continue the loop.
         if (
@@ -412,27 +423,27 @@ contract LimitOrderRouter is OrderBook {
                     order.owner,
                     gasCreditBalance[order.owner] - REFRESH_FEE
                 )
-            ) ){
-                _cancelSandboxLimitOrder(order.orderId);
-                return 0;
-               
-            }
+            )
+        ) {
+            _cancelSandboxLimitOrder(order.orderId);
+            return 0;
+        }
 
-            ///@notice Decrement the order.owner's gas credit balance
-            gasCreditBalance[order.owner] -= REFRESH_FEE;
+        ///@notice Decrement the order.owner's gas credit balance
+        gasCreditBalance[order.owner] -= REFRESH_FEE;
 
-            ///@notice update the order's last refresh timestamp
-            ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
-            orderIdToLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
-                block.timestamp % (2**32 - 1)
-            );
+        ///@notice update the order's last refresh timestamp
+        ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
+        orderIdToLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
+            block.timestamp % (2**32 - 1)
+        );
 
-            ///@notice Emit an event to notify the off-chain executors that the order has been refreshed.
-            emit OrderRefreshed(
-                order.orderId,
-                order.lastRefreshTimestamp,
-                order.expirationTimestamp
-            );
+        ///@notice Emit an event to notify the off-chain executors that the order has been refreshed.
+        emit OrderRefreshed(
+            order.orderId,
+            order.lastRefreshTimestamp,
+            order.expirationTimestamp
+        );
 
         return REFRESH_FEE;
     }
@@ -494,8 +505,6 @@ contract LimitOrderRouter is OrderBook {
         return REFRESH_FEE;
     }
 
-   
-
     ///@notice Transfer ETH to a specific address and require that the call was successful.
     ///@param to - The address that should be sent Ether.
     ///@param amount - The amount of Ether that should be sent.
@@ -531,10 +540,8 @@ contract LimitOrderRouter is OrderBook {
         }
         ///@notice Get the current gas price from the v3 Aggregator.
         ///@notice Cache the order in memory.
-        
 
         address orderOwner;
-        
 
         ///@notice Check if order exists, otherwise revert.
         if (orderType == OrderType.None) {
