@@ -460,7 +460,7 @@ contract OrderBookTest is DSTest {
 
     ///TODO: Write a test for this
     function testPartialFillSandboxLimitOrder() public {
-        
+
     }
 
     ///@notice Test fail place order InsufficientAlllowanceForOrderPlacement
@@ -624,6 +624,47 @@ contract OrderBookTest is DSTest {
         assertEq(newQuantity, totalOrdersValueAfter);
         assertEq(newQuantity, updatedOrder.quantity);
         assertEq(newPrice, updatedOrder.price);
+    }
+
+    ///@notice Test update sandbox order
+    function testUpdateSandboxOrder(
+        uint64 newAmountInRemaining,
+        uint128 newAmountOutRemaining
+    ) public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
+
+        //create a new order
+        OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
+            swapToken,
+            wnato,
+            false,
+            1000000000000000000,
+            1000000000000000000
+        );
+
+        //place a mock order
+        bytes32 orderId = placeMockSandboxLimitOrder(order);
+
+        //submit the updated order
+        orderBook.updateSandboxLimitOrder(orderId, newAmountInRemaining, newAmountOutRemaining);
+
+        OrderBook.SandboxLimitOrder memory updatedOrder = orderBook.getSandboxLimitOrderById(
+            orderId
+        );
+
+        //Cache the total orders value after the update
+        uint256 totalOrdersValueAfter = orderBook.getTotalOrdersValue(
+            swapToken
+        );
+
+        //Make sure the order was updated properly
+        assertEq(newAmountInRemaining, totalOrdersValueAfter);
+        assertEq(newAmountInRemaining, updatedOrder.amountInRemaining);
+        assertEq(newAmountOutRemaining, updatedOrder.amountOutRemaining);
     }
 
     ///@notice Test fail update order insufficient allowance

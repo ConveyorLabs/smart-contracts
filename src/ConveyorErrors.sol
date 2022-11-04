@@ -48,3 +48,4 @@ error InsufficientAllowanceForOrderUpdate();
 error InsufficientFeeCreditBalanceForOrderExecution();
 error InsufficientLiquidityForDynamicFee();
 error SandboxCallFailed();
+error IncorrectOrderType();
