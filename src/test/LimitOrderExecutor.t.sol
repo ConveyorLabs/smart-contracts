@@ -324,9 +324,8 @@ contract LimitOrderExecutorTest is DSTest {
 
                 ///@notice check that the orders have been placed
                 for (uint256 i = 0; i < orderBatch.length; ++i) {
-                    OrderBook.LimitOrder memory order0 = orderBook.getLimitOrderById(
-                        orderBatch[i]
-                    );
+                    OrderBook.LimitOrder memory order0 = orderBook
+                        .getLimitOrderById(orderBatch[i]);
 
                     assert(order0.orderId != bytes32(0));
                 }
@@ -336,9 +335,8 @@ contract LimitOrderExecutorTest is DSTest {
                 uint256 gasCompensationAfter = address(tx.origin).balance;
                 // check that the orders have been fufilled and removed
                 for (uint256 i = 0; i < orderBatch.length; ++i) {
-                    OrderBook.LimitOrder memory order0 = orderBook.getLimitOrderById(
-                        orderBatch[i]
-                    );
+                    OrderBook.LimitOrder memory order0 = orderBook
+                        .getLimitOrderById(orderBatch[i]);
                     ///@notice Ensure tx.origin received the execution reward.
                     assertGe(
                         IERC20(WETH).balanceOf(tx.origin),
@@ -485,9 +483,8 @@ contract LimitOrderExecutorTest is DSTest {
 
             orderBatch[0] = orderId;
             for (uint256 i = 0; i < orderBatch.length; ++i) {
-                OrderBook.LimitOrder memory order0 = orderBook.getLimitOrderById(
-                    orderBatch[i]
-                );
+                OrderBook.LimitOrder memory order0 = orderBook
+                    .getLimitOrderById(orderBatch[i]);
 
                 assert(order0.orderId != bytes32(0));
             }
@@ -506,9 +503,8 @@ contract LimitOrderExecutorTest is DSTest {
 
                 ///@notice check that the orders have been placed
                 for (uint256 i = 0; i < orderBatch.length; ++i) {
-                    OrderBook.LimitOrder memory order0 = orderBook.getLimitOrderById(
-                        orderBatch[i]
-                    );
+                    OrderBook.LimitOrder memory order0 = orderBook
+                        .getLimitOrderById(orderBatch[i]);
 
                     assert(order0.orderId != bytes32(0));
                 }
@@ -518,9 +514,8 @@ contract LimitOrderExecutorTest is DSTest {
                 uint256 gasCompensationAfter = address(tx.origin).balance;
                 // check that the orders have been fufilled and removed
                 for (uint256 i = 0; i < orderBatch.length; ++i) {
-                    OrderBook.LimitOrder memory order0 = orderBook.getLimitOrderById(
-                        orderBatch[i]
-                    );
+                    OrderBook.LimitOrder memory order0 = orderBook
+                        .getLimitOrderById(orderBatch[i]);
                     ///@notice Ensure tx.origin received the execution reward.
                     assertGe(
                         IERC20(WETH).balanceOf(tx.origin),
@@ -674,9 +669,8 @@ contract LimitOrderExecutorTest is DSTest {
 
                 ///@notice check that the orders have been placed
                 for (uint256 i = 0; i < orderBatch.length; ++i) {
-                    OrderBook.LimitOrder memory order0 = orderBook.getLimitOrderById(
-                        orderBatch[i]
-                    );
+                    OrderBook.LimitOrder memory order0 = orderBook
+                        .getLimitOrderById(orderBatch[i]);
 
                     assert(order0.orderId != bytes32(0));
                 }
@@ -686,9 +680,8 @@ contract LimitOrderExecutorTest is DSTest {
                 uint256 gasCompensationAfter = address(tx.origin).balance;
                 // check that the orders have been fufilled and removed
                 for (uint256 i = 0; i < orderBatch.length; ++i) {
-                    OrderBook.LimitOrder memory order0 = orderBook.getLimitOrderById(
-                        orderBatch[i]
-                    );
+                    OrderBook.LimitOrder memory order0 = orderBook
+                        .getLimitOrderById(orderBatch[i]);
                     ///@notice Ensure tx.origin received the execution reward.
                     assertGe(
                         IERC20(WETH).balanceOf(tx.origin),
@@ -790,7 +783,9 @@ contract LimitOrderExecutorTest is DSTest {
             0,
             MAX_U32
         );
-        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](1);
+        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](
+            1
+        );
         orderGroup[0] = order;
         bytes32[] memory orderBatch = orderBook.placeLimitOrder(orderGroup);
         //Ensure all of the orders have been placed
@@ -914,7 +909,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](1);
+        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](
+            1
+        );
         orderGroup[0] = order;
         bytes32[] memory orderBatch = orderBook.placeLimitOrder(orderGroup);
 
@@ -982,7 +979,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](1);
+        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](
+            1
+        );
         orderGroup[0] = order;
 
         bytes32[] memory orderBatch = orderBook.placeLimitOrder(orderGroup);
@@ -1151,7 +1150,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](1);
+        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](
+            1
+        );
         orderGroup[0] = order;
 
         bytes32[] memory orderBatch = orderBook.placeLimitOrder(orderGroup);
@@ -1396,7 +1397,9 @@ contract LimitOrderExecutorTest is DSTest {
         returns (bytes32 orderId)
     {
         //create a new array of orders
-        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](1);
+        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](
+            1
+        );
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
 
@@ -1487,7 +1490,9 @@ contract LimitOrderExecutorTest is DSTest {
             500,
             MAX_U32
         );
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](4);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            4
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1558,7 +1563,9 @@ contract LimitOrderExecutorTest is DSTest {
             0,
             MAX_U32
         );
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](4);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            4
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1637,7 +1644,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](4);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            4
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1695,7 +1704,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            3
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1753,7 +1764,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            3
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1811,7 +1824,9 @@ contract LimitOrderExecutorTest is DSTest {
             0,
             MAX_U32
         );
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            3
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         bytes32[] memory mockOrderOrderIds = placeMultipleMockOrder(orderBatch);
@@ -1879,7 +1894,9 @@ contract LimitOrderExecutorTest is DSTest {
             0,
             MAX_U32
         );
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            3
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1940,7 +1957,9 @@ contract LimitOrderExecutorTest is DSTest {
             0,
             MAX_U32
         );
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            3
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2004,7 +2023,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            3
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2062,7 +2083,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            3
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2120,7 +2143,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            3
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2178,7 +2203,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            3
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2236,7 +2263,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            3
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2280,7 +2309,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](2);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            2
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
 
@@ -2323,7 +2354,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](2);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            2
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
 
@@ -2380,7 +2413,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            3
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2437,7 +2472,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            3
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2535,7 +2572,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](6);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            6
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2593,7 +2632,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            3
+        );
         orderBatch[0] = order;
         orderBatch[1] = order1;
         orderBatch[2] = order2;
@@ -2697,7 +2738,9 @@ contract LimitOrderExecutorTest is DSTest {
         //     MAX_U32
         // );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](2);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            2
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         // orderBatch[2] = order3;
@@ -2746,7 +2789,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](2);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            2
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
 
@@ -2789,7 +2834,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](2);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            2
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
 
@@ -2850,7 +2897,9 @@ contract LimitOrderExecutorTest is DSTest {
         //         MAX_U32
         //     );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](2);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            2
+        );
         orderBatch[0] = order;
         orderBatch[1] = order1;
         // orderBatch[2] = order2;
@@ -2877,7 +2926,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](1);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            1
+        );
         orderBatch[0] = order;
 
         return placeMultipleMockOrder(orderBatch);
@@ -2934,7 +2985,9 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
+            3
+        );
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;

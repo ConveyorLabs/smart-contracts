@@ -533,7 +533,11 @@ contract OrderBook is GasOracle {
         if (orderType == OrderType.LimitOrder) {
             _updateLimitOrder(orderId, price, quantity);
         } else {
-            _updateSandboxLimitOrder(orderId, price, quantity);
+            _updateSandboxLimitOrder(
+                orderId,
+                quantity,
+                uint128(ConveyorMath.mul64U(price, quantity))
+            );
         }
     }
 
@@ -583,10 +587,50 @@ contract OrderBook is GasOracle {
 
     function _updateSandboxLimitOrder(
         bytes32 orderId,
-        uint128 price,
-        uint128 quantity
+        uint128 amountInRemaining,
+        uint128 amountOutRemaining
     ) internal {
-        //TODO:
+        ///@notice Get the existing order that will be replaced with the new order
+        SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
+        if (order.orderId == bytes32(0)) {
+            revert OrderDoesNotExist(orderId);
+        }
+        ///@notice Get the total orders value for the msg.sender on the tokenIn
+        uint256 totalOrdersValue = _getTotalOrdersValue(order.tokenIn);
+
+        ///@notice Update the total orders value
+        totalOrdersValue += amountInRemaining;
+        totalOrdersValue -= order.amountInRemaining;
+
+        ///@notice If the wallet does not have a sufficient balance for the updated total orders value, revert.
+        if (IERC20(order.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
+            revert InsufficientWalletBalance();
+        }
+
+        ///@notice Update the total orders quantity
+        updateTotalOrdersQuantity(order.tokenIn, msg.sender, totalOrdersValue);
+
+        ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
+        uint256 totalApprovedQuantity = IERC20(order.tokenIn).allowance(
+            msg.sender,
+            address(LIMIT_ORDER_EXECUTOR)
+        );
+
+        ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
+        if (totalApprovedQuantity < amountInRemaining) {
+            revert InsufficientAllowanceForOrderUpdate();
+        }
+
+        ///@notice Update the order details stored in the system.
+        orderIdToSandboxLimitOrder[order.orderId]
+            .amountInRemaining = amountInRemaining;
+        orderIdToSandboxLimitOrder[order.orderId]
+            .amountOutRemaining = amountOutRemaining;
+
+        ///@notice Emit an updated order event with the orderId that was updated
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = orderId;
+        emit OrderUpdated(orderIds);
     }
 
     function cancelOrder(bytes32 orderId) public {
@@ -636,13 +680,33 @@ contract OrderBook is GasOracle {
     ///@notice Remove an order from the system if the order exists.
     /// @param orderId - The orderId that corresponds to the order that should be cancelled.
     function _cancelSandboxLimitOrder(bytes32 orderId) internal {
-        //TODO:
+        ///@notice Get the order details
+        SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
+
+        ///@notice Delete the order from orderIdToOrder mapping
+        delete orderIdToSandboxLimitOrder[orderId];
+
+        ///@notice Delete the orderId from addressToOrderIds mapping
+        delete addressToOrderIds[msg.sender][orderId];
+
+        ///@notice Decrement the total orders for the msg.sender
+        --totalOrdersPerAddress[msg.sender];
+
+        ///@notice Decrement the order quantity from the total orders quantity
+        decrementTotalOrdersQuantity(
+            order.tokenIn,
+            order.owner,
+            order.amountInRemaining
+        );
+
+        ///@notice Emit an event to notify the off-chain executors that the order has been cancelled.
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = order.orderId;
+        emit OrderCancelled(orderIds);
     }
 
     /// @notice cancel all orders relevant in ActiveOrders mapping to the msg.sender i.e the function caller
     function cancelOrders(bytes32[] memory orderIds) public {
-        bytes32[] memory canceledOrderIds = new bytes32[](orderIds.length);
-
         //check that there is one or more orders
         for (uint256 i = 0; i < orderIds.length; ) {
             cancelOrder(orderIds[i]);
