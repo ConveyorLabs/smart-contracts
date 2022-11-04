@@ -438,7 +438,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
     ///@param feeAmounts The calls to be executed.
     ///@param calls The feeAmounts to be removed from the input quantities.
     ///@param sandBoxRouter The address of the multicall contract.
-    function executeMultiCallOrders(
+    function executeSandboxLimitOrders(
         OrderBook.SandboxLimitOrder[] memory orders,
         uint128[] memory feeAmounts,
         SandboxRouter.SandboxMulticall memory calls,
@@ -448,12 +448,17 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         address[] memory swapTokens = new address[](orders.length);
         ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
         for (uint256 i = 0; i < orders.length; ++i) {
-            swapTokens[i] = orders[i].tokenIn;
+            address tokenIn = orders[i].tokenIn;
+
+            //TODO: check what this is
+            swapTokens[i] = tokenIn;
+
             IERC20(orders[i].tokenIn).safeTransferFrom(
                 orders[i].owner,
                 address(sandBoxRouter),
                 calls.amountSpecifiedToFill[i] - feeAmounts[i]
             );
+
             IERC20(orders[i].tokenIn).safeTransferFrom(
                 orders[i].owner,
                 address(this),

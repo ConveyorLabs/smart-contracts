@@ -249,72 +249,20 @@ contract LimitOrderRouter is OrderBook {
         return true;
     }
 
-    ///@notice Initializes the state of the LimitOrderRouter contract
+    ///@notice
+    /* This function caches the state of the specified orders before and after arbitrary execution, ensuring that the proper
+    prices and fill amounts have been satisfied.
+     */
+
     ///@param sandboxMulticall -
     function executeOrdersViaSandboxMulticall(
         SandboxRouter.SandboxMulticall memory sandboxMulticall
     ) external onlySandboxRouter nonReentrant {
-        uint256 orderIdLength = sandboxMulticall.orderIds.length;
-
-        ///@notice Create a new array of MultiCallOrders.
-        SandboxLimitOrder[] memory orders = new SandboxLimitOrder[](
-            orderIdLength
-        );
-
-        ///@notice Initialize arrays to hold post execution validation state.
-        uint128[] memory amountOutRequired = new uint128[](orderIdLength);
-        uint128[] memory cachedInitialBalancesOut = new uint128[](
-            orderIdLength
-        );
-        uint128[] memory cachedInitialBalancesIn = new uint128[](orderIdLength);
-        uint128[] memory feeAmounts = new uint128[](orderIdLength);
-
-        ///@notice Transfer the tokens from the order owners to the sandbox router contract.
-        ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
-        for (uint256 i = 0; i < orderIdLength; ++i) {
-            ///@notice Cache the price of the order. i.e. amountOutRemaining/amountInRemaining.
-            uint128 price = ConveyorMath.divUU(
-                orders[i].amountOutRemaining,
-                orders[i].amountInRemaining
-            );
-
-            uint128 amountSpecifiedToFill = sandboxMulticall
-                .amountSpecifiedToFill[i];
-
-            ///@notice Get the fee amount to be taken from the input quantity.
-            feeAmounts[i] = uint128(
-                ConveyorMath.mul64U(orders[i].fee, amountSpecifiedToFill)
-            );
-            ///@notice Get the order from the orderId.
-            orders[i] = orderIdToSandboxLimitOrder[
-                sandboxMulticall.orderIds[i]
-            ];
-
-            ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
-            require(
-                amountSpecifiedToFill <= orders[i].amountInRemaining,
-                "Cannot Fill more than Order size"
-            );
-            ///@notice Decrement the amountInRemaining by amountSpecifiedToFill set by the off chain executor.
-            orders[i].amountInRemaining -= amountSpecifiedToFill;
-            ///@notice Multiply the total amountInRemaining by the price to get the required amountOut. Subtract off the feeAmount on the fill quantity.
-            amountOutRequired[i] = uint128(
-                ConveyorMath.mul64U(
-                    price,
-                    amountSpecifiedToFill - feeAmounts[i]
-                )
-            );
-            ///@notice Cache the balance of the in/out token prior to execution for accurate validation of balances post execution.
-            cachedInitialBalancesOut[i] = uint128(
-                IERC20(orders[i].tokenOut).balanceOf(orders[i].owner)
-            );
-            cachedInitialBalancesIn[i] = uint128(
-                IERC20(orders[i].tokenIn).balanceOf(orders[i].owner)
-            );
-        }
+        SandboxLimitOrder[]
+            memory orders = initializePreSandboxExecutionState();
 
         ///@notice Call the limit order executor to transfer all of the order owners tokens to the contract.
-        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeMultiCallOrders(
+        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeSandboxLimitOrders(
             orders,
             feeAmounts,
             sandboxMulticall,
@@ -339,6 +287,78 @@ contract LimitOrderRouter is OrderBook {
             );
             ///@notice Update the Order data after execution requirements have been met.
             orders[k].amountOutRemaining -= amountOutRequired[k];
+        }
+    }
+
+    function initializePreSandboxExecutionState(
+        bytes32[] calldata orderIds,
+        uint256[] calldata fillAmounts
+    ) internal {
+        uint256 orderIdsLength = orderIds.length;
+
+        ///@notice Create a new array of MultiCallOrders.
+        SandboxLimitOrder[] memory orders = new SandboxLimitOrder[](
+            orderIdsLength
+        );
+
+        ///@notice Initialize arrays to hold post execution validation state.
+        uint128[] memory amountsOutRequired = new uint128[](orderIdsLength);
+        uint128[] memory initialTokenInBalances = new uint128[](orderIdsLength);
+        uint128[] memory initialTokenOutBalances = new uint128[](
+            orderIdsLength
+        );
+        uint128[] memory feeAmounts = new uint128[](orderIdsLength);
+
+        ///@notice Transfer the tokens from the order owners to the sandbox router contract.
+        ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
+        for (uint256 i = 0; i < orderIdsLength; ++i) {
+            ///@notice Get the current order
+            SandboxLimitOrder memory currentOrder = orderIdToSandboxLimitOrder[
+                orderIds[i]
+            ];
+
+            ///@notice Cache the price of the order. i.e. amountOutRemaining/amountInRemaining.
+            uint128 price = ConveyorMath.divUU(
+                currentOrder.amountOutRemaining,
+                currentOrder.amountInRemaining
+            );
+
+            ///@notice Cache amountSpecifiedToFill for intermediate calculations
+            uint128 amountSpecifiedToFill = fillAmounts[i];
+
+            ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
+            if (amountSpecifiedToFill > currentOrder.amountInRemaining) {
+                revert FillAmountSpecifiedGreaterThanAmountRemaining(
+                    amountSpecifiedToFill,
+                    currentOrder.amountInRemaining,
+                    currentOrder.orderId
+                );
+            }
+
+            ///@notice Get the fee amount to be taken from the input quantity.
+            uint128 feeAmount = uint128(
+                ConveyorMath.mul64U(currentOrder.fee, amountSpecifiedToFill)
+            );
+
+            ///@notice Decrement the amountInRemaining by amountSpecifiedToFill set by the off chain executor.
+            currentOrder.amountInRemaining -= amountSpecifiedToFill;
+
+            ///@notice Multiply the total amountInRemaining by the price to get the required amountOut. Subtract off the feeAmount on the fill quantity.
+            amountsOutRequired[i] = uint128(
+                ConveyorMath.mul64U(price, amountSpecifiedToFill - feeAmount)
+            );
+
+            ///@notice Cache the the pre execution state of the order details
+            initialTokenInBalances[i] = uint128(
+                IERC20(currentOrder.tokenIn).balanceOf(currentOrder.owner)
+            );
+
+            initialTokenOutBalances[i] = uint128(
+                IERC20(currentOrder.tokenOut).balanceOf(currentOrder.owner)
+            );
+
+            orders[i] = currentOrder;
+            feeAmount[i] = feeAmount;
         }
     }
 
