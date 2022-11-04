@@ -629,7 +629,7 @@ contract OrderBookTest is DSTest {
     ///@notice Test update sandbox order
     function testUpdateSandboxOrder(
         uint64 newAmountInRemaining,
-        uint128 newAmountOutRemaining
+        uint128 price
     ) public {
         cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
@@ -650,7 +650,7 @@ contract OrderBookTest is DSTest {
         bytes32 orderId = placeMockSandboxLimitOrder(order);
 
         //submit the updated order
-        orderBook.updateSandboxLimitOrder(orderId, newAmountInRemaining, newAmountOutRemaining);
+        orderBook.updateOrder(orderId, price, newAmountInRemaining);
 
         OrderBook.SandboxLimitOrder memory updatedOrder = orderBook.getSandboxLimitOrderById(
             orderId
@@ -664,7 +664,7 @@ contract OrderBookTest is DSTest {
         //Make sure the order was updated properly
         assertEq(newAmountInRemaining, totalOrdersValueAfter);
         assertEq(newAmountInRemaining, updatedOrder.amountInRemaining);
-        assertEq(newAmountOutRemaining, updatedOrder.amountOutRemaining);
+        assertEq(ConveyorMath.mul64U(newAmountInRemaining, price), updatedOrder.amountOutRemaining);
     }
 
     ///@notice Test fail update order insufficient allowance

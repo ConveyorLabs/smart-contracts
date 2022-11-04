@@ -530,13 +530,11 @@ contract OrderBook is GasOracle {
             revert OrderDoesNotExist(orderId);
         }
 
-        if(!(orderType == OrderType.LimitOrder)){
-            revert IncorrectOrderType();
+        if(orderType == OrderType.LimitOrder){
+            _updateLimitOrder(orderId, price, quantity);
+        }else{
+            _updateSandboxLimitOrder(orderId, quantity, uint128(ConveyorMath.mul64U(price, quantity)));
         }
-
-        
-        _updateLimitOrder(orderId, price, quantity);
-         
         
     }
 
@@ -584,15 +582,15 @@ contract OrderBook is GasOracle {
         emit OrderUpdated(orderIds);
     }
 
-    function updateSandboxLimitOrder(
+    function _updateSandboxLimitOrder(
         bytes32 orderId,
         uint128 amountInRemaining,
         uint128 amountOutRemaining
-    ) external {
+    ) internal {
         ///@notice Get the existing order that will be replaced with the new order
         SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
         if(order.orderId==bytes32(0)){
-            revert IncorrectOrderType();
+            revert OrderDoesNotExist(orderId);
         }
         ///@notice Get the total orders value for the msg.sender on the tokenIn
         uint256 totalOrdersValue = _getTotalOrdersValue(order.tokenIn);
