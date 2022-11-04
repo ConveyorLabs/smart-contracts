@@ -335,9 +335,35 @@ contract OrderBookTest is DSTest {
     }
 
     ///TODO: Write a fuzz test for this
-    function testFailPlaceSandboxLimitOrder_InsufficientWalletBalance()
-        public
-    {}
+    function testFailPlaceSandboxLimitOrder_InsufficientWalletBalance(
+        uint112 amountOutRemaining
+    ) public {
+        uint256 amountInRemaining = 1000000000000000000;
+
+        cheatCodes.deal(address(this), MAX_UINT);
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+        //if the fuzzed amount is enough to complete the swap
+
+        OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
+            swapToken,
+            wnato,
+            false,
+            uint112(amountInRemaining),
+            uint112(amountOutRemaining)
+        );
+
+        //create a new array of orders
+        OrderBook.SandboxLimitOrder[]
+            memory orderGroup = new OrderBook.SandboxLimitOrder[](1);
+        //add the order to the arrOrder and add the arrOrder to the orderGroup
+        orderGroup[0] = order;
+
+        //place order
+        bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
+            orderGroup
+        );
+        bytes32 orderId = orderIds[0];
+    }
 
     ///TODO: Write a fuzz test for this
     function testFailPlaceSandboxLimitOrder_InsufficientAllowanceForOrderPlacement()
