@@ -583,10 +583,10 @@ contract OrderBook is GasOracle {
 
     function _updateSandboxLimitOrder(
         bytes32 orderId,
-        uint128 price,
-        uint128 quantity
+        uint128 amountInRemaining,
+        uint128 amountOutRemaining
     ) internal {
-        //TODO:
+        ///TODO:
     }
 
     function cancelOrder(bytes32 orderId) public {
@@ -636,13 +636,33 @@ contract OrderBook is GasOracle {
     ///@notice Remove an order from the system if the order exists.
     /// @param orderId - The orderId that corresponds to the order that should be cancelled.
     function _cancelSandboxLimitOrder(bytes32 orderId) internal {
-        //TODO:
+        ///@notice Get the order details
+        SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
+
+        ///@notice Delete the order from orderIdToOrder mapping
+        delete orderIdToSandboxLimitOrder[orderId];
+
+        ///@notice Delete the orderId from addressToOrderIds mapping
+        delete addressToOrderIds[msg.sender][orderId];
+
+        ///@notice Decrement the total orders for the msg.sender
+        --totalOrdersPerAddress[msg.sender];
+
+        ///@notice Decrement the order quantity from the total orders quantity
+        decrementTotalOrdersQuantity(
+            order.tokenIn,
+            order.owner,
+            order.amountInRemaining
+        );
+
+        ///@notice Emit an event to notify the off-chain executors that the order has been cancelled.
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = order.orderId;
+        emit OrderCancelled(orderIds);
     }
 
     /// @notice cancel all orders relevant in ActiveOrders mapping to the msg.sender i.e the function caller
     function cancelOrders(bytes32[] memory orderIds) public {
-        bytes32[] memory canceledOrderIds = new bytes32[](orderIds.length);
-
         //check that there is one or more orders
         for (uint256 i = 0; i < orderIds.length; ) {
             cancelOrder(orderIds[i]);
