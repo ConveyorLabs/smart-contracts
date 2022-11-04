@@ -586,7 +586,43 @@ contract OrderBook is GasOracle {
         uint128 amountInRemaining,
         uint128 amountOutRemaining
     ) internal {
-        ///TODO:
+        ///@notice Get the existing order that will be replaced with the new order
+        SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
+
+        ///@notice Get the total orders value for the msg.sender on the tokenIn
+        uint256 totalOrdersValue = _getTotalOrdersValue(order.tokenIn);
+
+        ///@notice Update the total orders value
+        totalOrdersValue += amountInRemaining;
+        totalOrdersValue -= order.amountInRemaining;
+
+        ///@notice If the wallet does not have a sufficient balance for the updated total orders value, revert.
+        if (IERC20(order.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
+            revert InsufficientWalletBalance();
+        }
+
+        ///@notice Update the total orders quantity
+        updateTotalOrdersQuantity(order.tokenIn, msg.sender, totalOrdersValue);
+
+        ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
+        uint256 totalApprovedQuantity = IERC20(order.tokenIn).allowance(
+            msg.sender,
+            address(LIMIT_ORDER_EXECUTOR)
+        );
+
+        ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
+        if (totalApprovedQuantity < amountInRemaining) {
+            revert InsufficientAllowanceForOrderUpdate();
+        }
+
+        ///@notice Update the order details stored in the system.
+        orderIdToSandboxLimitOrder[order.orderId].amountInRemaining = amountInRemaining;
+        orderIdToSandboxLimitOrder[order.orderId].amountOutRemaining = amountOutRemaining;
+
+        ///@notice Emit an updated order event with the orderId that was updated
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = orderId;
+        emit OrderUpdated(orderIds);
     }
 
     function cancelOrder(bytes32 orderId) public {
