@@ -215,7 +215,7 @@ contract OrderBookTest is DSTest {
 
     ///@notice Test palce order fuzz test
     function testPlaceSandboxOrder(
-        uint80 amountInRemaining,
+        uint112 amountInRemaining,
         uint112 amountOutRemaining
     ) public {
         cheatCodes.deal(address(this), MAX_UINT);
@@ -263,15 +263,52 @@ contract OrderBookTest is DSTest {
         }
     }
 
-    ///TODO: Write a fuzz test for this
-    function testFailPlaceSandboxLimitOrder_InsufficientFeeCreditBalanceForOrderExecution()
-        public
-    {}
+    ///@notice Test to ensure if fee balance is not sufficient and prePay == true, then Order Placement will revert. 
+    function testFailPlaceSandboxLimitOrder_InsufficientFeeCreditBalanceForOrderExecution(
+    ) public {
+        uint256 amountInRemaining= 100000000000000000;
+        uint256 amountOutRemaining= 100000000000000000;
+        cheatCodes.deal(address(this), MAX_UINT);
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+        if (!(amountInRemaining < 10000000000)) {
+            //if the fuzzed amount is enough to complete the swap
+            try
+                swapHelper.swapEthForTokenWithUniV2(
+                    amountInRemaining,
+                    swapToken
+                )
+            returns (uint256 amountOut) {
+                OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
+                    swapToken,
+                    wnato,
+                    true,
+                    uint112(amountOut),
+                    uint112(amountOutRemaining)
+                );
+
+                //create a new array of orders
+                OrderBook.SandboxLimitOrder[]
+                    memory orderGroup = new OrderBook.SandboxLimitOrder[](1);
+                //add the order to the arrOrder and add the arrOrder to the orderGroup
+                orderGroup[0] = order;
+
+                //place order
+                bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
+                    orderGroup
+                );
+                
+
+                
+            } catch {}
+        }
+    }
 
     ///TODO: Write a fuzz test for this
     function testFailPlaceSandboxLimitOrder_IncongruentTokenInOrderGroup()
         public
-    {}
+    {
+
+    }
 
     ///TODO: Write a fuzz test for this
     function testFailPlaceSandboxLimitOrder_InsufficientWalletBalance()
@@ -832,7 +869,7 @@ contract OrderBookTest is DSTest {
         //Initialize mock order
         order = OrderBook.SandboxLimitOrder({
             buy: false,
-            prePayFee: false,
+            prePayFee: prePaid,
             lastRefreshTimestamp: 0,
             expirationTimestamp: uint32(MAX_UINT),
             fee: 0,
