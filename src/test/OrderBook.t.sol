@@ -366,13 +366,13 @@ contract OrderBookTest is DSTest {
     }
 
     ///TODO: Write a fuzz test for this
-    function testFailPlaceSandboxLimitOrder_InsufficientAllowanceForOrderPlacement(uint256 amountOutRemaining)
-        public
-    {
+    function testFailPlaceSandboxLimitOrder_InsufficientAllowanceForOrderPlacement(
+        uint256 amountOutRemaining
+    ) public {
         uint256 amountInRemaining = 1000000000000000000;
 
         cheatCodes.deal(address(this), MAX_UINT);
-        
+
         //if the fuzzed amount is enough to complete the swap
         try
             swapHelper.swapEthForTokenWithUniV2(amountInRemaining, swapToken)
@@ -396,15 +396,67 @@ contract OrderBookTest is DSTest {
                 orderGroup
             );
         } catch {}
-
-        
     }
 
     ///TODO: Write a fuzz test for this
     function testUpdateSandboxLimitOrder() public {}
 
     ///TODO: Write a fuzz test for this
-    function testCancelSandboxLimitOrder() public {}
+    function testCancelSandboxLimitOrder(uint256 amountOutRemaining) public {
+        uint256 amountInRemaining = 1000000000000000000;
+
+        cheatCodes.deal(address(this), MAX_UINT);
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+
+        //if the fuzzed amount is enough to complete the swap
+        try
+            swapHelper.swapEthForTokenWithUniV2(amountInRemaining, swapToken)
+        returns (uint256 amountOut) {
+            OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
+                swapToken,
+                wnato,
+                false,
+                uint112(amountOut),
+                uint112(amountOutRemaining)
+            );
+
+            //create a new array of orders
+            OrderBook.SandboxLimitOrder[]
+                memory orderGroup = new OrderBook.SandboxLimitOrder[](1);
+            //add the order to the arrOrder and add the arrOrder to the orderGroup
+            orderGroup[0] = order;
+
+            //place order
+            bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
+                orderGroup
+            );
+            bytes32 orderId = orderIds[0];
+
+            //check that the orderId is not zero value
+            assert((orderId != bytes32(0)));
+
+            assertEq(
+                orderBook.totalOrdersQuantity(
+                    keccak256(abi.encode(address(this), swapToken))
+                ),
+                amountOut
+            );
+
+            assertEq(orderBook.totalOrdersPerAddress(address(this)), 1);
+            orderBook.cancelOrder(orderId);
+            assertEq(
+                orderBook.totalOrdersQuantity(
+                    keccak256(abi.encode(address(this), swapToken))
+                ),
+                0
+            );
+
+            assertEq(orderBook.totalOrdersPerAddress(address(this)), 0);
+
+        } catch {}
+
+        
+    }
 
     ///TODO: Write a test for this
     function testPartialFillSandboxLimitOrder() public {}
@@ -1039,5 +1091,10 @@ contract OrderBookWrapper is OrderBook {
                 userAddress,
                 gasCreditBalance
             );
+    }
+
+    ///Wrapper around _cancelSandboxLimitOrder
+    function cancelSandboxLimitOrder(bytes32 orderId) public {
+        _cancelSandboxLimitOrder(orderId);
     }
 }
