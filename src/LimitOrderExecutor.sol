@@ -6,6 +6,7 @@ import "./interfaces/ILimitOrderQuoter.sol";
 import "./lib/ConveyorFeeMath.sol";
 import "./LimitOrderRouter.sol";
 import "./interfaces/ISwapRouter.sol";
+import "./interfaces/ISandboxRouter.sol";
 
 /// @title LimitOrderExecutor
 /// @author 0xOsiris, 0xKitsune
@@ -457,10 +458,10 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
             IERC20(orders[i].tokenIn).safeTransferFrom(
                 orders[i].owner,
                 sandBoxRouter,
-                calls.amountSpecifiedToFill[i]
+                sandboxMulticall.fillAmount[i]
             );
 
-            expectedAccumulatedFees += order.fee;
+            expectedAccumulatedFees += orders[i].fee;
         }
 
         ///@notice Cache the contract balance to check if the fee was paid post execution
