@@ -530,12 +530,15 @@ contract OrderBook is GasOracle {
             revert OrderDoesNotExist(orderId);
         }
 
-        if(orderType == OrderType.LimitOrder){
+        if (orderType == OrderType.LimitOrder) {
             _updateLimitOrder(orderId, price, quantity);
-        }else{
-            _updateSandboxLimitOrder(orderId, quantity, uint128(ConveyorMath.mul64U(price, quantity)));
+        } else {
+            _updateSandboxLimitOrder(
+                orderId,
+                quantity,
+                uint128(ConveyorMath.mul64U(price, quantity))
+            );
         }
-        
     }
 
     function _updateLimitOrder(
@@ -589,7 +592,7 @@ contract OrderBook is GasOracle {
     ) internal {
         ///@notice Get the existing order that will be replaced with the new order
         SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
-        if(order.orderId==bytes32(0)){
+        if (order.orderId == bytes32(0)) {
             revert OrderDoesNotExist(orderId);
         }
         ///@notice Get the total orders value for the msg.sender on the tokenIn
@@ -619,8 +622,10 @@ contract OrderBook is GasOracle {
         }
 
         ///@notice Update the order details stored in the system.
-        orderIdToSandboxLimitOrder[order.orderId].amountInRemaining = amountInRemaining;
-        orderIdToSandboxLimitOrder[order.orderId].amountOutRemaining = amountOutRemaining;
+        orderIdToSandboxLimitOrder[order.orderId]
+            .amountInRemaining = amountInRemaining;
+        orderIdToSandboxLimitOrder[order.orderId]
+            .amountOutRemaining = amountOutRemaining;
 
         ///@notice Emit an updated order event with the orderId that was updated
         bytes32[] memory orderIds = new bytes32[](1);
