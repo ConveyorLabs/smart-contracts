@@ -358,10 +358,9 @@ contract LimitOrderRouter is OrderBook {
             bytes32 orderId = orderIds[i];
 
             ///@notice Cache the order in memory.
-            (OrderType orderType, bytes memory orderBytes) = getOrderById(
-                orderId
-            );
+            (OrderType orderType, bytes memory orderBytes) = getOrderById(orderId);
 
+<<<<<<< HEAD
             ///@notice Check if order exists, otherwise revert.
             if (orderType == OrderType.None) {
                 revert OrderDoesNotExist(orderId);
@@ -385,11 +384,135 @@ contract LimitOrderRouter is OrderBook {
 
             unchecked {
                 ++i;
+=======
+            if(orderType == OrderType.None){
+                continue;
+            }else{
+                if(orderType == OrderType.LimitOrder){
+                    LimitOrder memory order = abi.decode(orderBytes,(LimitOrder));
+                   totalRefreshFees+= _refreshLimitOrder(order, gasPrice);
+                }else if(orderType == OrderType.SandboxLimitOrder){
+                    SandboxLimitOrder memory order = abi.decode(orderBytes, (SandboxLimitOrder));
+                     totalRefreshFees+= _refreshSandboxLimitOrder(order, gasPrice);
+                }
+            }
+
+            unchecked{
+                ++i;
             }
         }
 
         ///@notice Transfer the refresh fee to off-chain executor who called the function.
         safeTransferETH(msg.sender, totalRefreshFees);
+    }
+
+    function _refreshSandboxLimitOrder(SandboxLimitOrder memory order, uint256 gasPrice) internal returns (uint256){
+        ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
+            if (block.timestamp > order.expirationTimestamp) {
+                _cancelSandboxLimitOrder(order.orderId);
+                return 0;
+>>>>>>> multicall-tests
+            }
+        }
+
+<<<<<<< HEAD
+        ///@notice Transfer the refresh fee to off-chain executor who called the function.
+        safeTransferETH(msg.sender, totalRefreshFees);
+    }
+
+    function _refreshLimitOrder(LimitOrder memory order, uint256 gasPrice)
+        internal
+        returns (uint256 refreshFee)
+    {
+        ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
+        if (block.timestamp > order.expirationTimestamp) {
+            //TODO: instead of returning 0, return the fee earned from cancel limit order instead so you can send it as one big fee
+            _cancelLimitOrder(order);
+            return 0;
+        }
+
+        ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
+        if (gasCreditBalance[order.owner] < REFRESH_FEE) {
+            _cancelLimitOrder(order);
+            return 0;
+        }
+
+        ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
+        if (block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL) {
+            return 0;
+        }
+=======
+            ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
+            if (gasCreditBalance[order.owner] < REFRESH_FEE) {
+                _cancelSandboxLimitOrder(order.orderId);
+
+                return 0;
+            }
+
+            ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
+            if (
+                block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL
+            ) {
+                return 0;
+            }
+>>>>>>> multicall-tests
+
+        ///@notice Require that account has enough gas for order execution after the refresh, otherwise, cancel the order and continue the loop.
+        if (
+            !(
+                _hasMinGasCredits(
+                    gasPrice,
+                    ORDER_EXECUTION_GAS_COST,
+                    order.owner,
+                    gasCreditBalance[order.owner] - REFRESH_FEE
+                )
+<<<<<<< HEAD
+            )
+        ) {
+            _cancelLimitOrder(order);
+            return 0;
+        }
+
+        ///@notice Decrement the order.owner's gas credit balance
+        gasCreditBalance[order.owner] -= REFRESH_FEE;
+
+        ///@notice update the order's last refresh timestamp
+        ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
+        orderIdToLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
+            block.timestamp % (2**32 - 1)
+        );
+
+        ///@notice Emit an event to notify the off-chain executors that the order has been refreshed.
+        emit OrderRefreshed(
+            order.orderId,
+            order.lastRefreshTimestamp,
+            order.expirationTimestamp
+        );
+
+=======
+            ) {
+                _cancelSandboxLimitOrder(order.orderId);
+                return 0;
+               
+            }
+
+            ///@notice Decrement the order.owner's gas credit balance
+            gasCreditBalance[order.owner] -= REFRESH_FEE;
+
+            ///@notice update the order's last refresh timestamp
+            ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
+            orderIdToLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
+                block.timestamp % (2**32 - 1)
+            );
+
+            ///@notice Emit an event to notify the off-chain executors that the order has been refreshed.
+            emit OrderRefreshed(
+                order.orderId,
+                order.lastRefreshTimestamp,
+                order.expirationTimestamp
+            );
+
+        return REFRESH_FEE;
     }
 
     function _refreshLimitOrder(LimitOrder memory order, uint256 gasPrice)
@@ -445,15 +568,20 @@ contract LimitOrderRouter is OrderBook {
             order.expirationTimestamp
         );
 
+>>>>>>> multicall-tests
         ///@notice Accumulate the REFRESH_FEE.
         return REFRESH_FEE;
     }
 
+<<<<<<< HEAD
     //TODO:
     function _refreshSandboxLimitOrder(
         SandboxLimitOrder memory order,
         uint256 gasPrice
     ) internal returns (uint256 refreshFee) {}
+=======
+   
+>>>>>>> multicall-tests
 
     ///@notice Transfer ETH to a specific address and require that the call was successful.
     ///@param to - The address that should be sent Ether.
@@ -479,6 +607,7 @@ contract LimitOrderRouter is OrderBook {
         nonReentrant
         returns (bool success)
     {
+<<<<<<< HEAD
         ///@notice Get the current gas price from the v3 Aggregator.
         uint256 gasPrice = getGasPrice();
 
@@ -488,12 +617,32 @@ contract LimitOrderRouter is OrderBook {
         address orderOwner;
         bytes32 orderId;
 
+=======
+        LimitOrder memory order = orderIdToLimitOrder[orderId];
+        uint256 gasPrice = getGasPrice();
+>>>>>>> multicall-tests
         ///@notice Check if order exists, otherwise revert.
         if (orderType == OrderType.None) {
             revert OrderDoesNotExist(orderId);
         } else if (orderType == OrderType.LimitOrder) {
             LimitOrder memory limitOrder = abi.decode(orderBytes, (LimitOrder));
 
+<<<<<<< HEAD
+=======
+        ///@notice Get the current gas price from the v3 Aggregator.
+        ///@notice Cache the order in memory.
+        (OrderType orderType, bytes memory orderBytes) = getOrderById(orderId);
+
+        address orderOwner;
+        
+
+        ///@notice Check if order exists, otherwise revert.
+        if (orderType == OrderType.None) {
+            revert OrderDoesNotExist(orderId);
+        } else if (orderType == OrderType.LimitOrder) {
+            LimitOrder memory limitOrder = abi.decode(orderBytes, (LimitOrder));
+
+>>>>>>> multicall-tests
             orderOwner = limitOrder.owner;
             orderId = limitOrder.orderId;
         } else {

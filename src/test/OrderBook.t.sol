@@ -125,6 +125,32 @@ contract OrderBookTest is DSTest {
         assertEq(returnedOrder.quantity, order.quantity);
     }
 
+    //Test to get SandboxLimitOrder
+    function testGetOrderByIdSandBox() public {
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+
+        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+
+        //create a new order
+        OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
+            swapToken,
+            wnato,
+            false,
+            5,
+            5
+        );
+        //place a mock order
+        bytes32 orderId = placeMockSandboxLimitOrder(order);
+
+        OrderBook.SandboxLimitOrder memory returnedOrder = orderBook
+            .getSandboxLimitOrderById(orderId);
+
+        // assert that the two orders are the same
+        assertEq(returnedOrder.tokenIn, order.tokenIn);
+        assertEq(returnedOrder.tokenOut, order.tokenOut);
+        assertEq(returnedOrder.orderId, orderId);
+    }
+
     ///@notice Test fail get order by id order does not exist
     function testFailgetLimitOrderById_OrderDoesNotExist() public {
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
@@ -142,6 +168,9 @@ contract OrderBookTest is DSTest {
 
         orderBook.getLimitOrderById(bytes32(0));
     }
+
+    ///TODO: Fuzz test this
+    function testDepositFeeCredits() public {}
 
     ///@notice Test palce order fuzz test
     function testPlaceOrder(uint256 swapAmount, uint256 executionPrice) public {
@@ -167,7 +196,7 @@ contract OrderBookTest is DSTest {
             orderGroup[0] = order;
 
             //place order
-            bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
+            bytes32[] memory orderIds = orderBook.placeLimitOrder(orderGroup);
             bytes32 orderId = orderIds[0];
 
             //check that the orderId is not zero value
@@ -183,6 +212,77 @@ contract OrderBookTest is DSTest {
             assertEq(orderBook.totalOrdersPerAddress(address(this)), 1);
         } catch {}
     }
+
+    ///@notice Test palce order fuzz test
+    function testPlaceSandboxOrder(
+        uint80 amountInRemaining,
+        uint112 amountOutRemaining
+    ) public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+        if (!(amountInRemaining < 1000000000000000)) {
+            //if the fuzzed amount is enough to complete the swap
+            try
+                swapHelper.swapEthForTokenWithUniV2(
+                    amountInRemaining,
+                    swapToken
+                )
+            returns (uint256 amountOut) {
+                OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
+                    swapToken,
+                    wnato,
+                    false,
+                    uint112(amountOut),
+                    uint112(amountOutRemaining)
+                );
+
+                //create a new array of orders
+                OrderBook.SandboxLimitOrder[]
+                    memory orderGroup = new OrderBook.SandboxLimitOrder[](1);
+                //add the order to the arrOrder and add the arrOrder to the orderGroup
+                orderGroup[0] = order;
+
+                //place order
+                bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
+                    orderGroup
+                );
+                bytes32 orderId = orderIds[0];
+
+                //check that the orderId is not zero value
+                assert((orderId != bytes32(0)));
+
+                assertEq(
+                    orderBook.totalOrdersQuantity(
+                        keccak256(abi.encode(address(this), swapToken))
+                    ),
+                    amountOut
+                );
+
+                assertEq(orderBook.totalOrdersPerAddress(address(this)), 1);
+            } catch {}
+        }
+    }
+
+    ///TODO: Write a fuzz test for this
+    function testFailPlaceSandboxLimitOrder_InsufficientFeeCreditBalanceForOrderExecution() public {}
+
+    ///TODO: Write a fuzz test for this
+    function testFailPlaceSandboxLimitOrder_IncongruentTokenInOrderGroup() public {}
+
+    ///TODO: Write a fuzz test for this
+    function testFailPlaceSandboxLimitOrder_InsufficientWalletBalance() public {}
+
+    ///TODO: Write a fuzz test for this
+    function testFailPlaceSandboxLimitOrder_InsufficientAllowanceForOrderPlacement() public {}
+
+    ///TODO: Write a fuzz test for this
+    function testUpdateSandboxLimitOrder() public {}
+
+    ///TODO: Write a fuzz test for this 
+    function testCancelSandboxLimitOrder() public {}
+
+    ///TODO: Write a test for this
+    function testPartialFillSandboxLimitOrder() public {}
 
     ///@notice Test fail place order InsufficientAlllowanceForOrderPlacement
     function testFailPlaceOrder_InsufficientAllowanceForOrderPlacement(
@@ -210,7 +310,7 @@ contract OrderBookTest is DSTest {
             orderGroup[0] = order;
 
             //place order
-            bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
+            bytes32[] memory orderIds = orderBook.placeLimitOrder(orderGroup);
             bytes32 orderId = orderIds[0];
 
             //check that the orderId is not zero value
@@ -249,7 +349,7 @@ contract OrderBookTest is DSTest {
         orderGroup[0] = order;
 
         //place order
-        orderBook.placeOrder(orderGroup);
+        orderBook.placeLimitOrder(orderGroup);
     }
 
     ///@notice Test Fail Place order IncongruentTokenInOrderGroup
@@ -294,7 +394,7 @@ contract OrderBookTest is DSTest {
                 orderGroup[1] = order2;
 
                 //place order
-                orderBook.placeOrder(orderGroup);
+                orderBook.placeLimitOrder(orderGroup);
             } catch {
                 require(false, "swap 1 failed");
             }
@@ -525,7 +625,7 @@ contract OrderBookTest is DSTest {
         orderGroup[1] = order2;
 
         //place order
-        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
+        bytes32[] memory orderIds = orderBook.placeLimitOrder(orderGroup);
 
         //Cancel the orders
         orderBook.cancelOrders(orderIds);
@@ -714,6 +814,33 @@ contract OrderBookTest is DSTest {
         });
     }
 
+<<<<<<< HEAD
+=======
+    function newSandboxLimitOrder(
+        address tokenIn,
+        address tokenOut,
+        bool prePaid,
+        uint128 amountInRemaining,
+        uint128 amountOutRemaining
+    ) internal view returns (OrderBook.SandboxLimitOrder memory order) {
+        //Initialize mock order
+        order = OrderBook.SandboxLimitOrder({
+            buy: false,
+            prePayFee: false,
+            lastRefreshTimestamp: 0,
+            expirationTimestamp: uint32(MAX_UINT),
+            fee: 0,
+            quoteWethLiquidSwapPool: address(0),
+            amountInRemaining: amountInRemaining,
+            amountOutRemaining: amountOutRemaining,
+            owner: address(this),
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            orderId: bytes32(0)
+        });
+    }
+
+>>>>>>> multicall-tests
     function placeMockOrder(OrderBook.LimitOrder memory order)
         internal
         returns (bytes32 orderId)
@@ -722,11 +849,31 @@ contract OrderBookTest is DSTest {
         OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](
             1
         );
+<<<<<<< HEAD
+=======
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
 
         //place order
-        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
+        bytes32[] memory orderIds = orderBook.placeLimitOrder(orderGroup);
+
+        orderId = orderIds[0];
+    }
+
+    function placeMockSandboxLimitOrder(
+        OrderBook.SandboxLimitOrder memory order
+    ) internal returns (bytes32 orderId) {
+        //create a new array of orders
+        OrderBook.SandboxLimitOrder[]
+            memory orderGroup = new OrderBook.SandboxLimitOrder[](1);
+>>>>>>> multicall-tests
+        //add the order to the arrOrder and add the arrOrder to the orderGroup
+        orderGroup[0] = order;
+
+        //place order
+        bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
+            orderGroup
+        );
 
         orderId = orderIds[0];
     }

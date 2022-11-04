@@ -360,6 +360,9 @@ contract SwapRouterTest is DSTest {
         }
     }
 
+    ///TODO: Write fuzz test for this
+    function testCalculateSandboxFeeAmount() public {}
+
     function testFailUniswapV3Callback_UnauthorizedUniswapV3CallbackCaller()
         public
     {
@@ -489,7 +492,11 @@ contract SwapRouterTest is DSTest {
     ) internal view returns (OrderBook.LimitOrder memory order) {
         //Initialize mock order
         order = OrderBook.LimitOrder({
+<<<<<<< HEAD
             stoploss: false,
+=======
+            stoploss:false,
+>>>>>>> multicall-tests
             buy: buy,
             taxed: taxed,
             lastRefreshTimestamp: lastRefreshTimestamp,

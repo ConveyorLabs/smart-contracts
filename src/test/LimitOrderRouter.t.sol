@@ -119,7 +119,10 @@ contract LimitOrderRouterTest is DSTest {
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             address(limitOrderExecutor)
         );
-    }
+    }   
+
+    ///TODO: Write a test to make sure all validation logic is solid
+    function testExecuteOrdersViaSandboxMulticall() public {}
 
     function testOnlyEOA() public {
         cheatCodes.prank(tx.origin);
@@ -283,8 +286,12 @@ contract LimitOrderRouterTest is DSTest {
         bool cancelled = limitOrderRouter.validateAndCancelOrder(orderId);
         assertTrue(cancelled);
 
+<<<<<<< HEAD
         OrderBook.LimitOrder memory cancelledOrder = orderBook
             .getLimitOrderById(orderId);
+=======
+        OrderBook.LimitOrder memory cancelledOrder = orderBook.getLimitOrderById(orderId);
+>>>>>>> multicall-tests
 
         assert(cancelledOrder.orderId == bytes32(0));
 
@@ -683,7 +690,11 @@ contract LimitOrderRouterTest is DSTest {
     ) internal view returns (OrderBook.LimitOrder memory order) {
         //Initialize mock order
         order = OrderBook.LimitOrder({
+<<<<<<< HEAD
             stoploss: stoploss,
+=======
+            stoploss:stoploss,
+>>>>>>> multicall-tests
             buy: buy,
             taxed: taxed,
             lastRefreshTimestamp: lastRefreshTimestamp,
@@ -717,7 +728,11 @@ contract LimitOrderRouterTest is DSTest {
     ) internal view returns (OrderBook.LimitOrder memory order) {
         //Initialize mock order
         order = OrderBook.LimitOrder({
+<<<<<<< HEAD
             stoploss: false,
+=======
+            stoploss:false,
+>>>>>>> multicall-tests
             buy: buy,
             taxed: taxed,
             lastRefreshTimestamp: lastRefreshTimestamp,
@@ -740,14 +755,18 @@ contract LimitOrderRouterTest is DSTest {
         returns (bytes32 orderId)
     {
         //create a new array of orders
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](
             1
         );
+=======
+        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](1);
+>>>>>>> multicall-tests
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
 
         //place order
-        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
+        bytes32[] memory orderIds = orderBook.placeLimitOrder(orderGroup);
 
         orderId = orderIds[0];
     }
@@ -757,7 +776,7 @@ contract LimitOrderRouterTest is DSTest {
         returns (bytes32[] memory)
     {
         //place order
-        bytes32[] memory orderIds = orderBook.placeOrder(orderGroup);
+        bytes32[] memory orderIds = orderBook.placeLimitOrder(orderGroup);
 
         return orderIds;
     }
@@ -833,9 +852,13 @@ contract LimitOrderRouterTest is DSTest {
             500,
             MAX_U32
         );
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             4
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](4);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -906,9 +929,13 @@ contract LimitOrderRouterTest is DSTest {
             0,
             MAX_U32
         );
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             4
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](4);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -987,9 +1014,13 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             4
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](4);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1047,9 +1078,13 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             3
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1107,9 +1142,13 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             3
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1167,9 +1206,13 @@ contract LimitOrderRouterTest is DSTest {
             0,
             MAX_U32
         );
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             3
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         bytes32[] memory mockOrderOrderIds = placeMultipleMockOrder(orderBatch);
@@ -1237,9 +1280,13 @@ contract LimitOrderRouterTest is DSTest {
             0,
             MAX_U32
         );
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             3
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1300,9 +1347,13 @@ contract LimitOrderRouterTest is DSTest {
             0,
             MAX_U32
         );
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             3
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1366,9 +1417,13 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             3
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1426,9 +1481,13 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             3
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1486,9 +1545,13 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             3
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1546,9 +1609,13 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             3
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1606,9 +1673,13 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             3
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1652,9 +1723,13 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             2
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](2);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
 
@@ -1697,9 +1772,13 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             2
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](2);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
 
@@ -1756,9 +1835,13 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             3
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1815,9 +1898,13 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             3
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1863,9 +1950,15 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             2
         );
+=======
+     
+
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](2);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
 
@@ -1908,9 +2001,13 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             2
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](2);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
 
@@ -1973,9 +2070,13 @@ contract LimitOrderRouterTest is DSTest {
             MAX_U32
         );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             3
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](3);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2079,9 +2180,13 @@ contract LimitOrderRouterTest is DSTest {
         //     MAX_U32
         // );
 
+<<<<<<< HEAD
         OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](
             2
         );
+=======
+        OrderBook.LimitOrder[] memory orderBatch = new OrderBook.LimitOrder[](2);
+>>>>>>> multicall-tests
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         // orderBatch[2] = order3;
@@ -2101,7 +2206,11 @@ contract LimitOrderRouterTest is DSTest {
     ) internal view returns (OrderBook.LimitOrder memory order) {
         //Initialize mock order
         order = OrderBook.LimitOrder({
+<<<<<<< HEAD
             stoploss: false,
+=======
+            stoploss:false,
+>>>>>>> multicall-tests
             buy: false,
             taxed: false,
             lastRefreshTimestamp: 0,
