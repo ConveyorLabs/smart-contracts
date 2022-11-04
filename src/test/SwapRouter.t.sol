@@ -361,7 +361,59 @@ contract SwapRouterTest is DSTest {
     }
 
     ///TODO: Write fuzz test for this
-    function testCalculateSandboxFeeAmount(uint256 quantity) public {}
+    function testCalculateSandboxFeeAmount(uint64 quantity) public {
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+        (uint128 fee, address quoteWethLiquidSwapPool) = limitOrderExecutor.calculateSandboxFeeAmount(usdc, weth, quantity, usdc);
+        
+        if(_lpIsNotUniV3(quoteWethLiquidSwapPool)){
+            address token0 = IUniswapV2Pair(quoteWethLiquidSwapPool).token0();
+            
+            (uint112 res0, uint112 res1,) = IUniswapV2Pair(quoteWethLiquidSwapPool).getReserves();
+            if(token0==weth){   
+                
+                assertGe(res0, 1000000000000000000000);
+                
+            }else{
+                
+               
+                assertGe(res1, 1000000000000000000000);
+            }
+        }else{
+            (SwapRouter.SpotReserve memory spRes, address pool) = limitOrderExecutor.calculateV3SpotPrice(swapToken, WETH, 500, _uniV3FactoryAddress);
+            
+            uint128 liquidity = IUniswapV3Pool(quoteWethLiquidSwapPool).liquidity();
+            assertEq(pool, quoteWethLiquidSwapPool);
+            
+            assertGe(liquidity, 100000000000000000000);
+        }
+
+    }
+
+    function _lpIsNotUniV3(address lp) internal returns (bool) {
+        bool success;
+        assembly {
+            //store the function sig for  "fee()"
+            mstore(
+                0x00,
+                0xddca3f4300000000000000000000000000000000000000000000000000000000
+            )
+
+            success := call(
+                gas(), // gas remaining
+                lp, // destination address
+                0, // no ether
+                0x00, // input buffer (starts after the first 32 bytes in the `data` array)
+                0x04, // input length (loaded from the first 32 bytes in the `data` array)
+                0x00, // output buffer
+                0x00 // output length
+            )
+        }
+        ///@notice return the opposite of success, meaning if the call succeeded, the address is univ3, and we should
+        ///@notice indicate that lpIsNotUniV3 is false
+        return !success;
+    }
 
     function testFailUniswapV3Callback_UnauthorizedUniswapV3CallbackCaller()
         public

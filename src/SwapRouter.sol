@@ -98,7 +98,7 @@ contract SwapRouter is ConveyorTickMath {
 
     //======================Constants================================
     uint128 constant SUFFICIENTLY_LIQUID = 1000000000000000000000; //Over 1 million should cover slippage epsilon on fees.
-    uint128 constant SUFFICIENTLY_SQRT_LIQUID = 1000000000000000000000;
+    uint128 constant SUFFICIENTLY_SQRT_LIQUID = 100000000000000000000;
     uint128 constant MIN_FEE_64x64 = 18446744073709552;
     uint128 constant BASE_SWAP_FEE = 55340232221128660;
     uint128 constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
@@ -789,28 +789,32 @@ contract SwapRouter is ConveyorTickMath {
         ///@notice Initialize liquidFeeQuoteSpot liquidFeeQuotePool to hold the pool, and spot for the most liquid pool.
         uint256 liquidFeeQuoteSpot;
         address liquidFeeQuotePool;
+        address tempLiquidFeeQuotePool;
         uint128 liquidity;
+
         ///@notice Putting this on hold temporarily, trying to consider if there are any more lightweight options, as this will be costly for a user.
         for (uint256 i = 0; i < dexes.length; ++i) {
             if (dexes[i].isUniV2) {
                 ///@notice Get the v2 spot price and pool if it exists for the quote and weth.
                 (
                     spotPricesTokenInWeth[i],
-                    liquidFeeQuotePool
+                    tempLiquidFeeQuotePool
                 ) = _calculateV2SpotPrice(
                     tokenIn,
                     weth,
                     dexes[i].factoryAddress,
                     dexes[i].initBytecode
                 );
+                uint128 tempLiquidity= !spotPricesTokenInWeth[i].token0IsReserve0
+                        ? (spotPricesTokenInWeth[i].res0) 
+                            
+                        : (spotPricesTokenInWeth[i].res1);
                 ///@notice If the weth reserve is above the minimum accepted threshold set the spot price to liquidFeeQuoteSpot and break the loop to save gas.
                 if (
-                    !spotPricesTokenInWeth[i].token0IsReserve0
-                        ? (liquidity = spotPricesTokenInWeth[i].res0) >=
-                            SUFFICIENTLY_LIQUID
-                        : (liquidity = spotPricesTokenInWeth[i].res1) >=
-                            SUFFICIENTLY_LIQUID
+                   tempLiquidity >= SUFFICIENTLY_LIQUID
                 ) {
+                    liquidity = tempLiquidity;
+                    liquidFeeQuotePool = tempLiquidFeeQuotePool;
                     liquidFeeQuoteSpot = spotPricesTokenInWeth[i].spotPrice;
                     if (
                         liquidFeeQuoteSpot != 0 &&
@@ -824,7 +828,7 @@ contract SwapRouter is ConveyorTickMath {
                 ///@notice Get the v3 spot and pool on 500 fee tier pool. Usually most liquid on the Dex.
                 (
                     spotPricesTokenInWeth[i],
-                    liquidFeeQuotePool
+                    tempLiquidFeeQuotePool
                 ) = _calculateV3SpotPrice(
                     tokenIn,
                     weth,
@@ -833,11 +837,12 @@ contract SwapRouter is ConveyorTickMath {
                 );
                 ///@notice If the pool is above the liquidity threshold set the spot price and pool and break.
                 if (
-                    IUniswapV3Pool(liquidFeeQuotePool).liquidity() >=
+                    IUniswapV3Pool(tempLiquidFeeQuotePool).liquidity() >=
                     SUFFICIENTLY_SQRT_LIQUID
                 ) {
-                    liquidity = IUniswapV3Pool(liquidFeeQuotePool).liquidity();
+                    
                     liquidFeeQuoteSpot = spotPricesTokenInWeth[i].spotPrice;
+                    liquidFeeQuotePool = tempLiquidFeeQuotePool;
                     if (
                         liquidFeeQuoteSpot != 0 &&
                         liquidFeeQuotePool != address(0)
