@@ -805,14 +805,12 @@ contract SwapRouter is ConveyorTickMath {
                     dexes[i].factoryAddress,
                     dexes[i].initBytecode
                 );
-                uint128 tempLiquidity= !spotPricesTokenInWeth[i].token0IsReserve0
-                        ? (spotPricesTokenInWeth[i].res0) 
-                            
-                        : (spotPricesTokenInWeth[i].res1);
+                uint128 tempLiquidity = !spotPricesTokenInWeth[i]
+                    .token0IsReserve0
+                    ? (spotPricesTokenInWeth[i].res0)
+                    : (spotPricesTokenInWeth[i].res1);
                 ///@notice If the weth reserve is above the minimum accepted threshold set the spot price to liquidFeeQuoteSpot and break the loop to save gas.
-                if (
-                   tempLiquidity >= SUFFICIENTLY_LIQUID
-                ) {
+                if (tempLiquidity >= SUFFICIENTLY_LIQUID) {
                     liquidity = tempLiquidity;
                     liquidFeeQuotePool = tempLiquidFeeQuotePool;
                     liquidFeeQuoteSpot = spotPricesTokenInWeth[i].spotPrice;
@@ -840,7 +838,6 @@ contract SwapRouter is ConveyorTickMath {
                     IUniswapV3Pool(tempLiquidFeeQuotePool).liquidity() >=
                     SUFFICIENTLY_SQRT_LIQUID
                 ) {
-                    
                     liquidFeeQuoteSpot = spotPricesTokenInWeth[i].spotPrice;
                     liquidFeeQuotePool = tempLiquidFeeQuotePool;
                     if (
