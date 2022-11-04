@@ -13,10 +13,9 @@ interface ILimitOrderExecutor {
         external
         returns (uint256, uint256);
 
-    function executeMultiCallOrders(
+    function executeSandboxLimitOrders(
         OrderBook.SandboxLimitOrder[] memory orders,
-        uint128[] memory amountSpecifiedToFill,
-        SandboxRouter.SandboxMulticall memory calls,
+        SandboxRouter.SandboxMulticall calldata calls,
         address sandBoxRouter
     ) external;
 }

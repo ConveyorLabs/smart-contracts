@@ -26,7 +26,7 @@ contract SandboxRouter {
     ///@param amountSpecifiedToFill - Array of quantities representing the quantity to be filled on the input amount for each order indexed identically in the orderIds array.
     struct SandboxMulticall {
         bytes32[] orderIds;
-        uint128[] amountSpecifiedToFill;
+        uint128[] fillAmount;
         Call[] calls;
     }
 
@@ -73,7 +73,7 @@ contract SandboxRouter {
 
     ///@notice Callback function that executes a sandbox multicall and is only accessible by the limitOrderExecutor.
     ///@param sandBoxMulticall //TODO
-    function sandboxRouterCallback(SandboxMulticall memory sandBoxMulticall)
+    function sandboxRouterCallback(SandboxMulticall calldata sandBoxMulticall)
         external
         onlyLimitOrderExecutor
     {
