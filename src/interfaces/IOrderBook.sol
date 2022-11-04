@@ -4,15 +4,7 @@ pragma solidity 0.8.16;
 import "../OrderBook.sol";
 
 interface IOrderBook {
-<<<<<<< HEAD
-    ///@notice This function gets an order by the orderId. If the order does not exist, the order returned will be empty.
-    function getLimitOrderById(bytes32 orderId)
-        external
-        view
-        returns (bytes memory order);
-=======
    
->>>>>>> multicall-tests
 
     function placeLimitOrder(OrderBook.LimitOrder[] calldata orderGroup)
         external

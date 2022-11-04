@@ -196,12 +196,8 @@ contract OrderBook is GasOracle {
         view
         returns (LimitOrder memory)
     {
-<<<<<<< HEAD
-        return orderIdToLimitOrder[orderId];
-=======
         LimitOrder memory order =  orderIdToLimitOrder[orderId];
         return order;
->>>>>>> multicall-tests
     }
 
     //TODO: check if these can be internal
