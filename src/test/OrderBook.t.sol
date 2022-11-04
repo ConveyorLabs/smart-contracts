@@ -264,21 +264,29 @@ contract OrderBookTest is DSTest {
     }
 
     ///TODO: Write a fuzz test for this
-    function testFailPlaceSandboxLimitOrder_InsufficientFeeCreditBalanceForOrderExecution() public {}
+    function testFailPlaceSandboxLimitOrder_InsufficientFeeCreditBalanceForOrderExecution()
+        public
+    {}
 
     ///TODO: Write a fuzz test for this
-    function testFailPlaceSandboxLimitOrder_IncongruentTokenInOrderGroup() public {}
+    function testFailPlaceSandboxLimitOrder_IncongruentTokenInOrderGroup()
+        public
+    {}
 
     ///TODO: Write a fuzz test for this
-    function testFailPlaceSandboxLimitOrder_InsufficientWalletBalance() public {}
+    function testFailPlaceSandboxLimitOrder_InsufficientWalletBalance()
+        public
+    {}
 
     ///TODO: Write a fuzz test for this
-    function testFailPlaceSandboxLimitOrder_InsufficientAllowanceForOrderPlacement() public {}
+    function testFailPlaceSandboxLimitOrder_InsufficientAllowanceForOrderPlacement()
+        public
+    {}
 
     ///TODO: Write a fuzz test for this
     function testUpdateSandboxLimitOrder() public {}
 
-    ///TODO: Write a fuzz test for this 
+    ///TODO: Write a fuzz test for this
     function testCancelSandboxLimitOrder() public {}
 
     ///TODO: Write a test for this
@@ -814,8 +822,6 @@ contract OrderBookTest is DSTest {
         });
     }
 
-<<<<<<< HEAD
-=======
     function newSandboxLimitOrder(
         address tokenIn,
         address tokenOut,
@@ -840,7 +846,6 @@ contract OrderBookTest is DSTest {
         });
     }
 
->>>>>>> multicall-tests
     function placeMockOrder(OrderBook.LimitOrder memory order)
         internal
         returns (bytes32 orderId)
@@ -849,8 +854,6 @@ contract OrderBookTest is DSTest {
         OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](
             1
         );
-<<<<<<< HEAD
-=======
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
 
@@ -866,7 +869,6 @@ contract OrderBookTest is DSTest {
         //create a new array of orders
         OrderBook.SandboxLimitOrder[]
             memory orderGroup = new OrderBook.SandboxLimitOrder[](1);
->>>>>>> multicall-tests
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
 
