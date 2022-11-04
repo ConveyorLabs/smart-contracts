@@ -276,8 +276,11 @@ contract LimitOrderRouter is OrderBook {
             SANDBOX_ROUTER
         );
 
+        //TODO: assert state post execution
         ///@notice Post execution, assert that all of the order owners have received >= their exact amount out
         assertPostSandboxExecutionState();
+
+        //TODO: clean up storage state with completed orders
     }
 
     function initializePreSandboxExecutionState(
