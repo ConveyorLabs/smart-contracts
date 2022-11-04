@@ -91,7 +91,7 @@ contract LimitOrderRouter is OrderBook {
     ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
     address owner;
 
-    address public SAND_BOX_ROUTER;
+    address public SANDBOX_ROUTER;
 
     // ========================================= Constructor =============================================
 
@@ -110,7 +110,7 @@ contract LimitOrderRouter is OrderBook {
         );
 
         require(_weth != address(0), "Invalid weth address");
-        SAND_BOX_ROUTER = address(
+        SANDBOX_ROUTER = address(
             new SandboxRouter(address(_limitOrderExecutor), address(this))
         );
 
@@ -256,58 +256,54 @@ contract LimitOrderRouter is OrderBook {
 
     ///@param sandboxMulticall -
     function executeOrdersViaSandboxMulticall(
-        SandboxRouter.SandboxMulticall memory sandboxMulticall
+        SandboxRouter.SandboxMulticall calldata sandboxMulticall
     ) external onlySandboxRouter nonReentrant {
-        SandboxLimitOrder[]
-            memory orders = initializePreSandboxExecutionState();
+        ///@notice Initialize arrays to hold pre execution validation state.
+        (
+            SandboxLimitOrder[] memory sandboxLimitOrders,
+            uint128[] memory amountsOutRequired,
+            uint128[] memory initialTokenInBalances,
+            uint128[] memory initialTokenOutBalances
+        ) = initializePreSandboxExecutionState(
+                sandboxMulticall.orderIds,
+                sandboxMulticall.fillAmount
+            );
 
         ///@notice Call the limit order executor to transfer all of the order owners tokens to the contract.
         ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeSandboxLimitOrders(
-            orders,
-            feeAmounts,
+            sandboxLimitOrders,
             sandboxMulticall,
-            SAND_BOX_ROUTER
+            SANDBOX_ROUTER
         );
 
-        ///@notice Verify all of the order owners have received their out amounts.
-        for (uint256 k = 0; k < orders.length; ++k) {
-            ///@notice Require that the order owners tokenOut balance - the initial state balance is at least amountOutRequired, else revert.
-            require(
-                IERC20(orders[k].tokenOut).balanceOf(address(orders[k].owner)) -
-                    cachedInitialBalancesOut[k] >=
-                    amountOutRequired[k]
-            );
-            ///@notice Require that the owners initial balance - their current balance is exactly amountSpecifiedToFill.
-            require(
-                cachedInitialBalancesIn[k] -
-                    IERC20(orders[k].tokenIn).balanceOf(
-                        address(orders[k].owner)
-                    ) ==
-                    sandboxMulticall.amountSpecifiedToFill[k]
-            );
-            ///@notice Update the Order data after execution requirements have been met.
-            orders[k].amountOutRemaining -= amountOutRequired[k];
-        }
+        ///@notice Post execution, assert that all of the order owners have received >= their exact amount out
+        assertPostSandboxExecutionState();
     }
 
     function initializePreSandboxExecutionState(
         bytes32[] calldata orderIds,
-        uint256[] calldata fillAmounts
-    ) internal {
+        uint128[] calldata fillAmounts
+    )
+        internal
+        returns (
+            SandboxLimitOrder[] memory,
+            uint128[] memory,
+            uint128[] memory,
+            uint128[] memory
+        )
+    {
         uint256 orderIdsLength = orderIds.length;
 
-        ///@notice Create a new array of MultiCallOrders.
-        SandboxLimitOrder[] memory orders = new SandboxLimitOrder[](
+        ///@notice Initialize arrays to hold post execution validation state.
+        SandboxLimitOrder[] memory sandboxLimitOrders = new SandboxLimitOrder[](
             orderIdsLength
         );
 
-        ///@notice Initialize arrays to hold post execution validation state.
         uint128[] memory amountsOutRequired = new uint128[](orderIdsLength);
         uint128[] memory initialTokenInBalances = new uint128[](orderIdsLength);
         uint128[] memory initialTokenOutBalances = new uint128[](
             orderIdsLength
         );
-        uint128[] memory feeAmounts = new uint128[](orderIdsLength);
 
         ///@notice Transfer the tokens from the order owners to the sandbox router contract.
         ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
@@ -316,6 +312,8 @@ contract LimitOrderRouter is OrderBook {
             SandboxLimitOrder memory currentOrder = orderIdToSandboxLimitOrder[
                 orderIds[i]
             ];
+
+            sandboxLimitOrders[i] = currentOrder;
 
             ///@notice Cache the price of the order. i.e. amountOutRemaining/amountInRemaining.
             uint128 price = ConveyorMath.divUU(
@@ -340,12 +338,10 @@ contract LimitOrderRouter is OrderBook {
                 ConveyorMath.mul64U(currentOrder.fee, amountSpecifiedToFill)
             );
 
-            ///@notice Decrement the amountInRemaining by amountSpecifiedToFill set by the off chain executor.
-            currentOrder.amountInRemaining -= amountSpecifiedToFill;
-
+            //TODO: sanity check this
             ///@notice Multiply the total amountInRemaining by the price to get the required amountOut. Subtract off the feeAmount on the fill quantity.
             amountsOutRequired[i] = uint128(
-                ConveyorMath.mul64U(price, amountSpecifiedToFill - feeAmount)
+                ConveyorMath.mul64U(price, amountSpecifiedToFill)
             );
 
             ///@notice Cache the the pre execution state of the order details
@@ -356,10 +352,41 @@ contract LimitOrderRouter is OrderBook {
             initialTokenOutBalances[i] = uint128(
                 IERC20(currentOrder.tokenOut).balanceOf(currentOrder.owner)
             );
-
-            orders[i] = currentOrder;
-            feeAmount[i] = feeAmount;
         }
+
+        return (
+            sandboxLimitOrders,
+            amountsOutRequired,
+            initialTokenInBalances,
+            initialTokenOutBalances
+        );
+    }
+
+    function assertPostSandboxExecutionState() internal {
+        // uint256 ordersLength = sandboxLimitOrders.length;
+        // ///@notice Verify all of the order owners have received their out amounts.
+        // for (uint256 i = 0; i < ordersLength; ++i) {
+        //     SandboxLimitOrder memory currentOrder = sandboxLimitOrders[i];
+        //     ///@notice Require that the order owners tokenOut balance - the initial state balance is at least amountOutRequired, else revert.
+        //     require(
+        //         IERC20(currentOrder.tokenOut).balanceOf(
+        //             address(currentOrder.owner)
+        //         ) -
+        //             initialTokenOutBalances[i] >=
+        //             amountsOutRequired[i]
+        //     );
+        //     ///@notice Require that the owners initial balance - their current balance is exactly amountSpecifiedToFill.
+        //     require(
+        //         initialTokenInBalances[i] -
+        //             IERC20(currentOrder.tokenIn).balanceOf(
+        //                 address(currentOrder.owner)
+        //             ) ==
+        //             sandboxMulticall.amountSpecifiedToFill[i]
+        //     );
+        //     //TODO: double check this
+        //     ///@notice Update the Order data after execution requirements have been met.
+        //     currentOrder.amountOutRemaining -= amountOutRequired[i];
+        // }
     }
 
     //TODO: handle for both cases
