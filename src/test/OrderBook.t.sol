@@ -169,6 +169,9 @@ contract OrderBookTest is DSTest {
         orderBook.getLimitOrderById(bytes32(0));
     }
 
+    ///TODO: Fuzz test this
+    function testDepositFeeCredits() public {}
+
     ///@notice Test palce order fuzz test
     function testPlaceOrder(uint256 swapAmount, uint256 executionPrice) public {
         cheatCodes.deal(address(this), MAX_UINT);
@@ -259,6 +262,27 @@ contract OrderBookTest is DSTest {
             } catch {}
         }
     }
+
+    ///TODO: Write a fuzz test for this
+    function testFailPlaceSandboxLimitOrder_InsufficientFeeCreditBalanceForOrderExecution() public {}
+
+    ///TODO: Write a fuzz test for this
+    function testFailPlaceSandboxLimitOrder_IncongruentTokenInOrderGroup() public {}
+
+    ///TODO: Write a fuzz test for this
+    function testFailPlaceSandboxLimitOrder_InsufficientWalletBalance() public {}
+
+    ///TODO: Write a fuzz test for this
+    function testFailPlaceSandboxLimitOrder_InsufficientAllowanceForOrderPlacement() public {}
+
+    ///TODO: Write a fuzz test for this
+    function testUpdateSandboxLimitOrder() public {}
+
+    ///TODO: Write a fuzz test for this 
+    function testCancelSandboxLimitOrder() public {}
+
+    ///TODO: Write a test for this
+    function testPartialFillSandboxLimitOrder() public {}
 
     ///@notice Test fail place order InsufficientAlllowanceForOrderPlacement
     function testFailPlaceOrder_InsufficientAllowanceForOrderPlacement(
