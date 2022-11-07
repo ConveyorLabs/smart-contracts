@@ -278,7 +278,7 @@ contract LimitOrderRouter is OrderBook {
 
         //TODO: assert state post execution
         ///@notice Post execution, assert that all of the order owners have received >= their exact amount out
-        assertPostSandboxExecutionState();
+        assertPostSandboxExecutionState(sandboxLimitOrders,);
 
         //TODO: clean up storage state with completed orders
     }
@@ -365,7 +365,7 @@ contract LimitOrderRouter is OrderBook {
         );
     }
 
-    function assertPostSandboxExecutionState() internal {
+    function assertPostSandboxExecutionState(SandboxLimitOrders memory sandBoxLimitOrders, SandboxRouter.SandboxMulticall memory) internal {
         uint256 ordersLength = sandboxLimitOrders.length;
         ///@notice Verify all of the order owners have received their out amounts.
         for (uint256 i = 0; i < ordersLength; ++i) {
