@@ -261,7 +261,6 @@ contract LimitOrderRouter is OrderBook {
         ///@notice Initialize arrays to hold pre execution validation state.
         (
             SandboxLimitOrder[] memory sandboxLimitOrders,
-            uint128[] memory amountsOutRequired,
             uint256[] memory initialTokenInBalances,
             uint256[] memory initialTokenOutBalances
         ) = initializePreSandboxExecutionState(
@@ -280,7 +279,6 @@ contract LimitOrderRouter is OrderBook {
         validateSandboxExecutionAndFillOrders(
             sandboxLimitOrders,
             sandboxMulticall.fillAmount,
-            amountsOutRequired,
             initialTokenInBalances,
             initialTokenOutBalances
         );
@@ -294,7 +292,6 @@ contract LimitOrderRouter is OrderBook {
         view
         returns (
             SandboxLimitOrder[] memory,
-            uint128[] memory,
             uint256[] memory,
             uint256[] memory
         )
@@ -306,7 +303,6 @@ contract LimitOrderRouter is OrderBook {
             orderIdsLength
         );
 
-        uint128[] memory amountsOutRequired = new uint128[](orderIdsLength);
         uint256[] memory initialTokenInBalances = new uint256[](orderIdsLength);
         uint256[] memory initialTokenOutBalances = new uint256[](
             orderIdsLength
@@ -322,15 +318,8 @@ contract LimitOrderRouter is OrderBook {
 
             sandboxLimitOrders[i] = currentOrder;
 
-            ///@notice Cache the price of the order. i.e. amountOutRemaining/amountInRemaining.
-            uint128 price = ConveyorMath.divUU(
-                currentOrder.amountOutRemaining,
-                currentOrder.amountInRemaining
-            );
-
             ///@notice Cache amountSpecifiedToFill for intermediate calculations
             uint128 amountSpecifiedToFill = fillAmounts[i];
-
             ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
             if (amountSpecifiedToFill > currentOrder.amountInRemaining) {
                 revert FillAmountSpecifiedGreaterThanAmountRemaining(
@@ -340,23 +329,16 @@ contract LimitOrderRouter is OrderBook {
                 );
             }
 
-            ///@notice Multiply the total amountInRemaining by the price to get the required amountOut. Subtract off the feeAmount on the fill quantity.
-            amountsOutRequired[i] = uint128(
-                ConveyorMath.mul64U(price, amountSpecifiedToFill)
-            );
-
             ///@notice Cache the the pre execution state of the order details
             initialTokenInBalances[i] = IERC20(currentOrder.tokenIn).balanceOf(
                 currentOrder.owner
             );
-
             initialTokenOutBalances[i] = IERC20(currentOrder.tokenOut)
                 .balanceOf(currentOrder.owner);
         }
 
         return (
             sandboxLimitOrders,
-            amountsOutRequired,
             initialTokenInBalances,
             initialTokenOutBalances
         );
@@ -365,7 +347,6 @@ contract LimitOrderRouter is OrderBook {
     function validateSandboxExecutionAndFillOrders(
         SandboxLimitOrder[] memory sandboxLimitOrders,
         uint128[] memory fillAmounts,
-        uint128[] memory amountsOutRequired,
         uint256[] memory initialTokenInBalances,
         uint256[] memory initialTokenOutBalances
     ) internal {
@@ -375,7 +356,18 @@ contract LimitOrderRouter is OrderBook {
             SandboxLimitOrder memory currentOrder = sandboxLimitOrders[i];
 
             ///@notice Cache values for post execution assertions
-            uint128 amountOutRequired = amountsOutRequired[i];
+            uint128 amountOutRequired = uint128(
+                ConveyorMath.mul64U(
+                    ConveyorMath.divUU(
+                        currentOrder.amountOutRemaining,
+                        currentOrder.amountInRemaining
+                    ),
+                    fillAmounts[i]
+                )
+            );
+
+            //TODO: remove this
+
             uint256 initialTokenInBalance = initialTokenInBalances[i];
             uint256 initialTokenOutBalance = initialTokenOutBalances[i];
 
