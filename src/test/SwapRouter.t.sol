@@ -360,9 +360,6 @@ contract SwapRouterTest is DSTest {
         }
     }
 
-    ///TODO: Write fuzz test for this
-    function testCalculateSandboxFeeAmount(uint256 quantity) public {}
-
     function testFailUniswapV3Callback_UnauthorizedUniswapV3CallbackCaller()
         public
     {
