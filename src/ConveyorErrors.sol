@@ -48,3 +48,13 @@ error InsufficientAllowanceForOrderUpdate();
 error InsufficientFeeCreditBalanceForOrderExecution();
 error InsufficientLiquidityForDynamicFee();
 error SandboxCallFailed();
+error FillAmountSpecifiedGreaterThanAmountRemaining(
+    uint256 fillAmountSpecified,
+    uint256 amountInRemaining,
+    bytes32 orderId
+);
+error ConveyorFeesNotPaid(
+    uint256 expectedFees,
+    uint256 feesPaid,
+    uint256 unpaidFeesRemaining
+);

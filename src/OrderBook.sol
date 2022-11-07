@@ -95,6 +95,8 @@ contract OrderBook is GasOracle {
         bytes32 orderId;
     }
 
+    //TODO: check if we can pack the fee into a 112 instead of 128, if not all good
+
     ///@notice Struct containing Order details for any limit order
     ///@param buy - Indicates if the order is a buy or sell
     ///@param lastRefreshTimestamp - Unix timestamp representing the last time the order was refreshed.
@@ -315,6 +317,8 @@ contract OrderBook is GasOracle {
 
         return orderIds;
     }
+
+    //TODO: Update to record the fee in weth instead of the fee as a percent at order placement
 
     ///@notice Places a new order of multicall type (or group of orders) into the system.
     ///@param orderGroup - List of newly created orders to be placed.
