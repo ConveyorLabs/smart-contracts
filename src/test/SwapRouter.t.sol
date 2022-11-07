@@ -360,30 +360,6 @@ contract SwapRouterTest is DSTest {
         }
     }
 
-    function _lpIsNotUniV3(address lp) internal returns (bool) {
-        bool success;
-        assembly {
-            //store the function sig for  "fee()"
-            mstore(
-                0x00,
-                0xddca3f4300000000000000000000000000000000000000000000000000000000
-            )
-
-            success := call(
-                gas(), // gas remaining
-                lp, // destination address
-                0, // no ether
-                0x00, // input buffer (starts after the first 32 bytes in the `data` array)
-                0x04, // input length (loaded from the first 32 bytes in the `data` array)
-                0x00, // output buffer
-                0x00 // output length
-            )
-        }
-        ///@notice return the opposite of success, meaning if the call succeeded, the address is univ3, and we should
-        ///@notice indicate that lpIsNotUniV3 is false
-        return !success;
-    }
-
     function testFailUniswapV3Callback_UnauthorizedUniswapV3CallbackCaller()
         public
     {
