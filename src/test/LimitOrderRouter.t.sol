@@ -259,7 +259,7 @@ contract LimitOrderRouterTest is DSTest {
 
         //Execute the the orders that will be marked as fufilled
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(fufilledOrderIds);
+        limitOrderRouter.executeLimitOrders(fufilledOrderIds);
 
         bytes32[][] memory allOrderIds = orderBook.getAllOrderIds(
             address(this)

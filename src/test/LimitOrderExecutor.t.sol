@@ -147,7 +147,7 @@ contract LimitOrderExecutorTest is DSTest {
         }
 
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
+        limitOrderRouter.executeLimitOrders(tokenToWethOrderBatch);
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
@@ -180,7 +180,7 @@ contract LimitOrderExecutorTest is DSTest {
         }
 
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
+        limitOrderRouter.executeLimitOrders(tokenToWethOrderBatch);
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
@@ -235,7 +235,7 @@ contract LimitOrderExecutorTest is DSTest {
             assert(order0.orderId != bytes32(0));
         }
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
+        limitOrderRouter.executeLimitOrders(orderBatch);
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
@@ -331,7 +331,7 @@ contract LimitOrderExecutorTest is DSTest {
                 }
                 ///@notice Execute orders with an EOA.
                 cheatCodes.prank(tx.origin);
-                limitOrderRouter.executeOrders(orderBatch);
+                limitOrderRouter.executeLimitOrders(orderBatch);
                 uint256 gasCompensationAfter = address(tx.origin).balance;
                 // check that the orders have been fufilled and removed
                 for (uint256 i = 0; i < orderBatch.length; ++i) {
@@ -400,7 +400,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 executionCostLower = 60000; //Should be a lower bound
 
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
+        limitOrderRouter.executeLimitOrders(tokenToWethOrderBatch);
         uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
@@ -510,7 +510,7 @@ contract LimitOrderExecutorTest is DSTest {
                 }
                 ///@notice Execute orders with an EOA.
                 cheatCodes.prank(tx.origin);
-                limitOrderRouter.executeOrders(orderBatch);
+                limitOrderRouter.executeLimitOrders(orderBatch);
                 uint256 gasCompensationAfter = address(tx.origin).balance;
                 // check that the orders have been fufilled and removed
                 for (uint256 i = 0; i < orderBatch.length; ++i) {
@@ -566,7 +566,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 executionCostLower = 60000; //Should be a lower bound
 
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
+        limitOrderRouter.executeLimitOrders(tokenToTokenOrderBatch);
         uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
@@ -676,7 +676,7 @@ contract LimitOrderExecutorTest is DSTest {
                 }
                 ///@notice Execute orders with an EOA.
                 cheatCodes.prank(tx.origin);
-                limitOrderRouter.executeOrders(orderBatch);
+                limitOrderRouter.executeLimitOrders(orderBatch);
                 uint256 gasCompensationAfter = address(tx.origin).balance;
                 // check that the orders have been fufilled and removed
                 for (uint256 i = 0; i < orderBatch.length; ++i) {
@@ -739,7 +739,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 executionCostLower = 60000; //Should be a lower bound
 
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(wethToTaxedOrderBatch);
+        limitOrderRouter.executeLimitOrders(wethToTaxedOrderBatch);
         uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < wethToTaxedOrderBatch.length; ++i) {
@@ -815,7 +815,7 @@ contract LimitOrderExecutorTest is DSTest {
         }
         ///@notice Execute orders with an EOA.
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
+        limitOrderRouter.executeLimitOrders(orderBatch);
         uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
@@ -865,7 +865,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 executionCostLower = 60000; //Should be a lower bound
 
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
+        limitOrderRouter.executeLimitOrders(tokenToWethOrderBatch);
         uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
@@ -934,7 +934,7 @@ contract LimitOrderExecutorTest is DSTest {
         }
         ///@notice Execute orders with an EOA.
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
+        limitOrderRouter.executeLimitOrders(orderBatch);
         uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
@@ -1005,7 +1005,7 @@ contract LimitOrderExecutorTest is DSTest {
         }
         ///@notice Execute orders with an EOA.
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
+        limitOrderRouter.executeLimitOrders(orderBatch);
         uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
@@ -1055,7 +1055,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 executionCostLower = 60000; //Should be a lower bound
 
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
+        limitOrderRouter.executeLimitOrders(orderBatch);
         uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
@@ -1105,7 +1105,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 executionCostLower = 60000; //Should be a lower bound
 
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
+        limitOrderRouter.executeLimitOrders(orderBatch);
         uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
@@ -1176,7 +1176,7 @@ contract LimitOrderExecutorTest is DSTest {
         }
         ///@notice Execute orders with an EOA.
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderBatch);
+        limitOrderRouter.executeLimitOrders(orderBatch);
         uint256 gasCompensationAfter = address(tx.origin).balance;
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
@@ -1223,7 +1223,7 @@ contract LimitOrderExecutorTest is DSTest {
         }
 
         //Don't prank tx.origin should revert
-        limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
+        limitOrderRouter.executeLimitOrders(tokenToTokenOrderBatch);
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
@@ -1257,7 +1257,7 @@ contract LimitOrderExecutorTest is DSTest {
         }
 
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
+        limitOrderRouter.executeLimitOrders(tokenToTokenOrderBatch);
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
@@ -1290,7 +1290,7 @@ contract LimitOrderExecutorTest is DSTest {
         }
 
         //Dont prank tx.origin should revert with stoploss orders.
-        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
+        limitOrderRouter.executeLimitOrders(tokenToWethOrderBatch);
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
@@ -1306,7 +1306,7 @@ contract LimitOrderExecutorTest is DSTest {
         bytes32[] memory emptyIdArray = new bytes32[](0);
 
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(emptyIdArray);
+        limitOrderRouter.executeLimitOrders(emptyIdArray);
     }
 
     ///@notice Test to check fail case if orderId is not in the state of contract
@@ -1314,7 +1314,7 @@ contract LimitOrderExecutorTest is DSTest {
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = bytes32(0);
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeOrders(orderIds);
+        limitOrderRouter.executeLimitOrders(orderIds);
     }
 
     receive() external payable {}

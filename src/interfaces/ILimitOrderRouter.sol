@@ -16,7 +16,7 @@ interface ILimitOrderRouter {
         external
         returns (bool success);
 
-    function executeOrders(bytes32[] calldata orderIds) external;
+    function executeLimitOrders(bytes32[] calldata orderIds) external;
 
     function executeOrdersViaSandboxMulticall(
         SandboxRouter.SandboxMulticall calldata sandboxMulticall

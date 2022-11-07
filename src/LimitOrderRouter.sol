@@ -81,7 +81,7 @@ contract LimitOrderRouter is OrderBook {
     ///@notice The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
     uint256 public constant ORDER_EXECUTION_GAS_COST = 300000;
 
-    ///@notice State variable to track the amount of gas initally alloted during executeOrders.
+    ///@notice State variable to track the amount of gas initally alloted during executeLimitOrders.
     uint256 initialTxGas;
 
     ///@notice Temporary owner storage variable when transferring ownership of the contract.
@@ -366,8 +366,6 @@ contract LimitOrderRouter is OrderBook {
                 )
             );
 
-            //TODO: remove this
-
             uint256 initialTokenInBalance = initialTokenInBalances[i];
             uint256 initialTokenOutBalance = initialTokenOutBalances[i];
 
@@ -412,7 +410,6 @@ contract LimitOrderRouter is OrderBook {
         }
     }
 
-    //TODO: handle for both cases
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
     function refreshOrder(bytes32[] memory orderIds) external nonReentrant {
@@ -591,6 +588,8 @@ contract LimitOrderRouter is OrderBook {
         }
     }
 
+    //TODO: resolve issues and warnings, something is off here
+
     /// @notice Function for off-chain executors to cancel an Order that does not have the minimum gas credit balance for order execution.
     /// @param orderId - Order Id of the order to cancel.
     /// @return success - Boolean to indicate if the order was successfully cancelled and compensation was sent to the off-chain executor.
@@ -754,7 +753,10 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice This function is called by off-chain executors, passing in an array of orderIds to execute a specific batch of orders.
     /// @param orderIds - Array of orderIds to indicate which orders should be executed.
-    function executeOrders(bytes32[] calldata orderIds) external nonReentrant {
+    function executeLimitOrders(bytes32[] calldata orderIds)
+        external
+        nonReentrant
+    {
         ///@notice Require gas price to avoid verifier's delimma.
         /*
         A verifier's delimma occurs when there is not a sufficient incentive for a player within a given system to carry out an action.
@@ -892,7 +894,7 @@ contract LimitOrderRouter is OrderBook {
         tempOwner = newOwner;
     }
 
-    ///@notice Function to calculate the execution gas consumed during executeOrders
+    ///@notice Function to calculate the execution gas consumed during executeLimitOrders
     ///@return executionGasConsumed - The amount of gas consumed.
     function calculateExecutionGasConsumed(uint256 gasPrice)
         internal

@@ -22,7 +22,7 @@ import "./interfaces/ISwapRouter.sol";
 
 /// @title SwapRouter
 /// @author 0xKitsune, LeytonTaylor, Conveyor Labs
-/// @notice Dex aggregator that executes standalong swaps, and fulfills limit orders during execution.
+/// @notice Dex aggregator that executes standalone swaps, and fulfills limit orders during execution.
 contract SwapRouter is ConveyorTickMath {
     using SafeERC20 for IERC20;
     //----------------------Structs------------------------------------//
