@@ -48,6 +48,20 @@ error InsufficientAllowanceForOrderUpdate();
 error InsufficientFeeCreditBalanceForOrderExecution();
 error InsufficientLiquidityForDynamicFee();
 error SandboxCallFailed();
+error InvalidTransferAddressArray();
+
+error SandboxFillAmountNotSatisfied(
+    bytes32 orderId,
+    uint256 amountFilled,
+    uint256 fillAmountRequired
+);
+
+error SandboxAmountOutRequiredNotSatisfied(
+    bytes32 orderId,
+    uint256 amountOut,
+    uint256 amountOutRequired
+);
+
 error FillAmountSpecifiedGreaterThanAmountRemaining(
     uint256 fillAmountSpecified,
     uint256 amountInRemaining,

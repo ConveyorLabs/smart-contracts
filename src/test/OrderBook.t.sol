@@ -1044,7 +1044,6 @@ contract OrderBookTest is DSTest {
             lastRefreshTimestamp: 0,
             expirationTimestamp: uint32(MAX_UINT),
             fee: 0,
-            quoteWethLiquidSwapPool: address(0),
             amountInRemaining: amountInRemaining,
             amountOutRemaining: amountOutRemaining,
             owner: address(this),

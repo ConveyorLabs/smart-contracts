@@ -441,8 +441,6 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
     ///@dev
     /*The sandBoxRouter address is an immutable address from the limitOrderRouter.
     Since the function is onlyLimitOrderRouter, the sandBoxRouter address will never change*/
-
-    //TODO: rename this to be more descriptive of what the function inside the limitorder router is doing
     function executeSandboxLimitOrders(
         OrderBook.SandboxLimitOrder[] memory orders,
         SandboxRouter.SandboxMulticall calldata sandboxMulticall,
@@ -453,15 +451,33 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
 
         uint256 expectedAccumulatedFees = 0;
 
-        ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
-        for (uint256 i = 0; i < orders.length; ++i) {
-            IERC20(orders[i].tokenIn).safeTransferFrom(
-                orders[i].owner,
-                sandBoxRouter,
-                sandboxMulticall.fillAmount[i]
-            );
+        if (sandboxMulticall.transferAddress.length == 0) {
+            ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
+            for (uint256 i = 0; i < orders.length; ++i) {
+                IERC20(orders[i].tokenIn).safeTransferFrom(
+                    orders[i].owner,
+                    sandBoxRouter,
+                    sandboxMulticall.fillAmount[i]
+                );
 
-            expectedAccumulatedFees += orders[i].fee;
+                expectedAccumulatedFees += orders[i].fee;
+            }
+        } else {
+            ///@notice Ensure that the transfer address array is equal to the length of orders to avoid out of bounds index errors
+            if (sandboxMulticall.transferAddress.length != orders.length) {
+                revert InvalidTransferAddressArray();
+            }
+
+            ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
+            for (uint256 i = 0; i < orders.length; ++i) {
+                IERC20(orders[i].tokenIn).safeTransferFrom(
+                    orders[i].owner,
+                    sandboxMulticall.transferAddress[i],
+                    sandboxMulticall.fillAmount[i]
+                );
+
+                expectedAccumulatedFees += orders[i].fee;
+            }
         }
 
         ///@notice Cache the contract balance to check if the fee was paid post execution
@@ -473,15 +489,27 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         ///@notice acll the SandboxRouter callback to execute the calldata from the sandboxMulticall
         ISandboxRouter(sandBoxRouter).sandboxRouterCallback(sandboxMulticall);
 
+        _requireConveyorFeeIsPaid(
+            contractBalancePreExecution,
+            expectedAccumulatedFees
+        );
+    }
+
+    function _requireConveyorFeeIsPaid(
+        uint256 contractBalancePreExecution,
+        uint256 expectedAccumulatedFees
+    ) internal view {
         ///@notice Check if the contract balance is greater than or equal to the contractBalancePreExecution + expectedAccumulatedFees
         uint256 contractBalancePostExecution;
         bool feeIsPaid;
         assembly {
             contractBalancePostExecution := selfbalance()
 
-            feeIsPaid := gte(
-                contractBalancePostExecution,
-                add(contractBalancePreExecution, expectedAccumulatedFees)
+            feeIsPaid := iszero(
+                lt(
+                    contractBalancePostExecution,
+                    add(contractBalancePreExecution, expectedAccumulatedFees)
+                )
             )
         }
 
