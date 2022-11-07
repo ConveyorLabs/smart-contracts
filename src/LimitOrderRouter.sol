@@ -366,30 +366,30 @@ contract LimitOrderRouter is OrderBook {
     }
 
     function assertPostSandboxExecutionState() internal {
-        // uint256 ordersLength = sandboxLimitOrders.length;
-        // ///@notice Verify all of the order owners have received their out amounts.
-        // for (uint256 i = 0; i < ordersLength; ++i) {
-        //     SandboxLimitOrder memory currentOrder = sandboxLimitOrders[i];
-        //     ///@notice Require that the order owners tokenOut balance - the initial state balance is at least amountOutRequired, else revert.
-        //     require(
-        //         IERC20(currentOrder.tokenOut).balanceOf(
-        //             address(currentOrder.owner)
-        //         ) -
-        //             initialTokenOutBalances[i] >=
-        //             amountsOutRequired[i]
-        //     );
-        //     ///@notice Require that the owners initial balance - their current balance is exactly amountSpecifiedToFill.
-        //     require(
-        //         initialTokenInBalances[i] -
-        //             IERC20(currentOrder.tokenIn).balanceOf(
-        //                 address(currentOrder.owner)
-        //             ) ==
-        //             sandboxMulticall.amountSpecifiedToFill[i]
-        //     );
-        //     //TODO: double check this
-        //     ///@notice Update the Order data after execution requirements have been met.
-        //     currentOrder.amountOutRemaining -= amountOutRequired[i];
-        // }
+        uint256 ordersLength = sandboxLimitOrders.length;
+        ///@notice Verify all of the order owners have received their out amounts.
+        for (uint256 i = 0; i < ordersLength; ++i) {
+            SandboxLimitOrder memory currentOrder = sandboxLimitOrders[i];
+            ///@notice Require that the order owners tokenOut balance - the initial state balance is at least amountOutRequired, else revert.
+            require(
+                IERC20(currentOrder.tokenOut).balanceOf(
+                    address(currentOrder.owner)
+                ) -
+                    initialTokenOutBalances[i] >=
+                    amountsOutRequired[i]
+            );
+            ///@notice Require that the owners initial balance - their current balance is exactly amountSpecifiedToFill.
+            require(
+                initialTokenInBalances[i] -
+                    IERC20(currentOrder.tokenIn).balanceOf(
+                        address(currentOrder.owner)
+                    ) ==
+                    sandboxMulticall.amountSpecifiedToFill[i]
+            );
+            //TODO: double check this
+            ///@notice Update the Order data after execution requirements have been met.
+            currentOrder.amountOutRemaining -= amountOutRequired[i];
+        }
     }
 
     //TODO: handle for both cases

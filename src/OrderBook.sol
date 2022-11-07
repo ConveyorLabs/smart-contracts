@@ -115,7 +115,6 @@ contract OrderBook is GasOracle {
         uint32 lastRefreshTimestamp;
         uint32 expirationTimestamp;
         uint128 fee;
-        address quoteWethLiquidSwapPool;
         uint128 amountInRemaining;
         uint128 amountOutRemaining;
         address owner;
@@ -353,34 +352,35 @@ contract OrderBook is GasOracle {
 
             {
                 ///@notice Boolean indicating if user wants to cover the fee from the fee credit balance, or by calling placeOrder with payment.
-                if (newOrder.prePayFee) {
-                    ///@notice Calculate the spot price of the input token to WETH on Uni v2.
-                    (SwapRouter.SpotReserve memory spRes, ) = IOrderRouter(
-                        LIMIT_ORDER_EXECUTOR
-                    )._calculateV2SpotPrice(
-                            orderToken,
-                            WETH,
-                            IOrderRouter(LIMIT_ORDER_EXECUTOR)
-                            .dexes()[0].factoryAddress,
-                            IOrderRouter(LIMIT_ORDER_EXECUTOR)
-                            .dexes()[0].initBytecode
-                        );
-                    uint256 tokenAWethSpotPrice = spRes.spotPrice;
 
-                    if (!(tokenAWethSpotPrice == 0)) {
-                        ///@notice Get the tokenIn decimals to normalize the relativeWethValue.
-                        uint8 tokenInDecimals = IERC20(newOrder.tokenIn)
-                            .decimals();
-                        ///@notice Multiply the amountIn*spotPrice to get the value of the input amount in weth.
-                        uint256 relativeWethValue = tokenInDecimals <= 18
-                            ? ConveyorMath.mul128U(
-                                tokenAWethSpotPrice,
-                                newOrder.amountInRemaining
-                            ) * 10**(18 - tokenInDecimals)
-                            : ConveyorMath.mul128U(
-                                tokenAWethSpotPrice,
-                                newOrder.amountInRemaining
-                            ) / 10**(tokenInDecimals - 18);
+                ///@notice Calculate the spot price of the input token to WETH on Uni v2.
+                (SwapRouter.SpotReserve memory spRes, ) = IOrderRouter(
+                    LIMIT_ORDER_EXECUTOR
+                )._calculateV2SpotPrice(
+                        orderToken,
+                        WETH,
+                        IOrderRouter(LIMIT_ORDER_EXECUTOR)
+                        .dexes()[0].factoryAddress,
+                        IOrderRouter(LIMIT_ORDER_EXECUTOR)
+                        .dexes()[0].initBytecode
+                    );
+                uint256 tokenAWethSpotPrice = spRes.spotPrice;
+
+                if (!(tokenAWethSpotPrice == 0)) {
+                    ///@notice Get the tokenIn decimals to normalize the relativeWethValue.
+                    uint8 tokenInDecimals = IERC20(newOrder.tokenIn).decimals();
+                    ///@notice Multiply the amountIn*spotPrice to get the value of the input amount in weth.
+                    uint256 relativeWethValue = tokenInDecimals <= 18
+                        ? ConveyorMath.mul128U(
+                            tokenAWethSpotPrice,
+                            newOrder.amountInRemaining
+                        ) * 10**(18 - tokenInDecimals)
+                        : ConveyorMath.mul128U(
+                            tokenAWethSpotPrice,
+                            newOrder.amountInRemaining
+                        ) / 10**(tokenInDecimals - 18);
+
+                    if (newOrder.prePayFee) {
                         ///@notice Set the minimum fee to the fee*wethValue*subsidy.
                         uint128 minFeeReceived = uint128(
                             ConveyorMath.mul64U(
@@ -421,19 +421,22 @@ contract OrderBook is GasOracle {
                         }
                         ///@notice Set the minFeeReceived to 0 as the fee has already been paid at placement.
                         newOrder.fee = 0;
-                    }
-                } else {
-                    ///@notice Calculate the minimum fee for the order to be taken out at execution time.
-                    (
-                        newOrder.fee,
-                        newOrder.quoteWethLiquidSwapPool
-                    ) = IOrderRouter(LIMIT_ORDER_EXECUTOR)
-                        .calculateSandboxFeeAmount(
-                            newOrder.tokenIn,
-                            WETH,
-                            newOrder.amountInRemaining,
-                            USDC
+                    } else {
+                        ///@notice Set the minimum fee to the fee*wethValue*subsidy.
+                        uint128 minFeeReceived = uint128(
+                            ConveyorMath.mul64U(
+                                IOrderRouter(LIMIT_ORDER_EXECUTOR)
+                                    ._calculateFee(
+                                        uint128(relativeWethValue),
+                                        USDC,
+                                        WETH
+                                    ),
+                                relativeWethValue
+                            )
                         );
+                        ///@notice Set the Orders min fee to be received during execution.
+                        newOrder.fee = minFeeReceived;
+                    }
                 }
             }
 
