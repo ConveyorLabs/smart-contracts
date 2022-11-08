@@ -110,6 +110,7 @@ contract LimitOrderRouter is OrderBook {
         );
 
         require(_weth != address(0), "Invalid weth address");
+
         SANDBOX_ROUTER = address(
             new SandboxRouter(address(_limitOrderExecutor), address(this))
         );
@@ -315,6 +316,10 @@ contract LimitOrderRouter is OrderBook {
             SandboxLimitOrder memory currentOrder = orderIdToSandboxLimitOrder[
                 orderIds[i]
             ];
+
+            if (currentOrder.orderId == bytes(0)) {
+                revert OrderDoesNotExist(orderIds[i]);
+            }
 
             sandboxLimitOrders[i] = currentOrder;
 
