@@ -56,7 +56,7 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlySandboxRouter() {
-        if (msg.sender != LIMIT_ORDER_EXECUTOR) {
+        if (msg.sender != SANDBOX_ROUTER) {
             revert MsgSenderIsNotSandboxRouter();
         }
         _;
