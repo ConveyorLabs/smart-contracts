@@ -553,18 +553,11 @@ contract LimitOrderRouter is OrderBook {
         nonReentrant
         returns (bool success)
     {
-        LimitOrder memory order = orderIdToLimitOrder[orderId];
+        
         uint256 gasPrice = getGasPrice();
+        
         (OrderType orderType, bytes memory orderBytes) = getOrderById(orderId);
-        ///@notice Check if order exists, otherwise revert.
-        if (orderType == OrderType.None) {
-            revert OrderDoesNotExist(orderId);
-        } else if (orderType == OrderType.LimitOrder) {
-            LimitOrder memory limitOrder = abi.decode(orderBytes, (LimitOrder));
-        }
-        ///@notice Get the current gas price from the v3 Aggregator.
-        ///@notice Cache the order in memory.
-
+        
         address orderOwner;
 
         ///@notice Check if order exists, otherwise revert.
