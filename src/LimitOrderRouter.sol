@@ -360,7 +360,12 @@ contract LimitOrderRouter is OrderBook {
                     OrderType.SandboxLimitOrder
                 );
             } else {
-                sandboxLimitOrders[i].amountOutRemaining -= amountOutRequired;
+                ///@notice Update the state of the order to parial filled quantities.
+                _partialFillSandboxLimitOrder(
+                    uint128(initialTokenInBalance - currentTokenInBalance),
+                    uint128(currentTokenOutBalance - initialTokenOutBalance),
+                    currentOrder.orderId
+                );
             }
         }
     }

@@ -446,9 +446,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         SandboxRouter.SandboxMulticall calldata sandboxMulticall,
         address sandBoxRouter
     ) external onlyLimitOrderRouter nonReentrant {
-        ///@notice Create an array of swap tokens to be swapped out into weth. At max there will be orders.length
-        address[] memory swapTokens = new address[](orders.length);
-
+    
         uint256 expectedAccumulatedFees = 0;
 
         if (sandboxMulticall.transferAddress.length == 0) {
