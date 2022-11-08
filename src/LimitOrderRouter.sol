@@ -338,6 +338,7 @@ contract LimitOrderRouter is OrderBook {
             initialTokenInBalances[i] = IERC20(currentOrder.tokenIn).balanceOf(
                 currentOrder.owner
             );
+
             initialTokenOutBalances[i] = IERC20(currentOrder.tokenOut)
                 .balanceOf(currentOrder.owner);
         }
