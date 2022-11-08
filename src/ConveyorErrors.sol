@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
+//TODO: decide if we should add things like order ids and values into the errors
 error InsufficientGasCreditBalance();
 error InsufficientGasCreditBalanceForOrderExecution();
 error InsufficientWalletBalance();
@@ -48,6 +49,8 @@ error InsufficientAllowanceForOrderUpdate();
 error InsufficientLiquidityForDynamicFee();
 error SandboxCallFailed();
 error InvalidTransferAddressArray();
+error AddressIsZero();
+error IdenticalTokenAddresses();
 
 error SandboxFillAmountNotSatisfied(
     bytes32 orderId,

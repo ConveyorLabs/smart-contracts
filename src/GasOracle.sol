@@ -9,6 +9,8 @@ import "../lib/AggregatorV3Interface.sol";
 contract GasOracle {
     ///@notice The gasOracleAddress is the address of the Chainlink Gas Oracle.
     address immutable gasOracleAddress;
+    uint256 constant ONE_HUNDRED_TWENTY_FIVE = 125;
+    uint256 constant ONE_HUNDRED = 100;
 
     ///@notice Stale Price delay interval between blocks.
     constructor(address _gasOracleAddress) {
@@ -28,7 +30,8 @@ contract GasOracle {
          This allows for the off chain executor to always be incentivized to execute a transaction, regardless of how far the gasOracle deviates
          from the fair market price. 
         */
-        uint256 adjustedGasPrice = (uint256(answer) * 125) / 100;
+        uint256 adjustedGasPrice = (uint256(answer) * ONE_HUNDRED_TWENTY_FIVE) /
+            ONE_HUNDRED;
 
         return adjustedGasPrice;
     }

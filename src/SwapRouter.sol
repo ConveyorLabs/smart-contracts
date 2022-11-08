@@ -97,8 +97,6 @@ contract SwapRouter is ConveyorTickMath {
     event UniV3SwapError(string indexed reason);
 
     //======================Constants================================
-    uint128 constant SUFFICIENTLY_LIQUID = 1000000000000000000000; //Over 1 million should cover slippage epsilon on fees.
-    uint128 constant SUFFICIENTLY_SQRT_LIQUID = 100000000000000000000;
     uint128 constant MIN_FEE_64x64 = 18446744073709552;
     uint128 constant BASE_SWAP_FEE = 55340232221128660;
     uint128 constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
@@ -540,14 +538,12 @@ contract SwapRouter is ConveyorTickMath {
 
             ///@notice Set spotPrice to the current spot price on the dex represented as 128.128 fixed point.
             _spRes.spotPrice = token0IsReserve0
-                ? ConveyorMath.div128x128(
-                    commonReserve1 << 128,
-                    commonReserve0 << 128
-                )
-                : _spRes.spotPrice = ConveyorMath.div128x128(
-                commonReserve0 << 128,
-                commonReserve1 << 128
-            );
+                ? uint256(ConveyorMath.divUU(commonReserve1, commonReserve0)) <<
+                    64
+                : _spRes.spotPrice =
+                uint256(ConveyorMath.divUU(commonReserve0, commonReserve1)) <<
+                64;
+
             _spRes.token0IsReserve0 = token0IsReserve0;
 
             ///@notice Set res0, res1 on SpotReserve to commonReserve0, commonReserve1 respectively.
@@ -663,11 +659,17 @@ contract SwapRouter is ConveyorTickMath {
         pure
         returns (address token0, address token1)
     {
-        require(tokenA != tokenB, "UniswapV2Library: IDENTICAL_ADDRESSES");
+        if (tokenA == tokenB) {
+            revert IdenticalTokenAddresses();
+        }
+
         (token0, token1) = tokenA < tokenB
             ? (tokenA, tokenB)
             : (tokenB, tokenA);
-        require(token0 != address(0), "UniswapV2Library: ZERO_ADDRESS");
+
+        if (token0 == address(0)) {
+            revert AddressIsZero();
+        }
     }
 
     ///@notice Helper function to determine if a pool address is Uni V2 compatible.

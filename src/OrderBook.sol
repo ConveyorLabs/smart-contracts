@@ -14,12 +14,10 @@ import "./lib/ConveyorMath.sol";
 contract OrderBook is GasOracle {
     address immutable LIMIT_ORDER_EXECUTOR;
 
-    uint256 constant GAS_CREDIT_SHIFT = 150;
-    uint256 constant GAS_CREDIT_SHIFT_NORMALIZED = 100;
-    
-    ///@notice Fee subsidy if paying fee at Order Placement time.
-    ///@dev Fee must either be paid to the placeOrder function or be viable to be paid from the gas credit balance. The order will get a 20% discount on the fee if paid at placement but this is not a requirement.
-    uint128 constant FEE_SUBSIDY = 14757395258967642000;
+    //TODO: Add a comment describing that gas credit buffer/one hundred achieves a markup on the gas credit price of 1.5
+    uint256 constant GAS_CREDIT_BUFFER = 150;
+    uint256 constant ONE_HUNDRED = 100;
+
     address immutable WETH;
     address immutable USDC;
 
@@ -96,8 +94,6 @@ contract OrderBook is GasOracle {
         bytes32 orderId;
     }
 
-    //TODO: check if we can pack the fee into a 112 instead of 128, if not all good
-
     ///@notice Struct containing Order details for any limit order
     ///@param buy - Indicates if the order is a buy or sell
     ///@param lastRefreshTimestamp - Unix timestamp representing the last time the order was refreshed.
@@ -155,12 +151,6 @@ contract OrderBook is GasOracle {
     mapping(address => mapping(bytes32 => bool))
         public addressToFufilledOrderIds;
 
-    ///@notice Mapping to hold fee balances for accounts.
-    mapping(address => uint256) public feeBalance;
-
-    ///@notice Mapping to hold locked fee balances for accounts.
-    mapping(address => uint256) public lockedFeeBalance;
-
     ///@notice The orderNonce is a unique value is used to create orderIds and increments every time a new order is placed.
     uint256 orderNonce;
 
@@ -176,8 +166,6 @@ contract OrderBook is GasOracle {
         OrderType orderType = addressToOrderIds[msg.sender][orderId];
 
         if (orderType == OrderType.None) {
-            ///@notice If the order does not exist, revert.
-
             return (OrderType.None, new bytes(0));
         }
 
@@ -191,9 +179,8 @@ contract OrderBook is GasOracle {
         }
     }
 
-    //TODO: check if these can be internal
     function getLimitOrderById(bytes32 orderId)
-        public
+        internal
         view
         returns (LimitOrder memory)
     {
@@ -201,9 +188,8 @@ contract OrderBook is GasOracle {
         return order;
     }
 
-    //TODO: check if these can be internal
     function getSandboxLimitOrderById(bytes32 orderId)
-        public
+        internal
         view
         returns (SandboxLimitOrder memory)
     {
@@ -317,8 +303,6 @@ contract OrderBook is GasOracle {
         return orderIds;
     }
 
-    //TODO: Update to record the fee in weth instead of the fee as a percent at order placement
-
     ///@notice Places a new order of multicall type (or group of orders) into the system.
     ///@param orderGroup - List of newly created orders to be placed.
     /// @return orderIds - Returns a list of orderIds corresponding to the newly placed orders.
@@ -352,6 +336,8 @@ contract OrderBook is GasOracle {
 
             {
                 ///@notice Boolean indicating if user wants to cover the fee from the fee credit balance, or by calling placeOrder with payment.
+
+                //TODO: come back to this and review
 
                 ///@notice Calculate the spot price of the input token to WETH on Uni v2.
                 (SwapRouter.SpotReserve memory spRes, ) = IOrderRouter(
@@ -714,9 +700,6 @@ contract OrderBook is GasOracle {
             amountOutFilled;
     }
 
-    //TODO: there are a lot of places where we have the order details and then pass in the orderId which is redundant, we can save gas
-    //by passing the order or having two separate remove order form system functions.
-
     ///@notice Function to remove an order from the system.
     ///@param orderId - The orderId that should be removed from the system.
     function _removeOrderFromSystem(bytes32 orderId, OrderType orderType)
@@ -873,7 +856,7 @@ contract OrderBook is GasOracle {
             executionCost *
             multiplier;
         ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
-        return minimumGasCredits / GAS_CREDIT_SHIFT_NORMALIZED;
+        return (minimumGasCredits * GAS_CREDIT_BUFFER) / ONE_HUNDRED;
     }
 
     /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders.
@@ -894,7 +877,7 @@ contract OrderBook is GasOracle {
                 gasPrice,
                 executionCost,
                 userAddress,
-                GAS_CREDIT_SHIFT
+                GAS_CREDIT_BUFFER
             );
     }
 
