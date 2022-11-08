@@ -1040,7 +1040,6 @@ contract OrderBookTest is DSTest {
         //Initialize mock order
         order = OrderBook.SandboxLimitOrder({
             buy: false,
-            prePayFee: prePaid,
             lastRefreshTimestamp: 0,
             expirationTimestamp: uint32(MAX_UINT),
             fee: 0,

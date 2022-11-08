@@ -111,7 +111,6 @@ contract OrderBook is GasOracle {
     ///@param orderId - Unique identifier for the order.
     struct SandboxLimitOrder {
         bool buy;
-        bool prePayFee;
         uint32 lastRefreshTimestamp;
         uint32 expirationTimestamp;
         uint128 fee;
@@ -380,63 +379,19 @@ contract OrderBook is GasOracle {
                             newOrder.amountInRemaining
                         ) / 10**(tokenInDecimals - 18);
 
-                    if (newOrder.prePayFee) {
-                        ///@notice Set the minimum fee to the fee*wethValue*subsidy.
-                        uint128 minFeeReceived = uint128(
-                            ConveyorMath.mul64U(
-                                ConveyorMath.mul64x64(
-                                    IOrderRouter(LIMIT_ORDER_EXECUTOR)
-                                        ._calculateFee(
-                                            uint128(relativeWethValue),
-                                            USDC,
-                                            WETH
-                                        ),
-                                    FEE_SUBSIDY
-                                ),
-                                relativeWethValue
-                            )
-                        );
-                        ///@notice If the msg.value + unlocked balance can't cover the fee revert.
-                        if (
-                            !(feeBalance[msg.sender] + msg.value >=
-                                minFeeReceived)
-                        ) {
-                            revert InsufficientFeeCreditBalanceForOrderExecution();
-                        }
-                        ///@notice If the msg.value is less than minFeeReceived then use the addresses feeBalance to cover the difference.
-                        if (msg.value < minFeeReceived) {
-                            ///@notice Increment the locked fee balance
-                            lockedFeeBalance[msg.sender] += minFeeReceived;
-                            ///@notice Decrement the feeBalance of the msg.sender by the amount used to cover the fee.
-                            feeBalance[msg.sender] -=
-                                minFeeReceived -
-                                msg.value;
-                        } else {
-                            ///@notice If the msg.value can cover the minFeeReceived then simply increment the locked fee balance by minFeeReceived.
-                            lockedFeeBalance[msg.sender] += minFeeReceived;
-                            ///@notice Increment the senders feeBalance by msg.value -minFeeReceived to account for over paying.
-                            feeBalance[msg.sender] +=
-                                msg.value -
-                                minFeeReceived;
-                        }
-                        ///@notice Set the minFeeReceived to 0 as the fee has already been paid at placement.
-                        newOrder.fee = 0;
-                    } else {
-                        ///@notice Set the minimum fee to the fee*wethValue*subsidy.
-                        uint128 minFeeReceived = uint128(
-                            ConveyorMath.mul64U(
-                                IOrderRouter(LIMIT_ORDER_EXECUTOR)
-                                    ._calculateFee(
-                                        uint128(relativeWethValue),
-                                        USDC,
-                                        WETH
-                                    ),
-                                relativeWethValue
-                            )
-                        );
-                        ///@notice Set the Orders min fee to be received during execution.
-                        newOrder.fee = minFeeReceived;
-                    }
+                    ///@notice Set the minimum fee to the fee*wethValue*subsidy.
+                    uint128 minFeeReceived = uint128(
+                        ConveyorMath.mul64U(
+                            IOrderRouter(LIMIT_ORDER_EXECUTOR)._calculateFee(
+                                uint128(relativeWethValue),
+                                USDC,
+                                WETH
+                            ),
+                            relativeWethValue
+                        )
+                    );
+                    ///@notice Set the Orders min fee to be received during execution.
+                    newOrder.fee = minFeeReceived;
                 }
             }
 
