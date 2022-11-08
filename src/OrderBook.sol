@@ -16,6 +16,7 @@ contract OrderBook is GasOracle {
 
     uint256 constant GAS_CREDIT_SHIFT = 150;
     uint256 constant GAS_CREDIT_SHIFT_NORMALIZED = 100;
+    
     ///@notice Fee subsidy if paying fee at Order Placement time.
     ///@dev Fee must either be paid to the placeOrder function or be viable to be paid from the gas credit balance. The order will get a 20% discount on the fee if paid at placement but this is not a requirement.
     uint128 constant FEE_SUBSIDY = 14757395258967642000;
