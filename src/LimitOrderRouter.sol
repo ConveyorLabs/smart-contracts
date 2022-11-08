@@ -419,6 +419,10 @@ contract LimitOrderRouter is OrderBook {
         safeTransferETH(msg.sender, totalRefreshFees);
     }
 
+    ///@notice Internal helper function to refresh a Sandbox Limit Order.
+    ///@param order - The Sandbox Limit Order to be refreshed.
+    ///@param gasPrice - The current gasPrice from the Gas oracle.
+    ///@return uint256 - The refresh fee to be compensated to the off-chain executor.
     function _refreshSandboxLimitOrder(
         SandboxLimitOrder memory order,
         uint256 gasPrice
@@ -475,6 +479,10 @@ contract LimitOrderRouter is OrderBook {
         return REFRESH_FEE;
     }
 
+    ///@notice Internal helper function to refresh a Limit Order.
+    ///@param order - The Limit Order to be refreshed.
+    ///@param gasPrice - The current gasPrice from the Gas oracle.
+    ///@return refreshFee - The refresh fee to be compensated to the off-chain executor.
     function _refreshLimitOrder(LimitOrder memory order, uint256 gasPrice)
         internal
         returns (uint256 refreshFee)
