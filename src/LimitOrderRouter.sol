@@ -544,7 +544,6 @@ contract LimitOrderRouter is OrderBook {
     }
 
     //TODO: resolve issues and warnings, something is off here
-
     /// @notice Function for off-chain executors to cancel an Order that does not have the minimum gas credit balance for order execution.
     /// @param orderId - Order Id of the order to cancel.
     /// @return success - Boolean to indicate if the order was successfully cancelled and compensation was sent to the off-chain executor.
@@ -553,11 +552,10 @@ contract LimitOrderRouter is OrderBook {
         nonReentrant
         returns (bool success)
     {
-        
         uint256 gasPrice = getGasPrice();
-        
+
         (OrderType orderType, bytes memory orderBytes) = getOrderById(orderId);
-        
+
         address orderOwner;
 
         ///@notice Check if order exists, otherwise revert.

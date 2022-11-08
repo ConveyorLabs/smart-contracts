@@ -10,7 +10,7 @@ import "./lib/ConveyorTickMath.sol";
 contract LimitOrderQuoter is ConveyorTickMath {
     address immutable WETH;
 
-    constructor(address _weth, address _quoterAddress) {
+    constructor(address _weth) {
         require(_weth != address(0), "Invalid weth address");
         WETH = _weth;
     }
