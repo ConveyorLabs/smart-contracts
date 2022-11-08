@@ -123,9 +123,6 @@ contract LimitOrderRouter is OrderBook {
     ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
     event GasCreditEvent(address indexed sender, uint256 indexed balance);
 
-    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
-    event FeeCreditEvent(address indexed sender, uint256 indexed balance);
-
     ///@notice Event that notifies off-chain executors when an order has been refreshed.
     event OrderRefreshed(
         bytes32 indexed orderId,
