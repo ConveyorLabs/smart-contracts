@@ -91,7 +91,7 @@ contract LimitOrderRouter is OrderBook {
     ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
     address owner;
 
-    address public SANDBOX_ROUTER;
+    address public immutable SANDBOX_ROUTER;
 
     // ========================================= Constructor =============================================
 
