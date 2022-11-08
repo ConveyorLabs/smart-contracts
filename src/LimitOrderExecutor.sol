@@ -43,13 +43,15 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         _;
     }
 
-    bool entered = false;
     ///@notice Reentrancy modifier for transferToSandBoxRouter.
     modifier nonReentrant() {
-        require(!entered, "Unauthorized Callback from ChaosRouter");
-        entered = true;
+        if (reentrancyStatus) {
+            revert Reentrancy();
+        }
+
+        reentrancyStatus = true;
         _;
-        entered = false;
+        reentrancyStatus = false;
     }
 
     ///@notice Temporary owner storage variable when transferring ownership of the contract.
@@ -446,7 +448,6 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         SandboxRouter.SandboxMulticall calldata sandboxMulticall,
         address sandBoxRouter
     ) external onlyLimitOrderRouter nonReentrant {
-    
         uint256 expectedAccumulatedFees = 0;
 
         if (sandboxMulticall.transferAddress.length == 0) {

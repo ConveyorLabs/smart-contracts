@@ -38,7 +38,7 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice Modifier to restrict reentrancy into a function.
     modifier nonReentrant() {
-        if (reentrancyStatus == true) {
+        if (reentrancyStatus) {
             revert Reentrancy();
         }
         reentrancyStatus = true;
