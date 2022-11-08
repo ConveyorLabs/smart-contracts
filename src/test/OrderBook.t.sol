@@ -135,7 +135,6 @@ contract OrderBookTest is DSTest {
         OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
             swapToken,
             wnato,
-            false,
             5,
             5
         );
@@ -231,7 +230,6 @@ contract OrderBookTest is DSTest {
                 OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
                     swapToken,
                     wnato,
-                    false,
                     uint112(amountOut),
                     uint112(amountOutRemaining)
                 );
@@ -282,7 +280,6 @@ contract OrderBookTest is DSTest {
                 OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
                     swapToken,
                     wnato,
-                    true,
                     uint112(amountOut),
                     uint112(amountOutRemaining)
                 );
@@ -316,7 +313,6 @@ contract OrderBookTest is DSTest {
             OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
                 swapToken,
                 swapToken, //Same in out token should throw reversion
-                true,
                 uint112(amountOut),
                 uint112(amountOutRemaining)
             );
@@ -347,7 +343,6 @@ contract OrderBookTest is DSTest {
         OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
             swapToken,
             wnato,
-            false,
             uint112(amountInRemaining),
             uint112(amountOutRemaining)
         );
@@ -380,7 +375,6 @@ contract OrderBookTest is DSTest {
             OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
                 swapToken,
                 swapToken, //Same in out token should throw reversion
-                true,
                 uint112(amountOut),
                 uint112(amountOutRemaining)
             );
@@ -415,7 +409,6 @@ contract OrderBookTest is DSTest {
             OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
                 swapToken,
                 wnato,
-                false,
                 uint112(amountOut),
                 uint112(amountOutRemaining)
             );
@@ -635,7 +628,6 @@ contract OrderBookTest is DSTest {
         OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
             swapToken,
             wnato,
-            false,
             1000000000000000000,
             1000000000000000000
         );
@@ -1033,7 +1025,6 @@ contract OrderBookTest is DSTest {
     function newSandboxLimitOrder(
         address tokenIn,
         address tokenOut,
-        bool prePaid,
         uint128 amountInRemaining,
         uint128 amountOutRemaining
     ) internal view returns (OrderBook.SandboxLimitOrder memory order) {
