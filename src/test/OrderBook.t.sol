@@ -323,9 +323,7 @@ contract OrderBookTest is DSTest {
             orderGroup[0] = order;
 
             //place order
-            bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
-                orderGroup
-            );
+            orderBook.placeSandboxLimitOrder(orderGroup);
         } catch {}
     }
 
@@ -353,10 +351,7 @@ contract OrderBookTest is DSTest {
         orderGroup[0] = order;
 
         //place order
-        bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
-            orderGroup
-        );
-        bytes32 orderId = orderIds[0];
+        orderBook.placeSandboxLimitOrder(orderGroup);
     }
 
     ///TODO: Write a fuzz test for this
@@ -385,14 +380,9 @@ contract OrderBookTest is DSTest {
             orderGroup[0] = order;
 
             //place order
-            bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
-                orderGroup
-            );
+            orderBook.placeSandboxLimitOrder(orderGroup);
         } catch {}
     }
-
-    ///TODO: Write a fuzz test for this
-    function testUpdateSandboxLimitOrder() public {}
 
     ///TODO: Write a fuzz test for this
     function testCancelSandboxLimitOrder(uint256 amountOutRemaining) public {
