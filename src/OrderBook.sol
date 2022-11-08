@@ -502,7 +502,11 @@ contract OrderBook is GasOracle {
             );
         }
     }
-
+    
+    ///@notice Function to update the price or quantity of an active Limit Order. 
+    ///@param orderId - The orderId of the Limit Order.
+    ///@param price - The new price of the Limit Order.
+    ///@param quantity - The new quantity of the Limit Order.
     function _updateLimitOrder(
         bytes32 orderId,
         uint128 price,
@@ -547,6 +551,10 @@ contract OrderBook is GasOracle {
         emit OrderUpdated(orderIds);
     }
 
+    ///@notice Function to update a sandbox Limit Order.
+    ///@param orderId - The orderId of the Sandbox Limit Order.
+    ///@param amountInRemaining - The new amountInRemaining.
+    ///@param amountOutRemaining - The new amountOutRemaining. 
     function _updateSandboxLimitOrder(
         bytes32 orderId,
         uint128 amountInRemaining,
@@ -595,6 +603,8 @@ contract OrderBook is GasOracle {
         emit OrderUpdated(orderIds);
     }
 
+    ///@notice Function to cancel a single Sandbox or Standard Limit Order.
+    ///@param orderId - The orderId of the Order to be cancelled. 
     function cancelOrder(bytes32 orderId) public {
         ///@notice Check if the order exists
         OrderType orderType = addressToOrderIds[msg.sender][orderId];
