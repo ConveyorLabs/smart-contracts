@@ -16,7 +16,6 @@ contract OrderBook is GasOracle {
 
     //TODO: Add a comment describing that gas credit buffer/one hundred achieves a markup on the gas credit price of 1.5
     uint256 constant GAS_CREDIT_BUFFER = 150;
-    uint256 constant ONE_HUNDRED = 100;
 
     address immutable WETH;
     address immutable USDC;

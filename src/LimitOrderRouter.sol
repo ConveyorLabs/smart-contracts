@@ -68,6 +68,7 @@ contract LimitOrderRouter is OrderBook {
     uint256 constant REFRESH_INTERVAL = 2592000;
 
     ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
+    ///@notice The refresh fee is 0.02 ETH
     uint256 constant REFRESH_FEE = 20000000000000000;
 
     // ========================================= State Variables =============================================
@@ -78,8 +79,15 @@ contract LimitOrderRouter is OrderBook {
     ///@notice Mapping to hold gas credit balances for accounts.
     mapping(address => uint256) public gasCreditBalance;
 
-    ///@notice The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
-    uint256 public constant ORDER_EXECUTION_GAS_COST = 300000;
+    ///@notice The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut
+    //TODO: Update this to the actual simulated value before deployment
+    //TODO: look at putting this in the orderbook instead of passing it to hasmingascredits
+    uint256 public constant LIMIT_ORDER_EXECUTION_GAS_COST = 300000;
+
+    ///@notice The execution cost of fufilling a SandboxLimitOrder with a standard ERC20 swap from tokenIn to tokenOut
+    //TODO: Update this to the actual simulated value before deployment
+
+    uint256 public constant SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = 300000;
 
     ///@notice State variable to track the amount of gas initally alloted during executeLimitOrders.
     uint256 initialTxGas;
@@ -175,7 +183,7 @@ contract LimitOrderRouter is OrderBook {
             !(
                 _hasMinGasCredits(
                     gasPrice,
-                    ORDER_EXECUTION_GAS_COST,
+                    LIMIT_ORDER_EXECUTION_GAS_COST,
                     msg.sender,
                     gasCreditBalance[msg.sender] - value
                 )
@@ -450,7 +458,7 @@ contract LimitOrderRouter is OrderBook {
             !(
                 _hasMinGasCredits(
                     gasPrice,
-                    ORDER_EXECUTION_GAS_COST,
+                    LIMIT_ORDER_EXECUTION_GAS_COST,
                     order.owner,
                     gasCreditBalance[order.owner] - REFRESH_FEE
                 )
@@ -510,7 +518,7 @@ contract LimitOrderRouter is OrderBook {
             !(
                 _hasMinGasCredits(
                     gasPrice,
-                    ORDER_EXECUTION_GAS_COST,
+                    LIMIT_ORDER_EXECUTION_GAS_COST,
                     order.owner,
                     gasCreditBalance[order.owner] - REFRESH_FEE
                 )
@@ -594,7 +602,7 @@ contract LimitOrderRouter is OrderBook {
             !(
                 _hasMinGasCredits(
                     gasPrice,
-                    ORDER_EXECUTION_GAS_COST,
+                    LIMIT_ORDER_EXECUTION_GAS_COST,
                     orderOwner,
                     gasCreditBalance[orderOwner]
                 )
@@ -625,7 +633,7 @@ contract LimitOrderRouter is OrderBook {
 
         ///@notice Get the minimum gas credits needed for a single order
         uint256 minimumGasCreditsForSingleOrder = gasPrice *
-            ORDER_EXECUTION_GAS_COST;
+            LIMIT_ORDER_EXECUTION_GAS_COST;
 
         ///@notice Remove the order from the limit order system.
         _removeOrderFromSystem(order.orderId, OrderType.LimitOrder);
