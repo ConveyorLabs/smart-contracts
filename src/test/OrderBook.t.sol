@@ -112,7 +112,7 @@ contract OrderBookTest is DSTest {
         //place a mock order
         bytes32 orderId = placeMockOrder(order);
 
-        OrderBook.LimitOrder memory returnedOrder = orderBook.getLimitOrderById(
+        OrderBook.LimitOrder memory returnedOrder = orderBook._getLimitOrderById(orderId);(
             orderId
         );
 
@@ -141,7 +141,7 @@ contract OrderBookTest is DSTest {
         bytes32 orderId = placeMockSandboxLimitOrder(order);
 
         OrderBook.SandboxLimitOrder memory returnedOrder = orderBook
-            .getSandboxLimitOrderById(orderId);
+            ._getSandboxLimitOrderById(orderId);
 
         // assert that the two orders are the same
         assertEq(returnedOrder.tokenIn, order.tokenIn);
@@ -164,7 +164,7 @@ contract OrderBookTest is DSTest {
         //place a mock order
         placeMockOrder(order);
 
-        orderBook.getLimitOrderById(bytes32(0));
+        orderBook._getLimitOrderById(bytes32(0));
     }
 
     ///TODO: Fuzz test this
@@ -588,7 +588,8 @@ contract OrderBookTest is DSTest {
         //submit the updated order
         orderBook.updateOrder(orderId, newPrice, newQuantity);
 
-        OrderBook.LimitOrder memory updatedOrder = orderBook.getLimitOrderById(
+        OrderBook.LimitOrder memory updatedOrder = orderBook._getLimitOrderById(bytes32(0));
+(
             orderId
         );
 
@@ -628,7 +629,7 @@ contract OrderBookTest is DSTest {
         orderBook.updateOrder(orderId, price, newAmountInRemaining);
 
         OrderBook.SandboxLimitOrder memory updatedOrder = orderBook
-            .getSandboxLimitOrderById(orderId);
+            ._getSandboxLimitOrderById(orderId);
 
         //Cache the total orders value after the update
         uint256 totalOrdersValueAfter = orderBook.getTotalOrdersValue(
@@ -1075,7 +1076,12 @@ contract OrderBookWrapper is OrderBook {
         address _weth,
         address _usdc
     ) OrderBook(_gasOracle, _limitOrderExecutor, _weth, _usdc) {}
-
+    function _getLimitOrderById(bytes32 orderId) public view returns(OrderBook.LimitOrder memory){
+        return getLimitOrderById(orderId);
+    }
+    function _getSandboxLimitOrderById(bytes32 orderId) public view returns(OrderBook.SandboxLimitOrder memory){
+        return getSandboxLimitOrderById(orderId);
+    }
     function calculateMinGasCredits(
         uint256 gasPrice,
         uint256 executionCost,

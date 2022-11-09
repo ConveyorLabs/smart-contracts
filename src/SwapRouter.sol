@@ -211,7 +211,7 @@ contract SwapRouter is ConveyorTickMath {
 
         ///@notice Exponent= usdAmount/750000
         uint128 exponent = uint128(
-            ConveyorMath.divUI(amountInUSDCDollarValue, 75000)
+            ConveyorMath.divUU(amountInUSDCDollarValue, 75000)
         );
 
         ///@notice This is to prevent overflow, and order is of sufficient size to recieve 0.001 fee

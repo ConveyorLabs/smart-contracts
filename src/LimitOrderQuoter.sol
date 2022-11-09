@@ -509,7 +509,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
 
                 ///@notice Spot price = reserveB/reserveA
                 uint256 spotPrice = uint256(
-                    ConveyorMath.divUI(numerator, denominator)
+                    ConveyorMath.divUU(numerator, denominator)
                 ) << 64;
 
                 ///@notice Update update the new reserves array to the simulated reserve values.
