@@ -56,6 +56,16 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         reentrancyStatus = false;
     }
 
+    ///@notice Modifier function to only allow the owner of the contract to call specific functions
+    ///@dev Functions with onlyOwner: withdrawConveyorFees, transferOwnership.
+    modifier onlyOwner() {
+        if (msg.sender != owner) {
+            revert MsgSenderIsNotOwner();
+        }
+
+        _;
+    }
+
     ///@notice Temporary owner storage variable when transferring ownership of the contract.
     address tempOwner;
 
@@ -519,38 +529,27 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
 
         ///@notice If the fees are not paid, revert
         if (!feeIsPaid) {
-            uint256 feesPaid = contractBalancePreExecution +
-                expectedAccumulatedFees;
-
-            uint256 unpaidFeesRemaining = expectedAccumulatedFees -
-                contractBalancePostExecution;
-
             revert ConveyorFeesNotPaid(
                 expectedAccumulatedFees,
-                feesPaid,
-                unpaidFeesRemaining
+                contractBalancePostExecution - contractBalancePreExecution,
+                expectedAccumulatedFees -
+                    (contractBalancePostExecution - contractBalancePreExecution)
             );
         }
     }
 
     ///@notice Function to withdraw owner fee's accumulated
-    function withdrawConveyorFees() external {
-        if (reentrancyStatus == true) {
-            revert Reentrancy();
-        }
-        reentrancyStatus = true;
-
-        ///@notice Revert if caller is not the owner.
-        if (msg.sender != owner) {
-            revert MsgSenderIsNotOwner();
-        }
-
+    function withdrawConveyorFees() external nonReentrant onlyOwner {
         ///@notice Unwrap the the conveyorBalance.
         IWETH(WETH).withdraw(conveyorBalance);
 
-        safeTransferETH(owner, conveyorBalance);
+        //TODO: do we need to do this since we have non reentrant?
+        uint256 withdrawAmount = conveyorBalance;
+
         ///@notice Set the conveyorBalance to 0 prior to transferring the ETH.
         conveyorBalance = 0;
+
+        safeTransferETH(owner, withdrawAmount);
 
         ///@notice Set the reentrancy status to false after the conveyorBalance has been decremented to prevent reentrancy.
         reentrancyStatus = false;
@@ -567,16 +566,14 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
     }
 
     ///@notice Function to transfer ownership of the contract.
-    function transferOwnership(address newOwner) external {
-        if (msg.sender != owner) {
-            revert UnauthorizedCaller();
-        }
-
+    function transferOwnership(address newOwner) external onlyOwner {
         if (newOwner == address(0)) {
             revert InvalidAddress();
         }
         tempOwner = newOwner;
     }
+
+    //TODO: see if we can remove this
 
     ///@notice Function to get the amountOut from a UniV2 lp.
     ///@param amountIn - AmountIn for the swap.
