@@ -246,6 +246,8 @@ contract LimitOrderRouter is OrderBook {
             initialTokenInBalances,
             initialTokenOutBalances
         );
+
+        ///TODO: compensate for gas costs
     }
 
     function initializePreSandboxExecutionState(
@@ -776,6 +778,7 @@ contract LimitOrderRouter is OrderBook {
         from the protocol, incentivizing the off-chain executor to be the first to compute the execution opportunity and submit a transaction. Any while miners/block builders can order a block as they desire
         there is not an incentive to order one transaction in front of the other, allowing the first to submit the transaction to be included in most cases.
         */
+
         uint256 gasPrice = getGasPrice();
         if (tx.gasprice > gasPrice) {
             revert VerifierDilemmaGasPrice();
@@ -785,6 +788,7 @@ contract LimitOrderRouter is OrderBook {
         assembly {
             sstore(initialTxGas.slot, gas())
         }
+
         ///@notice Revert if the length of the orderIds array is 0.
         if (orderIds.length == 0) {
             revert InvalidCalldata();
@@ -887,6 +891,7 @@ contract LimitOrderRouter is OrderBook {
             revert UnauthorizedCaller();
         }
         owner = msg.sender;
+        tempOwner = address(0);
     }
 
     ///@notice Function to transfer ownership of the contract.
