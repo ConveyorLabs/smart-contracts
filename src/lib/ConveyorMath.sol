@@ -205,7 +205,7 @@ library ConveyorMath {
             uint256 hi = xInt * (MAX_128x128 / y);
             uint256 lo = (xDec * (MAX_128x128 / y)) >> 128;
 
-            require(hi <= MAX_128x128 -lo);
+            require(hi <= MAX_128x128 - lo);
             return hi + lo;
         }
     }
@@ -214,10 +214,10 @@ library ConveyorMath {
     /// @param x uint256 unsigned integer number
     /// @param y uint256 unsigned integer number
     /// @return unsigned uint128 64.64 unsigned integer
-    function divUI(uint256 x, uint256 y) internal pure returns (uint128) {
+    function divUU(uint256 x, uint256 y) internal pure returns (uint128) {
         unchecked {
             require(y != 0);
-            uint128 answer = divUU(x, y);
+            uint128 answer = divuu(x, y);
             require(answer <= uint128(MAX_64x64), "overflow");
 
             return answer;
@@ -227,7 +227,7 @@ library ConveyorMath {
     /// @param x uint256 unsigned integer
     /// @param y uint256 unsigned integer
     /// @return unsigned 64.64 fixed point number
-    function divUU(uint256 x, uint256 y) internal pure returns (uint128) {
+    function divuu(uint256 x, uint256 y) internal pure returns (uint128) {
         unchecked {
             require(y != 0);
 
@@ -290,7 +290,6 @@ library ConveyorMath {
             return uint128(answer);
         }
     }
-
 
     /// @notice helper to calculate binary exponent of 64.64 unsigned fixed point number
     /// @param x unsigned 64.64 fixed point number

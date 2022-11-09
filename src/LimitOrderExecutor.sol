@@ -101,7 +101,6 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
 
     ///@notice Function to execute a batch of Token to Weth Orders.
     ///@param orders The orders to be executed.
-
     function executeTokenToWethOrders(OrderBook.LimitOrder[] memory orders)
         external
         onlyLimitOrderRouter
@@ -126,6 +125,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         uint256 totalBeaconReward = 0;
 
         ///@notice Set totalConveyorReward to 0
+
         uint256 totalConveyorReward = 0;
 
         for (uint256 i = 0; i < orders.length; ) {
