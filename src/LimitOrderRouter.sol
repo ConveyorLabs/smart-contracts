@@ -115,9 +115,7 @@ contract LimitOrderRouter is OrderBook {
         address _limitOrderExecutor
     ) OrderBook(_gasOracle, _limitOrderExecutor, _weth, _usdc) {
         ///@notice Require that deployment addresses are not zero
-        require(_gasOracle != address(0), "Invalid gas oracle address");
-        require(_weth != address(0), "Invalid weth address");
-        require(_usdc != address(0), "Invalid usdc address");
+        ///@dev All other addresses are being asserted in the limit order executor, which deploys the limit order router
         require(
             _limitOrderExecutor != address(0),
             "Invalid LimitOrderExecutor address"
