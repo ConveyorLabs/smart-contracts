@@ -561,7 +561,6 @@ contract LimitOrderRouter is OrderBook {
         }
     }
 
-    //TODO: resolve issues and warnings, something is off here
     /// @notice Function for off-chain executors to cancel an Order that does not have the minimum gas credit balance for order execution.
     /// @param orderId - Order Id of the order to cancel.
     /// @return success - Boolean to indicate if the order was successfully cancelled and compensation was sent to the off-chain executor.
@@ -574,45 +573,56 @@ contract LimitOrderRouter is OrderBook {
 
         (OrderType orderType, bytes memory orderBytes) = getOrderById(orderId);
 
-        address orderOwner;
-
         ///@notice Check if order exists, otherwise revert.
         if (orderType == OrderType.None) {
             revert OrderDoesNotExist(orderId);
         } else if (orderType == OrderType.LimitOrder) {
             LimitOrder memory limitOrder = abi.decode(orderBytes, (LimitOrder));
 
-            orderOwner = limitOrder.owner;
-            orderId = limitOrder.orderId;
+            ///@notice If the order owner does not have min gas credits, cancel the order
+            if (
+                !(
+                    _hasMinGasCredits(
+                        gasPrice,
+                        LIMIT_ORDER_EXECUTION_GAS_COST,
+                        limitOrder.owner,
+                        gasCreditBalance[limitOrder.owner]
+                    )
+                )
+            ) {
+                ///@notice Remove the order from the limit order system.
+                safeTransferETH(
+                    msg.sender,
+                    _cancelLimitOrderViaExecutor(limitOrder)
+                );
+                return true;
+            }
         } else {
             SandboxLimitOrder memory sandboxLimitOrder = abi.decode(
                 orderBytes,
                 (SandboxLimitOrder)
             );
 
-            orderOwner = sandboxLimitOrder.owner;
-            orderId = sandboxLimitOrder.orderId;
-        }
-
-        ///@notice Check if the account has the minimum gas credits for
-        if (
-            !(
-                _hasMinGasCredits(
-                    gasPrice,
-                    LIMIT_ORDER_EXECUTION_GAS_COST,
-                    orderOwner,
-                    gasCreditBalance[orderOwner]
+            ///@notice If the order owner does not have min gas credits, cancel the order
+            if (
+                !(
+                    _hasMinGasCredits(
+                        gasPrice,
+                        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST,
+                        sandboxLimitOrder.owner,
+                        gasCreditBalance[sandboxLimitOrder.owner]
+                    )
                 )
-            )
-        ) {
-            ///@notice Remove the order from the limit order system.
+            ) {
+                ///@notice Remove the order from the limit order system.
 
-            if (orderType == OrderType.LimitOrder) {
-                _cancelLimitOrder(orderId);
-            } else {
-                _cancelSandboxLimitOrder(orderId);
+                safeTransferETH(
+                    msg.sender,
+                    _cancelSandboxLimitOrderViaExecutor(sandboxLimitOrder)
+                );
+
+                return true;
             }
-            return true;
         }
 
         return false;
