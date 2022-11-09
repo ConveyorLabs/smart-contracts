@@ -17,7 +17,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
     address immutable WETH;
     address immutable USDC;
     address immutable LIMIT_ORDER_QUOTER;
-    address immutable LIMIT_ORDER_ROUTER;
+    address public immutable LIMIT_ORDER_ROUTER;
 
     ///====================================Constants==============================================//
     ///@notice The Maximum Reward a beacon can receive from stoploss execution.
