@@ -202,6 +202,8 @@ contract OrderBook is GasOracle {
         public
         returns (bytes32[] memory)
     {
+        //TODO: decide if we should check for gas credits on order placement
+
         ///@notice Initialize a new list of bytes32 to store the newly created orderIds.
         bytes32[] memory orderIds = new bytes32[](orderGroup.length);
 
@@ -310,6 +312,8 @@ contract OrderBook is GasOracle {
         payable
         returns (bytes32[] memory)
     {
+        //TODO: decide if we should check for gas credits on order placement
+
         ///@notice Initialize a new list of bytes32 to store the newly created orderIds.
         bytes32[] memory orderIds = new bytes32[](orderGroup.length);
 
