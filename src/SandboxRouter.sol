@@ -59,14 +59,14 @@ contract SandboxRouter {
     }
 
     ///@notice Callback function that executes a sandbox multicall and is only accessible by the limitOrderExecutor.
-    ///@param sandBoxMulticall //TODO
-    function sandboxRouterCallback(SandboxMulticall calldata sandBoxMulticall)
+    ///@param sandboxMulticall - Struct containing the SandboxMulticall data. See the SandboxMulticall struct for a description of each parameter.
+    function sandboxRouterCallback(SandboxMulticall calldata sandboxMulticall)
         external
         onlyLimitOrderExecutor
     {
         ///@notice Iterate through each target in the calls, and optimistically call the calldata.
-        for (uint256 i = 0; i < sandBoxMulticall.calls.length; ) {
-            Call memory sandBoxCall = sandBoxMulticall.calls[i];
+        for (uint256 i = 0; i < sandboxMulticall.calls.length; ) {
+            Call memory sandBoxCall = sandboxMulticall.calls[i];
             ///@notice Call the target address on the specified calldata
             (bool success, ) = sandBoxCall.target.call(sandBoxCall.callData);
 

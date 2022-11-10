@@ -254,12 +254,19 @@ contract OrderBook is GasOracle {
 
             ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
             if (!(orderToken == newOrder.tokenIn)) {
-                revert IncongruentTokenInOrderGroup();
+                revert IncongruentTokenInOrderGroup(
+                    newOrder.tokenIn,
+                    orderToken
+                );
             }
 
             ///@notice If the msg.sender does not have a sufficent balance to cover the order, revert.
             if (tokenBalance < updatedTotalOrdersValue) {
-                revert InsufficientWalletBalance();
+                revert InsufficientWalletBalance(
+                    msg.sender,
+                    tokenBalance,
+                    updatedTotalOrdersValue
+                );
             }
 
             ///@notice Create a new orderId from the orderNonce and current block timestamp
@@ -410,12 +417,19 @@ contract OrderBook is GasOracle {
 
             ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
             if (!(orderToken == newOrder.tokenIn)) {
-                revert IncongruentTokenInOrderGroup();
+                revert IncongruentTokenInOrderGroup(
+                    newOrder.tokenIn,
+                    orderToken
+                );
             }
 
             ///@notice If the msg.sender does not have a sufficent balance to cover the order, revert.
             if (tokenBalance < updatedTotalOrdersValue) {
-                revert InsufficientWalletBalance();
+                revert InsufficientWalletBalance(
+                    msg.sender,
+                    tokenBalance,
+                    updatedTotalOrdersValue
+                );
             }
 
             ///@notice Create a new orderId from the orderNonce and current block timestamp
@@ -504,7 +518,11 @@ contract OrderBook is GasOracle {
 
         ///@notice If the gasCreditBalance + msg value does not cover the min gas credits, then revert
         if (userGasCreditBalance + msg.value < minimumGasCredits) {
-            revert InsufficientGasCreditBalance();
+            revert InsufficientGasCreditBalance(
+                msg.sender,
+                userGasCreditBalance + msg.value,
+                minimumGasCredits
+            );
         }
 
         if (msg.value != 0) {
@@ -565,7 +583,11 @@ contract OrderBook is GasOracle {
 
         ///@notice If the wallet does not have a sufficient balance for the updated total orders value, revert.
         if (IERC20(order.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
-            revert InsufficientWalletBalance();
+            revert InsufficientWalletBalance(
+                msg.sender,
+                IERC20(order.tokenIn).balanceOf(msg.sender),
+                totalOrdersValue
+            );
         }
 
         ///@notice Update the total orders quantity
@@ -615,7 +637,11 @@ contract OrderBook is GasOracle {
 
         ///@notice If the wallet does not have a sufficient balance for the updated total orders value, revert.
         if (IERC20(order.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
-            revert InsufficientWalletBalance();
+            revert InsufficientWalletBalance(
+                msg.sender,
+                IERC20(order.tokenIn).balanceOf(msg.sender),
+                totalOrdersValue
+            );
         }
 
         ///@notice Update the total orders quantity

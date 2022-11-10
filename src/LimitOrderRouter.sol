@@ -160,9 +160,14 @@ contract LimitOrderRouter is OrderBook {
         nonReentrant
         returns (bool success)
     {
+        uint256 userGasCreditBalance = gasCreditBalance[msg.sender];
         ///@notice Require that account's credit balance is larger than withdraw amount
-        if (gasCreditBalance[msg.sender] < value) {
-            revert InsufficientGasCreditBalance();
+        if (userGasCreditBalance < value) {
+            revert InsufficientGasCreditBalance(
+                msg.sender,
+                userGasCreditBalance,
+                value
+            );
         }
 
         ///@notice Get the current gas price from the v3 Aggregator.
@@ -175,12 +180,23 @@ contract LimitOrderRouter is OrderBook {
                     gasPrice,
                     LIMIT_ORDER_EXECUTION_GAS_COST,
                     msg.sender,
-                    gasCreditBalance[msg.sender] - value,
+                    userGasCreditBalance - value,
                     GAS_CREDIT_BUFFER
                 )
             )
         ) {
-            revert InsufficientGasCreditBalanceForOrderExecution();
+            uint256 minGasCredits = _calculateMinGasCredits(
+                gasPrice,
+                LIMIT_ORDER_EXECUTION_GAS_COST,
+                msg.sender,
+                GAS_CREDIT_BUFFER
+            );
+
+            revert InsufficientGasCreditBalance(
+                msg.sender,
+                userGasCreditBalance,
+                minGasCredits
+            );
         }
 
         ///@notice Decrease the account's gas credit balance

@@ -1,18 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-//TODO: decide if we should add things like order ids and values into the errors
-error InsufficientGasCreditBalance();
-error InsufficientGasCreditBalanceForOrderExecution();
-error InsufficientWalletBalance();
+error InsufficientGasCreditBalance(
+    address account,
+    uint256 gasCreditBalance,
+    uint256 gasCreditBalanceNeeded
+);
+
+error InsufficientWalletBalance(
+    address account,
+    uint256 balance,
+    uint256 balanceNeeded
+);
+
 error OrderDoesNotExist(bytes32 orderId);
-error OrderHasInsufficientSlippage(bytes32 orderId);
-error SwapFailed(bytes32 orderId);
-error OrderDoesNotMeetExecutionPrice(bytes32 orderId);
-error TokenTransferFailed(bytes32 orderId);
-error IncongruentTokenInOrderGroup();
-error OrderNotRefreshable();
-error OrderHasReachedExpiration();
+
+error IncongruentTokenInOrderGroup(address token, address expectedToken);
+
 error InsufficientOutputAmount();
 error InsufficientInputAmount();
 error InsufficientLiquidity();
