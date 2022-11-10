@@ -215,7 +215,7 @@ contract LimitOrderRouter is OrderBook {
             uint256[] memory initialTokenOutBalances
         ) = initializePreSandboxExecutionState(
                 sandboxMulticall.orderIds,
-                sandboxMulticall.fillAmount
+                sandboxMulticall.fillAmounts
             );
 
         ///@notice Call the limit order executor to transfer all of the order owners tokens to the contract.
@@ -228,7 +228,7 @@ contract LimitOrderRouter is OrderBook {
         ///@notice Post execution, assert that all of the order owners have received >= their exact amount out
         validateSandboxExecutionAndFillOrders(
             sandboxLimitOrders,
-            sandboxMulticall.fillAmount,
+            sandboxMulticall.fillAmounts,
             initialTokenInBalances,
             initialTokenOutBalances
         );

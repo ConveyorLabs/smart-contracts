@@ -94,7 +94,9 @@ contract LimitOrderExecutor is SwapRouter {
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
-        address _gasOracle
+        address _gasOracle,
+        uint256 _limitOrderExecutionGasCost,
+        uint256 _sandboxLimitOrderExecutionGasCost
     ) SwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
         require(_gasOracle != address(0), "Invalid gas oracle address");
         require(_weth != address(0), "Invalid weth address");
@@ -109,7 +111,14 @@ contract LimitOrderExecutor is SwapRouter {
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
 
         address limitOrderRouter = address(
-            new LimitOrderRouter(_gasOracle, _weth, _usdc, address(this))
+            new LimitOrderRouter(
+                _gasOracle,
+                _weth,
+                _usdc,
+                address(this),
+                _limitOrderExecutionGasCost,
+                _sandboxLimitOrderExecutionGasCost
+            )
         );
 
         LIMIT_ORDER_ROUTER = limitOrderRouter;
@@ -497,9 +506,9 @@ contract LimitOrderExecutor is SwapRouter {
     ) external onlyLimitOrderRouter nonReentrant {
         uint256 expectedAccumulatedFees = 0;
 
-        if (sandboxMulticall.transferAddress.length > 0) {
+        if (sandboxMulticall.transferAddresses.length > 0) {
             ///@notice Ensure that the transfer address array is equal to the length of orders to avoid out of bounds index errors
-            if (sandboxMulticall.transferAddress.length != orders.length) {
+            if (sandboxMulticall.transferAddresses.length != orders.length) {
                 revert InvalidTransferAddressArray();
             }
 
@@ -507,8 +516,8 @@ contract LimitOrderExecutor is SwapRouter {
             for (uint256 i = 0; i < orders.length; ++i) {
                 IERC20(orders[i].tokenIn).safeTransferFrom(
                     orders[i].owner,
-                    sandboxMulticall.transferAddress[i],
-                    sandboxMulticall.fillAmount[i]
+                    sandboxMulticall.transferAddresses[i],
+                    sandboxMulticall.fillAmounts[i]
                 );
 
                 expectedAccumulatedFees += orders[i].fee;
@@ -519,7 +528,7 @@ contract LimitOrderExecutor is SwapRouter {
                 IERC20(orders[i].tokenIn).safeTransferFrom(
                     orders[i].owner,
                     SANDBOX_ROUTER,
-                    sandboxMulticall.fillAmount[i]
+                    sandboxMulticall.fillAmounts[i]
                 );
 
                 expectedAccumulatedFees += orders[i].fee;
