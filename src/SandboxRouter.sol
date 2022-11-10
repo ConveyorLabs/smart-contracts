@@ -53,22 +53,6 @@ contract SandboxRouter {
     function executeSandboxMulticall(SandboxMulticall calldata sandboxMultiCall)
         external
     {
-        ///TODO: need to edit this
-        /**@notice 
-                ✨This function is to be used exclusively for non stoploss orders. The contract works by accepting an array of `Call`, containing arbitrary calldata and a target address  passed from the  off chain executor. 
-                This function first calls initializeMulticallCallbackState() on the LimitOrderRouter contract where the state prior to execution of all the order owners balances is stored.
-
-                The LimitOrderRouter makes a single external call to the LimitOrderExecutor which calls safeTransferFrom() on the users wallet to the ChaosRouter contract. The LimitOrderExecutor
-                then calls executeMultiCallCallback() on the ChaosRouter. The ChaosRouter optimistically executes the calldata passed by the offchain executor. Once all the callback has finished 
-                the LimitOrderRouter contract then cross references the Initial State vs the Current State of Token balances in the contract to determine if all Orders have received their target quantity
-                based on the amountSpecifiedToFill*order.price. 
-                
-                The ChaosRouter works in a much different way than traditional LimitOrder systems to date. It allows for Executors to be creative in the
-                strategies they employ for execution. To be clear, the only rule when executing with the ChaosRouter is there are no rules. An executor is welcome to do whatever they want with the funds
-                during execution, so long as each Order gets filled their exact amount. Further, any profit reaped on the multicall goes 100% back to the executor.✨
-         **/
-
-        ///@notice Upon initialization call the LimitOrderRouter contract to cache the initial state prior to execution.
         ILimitOrderRouter(LIMIT_ORDER_ROUTER).executeOrdersViaSandboxMulticall(
             sandboxMultiCall
         );
