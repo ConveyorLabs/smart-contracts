@@ -4,11 +4,13 @@ pragma solidity 0.8.16;
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 import "./interfaces/ILimitOrderRouter.sol";
+import "../lib/libraries/token/SafeERC20.sol";
 
 /// @title SandboxRouter
-/// @author LeytonTaylor, 0xKitsune, Conveyor Labs
+/// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice SandboxRouter uses a multiCall architecture to execute limit orders.
 contract SandboxRouter {
+    using SafeERC20 for IERC20;
     ///@notice LimitOrderExecutor & LimitOrderRouter Addresses.
     address immutable LIMIT_ORDER_EXECUTOR;
     address immutable LIMIT_ORDER_ROUTER;
@@ -95,4 +97,37 @@ contract SandboxRouter {
             }
         }
     }
+
+     ///@notice Uniswap V3 callback function called during a swap on a v3 liqudity pool.
+    ///@param amount0Delta - The change in token0 reserves from the swap.
+    ///@param amount1Delta - The change in token1 reserves from the swap.
+    ///@param data - The data packed into the swap.
+    function uniswapV3SwapCallback(
+        int256 amount0Delta,
+        int256 amount1Delta,
+        bytes memory data
+    ) external {
+        ///@notice Decode all of the swap data.
+        (
+            bool _zeroForOne,
+            address tokenIn,
+            address _sender
+        ) = abi.decode(
+                data,
+                (bool, address, address)
+            );
+
+        ///@notice Set amountIn to the amountInDelta depending on boolean zeroForOne.
+        uint256 amountIn = _zeroForOne
+            ? uint256(amount0Delta)
+            : uint256(amount1Delta);
+
+        if (!(_sender == address(this))) {
+            ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender.
+            IERC20(tokenIn).safeTransferFrom(_sender, msg.sender, amountIn);
+        } else {
+            IERC20(tokenIn).safeTransfer(msg.sender, amountIn);
+        }
+    }
+
 }

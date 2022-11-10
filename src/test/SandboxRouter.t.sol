@@ -15,6 +15,7 @@ import "../LimitOrderQuoter.sol";
 import "../LimitOrderExecutor.sol";
 import "../interfaces/ILimitOrderRouter.sol";
 import "../interfaces/IOrderBook.sol";
+import "../interfaces/ISandboxRouter.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -29,14 +30,14 @@ interface CheatCodes {
     ) external;
 }
 
-contract LimitOrderExecutorTest is DSTest {
+contract SandboxRouterTest is DSTest {
     //Initialize limit-v0 contract for testing
     LimitOrderRouterWrapper limitOrderRouterWrapper;
     ILimitOrderRouter limitOrderRouter;
     IOrderBook orderBook;
     LimitOrderExecutorWrapper limitOrderExecutor;
     LimitOrderQuoter limitOrderQuoter;
-
+    ISandboxRouter sandboxRouter;
     ScriptRunner scriptRunner;
 
     Swap swapHelper;
@@ -118,10 +119,149 @@ contract LimitOrderExecutorTest is DSTest {
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             address(limitOrderExecutor)
         );
+
+        ///@notice Initialize an instance of the SandboxRouter Interface
+        sandboxRouter= ISandboxRouter(limitOrderRouterWrapper.SANDBOX_ROUTER());
     }
 
-    ///TODO: Write multiple tests for this
-    function testExecuteMulticallOrder() public {}
+    ///@notice ExecuteMulticallOrder Sandbox Router test
+    function testExecuteMulticallOrderSingle() public {
+        ///@notice Deal funds to all of the necessary receivers
+        cheatCodes.deal(address(this), type(uint256).max);
+        cheatCodes.deal(address(swapHelper), type(uint256).max);
+        ///@notice Deposit Gas Credits to cover order execution.
+        depositGasCreditsForMockOrders(type(uint256).max);
+        ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        ///@notice Max approve the executor on the input token.
+        IERC20(DAI).approve(address(limitOrderExecutor), type(uint256).max);
+
+        ///@notice Dai/Weth sell limit order
+        ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
+        OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(false, 1000000000000000000000, 1, DAI, WETH);
+        
+        ///@notice Initialize Arrays for Multicall struct. 
+        bytes32[] memory orderIds = new bytes32[](1);
+        address[] memory transferAddress = new address[](1);
+        uint128[] memory fillAmounts = new uint128[](1);
+        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](1);
+
+        {
+            ///NOTE: Token0 = DAI & Token1 = WETH
+            address daiWethV2 = 0xa1484C3aa22a66C62b77E0AE78E15258bd0cB711;
+            ///@notice Place the Order. 
+            orderIds[0]=placeMockOrder(order);
+            ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
+            transferAddress[0]=daiWethV2 ;
+            ///@notice Set the fill amount to the total amountIn on the order i.e. 1000 DAI.
+            fillAmounts[0]= order.amountInRemaining;
+            ///@notice Create a single v2 swap call for the multicall. 
+            calls[0]= newUniV2Call(daiWethV2, 0, 1, address(this));
+
+        }
+        ///@notice Create a new SandboxMulticall
+        SandboxRouter.SandboxMulticall memory multiCall = newMockMulticall(orderIds, fillAmounts, transferAddress, calls);
+        
+         ///@notice Prank tx.origin to mock an external executor
+        cheatCodes.prank(tx.origin);
+        ///@notice Execute the SandboxMulticall on the sandboxRouter
+        sandboxRouter.executeSandboxMulticall(multiCall);
+    }
+
+    ///@notice Helper function to create a single mock call for a v2 swap. 
+    function newUniV2Call(address _lp, uint256 amount0Out, uint256 amount1Out, address _receiver) public pure returns (SandboxRouter.Call memory) {
+        bytes memory callData = abi.encodeWithSignature("swap(uint256,uint256,address,bytes)", amount0Out, amount1Out, _receiver, new bytes(0));
+        return SandboxRouter.Call({
+            target:_lp,
+            callData:callData
+        });
+    }
+
+    ///@notice Helper function to create a single mock call for a v3 swap. 
+    function newV3Call(address _lp, bytes memory data, address _sender, address _receiver, bool _zeroForOne, uint256 _amountIn, address _tokenIn) public pure returns (SandboxRouter.Call memory){
+        ///@notice Pack the required data for the call.
+        bytes memory data = abi.encode(_zeroForOne, _tokenIn, _sender);
+        ///@notice Encode the callData for the call. 
+        bytes memory callData = abi.encodeWithSignature("swap(address,bool,int256,uint160,bytes)", _receiver, _zeroForOne, int256(_amountIn), _zeroForOne ? TickMath.MIN_SQRT_RATIO +1 : TickMath.MAX_SQRT_RATIO -1,data);
+        ///@notice Return the call
+        return SandboxRouter.Call({
+            target:_lp,
+            callData:callData
+        });
+    }
+
+    function newMockMulticall(bytes32[] memory orderId, uint128[] memory fillAmounts, address[] memory transferAddresses, SandboxRouter.Call[] memory _calls) public returns (SandboxRouter.SandboxMulticall memory) {
+        return SandboxRouter.SandboxMulticall({
+            orderIds:orderId,
+            fillAmount:fillAmounts,
+            transferAddress:transferAddresses,
+            calls:_calls
+        });
+    }
+
+
+
+    ///@notice Helper function to initialize a mock sandbox limit order
+    function newMockSandboxOrder(
+        bool buy,
+        uint128 amountInRemaining,
+        uint128 amountOutRemaining,
+        address tokenIn,
+        address tokenOut
+    ) internal view returns (OrderBook.SandboxLimitOrder memory order) {
+        //Initialize mock order
+        order = OrderBook.SandboxLimitOrder({
+            buy: buy,
+            amountOutRemaining: amountOutRemaining,
+            amountInRemaining: amountInRemaining,
+            lastRefreshTimestamp: 0,
+            expirationTimestamp: type(uint32).max,
+            fee: 0,
+            owner: msg.sender,
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            orderId: bytes32(0)
+        });
+    }
+
+    ///@notice Gas credit deposit helper function.
+    function depositGasCreditsForMockOrders(uint256 _amount) public {
+        (bool depositSuccess, ) = address(limitOrderRouter).call{
+            value: _amount
+        }(abi.encodeWithSignature("depositGasCredits()"));
+
+        require(depositSuccess, "error when depositing gas credits");
+    }
+
+    ///@notice Helper function to place a single sandbox limit order
+    function placeMockOrder(OrderBook.SandboxLimitOrder memory order)
+        internal
+        returns (bytes32 orderId)
+    {
+        //create a new array of orders
+        OrderBook.SandboxLimitOrder[] memory orderGroup = new OrderBook.SandboxLimitOrder[](
+            1
+        );
+        //add the order to the arrOrder and add the arrOrder to the orderGroup
+        orderGroup[0] = order;
+
+        //place order
+        bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(orderGroup);
+
+        orderId = orderIds[0];
+    }
+
+    ///@notice helper function to place multiple sandbox orders
+    function placeMultipleMockOrder(OrderBook.SandboxLimitOrder[] memory orderGroup)
+        internal
+        returns (bytes32[] memory)
+    {
+        //place order
+        bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(orderGroup);
+
+        return orderIds;
+    }
+
 }
 
 contract LimitOrderRouterWrapper is LimitOrderRouter {

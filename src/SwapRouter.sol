@@ -710,7 +710,7 @@ contract SwapRouter is ConveyorTickMath {
         address token1,
         uint24 FEE
     )
-        internal
+        public
         view
         returns (SpotReserve[] memory prices, address[] memory lps)
     {

@@ -177,18 +177,19 @@ contract OrderBook is GasOracle {
             return (OrderType.SandboxLimitOrder, abi.encode(sandboxLimitOrder));
         }
     }
-
+    
+    ///TODO: Change this to internal after test debugging
     function getLimitOrderById(bytes32 orderId)
-        internal
+        public
         view
         returns (LimitOrder memory)
     {
         LimitOrder memory order = orderIdToLimitOrder[orderId];
         return order;
     }
-
+    ///TODO: Change this to internal after test debugging
     function getSandboxLimitOrderById(bytes32 orderId)
-        internal
+        public
         view
         returns (SandboxLimitOrder memory)
     {
@@ -343,17 +344,25 @@ contract OrderBook is GasOracle {
                 //TODO: come back to this and review
 
                 ///@notice Calculate the spot price of the input token to WETH on Uni v2.
-                (SwapRouter.SpotReserve memory spRes, ) = IOrderRouter(
+                (SwapRouter.SpotReserve[] memory spRes,  ) = IOrderRouter(
                     LIMIT_ORDER_EXECUTOR
-                )._calculateV2SpotPrice(
-                        orderToken,
-                        WETH,
-                        IOrderRouter(LIMIT_ORDER_EXECUTOR)
-                        .dexes()[0].factoryAddress,
-                        IOrderRouter(LIMIT_ORDER_EXECUTOR)
-                        .dexes()[0].initBytecode
-                    );
-                uint256 tokenAWethSpotPrice = spRes.spotPrice;
+                )._getAllPrices(newOrder.tokenIn, WETH, 500);
+                uint256 tokenAWethSpotPrice;
+                for(uint256 k=0; k < spRes.length;){
+                    if(spRes[i].spotPrice != 0){
+                        tokenAWethSpotPrice = spRes[i].spotPrice;
+                        break;
+                    }
+
+                    unchecked {
+                        ++k;
+                    }
+                }
+
+                if(tokenAWethSpotPrice == 0){
+                    revert InvalidInputTokenForOrderPlacement();
+                }
+               
 
                 if (!(tokenAWethSpotPrice == 0)) {
                     ///@notice Get the tokenIn decimals to normalize the relativeWethValue.
