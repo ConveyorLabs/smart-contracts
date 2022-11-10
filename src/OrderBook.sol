@@ -317,6 +317,30 @@ contract OrderBook is GasOracle {
         return orderIds;
     }
 
+    function checkSufficientGasCreditsForOrderPlacement(uint256 numberOfOrders)
+        internal
+    {
+        ///TODO: calc min gas credits including all the orders and make sure the msg.value + gas credits is greater.
+
+        uint256 gasPrice = getGasPrice();
+        uint256 userGasCreditBalance = gasCreditBalance[msg.sender];
+
+        ///@notice Get the total amount of active orders for the userAddress
+        uint256 totalOrderCount = totalOrdersPerAddress[msg.sender];
+
+        ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
+        uint256 minimumGasCredits = totalOrderCount *
+            gasPrice *
+            LIMIT_ORDER_EXECUTION_GAS_COST *
+            GAS_CREDIT_BUFFER;
+
+        //TODO: if there is msg.value and the gas credits are sufficient for the order placement, update the gas credit balance
+
+        //TODO: emit a gas credit balance event if the balance has changed
+
+        //If there is not enough msg value, check if they already have min gas credits
+    }
+
     ///@notice Places a new order of multicall type (or group of orders) into the system.
     ///@param orderGroup - List of newly created orders to be placed.
     /// @return orderIds - Returns a list of orderIds corresponding to the newly placed orders.
@@ -325,14 +349,7 @@ contract OrderBook is GasOracle {
         payable
         returns (bytes32[] memory)
     {
-        if (
-            !_hasMinGasCredits(
-                getGasPrice(),
-                SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST,
-                msg.sender,
-                gasCreditBalance[msg.sender]
-            )
-        ) {}
+        checkSufficientGasCreditsForOrderPlacement(orderGroup.length);
 
         ///@notice Initialize a new list of bytes32 to store the newly created orderIds.
         bytes32[] memory orderIds = new bytes32[](orderGroup.length);
@@ -879,23 +896,23 @@ contract OrderBook is GasOracle {
             executionCost *
             multiplier;
         ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
-        return (minimumGasCredits * GAS_CREDIT_BUFFER) / ONE_HUNDRED;
+        return (minimumGasCredits) / ONE_HUNDRED;
     }
 
     /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders.
     /// @param gasPrice - The current gas price in gwei.
     /// @param executionCost - The cost of gas to exececute an order.
     /// @param userAddress - The account address that will be checked for minimum gas credits.
-    /// @param gasCreditBalance - The current gas credit balance of the userAddress.
+    /// @param userGasCreditBalance - The current gas credit balance of the userAddress.
     /// @return bool - Indicates whether the user has the minimum gas credit requirements.
     function _hasMinGasCredits(
         uint256 gasPrice,
         uint256 executionCost,
         address userAddress,
-        uint256 gasCreditBalance
+        uint256 userGasCreditBalance
     ) internal view returns (bool) {
         return
-            gasCreditBalance >=
+            userGasCreditBalance >=
             _calculateMinGasCredits(
                 gasPrice,
                 executionCost,
