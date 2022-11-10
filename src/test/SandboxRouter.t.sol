@@ -114,7 +114,7 @@ contract SandboxRouterTest is DSTest {
     }
 
     ///@notice ExecuteMulticallOrder Sandbox Router test
-    function testExecuteMulticallOrderSingle() public {
+    function testExecuteMulticallOrderSingleV2() public {
         ///@notice Deal funds to all of the necessary receivers
         cheatCodes.deal(address(this), type(uint128).max);
         cheatCodes.deal(address(swapHelper), type(uint256).max);
@@ -148,11 +148,61 @@ contract SandboxRouterTest is DSTest {
             calls[0]= newUniV2Call(daiWethV2, 0, 1, address(this));
 
         }
+
         ///@notice Create a new SandboxMulticall
         SandboxRouter.SandboxMulticall memory multiCall = newMockMulticall(orderIds, fillAmounts, transferAddress, calls);
         
          ///@notice Prank tx.origin to mock an external executor
         cheatCodes.prank(tx.origin);
+
+        ///@notice Execute the SandboxMulticall on the sandboxRouter
+        sandboxRouter.executeSandboxMulticall(multiCall);
+    }
+
+    ///@notice ExecuteMulticallOrder Sandbox Router test
+    function testExecuteMulticallOrderSingleV3() public {
+        ///@notice Deal funds to all of the necessary receivers
+        cheatCodes.deal(address(this), type(uint128).max);
+        cheatCodes.deal(address(swapHelper), type(uint256).max);
+        ///@notice Deposit Gas Credits to cover order execution.
+        depositGasCreditsForMockOrders(type(uint128).max);
+        ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        ///@notice Max approve the executor on the input token.
+        IERC20(DAI).approve(address(limitOrderExecutor), type(uint256).max);
+        IERC20(DAI).approve(address(sandboxRouter), type(uint256).max);
+
+        ///@notice Dai/Weth sell limit order
+        ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
+        OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(false, 100000000000000000000, 1, DAI, WETH);
+        
+        ///@notice Initialize Arrays for Multicall struct. 
+        bytes32[] memory orderIds = new bytes32[](1);
+        address[] memory transferAddress = new address[](1);
+        uint128[] memory fillAmounts = new uint128[](1);
+        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](1);
+
+        {
+            ///NOTE: Token0 = DAI & Token1 = WETH
+            address daiWethV3 = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
+            ///@notice Place the Order. 
+            orderIds[0]=placeMockOrder(order);
+            ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
+            transferAddress[0]=daiWethV3;
+            ///@notice Set the fill amount to the total amountIn on the order i.e. 1000 DAI.
+            fillAmounts[0]= order.amountInRemaining;
+            ///@notice Create a single v2 swap call for the multicall. 
+            calls[0]= newUniV3Call(daiWethV3, address(this), address(this), true, 100000000000000000000, DAI);
+
+        }
+
+
+        ///@notice Create a new SandboxMulticall
+        SandboxRouter.SandboxMulticall memory multiCall = newMockMulticall(orderIds, fillAmounts, transferAddress, calls);
+        
+         ///@notice Prank tx.origin to mock an external executor
+        cheatCodes.prank(tx.origin);
+        
         ///@notice Execute the SandboxMulticall on the sandboxRouter
         sandboxRouter.executeSandboxMulticall(multiCall);
     }
@@ -167,7 +217,7 @@ contract SandboxRouterTest is DSTest {
     }
 
     ///@notice Helper function to create a single mock call for a v3 swap. 
-    function newV3Call(address _lp,  address _sender, address _receiver, bool _zeroForOne, uint256 _amountIn, address _tokenIn) public pure returns (SandboxRouter.Call memory){
+    function newUniV3Call(address _lp,  address _sender, address _receiver, bool _zeroForOne, uint256 _amountIn, address _tokenIn) public pure returns (SandboxRouter.Call memory){
         ///@notice Pack the required data for the call.
         bytes memory data = abi.encode(_zeroForOne, _tokenIn, _sender);
         ///@notice Encode the callData for the call. 
