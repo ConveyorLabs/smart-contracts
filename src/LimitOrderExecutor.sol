@@ -487,7 +487,7 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Function to execute multicall orders from the context of LimitOrderExecutor.
     ///@param orders The orders to be executed.
-    ///@param sandboxMulticall - TODO:
+    ///@param sandboxMulticall -
     ///@dev
     /*The sandBoxRouter address is an immutable address from the limitOrderRouter.
     Since the function is onlyLimitOrderRouter, the sandBoxRouter address will never change*/
@@ -575,16 +575,10 @@ contract LimitOrderExecutor is SwapRouter {
         ///@notice Unwrap the the conveyorBalance.
         IWETH(WETH).withdraw(conveyorBalance);
 
-        //TODO: do we need to do this since we have non reentrant?
         uint256 withdrawAmount = conveyorBalance;
-
         ///@notice Set the conveyorBalance to 0 prior to transferring the ETH.
         conveyorBalance = 0;
-
         safeTransferETH(owner, withdrawAmount);
-
-        ///@notice Set the reentrancy status to false after the conveyorBalance has been decremented to prevent reentrancy.
-        reentrancyStatus = false;
     }
 
     ///@notice Function to confirm ownership transfer of the contract.
