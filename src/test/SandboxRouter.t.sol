@@ -246,7 +246,7 @@ contract SandboxRouterTest is DSTest {
         orderGroup[0] = order;
 
         //place order
-        bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(orderGroup);
+        bytes32[] memory orderIds = limitOrderRouterWrapper.placeSandboxLimitOrder(orderGroup);
 
         orderId = orderIds[0];
     }
