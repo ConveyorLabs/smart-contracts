@@ -72,15 +72,10 @@ contract LimitOrderRouter is OrderBook {
     uint256 constant REFRESH_FEE = 20000000000000000;
 
     ///@notice The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut
-
-    //TODO: Update this to the actual simulated value before deployment
-    //TODO: look at putting this in the orderbook instead of passing it to hasmingascredits
-    uint256 public constant LIMIT_ORDER_EXECUTION_GAS_COST = 300000;
+    uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
 
     ///@notice The execution cost of fufilling a SandboxLimitOrder with a standard ERC20 swap from tokenIn to tokenOut
-    //TODO: Update this to the actual simulated value before deployment
-
-    uint256 public constant SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = 300000;
+    uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 
     // ========================================= Immutables  =============================================
     address public immutable SANDBOX_ROUTER;
@@ -113,7 +108,9 @@ contract LimitOrderRouter is OrderBook {
         address _gasOracle,
         address _weth,
         address _usdc,
-        address _limitOrderExecutor
+        address _limitOrderExecutor,
+        uint256 _limitOrderExecutionGasCost,
+        uint256 _sandboxLimitOrderExecutionGasCost
     ) OrderBook(_gasOracle, _limitOrderExecutor, _weth, _usdc) {
         ///@notice Require that deployment addresses are not zero
         ///@dev All other addresses are being asserted in the limit order executor, which deploys the limit order router
@@ -126,6 +123,9 @@ contract LimitOrderRouter is OrderBook {
         SANDBOX_ROUTER = address(
             new SandboxRouter(address(_limitOrderExecutor), address(this))
         );
+
+        LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
+        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
 
         ///@notice Set the owner of the contract
         owner = msg.sender;
