@@ -22,9 +22,10 @@ contract SandboxRouter {
     }
 
     ///@notice Multicall Order Struct for multicall optimistic Order execution.
-    ///@param orderIds - A full list of the orderIds that will be executed in execution.
-    ///@param amountSpecifiedToFill - Array of quantities representing the quantity to be filled on the input amount for each order indexed identically in the orderIds array.
-    ///@param TODO: update comment but the transfer address is the transferfrom destination for the orderId's fill amount
+    ///@param orderIds - Array of orderIds that will be executed.
+    ///@param fillAmounts - Array of quantities representing the quantity to be filled.
+    ///@param transferAddresses - Array of addresses specifying where to transfer each order quantity at the corresponding index in the array.
+    ///@param calls - Array of Call, specifying the address to call and the calldata to execute within the targetAddress context.
     struct SandboxMulticall {
         bytes32[] orderIds;
         uint128[] fillAmounts;
