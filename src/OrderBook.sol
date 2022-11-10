@@ -129,7 +129,7 @@ contract OrderBook is GasOracle {
     ///@notice Mapping from an orderId to its order.
     mapping(bytes32 => LimitOrder) internal orderIdToLimitOrder;
 
-    ///@notice Mapping from an orderId to its order.
+    ///@notice Mapping from an orderId to its ordorderIdToSandboxLimitOrderer.
     mapping(bytes32 => SandboxLimitOrder) internal orderIdToSandboxLimitOrder;
 
     ///@notice Mapping to find the total orders quantity for a specific token, for an individual account
@@ -177,7 +177,7 @@ contract OrderBook is GasOracle {
             return (OrderType.SandboxLimitOrder, abi.encode(sandboxLimitOrder));
         }
     }
-    
+
     ///TODO: Change this to internal after test debugging
     function getLimitOrderById(bytes32 orderId)
         public

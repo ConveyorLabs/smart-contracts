@@ -6,7 +6,7 @@ import "./OrderBook.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "./SwapRouter.sol";
-
+import "./test/utils/Console.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./interfaces/ILimitOrderRouter.sol";
@@ -276,10 +276,8 @@ contract LimitOrderRouter is OrderBook {
         ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
         for (uint256 i = 0; i < orderIdsLength; ++i) {
             ///@notice Get the current order
-            SandboxLimitOrder memory currentOrder = orderIdToSandboxLimitOrder[
-                orderIds[i]
-            ];
-            
+            SandboxLimitOrder memory currentOrder = orderIdToSandboxLimitOrder[orderIds[i]];
+            console.log(currentOrder.amountInRemaining);
 
             if (currentOrder.orderId == bytes32(0)) {
                 revert OrderDoesNotExist(orderIds[i]);

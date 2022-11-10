@@ -178,7 +178,7 @@ contract SandboxRouterTest is DSTest {
     }
 
     ///@notice Helper function to create a single mock call for a v3 swap. 
-    function newV3Call(address _lp, bytes memory data, address _sender, address _receiver, bool _zeroForOne, uint256 _amountIn, address _tokenIn) public pure returns (SandboxRouter.Call memory){
+    function newV3Call(address _lp,  address _sender, address _receiver, bool _zeroForOne, uint256 _amountIn, address _tokenIn) public pure returns (SandboxRouter.Call memory){
         ///@notice Pack the required data for the call.
         bytes memory data = abi.encode(_zeroForOne, _tokenIn, _sender);
         ///@notice Encode the callData for the call. 
@@ -190,7 +190,7 @@ contract SandboxRouterTest is DSTest {
         });
     }
 
-    function newMockMulticall(bytes32[] memory orderId, uint128[] memory fillAmounts, address[] memory transferAddresses, SandboxRouter.Call[] memory _calls) public returns (SandboxRouter.SandboxMulticall memory) {
+    function newMockMulticall(bytes32[] memory orderId, uint128[] memory fillAmounts, address[] memory transferAddresses, SandboxRouter.Call[] memory _calls) public pure returns (SandboxRouter.SandboxMulticall memory) {
         return SandboxRouter.SandboxMulticall({
             orderIds:orderId,
             fillAmount:fillAmounts,
