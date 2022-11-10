@@ -85,7 +85,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
     ///@param _deploymentByteCodes The deployment bytecodes of all dex factory contracts.
     ///@param _dexFactories The Dex factory addresses.
     ///@param _isUniV2 Array of booleans indication whether the Dex is V2 architecture.
-    ///TODO: add gas oracle natspec
+    ///@param _gasOracle Address for the chainlink fast gas oracle.
     constructor(
         address _weth,
         address _usdc,
