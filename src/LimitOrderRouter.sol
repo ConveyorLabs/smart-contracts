@@ -224,6 +224,7 @@ contract LimitOrderRouter is OrderBook {
         ///@notice Initialize arrays to hold pre execution validation state.
         (
             SandboxLimitOrder[] memory sandboxLimitOrders,
+            address[] memory orderOwners,
             uint256[] memory initialTokenInBalances,
             uint256[] memory initialTokenOutBalances
         ) = initializePreSandboxExecutionState(
@@ -246,17 +247,15 @@ contract LimitOrderRouter is OrderBook {
             initialTokenOutBalances
         );
 
-        ///TODO: compensate for gas costs
+        ///@notice Decrement gas credit balances for each order owner
+        uint256 executionGasCompensation = calculateExecutionGasCompensation(
+            getGasPrice(),
+            orderOwners,
+            OrderType.SandboxLimitOrder
+        );
 
-        // uint256 executionFees;
-        // for (uint256 i = 0; i < sandboxMulticall.orderIds.length; ) {
-
-        //     executionFees += SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
-
-        //     unchecked {
-        //         ++i;
-        //     }
-        // }
+        ///@notice Transfer the reward to the off-chain executor.
+        safeTransferETH(msg.sender, executionGasCompensation);
     }
 
     function initializePreSandboxExecutionState(
@@ -267,6 +266,7 @@ contract LimitOrderRouter is OrderBook {
         view
         returns (
             SandboxLimitOrder[] memory,
+            address[] memory,
             uint256[] memory,
             uint256[] memory
         )
@@ -277,7 +277,7 @@ contract LimitOrderRouter is OrderBook {
         SandboxLimitOrder[] memory sandboxLimitOrders = new SandboxLimitOrder[](
             orderIdsLength
         );
-
+        address[] memory orderOwners = new address[](orderIdsLength);
         uint256[] memory initialTokenInBalances = new uint256[](orderIdsLength);
         uint256[] memory initialTokenOutBalances = new uint256[](
             orderIdsLength
@@ -290,6 +290,8 @@ contract LimitOrderRouter is OrderBook {
             SandboxLimitOrder memory currentOrder = orderIdToSandboxLimitOrder[
                 orderIds[i]
             ];
+
+            orderOwners[i] = currentOrder.owner;
 
             if (currentOrder.orderId == bytes32(0)) {
                 revert OrderDoesNotExist(orderIds[i]);
@@ -319,6 +321,7 @@ contract LimitOrderRouter is OrderBook {
 
         return (
             sandboxLimitOrders,
+            orderOwners,
             initialTokenInBalances,
             initialTokenOutBalances
         );
@@ -870,7 +873,8 @@ contract LimitOrderRouter is OrderBook {
         ///@notice Calculate the execution gas compensation.
         uint256 executionGasCompensation = calculateExecutionGasCompensation(
             gasPrice,
-            orderOwners
+            orderOwners,
+            OrderType.LimitOrder
         );
 
         ///@notice Transfer the reward to the off-chain executor.
@@ -915,7 +919,8 @@ contract LimitOrderRouter is OrderBook {
     ///@return executionGasConsumed - The amount of gas consumed.
     function calculateExecutionGasConsumed(
         uint256 gasPrice,
-        uint256 numberOfOrders
+        uint256 numberOfOrders,
+        OrderType orderType
     ) internal view returns (uint256 executionGasConsumed) {
         assembly {
             executionGasConsumed := mul(
@@ -924,12 +929,22 @@ contract LimitOrderRouter is OrderBook {
             )
         }
 
-        ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
-        uint256 maxExecutionCompensation = LIMIT_ORDER_EXECUTION_GAS_COST *
-            numberOfOrders *
-            gasPrice;
-        if (executionGasConsumed > maxExecutionCompensation) {
-            executionGasConsumed = maxExecutionCompensation;
+        if (orderType == OrderType.LimitOrder) {
+            ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
+            uint256 maxExecutionCompensation = LIMIT_ORDER_EXECUTION_GAS_COST *
+                numberOfOrders *
+                gasPrice;
+            if (executionGasConsumed > maxExecutionCompensation) {
+                executionGasConsumed = maxExecutionCompensation;
+            }
+        } else {
+            ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
+            uint256 maxExecutionCompensation = SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST *
+                    numberOfOrders *
+                    gasPrice;
+            if (executionGasConsumed > maxExecutionCompensation) {
+                executionGasConsumed = maxExecutionCompensation;
+            }
         }
     }
 
@@ -938,15 +953,18 @@ contract LimitOrderRouter is OrderBook {
     ///@return gasExecutionCompensation - The amount to be paid to the off-chain executor for execution gas.
     function calculateExecutionGasCompensation(
         uint256 gasPrice,
-        address[] memory orderOwners
+        address[] memory orderOwners,
+        OrderType orderType
     ) internal returns (uint256 gasExecutionCompensation) {
         uint256 orderOwnersLength = orderOwners.length;
 
         ///@notice Decrement gas credit balances for each order owner
         uint256 executionGasConsumed = calculateExecutionGasConsumed(
             gasPrice,
-            orderOwners.length
+            orderOwners.length,
+            orderType
         );
+
         uint256 gasDecrementValue = executionGasConsumed / orderOwnersLength;
 
         ///@notice Unchecked for gas efficiency
