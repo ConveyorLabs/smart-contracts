@@ -14,7 +14,8 @@ import "./lib/ConveyorMath.sol";
 contract OrderBook is GasOracle {
     address immutable LIMIT_ORDER_EXECUTOR;
 
-    //TODO: Add a comment describing that gas credit buffer/one hundred achieves a markup on the gas credit price of 1.5
+    ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
+    ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
     uint256 constant GAS_CREDIT_BUFFER = 150;
 
     ///@notice The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut
