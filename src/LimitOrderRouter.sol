@@ -143,7 +143,9 @@ contract LimitOrderRouter is OrderBook {
     );
 
     // ========================================= FUNCTIONS =============================================
-
+    function getSandboxRouterAddress() external view returns (address) {
+        return SANDBOX_ROUTER;
+    }
     //------------Gas Credit Functions------------------------
 
     /// @notice Function to deposit gas credits.

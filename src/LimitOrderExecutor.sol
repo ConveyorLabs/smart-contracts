@@ -462,7 +462,8 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         OrderBook.SandboxLimitOrder[] memory orders,
         SandboxRouter.SandboxMulticall calldata sandboxMulticall,
         address sandBoxRouter
-    ) external onlyLimitOrderRouter nonReentrant {
+        ///TODO: Make sure to add whatever modifier needs to be here back
+    ) external nonReentrant onlyLimitOrderRouter{
         uint256 expectedAccumulatedFees = 0;
 
         if (sandboxMulticall.transferAddress.length > 0) {

@@ -1,9 +1,14 @@
-import "../SandboxRouter.sol";
-
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
+import "../SandboxRouter.sol";
+import "../OrderBook.sol";
 interface ILimitOrderRouter {
+    function placeSandboxLimitOrder(OrderBook.SandboxLimitOrder[] calldata orderGroup)
+        external
+        payable
+        returns (bytes32[] memory);
+    function getSandboxRouterAddress() external view returns (address);
     function gasCreditBalance(address addr) external returns (uint256);
 
     function depositGasCredits() external payable returns (bool success);

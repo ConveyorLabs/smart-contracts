@@ -32,7 +32,6 @@ interface CheatCodes {
 
 contract SandboxRouterTest is DSTest {
     //Initialize limit-v0 contract for testing
-    LimitOrderRouterWrapper limitOrderRouterWrapper;
     ILimitOrderRouter limitOrderRouter;
     IOrderBook orderBook;
     LimitOrderExecutorWrapper limitOrderExecutor;
@@ -112,25 +111,17 @@ contract SandboxRouterTest is DSTest {
 
         orderBook = IOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
 
-        //Wrapper contract to test internal functions
-        limitOrderRouterWrapper = new LimitOrderRouterWrapper(
-            aggregatorV3Address,
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
-            address(limitOrderExecutor)
-        );
-
         ///@notice Initialize an instance of the SandboxRouter Interface
-        sandboxRouter= ISandboxRouter(limitOrderRouterWrapper.SANDBOX_ROUTER());
+        sandboxRouter= ISandboxRouter(limitOrderRouter.getSandboxRouterAddress());
     }
 
     ///@notice ExecuteMulticallOrder Sandbox Router test
     function testExecuteMulticallOrderSingle() public {
         ///@notice Deal funds to all of the necessary receivers
-        cheatCodes.deal(address(this), type(uint256).max);
+        cheatCodes.deal(address(this), type(uint128).max);
         cheatCodes.deal(address(swapHelper), type(uint256).max);
         ///@notice Deposit Gas Credits to cover order execution.
-        depositGasCreditsForMockOrders(type(uint256).max);
+        depositGasCreditsForMockOrders(type(uint128).max);
         ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         ///@notice Max approve the executor on the input token.
@@ -138,7 +129,7 @@ contract SandboxRouterTest is DSTest {
 
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
-        OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(false, 1000000000000000000000, 1, DAI, WETH);
+        OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(false, 100000000000000000000, 1, DAI, WETH);
         
         ///@notice Initialize Arrays for Multicall struct. 
         bytes32[] memory orderIds = new bytes32[](1);
@@ -246,7 +237,7 @@ contract SandboxRouterTest is DSTest {
         orderGroup[0] = order;
 
         //place order
-        bytes32[] memory orderIds = limitOrderRouterWrapper.placeSandboxLimitOrder(orderGroup);
+        bytes32[] memory orderIds = limitOrderRouter.placeSandboxLimitOrder(orderGroup);
 
         orderId = orderIds[0];
     }
@@ -264,16 +255,6 @@ contract SandboxRouterTest is DSTest {
 
 }
 
-contract LimitOrderRouterWrapper is LimitOrderRouter {
-    LimitOrderRouter limitorderRouter;
-
-    constructor(
-        address _gasOracle,
-        address _weth,
-        address _usdc,
-        address _limitOrderExecutor
-    ) LimitOrderRouter(_gasOracle, _weth, _usdc, _limitOrderExecutor) {}
-}
 
 //wrapper around SwapRouter to expose internal functions for testing
 contract LimitOrderExecutorWrapper is LimitOrderExecutor {
