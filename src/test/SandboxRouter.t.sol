@@ -113,29 +113,40 @@ contract SandboxRouterTest is DSTest {
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         ///@notice Max approve the executor on the input token.
         IERC20(DAI).approve(address(limitOrderExecutor), type(uint256).max);
-
+        IERC20(DAI).approve(address(sandboxRouter), type(uint256).max);
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
-        OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(false, 100000000000000000000, 1, DAI, WETH);
-        
+        OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(false, 10000000000000000000, 1, DAI, WETH);
+
+         ///@notice Deal some ETH to compensate the fee
+        cheatCodes.deal(address(sandboxRouter), type(uint128).max);
+        cheatCodes.prank(address(sandboxRouter));
+        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
+        (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
+            abi.encodeWithSignature("deposit()")
+        );
+        require(depositSuccess, "Fudge");
         ///@notice Initialize Arrays for Multicall struct. 
         bytes32[] memory orderIds = new bytes32[](1);
         address[] memory transferAddress = new address[](1);
         uint128[] memory fillAmounts = new uint128[](1);
-        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](1);
+        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](2);
 
         {
             ///NOTE: Token0 = DAI & Token1 = WETH
-            address daiWethV2 = 0xa1484C3aa22a66C62b77E0AE78E15258bd0cB711;
+            address daiWethV2 = 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11;
             ///@notice Place the Order. 
             orderIds[0]=placeMockOrder(order);
+            ///@notice Grab the order fee
+            uint256 cumulativeFee = limitOrderRouter.getSandboxLimitOrderById(orderIds[0]).fee;
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
             transferAddress[0]=daiWethV2 ;
             ///@notice Set the fill amount to the total amountIn on the order i.e. 1000 DAI.
             fillAmounts[0]= order.amountInRemaining;
             ///@notice Create a single v2 swap call for the multicall. 
-            calls[0]= newUniV2Call(daiWethV2, 0, 1, address(this));
-
+            calls[0]= newUniV2Call(daiWethV2, 0, 100, address(this));
+            ///@notice Create a call to compensate the feeAmount
+            calls[1]= feeCompensationCall(cumulativeFee);
         }
 
         ///@notice Create a new SandboxMulticall
