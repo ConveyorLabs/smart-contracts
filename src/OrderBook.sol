@@ -17,6 +17,15 @@ contract OrderBook is GasOracle {
     //TODO: Add a comment describing that gas credit buffer/one hundred achieves a markup on the gas credit price of 1.5
     uint256 constant GAS_CREDIT_BUFFER = 150;
 
+    ///@notice The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut
+    uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
+
+    ///@notice The execution cost of fufilling a SandboxLimitOrder with a standard ERC20 swap from tokenIn to tokenOut
+    uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
+
+    ///@notice Mapping to hold gas credit balances for accounts.
+    mapping(address => uint256) public gasCreditBalance;
+
     address immutable WETH;
     address immutable USDC;
 
@@ -26,7 +35,9 @@ contract OrderBook is GasOracle {
         address _gasOracle,
         address _limitOrderExecutor,
         address _weth,
-        address _usdc
+        address _usdc,
+        uint256 _limitOrderExecutionGasCost,
+        uint256 _sandboxLimitOrderExecutionGasCost
     ) GasOracle(_gasOracle) {
         require(
             _limitOrderExecutor != address(0),
@@ -35,6 +46,8 @@ contract OrderBook is GasOracle {
         WETH = _weth;
         USDC = _usdc;
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
+        LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
+        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
     }
 
     //----------------------Events------------------------------------//
@@ -312,7 +325,14 @@ contract OrderBook is GasOracle {
         payable
         returns (bytes32[] memory)
     {
-        //TODO: decide if we should check for gas credits on order placement
+        if (
+            !_hasMinGasCredits(
+                getGasPrice(),
+                SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST,
+                msg.sender,
+                gasCreditBalance[msg.sender]
+            )
+        ) {}
 
         ///@notice Initialize a new list of bytes32 to store the newly created orderIds.
         bytes32[] memory orderIds = new bytes32[](orderGroup.length);

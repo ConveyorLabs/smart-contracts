@@ -71,12 +71,6 @@ contract LimitOrderRouter is OrderBook {
     ///@notice The refresh fee is 0.02 ETH
     uint256 constant REFRESH_FEE = 20000000000000000;
 
-    ///@notice The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut
-    uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
-
-    ///@notice The execution cost of fufilling a SandboxLimitOrder with a standard ERC20 swap from tokenIn to tokenOut
-    uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
-
     // ========================================= Immutables  =============================================
     address public immutable SANDBOX_ROUTER;
 
@@ -84,9 +78,6 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice Boolean responsible for indicating if a function has been entered when the nonReentrant modifier is used.
     bool reentrancyStatus = false;
-
-    ///@notice Mapping to hold gas credit balances for accounts.
-    mapping(address => uint256) public gasCreditBalance;
 
     ///@notice State variable to track the amount of gas initally alloted during executeLimitOrders.
     uint256 initialTxGas;
@@ -111,7 +102,16 @@ contract LimitOrderRouter is OrderBook {
         address _limitOrderExecutor,
         uint256 _limitOrderExecutionGasCost,
         uint256 _sandboxLimitOrderExecutionGasCost
-    ) OrderBook(_gasOracle, _limitOrderExecutor, _weth, _usdc) {
+    )
+        OrderBook(
+            _gasOracle,
+            _limitOrderExecutor,
+            _weth,
+            _usdc,
+            _limitOrderExecutionGasCost,
+            _sandboxLimitOrderExecutionGasCost
+        )
+    {
         ///@notice Require that deployment addresses are not zero
         ///@dev All other addresses are being asserted in the limit order executor, which deploys the limit order router
         require(
@@ -123,9 +123,6 @@ contract LimitOrderRouter is OrderBook {
         SANDBOX_ROUTER = address(
             new SandboxRouter(address(_limitOrderExecutor), address(this))
         );
-
-        LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
-        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
 
         ///@notice Set the owner of the contract
         owner = msg.sender;
