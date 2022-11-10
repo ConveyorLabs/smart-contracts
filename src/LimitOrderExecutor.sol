@@ -11,13 +11,14 @@ import "./interfaces/ISandboxRouter.sol";
 /// @title LimitOrderExecutor
 /// @author 0xOsiris, 0xKitsune
 /// @notice This contract handles all order execution.
-contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
+contract LimitOrderExecutor is SwapRouter {
     using SafeERC20 for IERC20;
     ///====================================Immutable Storage Variables==============================================//
     address immutable WETH;
     address immutable USDC;
     address immutable LIMIT_ORDER_QUOTER;
     address public immutable LIMIT_ORDER_ROUTER;
+    address immutable SANDBOX_ROUTER;
 
     ///====================================Constants==============================================//
     ///@notice The Maximum Reward a beacon can receive from stoploss execution.
@@ -107,10 +108,45 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         WETH = _weth;
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
 
-        LIMIT_ORDER_ROUTER = address(
+        address limitOrderRouter = address(
             new LimitOrderRouter(_gasOracle, _weth, _usdc, address(this))
         );
 
+        LIMIT_ORDER_ROUTER = limitOrderRouter;
+
+        address sandboxRouter;
+        bool success;
+
+        assembly {
+            //store the function sig for  "SANDBOX_ROUTER()"
+            mstore(
+                0x00,
+                0x0d89c48200000000000000000000000000000000000000000000000000000000
+            )
+
+            success := call(
+                gas(), // gas remaining
+                limitOrderRouter, // destination address
+                0, // no ether
+                0x00, // input buffer (starts after the first 32 bytes in the `data` array)
+                0x04, // input length (loaded from the first 32 bytes in the `data` array)
+                0x00, // output buffer
+                0x20 // output length
+            )
+
+            //Assign the sandboxRouter address
+            sandboxRouter := mload(0x00)
+        }
+
+        require(
+            success,
+            "Error when getting Sandbox Router address from the limitOrderRouter"
+        );
+
+        ///@notice Assign the SANDBOX_ROUTER address
+        SANDBOX_ROUTER = sandboxRouter;
+
+        ///@notice assign the owner address
         owner = msg.sender;
     }
 
@@ -449,19 +485,15 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         );
     }
 
-    //TODO: can we make the sandbox router address an immutable instead of a something that gets passed in?
-
     ///@notice Function to execute multicall orders from the context of LimitOrderExecutor.
     ///@param orders The orders to be executed.
-    ///@param sandboxMulticall -
-    ///@param sandBoxRouter The address of the multicall contract.
+    ///@param sandboxMulticall - TODO:
     ///@dev
     /*The sandBoxRouter address is an immutable address from the limitOrderRouter.
     Since the function is onlyLimitOrderRouter, the sandBoxRouter address will never change*/
     function executeSandboxLimitOrders(
         OrderBook.SandboxLimitOrder[] memory orders,
-        SandboxRouter.SandboxMulticall calldata sandboxMulticall,
-        address sandBoxRouter
+        SandboxRouter.SandboxMulticall calldata sandboxMulticall
     ) external onlyLimitOrderRouter nonReentrant {
         uint256 expectedAccumulatedFees = 0;
 
@@ -486,7 +518,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
             for (uint256 i = 0; i < orders.length; ++i) {
                 IERC20(orders[i].tokenIn).safeTransferFrom(
                     orders[i].owner,
-                    sandBoxRouter,
+                    SANDBOX_ROUTER,
                     sandboxMulticall.fillAmount[i]
                 );
 
@@ -501,7 +533,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         }
 
         ///@notice acll the SandboxRouter callback to execute the calldata from the sandboxMulticall
-        ISandboxRouter(sandBoxRouter).sandboxRouterCallback(sandboxMulticall);
+        ISandboxRouter(SANDBOX_ROUTER).sandboxRouterCallback(sandboxMulticall);
 
         _requireConveyorFeeIsPaid(
             contractBalancePreExecution,
