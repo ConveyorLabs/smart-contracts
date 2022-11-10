@@ -496,10 +496,8 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         }
 
         ///@notice Cache the contract balance to check if the fee was paid post execution
-        uint256 contractBalancePreExecution;
-        assembly {
-            contractBalancePreExecution := selfbalance()
-        }
+        uint256 contractBalancePreExecution = IERC20(WETH).balanceOf(address(this));
+        console.log(contractBalancePreExecution);
 
         ///@notice acll the SandboxRouter callback to execute the calldata from the sandboxMulticall
         ISandboxRouter(sandBoxRouter).sandboxRouterCallback(sandboxMulticall);
@@ -515,11 +513,11 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         uint256 expectedAccumulatedFees
     ) internal view {
         ///@notice Check if the contract balance is greater than or equal to the contractBalancePreExecution + expectedAccumulatedFees
-        uint256 contractBalancePostExecution;
+        uint256 contractBalancePostExecution = IERC20(WETH).balanceOf(address(this));
+        console.log(contractBalancePostExecution);
         bool feeIsPaid;
         assembly {
-            contractBalancePostExecution := selfbalance()
-
+            
             feeIsPaid := iszero(
                 lt(
                     contractBalancePostExecution,

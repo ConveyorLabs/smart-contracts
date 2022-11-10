@@ -8,6 +8,10 @@ interface ILimitOrderRouter {
         external
         payable
         returns (bytes32[] memory);
+    function getSandboxLimitOrderById(bytes32 orderId)
+        external
+        view
+        returns (OrderBook.SandboxLimitOrder memory);
     function getSandboxRouterAddress() external view returns (address);
     function gasCreditBalance(address addr) external returns (uint256);
 
