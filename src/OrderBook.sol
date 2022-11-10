@@ -223,6 +223,7 @@ contract OrderBook is GasOracle {
     /// @return orderIds - Returns a list of orderIds corresponding to the newly placed orders.
     function placeLimitOrder(LimitOrder[] calldata orderGroup)
         public
+        payable
         returns (bytes32[] memory)
     {
         checkSufficientGasCreditsForOrderPlacement(orderGroup.length);
