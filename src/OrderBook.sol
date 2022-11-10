@@ -71,6 +71,16 @@ contract OrderBook is GasOracle {
      */
     event OrderFufilled(bytes32[] orderIds);
 
+    ///@notice Event that notifies off-chain executors when an order has been refreshed.
+    event OrderRefreshed(
+        bytes32 indexed orderId,
+        uint32 indexed lastRefreshTimestamp,
+        uint32 indexed expirationTimestamp
+    );
+
+    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
+    event GasCreditEvent(address indexed sender, uint256 indexed balance);
+
     //----------------------Structs------------------------------------//
 
     ///@notice Struct containing Order details for any limit order
@@ -215,7 +225,7 @@ contract OrderBook is GasOracle {
         public
         returns (bytes32[] memory)
     {
-        //TODO: decide if we should check for gas credits on order placement
+        checkSufficientGasCreditsForOrderPlacement(orderGroup.length);
 
         ///@notice Initialize a new list of bytes32 to store the newly created orderIds.
         bytes32[] memory orderIds = new bytes32[](orderGroup.length);
@@ -315,30 +325,6 @@ contract OrderBook is GasOracle {
         emit OrderPlaced(orderIds);
 
         return orderIds;
-    }
-
-    function checkSufficientGasCreditsForOrderPlacement(uint256 numberOfOrders)
-        internal
-    {
-        ///TODO: calc min gas credits including all the orders and make sure the msg.value + gas credits is greater.
-
-        uint256 gasPrice = getGasPrice();
-        uint256 userGasCreditBalance = gasCreditBalance[msg.sender];
-
-        ///@notice Get the total amount of active orders for the userAddress
-        uint256 totalOrderCount = totalOrdersPerAddress[msg.sender];
-
-        ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
-        uint256 minimumGasCredits = totalOrderCount *
-            gasPrice *
-            LIMIT_ORDER_EXECUTION_GAS_COST *
-            GAS_CREDIT_BUFFER;
-
-        //TODO: if there is msg.value and the gas credits are sufficient for the order placement, update the gas credit balance
-
-        //TODO: emit a gas credit balance event if the balance has changed
-
-        //If there is not enough msg value, check if they already have min gas credits
     }
 
     ///@notice Places a new order of multicall type (or group of orders) into the system.
@@ -498,6 +484,34 @@ contract OrderBook is GasOracle {
         emit OrderPlaced(orderIds);
 
         return orderIds;
+    }
+
+    function checkSufficientGasCreditsForOrderPlacement(uint256 numberOfOrders)
+        internal
+    {
+        ///@notice Cache the gasPrice and the userGasCreditBalance
+        uint256 gasPrice = getGasPrice();
+        uint256 userGasCreditBalance = gasCreditBalance[msg.sender];
+
+        ///@notice Get the total amount of active orders for the userAddress
+        uint256 totalOrderCount = totalOrdersPerAddress[msg.sender];
+
+        ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
+        uint256 minimumGasCredits = (totalOrderCount + numberOfOrders) *
+            gasPrice *
+            LIMIT_ORDER_EXECUTION_GAS_COST *
+            GAS_CREDIT_BUFFER;
+
+        ///@notice If the gasCreditBalance + msg value does not cover the min gas credits, then revert
+        if (userGasCreditBalance + msg.value < minimumGasCredits) {
+            revert InsufficientGasCreditBalance();
+        }
+
+        if (msg.value != 0) {
+            ///@notice Update the account gas credit balance
+            gasCreditBalance[msg.sender] = userGasCreditBalance + msg.value;
+            emit GasCreditEvent(msg.sender, userGasCreditBalance + msg.value);
+        }
     }
 
     /**@notice Updates an existing order. If the order exists and all order criteria is met, the order at the specified orderId will
@@ -891,12 +905,14 @@ contract OrderBook is GasOracle {
         uint256 totalOrderCount = totalOrdersPerAddress[userAddress];
 
         ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
-        uint256 minimumGasCredits = totalOrderCount *
-            gasPrice *
-            executionCost *
-            multiplier;
+        uint256 minimumGasCredits = totalOrderCount * gasPrice * executionCost;
+
+        if (multiplier != 1) {
+            minimumGasCredits = (minimumGasCredits * multiplier) / ONE_HUNDRED;
+        }
+
         ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
-        return (minimumGasCredits) / ONE_HUNDRED;
+        return minimumGasCredits;
     }
 
     /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders.
@@ -909,7 +925,8 @@ contract OrderBook is GasOracle {
         uint256 gasPrice,
         uint256 executionCost,
         address userAddress,
-        uint256 userGasCreditBalance
+        uint256 userGasCreditBalance,
+        uint256 multipler
     ) internal view returns (bool) {
         return
             userGasCreditBalance >=
@@ -917,7 +934,7 @@ contract OrderBook is GasOracle {
                 gasPrice,
                 executionCost,
                 userAddress,
-                GAS_CREDIT_BUFFER
+                multipler
             );
     }
 

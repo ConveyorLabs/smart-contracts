@@ -128,18 +128,6 @@ contract LimitOrderRouter is OrderBook {
         owner = msg.sender;
     }
 
-    // ========================================= Events  =============================================
-
-    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
-    event GasCreditEvent(address indexed sender, uint256 indexed balance);
-
-    ///@notice Event that notifies off-chain executors when an order has been refreshed.
-    event OrderRefreshed(
-        bytes32 indexed orderId,
-        uint32 indexed lastRefreshTimestamp,
-        uint32 indexed expirationTimestamp
-    );
-
     // ========================================= FUNCTIONS =============================================
 
     //------------Gas Credit Functions------------------------
@@ -187,7 +175,8 @@ contract LimitOrderRouter is OrderBook {
                     gasPrice,
                     LIMIT_ORDER_EXECUTION_GAS_COST,
                     msg.sender,
-                    gasCreditBalance[msg.sender] - value
+                    gasCreditBalance[msg.sender] - value,
+                    GAS_CREDIT_BUFFER
                 )
             )
         ) {
@@ -473,7 +462,8 @@ contract LimitOrderRouter is OrderBook {
                     gasPrice,
                     LIMIT_ORDER_EXECUTION_GAS_COST,
                     order.owner,
-                    gasCreditBalance[order.owner] - REFRESH_FEE
+                    gasCreditBalance[order.owner] - REFRESH_FEE,
+                    1 ///@dev Multiplier is set to 1 for refresh order
                 )
             )
         ) {
@@ -529,7 +519,8 @@ contract LimitOrderRouter is OrderBook {
                     gasPrice,
                     LIMIT_ORDER_EXECUTION_GAS_COST,
                     order.owner,
-                    gasCreditBalance[order.owner] - REFRESH_FEE
+                    gasCreditBalance[order.owner] - REFRESH_FEE,
+                    1 ///@dev Multiplier is set to 1 for refresh order
                 )
             )
         ) {
@@ -597,7 +588,8 @@ contract LimitOrderRouter is OrderBook {
                         gasPrice,
                         LIMIT_ORDER_EXECUTION_GAS_COST,
                         limitOrder.owner,
-                        gasCreditBalance[limitOrder.owner]
+                        gasCreditBalance[limitOrder.owner],
+                        1 ///@dev Multiplier is set to 1
                     )
                 )
             ) {
@@ -621,7 +613,8 @@ contract LimitOrderRouter is OrderBook {
                         gasPrice,
                         SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST,
                         sandboxLimitOrder.owner,
-                        gasCreditBalance[sandboxLimitOrder.owner]
+                        gasCreditBalance[sandboxLimitOrder.owner],
+                        1 ///@dev Multiplier is set to 1
                     )
                 )
             ) {
