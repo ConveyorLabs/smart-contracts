@@ -113,10 +113,7 @@ contract SwapRouterTest is DSTest {
 
         ///@notice Convert usdcReserve to common 18 decimal base
         uint128 reserve0UsdcCommon = reserve0Usdc * 10**12;
-        uint256 expectedUsdcWeth = ConveyorMath.div128x128(
-            uint256(reserve0UsdcCommon) << 128,
-            uint256(reserve1Weth) << 128
-        );
+
         (
             SwapRouter.SpotReserve memory priceWethUsdc,
             address poolAddressWethUsdc
@@ -127,7 +124,10 @@ contract SwapRouterTest is DSTest {
                 _sushiHexDem
             );
 
-        assertEq(priceWethUsdc.spotPrice, expectedUsdcWeth);
+        assertEq(
+            priceWethUsdc.spotPrice,
+            593525979047872548219266386638161406066688
+        );
     }
 
     ///@notice Test calculate v2 spot price sushi weth/kope
@@ -135,15 +135,6 @@ contract SwapRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address kope = 0x8CC9b5406049D2b66106bb39C5047666E50F06FE;
 
-        //Token0 = Kope
-        //Get Reserve0 & Reserve1 from sushi pool
-        (uint112 reserve0Kope, uint112 reserve1Weth1, ) = IUniswapV2Pair(
-            0x06f2e4c2AE526b587982F11117b4689B61034817
-        ).getReserves();
-        uint256 expectedWethKope = ConveyorMath.div128x128(
-            uint256(reserve1Weth1) << 128,
-            uint256(reserve0Kope) << 128
-        );
         (SwapRouter.SpotReserve memory priceWethKope, ) = limitOrderExecutor
             .calculateV2SpotPrice(
                 kope,
@@ -152,7 +143,10 @@ contract SwapRouterTest is DSTest {
                 _sushiHexDem
             );
 
-        assertEq(priceWethKope.spotPrice, expectedWethKope);
+        assertEq(
+            priceWethKope.spotPrice,
+            9457943135647822527192493517503987712
+        );
     }
 
     ///@notice Test calculate v2 spot price sushi dai/ohm
@@ -160,20 +154,10 @@ contract SwapRouterTest is DSTest {
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         address ohm = 0x64aa3364F17a4D01c6f1751Fd97C2BD3D7e7f1D5;
 
-        (uint112 reserve0ohm, uint112 reserve1Dai, ) = IUniswapV2Pair(
-            0x055475920a8c93CfFb64d039A8205F7AcC7722d3
-        ).getReserves();
-
-        uint128 reserve0OhmCommon = reserve0ohm * 10**9;
-        //Divide corresponding reserves for assertion
-        uint256 expectedOhmDai = ConveyorMath.div128x128(
-            uint256(reserve0OhmCommon) << 128,
-            uint256(reserve1Dai) << 128
-        );
         (SwapRouter.SpotReserve memory priceOhmDai, ) = limitOrderExecutor
             .calculateV2SpotPrice(dai, ohm, _sushiFactoryAddress, _sushiHexDem);
 
-        assertEq(priceOhmDai.spotPrice, expectedOhmDai);
+        assertEq(priceOhmDai.spotPrice, 21888402763315038097036358416236281856);
     }
 
     ///@notice Test calculate V3 spot price weth/dai
@@ -215,17 +199,6 @@ contract SwapRouterTest is DSTest {
         //Test tokens
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
-
-        (uint112 reserve0Usdc, uint112 reserve1Weth, ) = IUniswapV2Pair(
-            0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc
-        ).getReserves();
-        uint256 reserve0Common = reserve0Usdc * 10**12;
-        uint256 expectedWethUsdc = ConveyorMath.div128x128(
-            uint256(reserve1Weth) << 128,
-            uint256(reserve0Common) << 128
-        );
 
         (
             SwapRouter.SpotReserve memory price1,
@@ -239,7 +212,7 @@ contract SwapRouterTest is DSTest {
 
         uint256 spotPriceWethUsdc = price1.spotPrice;
 
-        assertEq(spotPriceWethUsdc, expectedWethUsdc);
+        assertEq(spotPriceWethUsdc, 195241231237127088630569907242663936);
     }
 
     ///@notice v2 spot price assertion test
@@ -247,26 +220,18 @@ contract SwapRouterTest is DSTest {
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
-        (uint112 reserve0Dai, uint112 reserve1Usdc, ) = IUniswapV2Pair(
-            0xAE461cA67B15dc8dc81CE7615e0320dA1A9aB8D5
-        ).getReserves();
-
-        uint256 reserve1UsdcCommon = reserve1Usdc * 10**12;
-        uint256 expectedDaiUsdc = ConveyorMath.div128x128(
-            uint256(reserve0Dai) << 128,
-            uint256(reserve1UsdcCommon) << 128
-        );
-        (
-            SwapRouter.SpotReserve memory spotPriceDaiUsdc,
-            address poolAddress1
-        ) = limitOrderExecutor.calculateV2SpotPrice(
+        (SwapRouter.SpotReserve memory spotPriceDaiUsdc, ) = limitOrderExecutor
+            .calculateV2SpotPrice(
                 usdc,
                 dai,
                 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
                 _uniswapV2HexDem
             );
 
-        assertEq(spotPriceDaiUsdc.spotPrice, expectedDaiUsdc);
+        assertEq(
+            spotPriceDaiUsdc.spotPrice,
+            340481350396253814427678140089094897664
+        );
     }
 
     ///@notice v2 spot price assertion test
@@ -274,40 +239,32 @@ contract SwapRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
 
-        (uint112 reserve0Wax, uint112 reserve1Weth3, ) = IUniswapV2Pair(
-            0x0ee0cb563A52Ae1170Ac34fBb94C50e89aDDE4bD
-        ).getReserves();
-
-        uint128 reserve0WaxCommon = reserve0Wax * 10**10;
-        uint256 expectedWaxeWeth = ConveyorMath.div128x128(
-            uint256(reserve1Weth3) << 128,
-            uint256(reserve0WaxCommon) << 128
-        );
-        (
-            SwapRouter.SpotReserve memory spotPriceWethWax,
-            address poolAddress2
-        ) = limitOrderExecutor.calculateV2SpotPrice(
+        (SwapRouter.SpotReserve memory spotPriceWethWax, ) = limitOrderExecutor
+            .calculateV2SpotPrice(
                 wax,
                 weth,
                 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
                 _uniswapV2HexDem
             );
 
-        assertEq(spotPriceWethWax.spotPrice, expectedWaxeWeth);
+        assertEq(
+            spotPriceWethWax.spotPrice,
+            20238613147511897623021403873923301376
+        );
     }
 
-    function testGetAllPrices2() public {
+    function testGetAllPrices2() public view {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
         (
             SwapRouter.SpotReserve[] memory pricesWethUsdc,
-            address[] memory lps
+        
         ) = limitOrderExecutor.getAllPrices(weth, usdc, 500);
 
         (
             SwapRouter.SpotReserve[] memory pricesUsdcWeth,
-            address[] memory lps1
+   
         ) = limitOrderExecutor.getAllPrices(usdc, weth, 500);
 
         console.log("weth/usdc");
