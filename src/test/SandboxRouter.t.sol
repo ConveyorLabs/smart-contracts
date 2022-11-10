@@ -109,8 +109,6 @@ contract SandboxRouterTest is DSTest {
             limitOrderExecutor.LIMIT_ORDER_ROUTER()
         );
 
-        orderBook = IOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
-
         ///@notice Initialize an instance of the SandboxRouter Interface
         sandboxRouter= ISandboxRouter(limitOrderRouter.getSandboxRouterAddress());
     }
