@@ -167,9 +167,6 @@ contract OrderBookTest is DSTest {
         orderBook._getLimitOrderById(bytes32(0));
     }
 
-    ///TODO: Fuzz test this
-    function testDepositFeeCredits() public {}
-
     ///@notice Test palce order fuzz test
     function testPlaceOrder(uint256 swapAmount, uint256 executionPrice) public {
         cheatCodes.deal(address(this), MAX_UINT);

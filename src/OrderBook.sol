@@ -9,7 +9,7 @@ import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 
 /// @title OrderBook
-/// @author 0xKitsune, LeytonTaylor, Conveyor Labs
+/// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
 contract OrderBook is GasOracle {
     address immutable LIMIT_ORDER_EXECUTOR;
