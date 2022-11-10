@@ -247,6 +247,16 @@ contract LimitOrderRouter is OrderBook {
         );
 
         ///TODO: compensate for gas costs
+
+        // uint256 executionFees;
+        // for (uint256 i = 0; i < sandboxMulticall.orderIds.length; ) {
+
+        //     executionFees += SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
+
+        //     unchecked {
+        //         ++i;
+        //     }
+        // }
     }
 
     function initializePreSandboxExecutionState(
@@ -903,16 +913,23 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice Function to calculate the execution gas consumed during executeLimitOrders
     ///@return executionGasConsumed - The amount of gas consumed.
-    function calculateExecutionGasConsumed(uint256 gasPrice)
-        internal
-        view
-        returns (uint256 executionGasConsumed)
-    {
+    function calculateExecutionGasConsumed(
+        uint256 gasPrice,
+        uint256 numberOfOrders
+    ) internal view returns (uint256 executionGasConsumed) {
         assembly {
             executionGasConsumed := mul(
                 gasPrice,
                 sub(sload(initialTxGas.slot), gas())
             )
+        }
+
+        ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
+        uint256 maxExecutionCompensation = LIMIT_ORDER_EXECUTION_GAS_COST *
+            numberOfOrders *
+            gasPrice;
+        if (executionGasConsumed > maxExecutionCompensation) {
+            executionGasConsumed = maxExecutionCompensation;
         }
     }
 
@@ -926,7 +943,10 @@ contract LimitOrderRouter is OrderBook {
         uint256 orderOwnersLength = orderOwners.length;
 
         ///@notice Decrement gas credit balances for each order owner
-        uint256 executionGasConsumed = calculateExecutionGasConsumed(gasPrice);
+        uint256 executionGasConsumed = calculateExecutionGasConsumed(
+            gasPrice,
+            orderOwners.length
+        );
         uint256 gasDecrementValue = executionGasConsumed / orderOwnersLength;
 
         ///@notice Unchecked for gas efficiency
