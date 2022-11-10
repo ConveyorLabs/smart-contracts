@@ -598,34 +598,4 @@ contract LimitOrderExecutor is SwapRouter {
         }
         tempOwner = newOwner;
     }
-
-    //TODO: see if we can remove this
-
-    ///@notice Function to get the amountOut from a UniV2 lp.
-    ///@param amountIn - AmountIn for the swap.
-    ///@param reserveIn - tokenIn reserve for the swap.
-    ///@param reserveOut - tokenOut reserve for the swap.
-    ///@return amountOut - AmountOut from the given parameters.
-    function getAmountOut(
-        uint256 amountIn,
-        uint256 reserveIn,
-        uint256 reserveOut
-    ) internal pure returns (uint256 amountOut) {
-        if (amountIn == 0) {
-            revert InsufficientInputAmount();
-        }
-
-        if (reserveIn == 0) {
-            revert InsufficientLiquidity();
-        }
-
-        if (reserveOut == 0) {
-            revert InsufficientLiquidity();
-        }
-
-        uint256 amountInWithFee = amountIn * 997;
-        uint256 numerator = amountInWithFee * reserveOut;
-        uint256 denominator = reserveIn * 1000 + (amountInWithFee);
-        amountOut = numerator / denominator;
-    }
 }
