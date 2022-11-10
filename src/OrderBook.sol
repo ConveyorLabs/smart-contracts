@@ -365,8 +365,6 @@ contract OrderBook is GasOracle {
             {
                 ///@notice Boolean indicating if user wants to cover the fee from the fee credit balance, or by calling placeOrder with payment.
 
-                //TODO: come back to this and review
-
                 ///@notice Calculate the spot price of the input token to WETH on Uni v2.
                 (SwapRouter.SpotReserve memory spRes, ) = IOrderRouter(
                     LIMIT_ORDER_EXECUTOR
@@ -732,7 +730,10 @@ contract OrderBook is GasOracle {
         }
     }
 
-    ///TODO: need to update this
+    ///@notice Internal function to partially fill a sandbox limit order and update the remaining quantity.
+    ///@param amountInFilled - The amount in that was filled for the order.
+    ///@param amountOutFilled - The amount out that was filled for the order.
+    ///@param orderId - The orderId of the order that was filled.
     function _partialFillSandboxLimitOrder(
         uint128 amountInFilled,
         uint128 amountOutFilled,
