@@ -89,8 +89,6 @@ contract OrderBookTest is DSTest {
             250000
         );
 
-        
-
         //Wrapper contract to test internal functions
         orderBook = new LimitOrderRouterWrapper(
             aggregatorV3Address,
@@ -121,9 +119,9 @@ contract OrderBookTest is DSTest {
         //place a mock order
         bytes32 orderId = placeMockOrder(order);
 
-        OrderBook.LimitOrder memory returnedOrder = orderBook._getLimitOrderById(orderId);(
-            orderId
-        );
+        OrderBook.LimitOrder memory returnedOrder = orderBook
+            ._getLimitOrderById(orderId);
+        (orderId);
 
         // assert that the two orders are the same
         assertEq(returnedOrder.tokenIn, order.tokenIn);
@@ -536,41 +534,46 @@ contract OrderBookTest is DSTest {
         uint128 newPrice,
         uint64 newQuantity
     ) public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+        if (
+            !(price ==0 || quantity == 0 ||
+                amountOutMin == 0 ||
+                newPrice == 0 ||
+                newQuantity == 0)
+        ) {
+            cheatCodes.deal(address(this), MAX_UINT);
+            IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
+            cheatCodes.deal(address(swapHelper), MAX_UINT);
+            swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
 
-        //create a new order
-        OrderBook.LimitOrder memory order = newOrder(
-            swapToken,
-            wnato,
-            price,
-            quantity,
-            amountOutMin
-        );
+            //create a new order
+            OrderBook.LimitOrder memory order = newOrder(
+                swapToken,
+                wnato,
+                price,
+                quantity,
+                amountOutMin
+            );
 
-        //place a mock order
-        bytes32 orderId = placeMockOrder(order);
+            //place a mock order
+            bytes32 orderId = placeMockOrder(order);
 
-        //submit the updated order
-        orderBook.updateOrder(orderId, newPrice, newQuantity);
+            //submit the updated order
+            orderBook.updateOrder(orderId, newPrice, newQuantity);
 
-        OrderBook.LimitOrder memory updatedOrder = orderBook._getLimitOrderById(bytes32(0));
-(
-            orderId
-        );
+            OrderBook.LimitOrder memory updatedOrder = orderBook
+                ._getLimitOrderById(orderId);
 
-        //Cache the total orders value after the update
-        uint256 totalOrdersValueAfter = orderBook.getTotalOrdersValue(
-            swapToken
-        );
+            //Cache the total orders value after the update
+            uint256 totalOrdersValueAfter = orderBook.getTotalOrdersValue(
+                swapToken
+            );
 
-        //Make sure the order was updated properly
-        assertEq(newQuantity, totalOrdersValueAfter);
-        assertEq(newQuantity, updatedOrder.quantity);
-        assertEq(newPrice, updatedOrder.price);
+            //Make sure the order was updated properly
+            assertEq(newQuantity, totalOrdersValueAfter);
+            assertEq(newQuantity, updatedOrder.quantity);
+            assertEq(newPrice, updatedOrder.price);
+        }
     }
 
     ///@notice Test update sandbox order
@@ -1041,14 +1044,13 @@ contract OrderBookTest is DSTest {
     }
 
     function depositGasCreditsForMockOrders(uint256 _amount) public {
-        (bool depositSuccess, ) = address(orderBook).call{
-            value: _amount
-        }(abi.encodeWithSignature("depositGasCredits()"));
+        (bool depositSuccess, ) = address(orderBook).call{value: _amount}(
+            abi.encodeWithSignature("depositGasCredits()")
+        );
 
         require(depositSuccess, "error when depositing gas credits");
     }
 }
-
 
 ///@notice wrapper around the OrderBook contract to expose internal functions for testing
 contract LimitOrderRouterWrapper is LimitOrderRouter {
@@ -1059,13 +1061,33 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
         address _usdc,
         uint256 _limitOrderExecutionGasCost,
         uint256 _sandboxLimitOrderExecutionGasCost
-    ) LimitOrderRouter(_gasOracle, _limitOrderExecutor, _weth, _usdc, _limitOrderExecutionGasCost, _sandboxLimitOrderExecutionGasCost) {}
-    function _getLimitOrderById(bytes32 orderId) public view returns(OrderBook.LimitOrder memory){
+    )
+        LimitOrderRouter(
+            _gasOracle,
+            _limitOrderExecutor,
+            _weth,
+            _usdc,
+            _limitOrderExecutionGasCost,
+            _sandboxLimitOrderExecutionGasCost
+        )
+    {}
+
+    function _getLimitOrderById(bytes32 orderId)
+        public
+        view
+        returns (OrderBook.LimitOrder memory)
+    {
         return getLimitOrderById(orderId);
     }
-    function _getSandboxLimitOrderById(bytes32 orderId) public view returns(OrderBook.SandboxLimitOrder memory){
+
+    function _getSandboxLimitOrderById(bytes32 orderId)
+        public
+        view
+        returns (OrderBook.SandboxLimitOrder memory)
+    {
         return getSandboxLimitOrderById(orderId);
     }
+
     function calculateMinGasCredits(
         uint256 gasPrice,
         uint256 executionCost,

@@ -429,7 +429,7 @@ contract OrderBook is GasOracle {
             }
 
             ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
-            if (!(orderToken == newOrder.tokenIn)) {
+            if (newOrder.tokenOut == newOrder.tokenIn) {
                 revert IncongruentInputTokenInOrderGroup(
                     newOrder.tokenIn,
                     orderToken
