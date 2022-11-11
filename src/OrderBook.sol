@@ -211,6 +211,7 @@ contract OrderBook is GasOracle {
         LimitOrder memory order = orderIdToLimitOrder[orderId];
         return order;
     }
+
     ///TODO: Change this to internal after test debugging
     function getSandboxLimitOrderById(bytes32 orderId)
         public
@@ -378,12 +379,12 @@ contract OrderBook is GasOracle {
                 ///@notice Boolean indicating if user wants to cover the fee from the fee credit balance, or by calling placeOrder with payment.
 
                 ///@notice Calculate the spot price of the input token to WETH on Uni v2.
-                (SwapRouter.SpotReserve[] memory spRes,  ) = IOrderRouter(
+                (SwapRouter.SpotReserve[] memory spRes, ) = IOrderRouter(
                     LIMIT_ORDER_EXECUTOR
                 )._getAllPrices(newOrder.tokenIn, WETH, 500);
                 uint256 tokenAWethSpotPrice;
-                for(uint256 k=0; k < spRes.length;){
-                    if(spRes[i].spotPrice != 0){
+                for (uint256 k = 0; k < spRes.length; ) {
+                    if (spRes[i].spotPrice != 0) {
                         tokenAWethSpotPrice = spRes[i].spotPrice;
                         break;
                     }
@@ -393,10 +394,9 @@ contract OrderBook is GasOracle {
                     }
                 }
 
-                if(tokenAWethSpotPrice == 0){
+                if (tokenAWethSpotPrice == 0) {
                     revert InvalidInputTokenForOrderPlacement();
                 }
-               
 
                 if (!(tokenAWethSpotPrice == 0)) {
                     ///@notice Get the tokenIn decimals to normalize the relativeWethValue.

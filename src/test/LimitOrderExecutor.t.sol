@@ -112,7 +112,7 @@ contract LimitOrderExecutorTest is DSTest {
         );
 
         orderBook = IOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
-        
+
         //Wrapper contract to test internal functions
         limitOrderRouterWrapper = new LimitOrderRouterWrapper(
             aggregatorV3Address,
@@ -3036,7 +3036,16 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
         address _limitOrderExecutor,
         uint256 _limitOrderExecutionGasCost,
         uint256 _sandboxLimitOrderExecutionGasCost
-    ) LimitOrderRouter(_gasOracle, _weth, _usdc, _limitOrderExecutor, _limitOrderExecutionGasCost, _sandboxLimitOrderExecutionGasCost) {}
+    )
+        LimitOrderRouter(
+            _gasOracle,
+            _weth,
+            _usdc,
+            _limitOrderExecutor,
+            _limitOrderExecutionGasCost,
+            _sandboxLimitOrderExecutionGasCost
+        )
+    {}
 }
 
 //wrapper around SwapRouter to expose internal functions for testing

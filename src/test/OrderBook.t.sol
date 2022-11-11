@@ -535,7 +535,8 @@ contract OrderBookTest is DSTest {
         uint64 newQuantity
     ) public {
         if (
-            !(price ==0 || quantity == 0 ||
+            !(price == 0 ||
+                quantity == 0 ||
                 amountOutMin == 0 ||
                 newPrice == 0 ||
                 newQuantity == 0)

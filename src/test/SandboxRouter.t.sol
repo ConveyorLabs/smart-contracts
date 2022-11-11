@@ -53,14 +53,13 @@ contract SandboxRouterTest is DSTest {
     address UNI = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
     address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-    
+
     ///@notice Factory and router address's
     address _sushiSwapRouterAddress =
         0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
     address _uniV2FactoryAddress = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     // address _sushiFactoryAddress = 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac;
     address _uniV3FactoryAddress = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
-
 
     ///@notice Uniswap v2 Deployment bytescode
     bytes32 _uniswapV2HexDem =
@@ -101,7 +100,9 @@ contract SandboxRouterTest is DSTest {
         );
 
         ///@notice Initialize an instance of the SandboxRouter Interface
-        sandboxRouter= ISandboxRouter(limitOrderRouter.getSandboxRouterAddress());
+        sandboxRouter = ISandboxRouter(
+            limitOrderRouter.getSandboxRouterAddress()
+        );
     }
 
     ///@notice ExecuteMulticallOrder Sandbox Router test
@@ -115,12 +116,18 @@ contract SandboxRouterTest is DSTest {
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         ///@notice Max approve the executor on the input token.
         IERC20(DAI).approve(address(limitOrderExecutor), type(uint256).max);
-        
+
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
-        OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(false, 10000000000000000000, 1, DAI, WETH);
+        OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(
+            false,
+            10000000000000000000,
+            1,
+            DAI,
+            WETH
+        );
 
-         ///@notice Deal some ETH to compensate the fee
+        ///@notice Deal some ETH to compensate the fee
         cheatCodes.deal(address(sandboxRouter), type(uint128).max);
         cheatCodes.prank(address(sandboxRouter));
         ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
@@ -128,7 +135,7 @@ contract SandboxRouterTest is DSTest {
             abi.encodeWithSignature("deposit()")
         );
         require(depositSuccess, "Fudge");
-        ///@notice Initialize Arrays for Multicall struct. 
+        ///@notice Initialize Arrays for Multicall struct.
         bytes32[] memory orderIds = new bytes32[](1);
         address[] memory transferAddress = new address[](1);
         uint128[] memory fillAmounts = new uint128[](1);
@@ -137,24 +144,31 @@ contract SandboxRouterTest is DSTest {
         {
             ///NOTE: Token0 = DAI & Token1 = WETH
             address daiWethV2 = 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11;
-            ///@notice Place the Order. 
-            orderIds[0]=placeMockOrder(order);
+            ///@notice Place the Order.
+            orderIds[0] = placeMockOrder(order);
             ///@notice Grab the order fee
-            uint256 cumulativeFee = limitOrderRouter.getSandboxLimitOrderById(orderIds[0]).fee;
+            uint256 cumulativeFee = limitOrderRouter
+                .getSandboxLimitOrderById(orderIds[0])
+                .fee;
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
-            transferAddress[0]=daiWethV2;
+            transferAddress[0] = daiWethV2;
             ///@notice Set the fill amount to the total amountIn on the order i.e. 1000 DAI.
-            fillAmounts[0]= order.amountInRemaining;
-            ///@notice Create a single v2 swap call for the multicall. 
-            calls[0]= newUniV2Call(daiWethV2, 0, 100, address(this));
+            fillAmounts[0] = order.amountInRemaining;
+            ///@notice Create a single v2 swap call for the multicall.
+            calls[0] = newUniV2Call(daiWethV2, 0, 100, address(this));
             ///@notice Create a call to compensate the feeAmount
-            calls[1]= feeCompensationCall(cumulativeFee);
+            calls[1] = feeCompensationCall(cumulativeFee);
         }
 
         ///@notice Create a new SandboxMulticall
-        SandboxRouter.SandboxMulticall memory multiCall = newMockMulticall(orderIds, fillAmounts, transferAddress, calls);
-        
-         ///@notice Prank tx.origin to mock an external executor
+        SandboxRouter.SandboxMulticall memory multiCall = newMockMulticall(
+            orderIds,
+            fillAmounts,
+            transferAddress,
+            calls
+        );
+
+        ///@notice Prank tx.origin to mock an external executor
         cheatCodes.prank(tx.origin);
 
         ///@notice Execute the SandboxMulticall on the sandboxRouter
@@ -183,9 +197,15 @@ contract SandboxRouterTest is DSTest {
         require(depositSuccess, "Fudge");
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
-        OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(false, 100000000000000000000, 1, DAI, WETH);
-        
-        ///@notice Initialize Arrays for Multicall struct. 
+        OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(
+            false,
+            100000000000000000000,
+            1,
+            DAI,
+            WETH
+        );
+
+        ///@notice Initialize Arrays for Multicall struct.
         bytes32[] memory orderIds = new bytes32[](1);
         address[] memory transferAddress = new address[](1);
         uint128[] memory fillAmounts = new uint128[](1);
@@ -194,76 +214,117 @@ contract SandboxRouterTest is DSTest {
         {
             ///NOTE: Token0 = DAI & Token1 = WETH
             address daiWethV3 = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
-            ///@notice Place the Order. 
-            orderIds[0]=placeMockOrder(order);
+            ///@notice Place the Order.
+            orderIds[0] = placeMockOrder(order);
             ///@notice Grab the order fee
-            uint256 cumulativeFee = limitOrderRouter.getSandboxLimitOrderById(orderIds[0]).fee;
+            uint256 cumulativeFee = limitOrderRouter
+                .getSandboxLimitOrderById(orderIds[0])
+                .fee;
             console.log(cumulativeFee);
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
-            transferAddress[0]=address(sandboxRouter);
+            transferAddress[0] = address(sandboxRouter);
             ///@notice Set the fill amount to the total amountIn on the order i.e. 1000 DAI.
-            fillAmounts[0]= order.amountInRemaining;
-            ///@notice Create a single v2 swap call for the multicall. 
-            calls[0]= newUniV3Call(daiWethV3, address(sandboxRouter), address(this), true, 100000000000000000000, DAI);
+            fillAmounts[0] = order.amountInRemaining;
+            ///@notice Create a single v2 swap call for the multicall.
+            calls[0] = newUniV3Call(
+                daiWethV3,
+                address(sandboxRouter),
+                address(this),
+                true,
+                100000000000000000000,
+                DAI
+            );
             ///@notice Create a call to compensate the feeAmount
-            calls[1]= feeCompensationCall(cumulativeFee);
-
+            calls[1] = feeCompensationCall(cumulativeFee);
         }
 
         ///@notice Create a new SandboxMulticall
-        SandboxRouter.SandboxMulticall memory multiCall = newMockMulticall(orderIds, fillAmounts, transferAddress, calls);
-        
-         ///@notice Prank tx.origin to mock an external executor
+        SandboxRouter.SandboxMulticall memory multiCall = newMockMulticall(
+            orderIds,
+            fillAmounts,
+            transferAddress,
+            calls
+        );
+
+        ///@notice Prank tx.origin to mock an external executor
         cheatCodes.prank(tx.origin);
-        
+
         ///@notice Execute the SandboxMulticall on the sandboxRouter
         sandboxRouter.executeSandboxMulticall(multiCall);
     }
 
-
-
     ///@notice Helper function to create call to compensate the fees during execution
-    function feeCompensationCall(uint256 cumulativeFee) public view returns (SandboxRouter.Call memory){
-        bytes memory callData= abi.encodeWithSignature("transfer(address,uint256)", address(limitOrderExecutor), cumulativeFee);
-        return SandboxRouter.Call({
-            target: WETH,
-            callData:callData
-        });
+    function feeCompensationCall(uint256 cumulativeFee)
+        public
+        view
+        returns (SandboxRouter.Call memory)
+    {
+        bytes memory callData = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            address(limitOrderExecutor),
+            cumulativeFee
+        );
+        return SandboxRouter.Call({target: WETH, callData: callData});
     }
 
-    ///@notice Helper function to create a single mock call for a v2 swap. 
-    function newUniV2Call(address _lp, uint256 amount0Out, uint256 amount1Out, address _receiver) public pure returns (SandboxRouter.Call memory) {
-        bytes memory callData = abi.encodeWithSignature("swap(uint256,uint256,address,bytes)", amount0Out, amount1Out, _receiver, new bytes(0));
-        return SandboxRouter.Call({
-            target:_lp,
-            callData:callData
-        });
+    ///@notice Helper function to create a single mock call for a v2 swap.
+    function newUniV2Call(
+        address _lp,
+        uint256 amount0Out,
+        uint256 amount1Out,
+        address _receiver
+    ) public pure returns (SandboxRouter.Call memory) {
+        bytes memory callData = abi.encodeWithSignature(
+            "swap(uint256,uint256,address,bytes)",
+            amount0Out,
+            amount1Out,
+            _receiver,
+            new bytes(0)
+        );
+        return SandboxRouter.Call({target: _lp, callData: callData});
     }
 
-    ///@notice Helper function to create a single mock call for a v3 swap. 
-    function newUniV3Call(address _lp,  address _sender, address _receiver, bool _zeroForOne, uint256 _amountIn, address _tokenIn) public pure returns (SandboxRouter.Call memory){
+    ///@notice Helper function to create a single mock call for a v3 swap.
+    function newUniV3Call(
+        address _lp,
+        address _sender,
+        address _receiver,
+        bool _zeroForOne,
+        uint256 _amountIn,
+        address _tokenIn
+    ) public pure returns (SandboxRouter.Call memory) {
         ///@notice Pack the required data for the call.
         bytes memory data = abi.encode(_zeroForOne, _tokenIn, _sender);
-        ///@notice Encode the callData for the call. 
-        bytes memory callData = abi.encodeWithSignature("swap(address,bool,int256,uint160,bytes)", _receiver, _zeroForOne, int256(_amountIn), _zeroForOne ? TickMath.MIN_SQRT_RATIO +1 : TickMath.MAX_SQRT_RATIO -1,data);
+        ///@notice Encode the callData for the call.
+        bytes memory callData = abi.encodeWithSignature(
+            "swap(address,bool,int256,uint160,bytes)",
+            _receiver,
+            _zeroForOne,
+            int256(_amountIn),
+            _zeroForOne
+                ? TickMath.MIN_SQRT_RATIO + 1
+                : TickMath.MAX_SQRT_RATIO - 1,
+            data
+        );
         ///@notice Return the call
-        return SandboxRouter.Call({
-            target:_lp,
-            callData:callData
-        });
+        return SandboxRouter.Call({target: _lp, callData: callData});
     }
 
-    ///@notice Helper function to create a Sandox Multicall 
-    function newMockMulticall(bytes32[] memory orderId, uint128[] memory fillAmounts, address[] memory transferAddresses, SandboxRouter.Call[] memory _calls) public pure returns (SandboxRouter.SandboxMulticall memory) {
-        return SandboxRouter.SandboxMulticall({
-            orderIds:orderId,
-            fillAmounts:fillAmounts,
-            transferAddresses:transferAddresses,
-            calls:_calls
-        });
+    ///@notice Helper function to create a Sandox Multicall
+    function newMockMulticall(
+        bytes32[] memory orderId,
+        uint128[] memory fillAmounts,
+        address[] memory transferAddresses,
+        SandboxRouter.Call[] memory _calls
+    ) public pure returns (SandboxRouter.SandboxMulticall memory) {
+        return
+            SandboxRouter.SandboxMulticall({
+                orderIds: orderId,
+                fillAmounts: fillAmounts,
+                transferAddresses: transferAddresses,
+                calls: _calls
+            });
     }
-
-
 
     ///@notice Helper function to initialize a mock sandbox limit order
     function newMockSandboxOrder(
@@ -303,31 +364,31 @@ contract SandboxRouterTest is DSTest {
         returns (bytes32 orderId)
     {
         //create a new array of orders
-        OrderBook.SandboxLimitOrder[] memory orderGroup = new OrderBook.SandboxLimitOrder[](
-            1
-        );
+        OrderBook.SandboxLimitOrder[]
+            memory orderGroup = new OrderBook.SandboxLimitOrder[](1);
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
 
         //place order
-        bytes32[] memory orderIds = limitOrderRouter.placeSandboxLimitOrder(orderGroup);
+        bytes32[] memory orderIds = limitOrderRouter.placeSandboxLimitOrder(
+            orderGroup
+        );
 
         orderId = orderIds[0];
     }
 
     ///@notice helper function to place multiple sandbox orders
-    function placeMultipleMockOrder(OrderBook.SandboxLimitOrder[] memory orderGroup)
-        internal
-        returns (bytes32[] memory)
-    {
+    function placeMultipleMockOrder(
+        OrderBook.SandboxLimitOrder[] memory orderGroup
+    ) internal returns (bytes32[] memory) {
         //place order
-        bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(orderGroup);
+        bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
+            orderGroup
+        );
 
         return orderIds;
     }
-
 }
-
 
 //wrapper around SwapRouter to expose internal functions for testing
 contract LimitOrderExecutorWrapper is LimitOrderExecutor {

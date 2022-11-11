@@ -122,11 +122,7 @@ contract LimitOrderRouterTest is DSTest {
             300000,
             250000
         );
-
-        
     }
-
-    
 
     ///TODO: Write a test to make sure all validation logic is solid
     function testExecuteOrdersViaSandboxMulticall() public {}
@@ -243,6 +239,7 @@ contract LimitOrderRouterTest is DSTest {
             memory orderBatch = newMockTokenToWethBatch_IncongruentTaxedTokenInBatch();
         limitOrderRouterWrapper.validateOrderSequencing(orderBatch);
     }
+
     ///TODO: Revisit this is potentially deprecated
     // function testGetAllOrderIds() public {
     //     cheatCodes.deal(address(this), MAX_UINT);
@@ -285,9 +282,6 @@ contract LimitOrderRouterTest is DSTest {
 
     //     depositGasCreditsForMockOrders(minimumGasCredits - 1);
     //     bytes32 orderId = placeMockOrder(order);
-        
-
-        
 
     //     bool cancelled = limitOrderRouter.validateAndCancelOrder(orderId);
     //     assertTrue(cancelled);
@@ -567,6 +561,7 @@ contract LimitOrderRouterTest is DSTest {
             assert(order0.orderId == bytes32(0));
         }
     }
+
     ///TODO: This test needs to change with the OrderPlacement gas credit requirement
     //Test refresh order with a gas credit balance below the refreshFee
     // function testRefreshOrderWithCancelOrder_GasCreditBalanceLessRefreshFee()
@@ -2139,7 +2134,16 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
         address _limitOrderExecutor,
         uint256 _limitOrderExecutionGasCost,
         uint256 _sandboxLimitOrderExecutionGasCost
-    ) LimitOrderRouter(_gasOracle, _weth, _usdc, _limitOrderExecutor, _limitOrderExecutionGasCost, _sandboxLimitOrderExecutionGasCost) {}
+    )
+        LimitOrderRouter(
+            _gasOracle,
+            _weth,
+            _usdc,
+            _limitOrderExecutor,
+            _limitOrderExecutionGasCost,
+            _sandboxLimitOrderExecutionGasCost
+        )
+    {}
 
     function invokeOnlyEOA() public onlyEOA {}
 
