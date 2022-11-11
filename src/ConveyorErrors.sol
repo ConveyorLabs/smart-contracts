@@ -6,23 +6,22 @@ error InsufficientGasCreditBalance(
     uint256 gasCreditBalance,
     uint256 gasCreditBalanceNeeded
 );
-
 error InsufficientWalletBalance(
     address account,
     uint256 balance,
     uint256 balanceNeeded
 );
-
 error OrderDoesNotExist(bytes32 orderId);
-
 error IncongruentInputTokenInOrderGroup(address token, address expectedToken);
 error IncongruentOutputTokenInOrderGroup(address token, address expectedToken);
-
-error InsufficientOutputAmount();
-error InsufficientInputAmount();
+error InsufficientOutputAmount(uint256 amountOut, uint256 expectedAmountOut);
+error InsufficientInputAmount(uint256 amountIn, uint256 expectedAmountIn);
 error InsufficientLiquidity();
-error InsufficientDepositAmount();
-error InsufficientAllowanceForOrderPlacement();
+error InsufficientAllowanceForOrderPlacement(
+    address token,
+    uint256 approvedQuantity,
+    uint256 approvedQuantityNeeded
+);
 error InvalidBatchOrder();
 error IncongruentFeeInInBatch();
 error IncongruentFeeOutInBatch();

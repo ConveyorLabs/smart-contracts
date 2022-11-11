@@ -430,7 +430,7 @@ contract LimitOrderExecutor is SwapRouter {
                 );
 
                 if (amountInWethToB == 0) {
-                    revert InsufficientOutputAmount();
+                    revert InsufficientOutputAmount(0, 1);
                 }
             } else {
                 ///@notice Transfer the TokenIn to the contract.
@@ -476,7 +476,7 @@ contract LimitOrderExecutor is SwapRouter {
         );
 
         if (amountOutInB == 0) {
-            revert InsufficientOutputAmount();
+            revert InsufficientOutputAmount(0, 1);
         }
 
         return (uint256(conveyorReward), uint256(beaconReward));

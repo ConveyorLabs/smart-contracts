@@ -520,7 +520,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
         uint256 reserveOut
     ) internal pure returns (uint256 amountOut) {
         if (amountIn == 0) {
-            revert InsufficientInputAmount();
+            revert InsufficientInputAmount(0, 1);
         }
 
         if (reserveIn == 0) {

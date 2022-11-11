@@ -732,7 +732,7 @@ contract LimitOrderRouter is OrderBook {
 
             ///@notice Check if the current order is less than or equal to the next order
             if (currentOrder.quantity > nextOrder.quantity) {
-                revert InvalidBatchOrder();
+                revert InvalidOrderGroupSequence();
             }
 
             ///@notice Check if the token in is the same for the next order

@@ -327,7 +327,11 @@ contract OrderBook is GasOracle {
 
         ///@notice If the total approved quantity is less than the updatedTotalOrdersValue, revert.
         if (totalApprovedQuantity < updatedTotalOrdersValue) {
-            revert InsufficientAllowanceForOrderPlacement();
+            revert InsufficientAllowanceForOrderPlacement(
+                orderToken,
+                totalApprovedQuantity,
+                updatedTotalOrdersValue
+            );
         }
 
         ///@notice Emit an OrderPlaced event to notify the off-chain executors that a new order has been placed.
@@ -491,7 +495,11 @@ contract OrderBook is GasOracle {
 
         ///@notice If the total approved quantity is less than the updatedTotalOrdersValue, revert.
         if (totalApprovedQuantity < updatedTotalOrdersValue) {
-            revert InsufficientAllowanceForOrderPlacement();
+            revert InsufficientAllowanceForOrderPlacement(
+                orderToken,
+                totalApprovedQuantity,
+                updatedTotalOrdersValue
+            );
         }
 
         ///@notice Emit an OrderPlaced event to notify the off-chain executors that a new order has been placed.
