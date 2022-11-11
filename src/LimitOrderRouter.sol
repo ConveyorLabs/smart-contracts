@@ -6,7 +6,6 @@ import "./OrderBook.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "./SwapRouter.sol";
-import "./test/utils/Console.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./interfaces/ILimitOrderRouter.sol";
@@ -226,6 +225,11 @@ contract LimitOrderRouter is OrderBook {
     function executeOrdersViaSandboxMulticall(
         SandboxRouter.SandboxMulticall calldata sandboxMulticall
     ) external onlySandboxRouter nonReentrant {
+        //Update the initial gas balance.
+        assembly {
+            sstore(initialTxGas.slot, gas())
+        }
+
         ///@notice Initialize arrays to hold pre execution validation state.
         (
             SandboxLimitOrder[] memory sandboxLimitOrders,
@@ -240,8 +244,7 @@ contract LimitOrderRouter is OrderBook {
         ///@notice Call the limit order executor to transfer all of the order owners tokens to the contract.
         ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeSandboxLimitOrders(
             sandboxLimitOrders,
-            sandboxMulticall,
-            SANDBOX_ROUTER
+            sandboxMulticall
         );
 
         ///@notice Post execution, assert that all of the order owners have received >= their exact amount out
@@ -260,7 +263,7 @@ contract LimitOrderRouter is OrderBook {
         );
 
         ///@notice Transfer the reward to the off-chain executor.
-        safeTransferETH(msg.sender, executionGasCompensation);
+        safeTransferETH(tx.origin, executionGasCompensation);
     }
 
     function initializePreSandboxExecutionState(

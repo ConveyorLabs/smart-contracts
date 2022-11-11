@@ -15,7 +15,6 @@ interface ILimitOrderExecutor {
 
     function executeSandboxLimitOrders(
         OrderBook.SandboxLimitOrder[] memory orders,
-        SandboxRouter.SandboxMulticall calldata calls,
-        address sandBoxRouter
+        SandboxRouter.SandboxMulticall calldata calls
     ) external;
 }

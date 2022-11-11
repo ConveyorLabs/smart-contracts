@@ -500,6 +500,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@dev
     /*The sandBoxRouter address is an immutable address from the limitOrderRouter.
     Since the function is onlyLimitOrderRouter, the sandBoxRouter address will never change*/
+
     function executeSandboxLimitOrders(
         OrderBook.SandboxLimitOrder[] memory orders,
         SandboxRouter.SandboxMulticall calldata sandboxMulticall
@@ -539,7 +540,6 @@ contract LimitOrderExecutor is SwapRouter {
         uint256 contractBalancePreExecution = IERC20(WETH).balanceOf(
             address(this)
         );
-        console.log(contractBalancePreExecution);
 
         ///@notice acll the SandboxRouter callback to execute the calldata from the sandboxMulticall
         ISandboxRouter(SANDBOX_ROUTER).sandboxRouterCallback(sandboxMulticall);
@@ -558,7 +558,7 @@ contract LimitOrderExecutor is SwapRouter {
         uint256 contractBalancePostExecution = IERC20(WETH).balanceOf(
             address(this)
         );
-        console.log(contractBalancePostExecution);
+
         bool feeIsPaid;
         assembly {
             feeIsPaid := iszero(
