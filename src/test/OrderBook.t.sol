@@ -264,36 +264,6 @@ contract OrderBookTest is DSTest {
         }
     }
 
-    ///@notice Test To assert failure on Same token pair being passed in SandboxOrder struct on placement.
-    function testFailPlaceSandboxLimitOrder_IncongruentTokenInOrderGroup()
-        public
-    {
-        uint256 amountInRemaining = 100000000000000000;
-        uint256 amountOutRemaining = 100000000000000000;
-        cheatCodes.deal(address(this), MAX_UINT);
-        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
-        //if the fuzzed amount is enough to complete the swap
-        try
-            swapHelper.swapEthForTokenWithUniV2(amountInRemaining, swapToken)
-        returns (uint256 amountOut) {
-            OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
-                swapToken,
-                swapToken, //Same in out token should throw reversion
-                uint112(amountOut),
-                uint112(amountOutRemaining)
-            );
-
-            //create a new array of orders
-            OrderBook.SandboxLimitOrder[]
-                memory orderGroup = new OrderBook.SandboxLimitOrder[](1);
-            //add the order to the arrOrder and add the arrOrder to the orderGroup
-            orderGroup[0] = order;
-
-            //place order
-            orderBook.placeSandboxLimitOrder(orderGroup);
-        } catch {}
-    }
-
     ///TODO: Write a fuzz test for this
     function testFailPlaceSandboxLimitOrder_InsufficientWalletBalance(
         uint112 amountOutRemaining

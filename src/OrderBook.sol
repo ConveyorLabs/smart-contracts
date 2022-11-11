@@ -262,6 +262,14 @@ contract OrderBook is GasOracle {
                 );
             }
 
+            ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
+            if (newOrder.tokenOut == newOrder.tokenIn) {
+                revert IncongruentInputTokenInOrderGroup(
+                    newOrder.tokenIn,
+                    newOrder.tokenOut
+                );
+            }
+
             ///@notice If the msg.sender does not have a sufficent balance to cover the order, revert.
             if (tokenBalance < updatedTotalOrdersValue) {
                 revert InsufficientWalletBalance(
@@ -429,7 +437,7 @@ contract OrderBook is GasOracle {
             }
 
             ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
-            if (newOrder.tokenOut == newOrder.tokenIn) {
+            if ((orderToken != newOrder.tokenIn)) {
                 revert IncongruentInputTokenInOrderGroup(
                     newOrder.tokenIn,
                     orderToken
