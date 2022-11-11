@@ -6,13 +6,13 @@ import "./OrderBook.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "./SwapRouter.sol";
-
+import "./test/utils/Console.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./interfaces/ILimitOrderRouter.sol";
 
 /// @title LimitOrderRouter
-/// @author LeytonTaylor, 0xKitsune, Conveyor Labs
+/// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
 contract LimitOrderRouter is OrderBook {
     using SafeERC20 for IERC20;
@@ -129,7 +129,9 @@ contract LimitOrderRouter is OrderBook {
     }
 
     // ========================================= FUNCTIONS =============================================
-
+    function getSandboxRouterAddress() external view returns (address) {
+        return SANDBOX_ROUTER;
+    }
     //------------Gas Credit Functions------------------------
 
     /// @notice Function to deposit gas credits.
@@ -289,9 +291,8 @@ contract LimitOrderRouter is OrderBook {
         ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
         for (uint256 i = 0; i < orderIdsLength; ++i) {
             ///@notice Get the current order
-            SandboxLimitOrder memory currentOrder = orderIdToSandboxLimitOrder[
-                orderIds[i]
-            ];
+            SandboxLimitOrder memory currentOrder = orderIdToSandboxLimitOrder[orderIds[i]];
+            console.log(currentOrder.amountInRemaining);
 
             orderOwners[i] = currentOrder.owner;
 

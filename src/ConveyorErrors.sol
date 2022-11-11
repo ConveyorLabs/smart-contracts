@@ -54,7 +54,7 @@ error SandboxCallFailed(uint256 callIndex);
 error InvalidTransferAddressArray();
 error AddressIsZero();
 error IdenticalTokenAddresses();
-
+error InvalidInputTokenForOrderPlacement();
 error SandboxFillAmountNotSatisfied(
     bytes32 orderId,
     uint256 amountFilled,
