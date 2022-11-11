@@ -32,7 +32,7 @@ contract OrderBookTest is DSTest {
     LimitOrderQuoter limitOrderQuoter;
     Swap swapHelper;
 
-    OrderBookWrapper orderBook;
+    LimitOrderRouterWrapper orderBook;
 
     event OrderPlaced(bytes32[] orderIds);
     event OrderCancelled(bytes32[] orderIds);
@@ -89,14 +89,19 @@ contract OrderBookTest is DSTest {
             250000
         );
 
-        orderBook = new OrderBookWrapper(
+        
+
+        //Wrapper contract to test internal functions
+        orderBook = new LimitOrderRouterWrapper(
             aggregatorV3Address,
-            address(limitOrderExecutor),
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
+            address(limitOrderExecutor),
             300000,
             250000
         );
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
     }
 
     ///@notice Test get order by id
@@ -1034,10 +1039,19 @@ contract OrderBookTest is DSTest {
 
         orderId = orderIds[0];
     }
+
+    function depositGasCreditsForMockOrders(uint256 _amount) public {
+        (bool depositSuccess, ) = address(orderBook).call{
+            value: _amount
+        }(abi.encodeWithSignature("depositGasCredits()"));
+
+        require(depositSuccess, "error when depositing gas credits");
+    }
 }
 
+
 ///@notice wrapper around the OrderBook contract to expose internal functions for testing
-contract OrderBookWrapper is OrderBook {
+contract LimitOrderRouterWrapper is LimitOrderRouter {
     constructor(
         address _gasOracle,
         address _limitOrderExecutor,
@@ -1045,7 +1059,7 @@ contract OrderBookWrapper is OrderBook {
         address _usdc,
         uint256 _limitOrderExecutionGasCost,
         uint256 _sandboxLimitOrderExecutionGasCost
-    ) OrderBook(_gasOracle, _limitOrderExecutor, _weth, _usdc, _limitOrderExecutionGasCost, _sandboxLimitOrderExecutionGasCost) {}
+    ) LimitOrderRouter(_gasOracle, _limitOrderExecutor, _weth, _usdc, _limitOrderExecutionGasCost, _sandboxLimitOrderExecutionGasCost) {}
     function _getLimitOrderById(bytes32 orderId) public view returns(OrderBook.LimitOrder memory){
         return getLimitOrderById(orderId);
     }

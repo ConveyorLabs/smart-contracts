@@ -282,6 +282,7 @@ contract LimitOrderRouter is OrderBook {
         );
 
         address[] memory orderOwners = new address[](orderIds.length);
+
         uint256[] memory initialTokenInBalances = new uint256[](
             orderIds.length
         );
@@ -289,46 +290,50 @@ contract LimitOrderRouter is OrderBook {
             orderIds.length
         );
 
-        ///@notice Transfer the tokens from the order owners to the sandbox router contract.
-        ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
-        for (uint256 i = 0; i < orderIds.length; ++i) {
-            ///@notice Get the current order
-            SandboxLimitOrder memory currentOrder = orderIdToSandboxLimitOrder[
-                orderIds[i]
-            ];
+        {
+            ///@notice Transfer the tokens from the order owners to the sandbox router contract.
+            ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
+            for (uint256 i = 0; i < orderIds.length; ++i) {
+                ///@notice Get the current order
+                SandboxLimitOrder
+                    memory currentOrder = orderIdToSandboxLimitOrder[
+                        orderIds[i]
+                    ];
 
-            if (currentOrder.orderId == bytes32(0)) {
-                revert OrderDoesNotExist(orderIds[i]);
+                orderOwners[i] = currentOrder.owner;
+
+                if (currentOrder.orderId == bytes32(0)) {
+                    revert OrderDoesNotExist(orderIds[i]);
+                }
+
+                sandboxLimitOrders[i] = currentOrder;
+
+                ///@notice Cache amountSpecifiedToFill for intermediate calculations
+                uint128 amountSpecifiedToFill = fillAmounts[i];
+                ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
+                if (amountSpecifiedToFill > currentOrder.amountInRemaining) {
+                    revert FillAmountSpecifiedGreaterThanAmountRemaining(
+                        amountSpecifiedToFill,
+                        currentOrder.amountInRemaining,
+                        currentOrder.orderId
+                    );
+                }
+
+                ///@notice Cache the the pre execution state of the order details
+                initialTokenInBalances[i] = IERC20(currentOrder.tokenIn)
+                    .balanceOf(currentOrder.owner);
+
+                initialTokenOutBalances[i] = IERC20(currentOrder.tokenOut)
+                    .balanceOf(currentOrder.owner);
             }
 
-            sandboxLimitOrders[i] = currentOrder;
-
-            ///@notice Cache amountSpecifiedToFill for intermediate calculations
-            uint128 amountSpecifiedToFill = fillAmounts[i];
-            ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
-            if (amountSpecifiedToFill > currentOrder.amountInRemaining) {
-                revert FillAmountSpecifiedGreaterThanAmountRemaining(
-                    amountSpecifiedToFill,
-                    currentOrder.amountInRemaining,
-                    currentOrder.orderId
-                );
-            }
-
-            ///@notice Cache the the pre execution state of the order details
-            initialTokenInBalances[i] = IERC20(currentOrder.tokenIn).balanceOf(
-                currentOrder.owner
+            return (
+                sandboxLimitOrders,
+                orderOwners,
+                initialTokenInBalances,
+                initialTokenOutBalances
             );
-
-            initialTokenOutBalances[i] = IERC20(currentOrder.tokenOut)
-                .balanceOf(currentOrder.owner);
         }
-
-        return (
-            sandboxLimitOrders,
-            orderOwners,
-            initialTokenInBalances,
-            initialTokenOutBalances
-        );
     }
 
     function validateSandboxExecutionAndFillOrders(
