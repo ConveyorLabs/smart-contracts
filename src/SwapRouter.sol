@@ -317,7 +317,7 @@ contract SwapRouter is ConveyorTickMath {
 
         ///@notice if the amount recieved is less than the amount out min, revert
         if (amountReceived < _amountOutMin) {
-            revert InsufficientOutputAmount();
+            revert InsufficientOutputAmount(amountReceived, _amountOutMin);
         }
 
         return amountReceived;
@@ -471,7 +471,7 @@ contract SwapRouter is ConveyorTickMath {
 
         ///@notice Require the amountOut from the swap is greater than or equal to the amountOutMin.
         if (uniV3AmountOut < amountOutMin) {
-            revert InsufficientOutputAmount();
+            revert InsufficientOutputAmount(uniV3AmountOut, amountOutMin);
         }
 
         ///@notice Set amountIn to the amountInDelta depending on boolean zeroForOne.

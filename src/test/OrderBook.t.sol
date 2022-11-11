@@ -84,14 +84,18 @@ contract OrderBookTest is DSTest {
             _hexDems,
             _dexFactories,
             _isUniV2,
-            aggregatorV3Address
+            aggregatorV3Address,
+            300000,
+            250000
         );
 
         orderBook = new OrderBookWrapper(
             aggregatorV3Address,
             address(limitOrderExecutor),
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
+            300000,
+            250000
         );
     }
 
@@ -686,7 +690,8 @@ contract OrderBookTest is DSTest {
             50000000000,
             300000,
             address(this),
-            15000000000000000000000
+            15000000000000000000000,
+            1
         );
 
         assert(hasMinGasCredits);
@@ -714,7 +719,8 @@ contract OrderBookTest is DSTest {
             50000000000,
             300000,
             address(this),
-            15000000000
+            15000000000,
+            1
         );
 
         assert(hasMinGasCredits);
@@ -904,7 +910,8 @@ contract OrderBookTest is DSTest {
             1000000,
             300000,
             address(this),
-            100000000000000
+            100000000000000,
+            1
         );
         //Assert the order should have the minimum gas credit requirements
         assertTrue(hasMinGasCredits);
@@ -937,7 +944,8 @@ contract OrderBookTest is DSTest {
             50000000000,
             250000,
             address(this),
-            150
+            150,
+            1
         );
 
         assertTrue(hasMinGasCredits);
@@ -1034,8 +1042,10 @@ contract OrderBookWrapper is OrderBook {
         address _gasOracle,
         address _limitOrderExecutor,
         address _weth,
-        address _usdc
-    ) OrderBook(_gasOracle, _limitOrderExecutor, _weth, _usdc) {}
+        address _usdc,
+        uint256 _limitOrderExecutionGasCost,
+        uint256 _sandboxLimitOrderExecutionGasCost
+    ) OrderBook(_gasOracle, _limitOrderExecutor, _weth, _usdc, _limitOrderExecutionGasCost, _sandboxLimitOrderExecutionGasCost) {}
     function _getLimitOrderById(bytes32 orderId) public view returns(OrderBook.LimitOrder memory){
         return getLimitOrderById(orderId);
     }
@@ -1065,14 +1075,16 @@ contract OrderBookWrapper is OrderBook {
         uint256 gasPrice,
         uint256 executionCost,
         address userAddress,
-        uint256 gasCreditBalance
+        uint256 gasCreditBalance,
+        uint256 multiplier
     ) public view returns (bool) {
         return
             _hasMinGasCredits(
                 gasPrice,
                 executionCost,
                 userAddress,
-                gasCreditBalance
+                gasCreditBalance,
+                multiplier
             );
     }
 

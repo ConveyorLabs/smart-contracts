@@ -91,7 +91,9 @@ contract SandboxRouterTest is DSTest {
             _hexDems,
             _dexFactories,
             _isUniV2,
-            aggregatorV3Address
+            aggregatorV3Address,
+            300000,
+            250000
         );
 
         limitOrderRouter = ILimitOrderRouter(
@@ -218,7 +220,7 @@ contract SandboxRouterTest is DSTest {
         sandboxRouter.executeSandboxMulticall(multiCall);
     }
 
-    
+
 
     ///@notice Helper function to create call to compensate the fees during execution
     function feeCompensationCall(uint256 cumulativeFee) public view returns (SandboxRouter.Call memory){
@@ -255,8 +257,8 @@ contract SandboxRouterTest is DSTest {
     function newMockMulticall(bytes32[] memory orderId, uint128[] memory fillAmounts, address[] memory transferAddresses, SandboxRouter.Call[] memory _calls) public pure returns (SandboxRouter.SandboxMulticall memory) {
         return SandboxRouter.SandboxMulticall({
             orderIds:orderId,
-            fillAmount:fillAmounts,
-            transferAddress:transferAddresses,
+            fillAmounts:fillAmounts,
+            transferAddresses:transferAddresses,
             calls:_calls
         });
     }
@@ -336,7 +338,9 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
-        address _gasOracle
+        address _gasOracle,
+        uint256 _limitOrderExecutionGasCost,
+        uint256 _sandboxLimitOrderExecutionGasCost
     )
         LimitOrderExecutor(
             _weth,
@@ -345,7 +349,9 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
             _initBytecodes,
             _dexFactories,
             _isUniV2,
-            _gasOracle
+            _gasOracle,
+            _limitOrderExecutionGasCost,
+            _sandboxLimitOrderExecutionGasCost
         )
     {}
 

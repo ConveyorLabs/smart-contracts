@@ -48,6 +48,7 @@ error DuplicateOrderIdsInOrderGroup();
 error VerifierDilemmaGasPrice(uint256 txGasPrice, uint256 maxGasPrice);
 error InvalidCalldata();
 error InsufficientMsgValue();
+error UnauthorizedCaller();
 
 ///@notice Returns the index of the call that failed within the SandboxRouter.Call[] array
 error SandboxCallFailed(uint256 callIndex);
