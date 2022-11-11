@@ -745,7 +745,7 @@ contract LimitOrderRouter is OrderBook {
 
             ///@notice Check if the stoploss status is the same for the next order
             if (currentOrder.stoploss != nextOrder.stoploss) {
-                revert IncongruentStoplossStatus();
+                revert IncongruentStoplossStatusInOrderGroup();
             }
 
             ///@notice Check if the token out is the same for the next order
@@ -758,22 +758,22 @@ contract LimitOrderRouter is OrderBook {
 
             ///@notice Check if the buy status is the same for the next order
             if (currentOrder.buy != nextOrder.buy) {
-                revert IncongruentBuySellStatusInBatch();
+                revert IncongruentBuySellStatusInOrderGroup();
             }
 
             ///@notice Check if the tax status is the same for the next order
             if (currentOrder.taxed != nextOrder.taxed) {
-                revert IncongruentTaxedTokenInBatch();
+                revert IncongruentTaxedTokenInOrderGroup();
             }
 
             ///@notice Check if the fee in is the same for the next order
             if (currentOrder.feeIn != nextOrder.feeIn) {
-                revert IncongruentFeeInInBatch();
+                revert IncongruentFeeInInOrderGroup();
             }
 
             ///@notice Check if the fee out is the same for the next order
             if (currentOrder.feeOut != nextOrder.feeOut) {
-                revert IncongruentFeeOutInBatch();
+                revert IncongruentFeeOutInOrderGroup();
             }
         }
     }
@@ -805,7 +805,7 @@ contract LimitOrderRouter is OrderBook {
 
         uint256 gasPrice = getGasPrice();
         if (tx.gasprice > gasPrice) {
-            revert VerifierDilemmaGasPrice();
+            revert VerifierDilemmaGasPrice(tx.gasprice, gasPrice);
         }
 
         //Update the initial gas balance.
@@ -913,7 +913,7 @@ contract LimitOrderRouter is OrderBook {
     ///@notice Function to confirm ownership transfer of the contract.
     function confirmTransferOwnership() external {
         if (msg.sender != tempOwner) {
-            revert UnauthorizedCaller();
+            revert MsgSenderIsNotTempOwner();
         }
         owner = msg.sender;
         tempOwner = address(0);

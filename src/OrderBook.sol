@@ -609,7 +609,11 @@ contract OrderBook is GasOracle {
 
         ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
         if (totalApprovedQuantity < quantity) {
-            revert InsufficientAllowanceForOrderUpdate();
+            revert InsufficientAllowanceForOrderUpdate(
+                order.tokenIn,
+                totalApprovedQuantity,
+                quantity
+            );
         }
 
         ///@notice Update the order details stored in the system.
@@ -663,7 +667,11 @@ contract OrderBook is GasOracle {
 
         ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
         if (totalApprovedQuantity < amountInRemaining) {
-            revert InsufficientAllowanceForOrderUpdate();
+            revert InsufficientAllowanceForOrderUpdate(
+                order.tokenIn,
+                totalApprovedQuantity,
+                amountInRemaining
+            );
         }
 
         ///@notice Update the order details stored in the system.
@@ -843,7 +851,7 @@ contract OrderBook is GasOracle {
 
             ///@notice If the order has already been removed from the contract revert.
             if (order.orderId == bytes32(0)) {
-                revert DuplicateOrdersInExecution();
+                revert DuplicateOrderIdsInOrderGroup();
             }
             ///@notice Remove the order from the system
             delete orderIdToLimitOrder[orderId];
@@ -868,7 +876,7 @@ contract OrderBook is GasOracle {
 
             ///@notice If the order has already been removed from the contract revert.
             if (order.orderId == bytes32(0)) {
-                revert DuplicateOrdersInExecution();
+                revert DuplicateOrderIdsInOrderGroup();
             }
             ///@notice Remove the order from the system
             delete orderIdToSandboxLimitOrder[orderId];

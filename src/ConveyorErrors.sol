@@ -22,32 +22,33 @@ error InsufficientAllowanceForOrderPlacement(
     uint256 approvedQuantity,
     uint256 approvedQuantityNeeded
 );
-error InvalidBatchOrder();
-error IncongruentFeeInInBatch();
-error IncongruentFeeOutInBatch();
-error IncongruentTaxedTokenInBatch();
+error InsufficientAllowanceForOrderUpdate(
+    address token,
+    uint256 approvedQuantity,
+    uint256 approvedQuantityNeeded
+);
+error InvalidOrderGroupSequence();
+error IncongruentFeeInInOrderGroup();
+error IncongruentFeeOutInOrderGroup();
+error IncongruentTaxedTokenInOrderGroup();
+error IncongruentStoplossStatusInOrderGroup();
+error IncongruentBuySellStatusInOrderGroup();
 error NonEOAStoplossExecution();
-error IncongruentStoplossStatus();
-error IncongruentBuySellStatusInBatch();
-error WethWithdrawUnsuccessful();
 error MsgSenderIsNotTxOrigin();
 error MsgSenderIsNotLimitOrderRouter();
 error MsgSenderIsNotLimitOrderExecutor();
 error MsgSenderIsNotSandboxRouter();
 error MsgSenderIsNotOwner();
+error MsgSenderIsNotTempOwner();
 error Reentrancy();
 error ETHTransferFailed();
-error InvalidTokenPairIdenticalAddress();
-error InvalidTokenPair();
 error InvalidAddress();
-error UnauthorizedCaller();
 error UnauthorizedUniswapV3CallbackCaller();
-error InvalidOrderUpdate();
-error DuplicateOrdersInExecution();
-error VerifierDilemmaGasPrice();
+error DuplicateOrderIdsInOrderGroup();
+error VerifierDilemmaGasPrice(uint256 txGasPrice, uint256 maxGasPrice);
 error InvalidCalldata();
 error InsufficientMsgValue();
-error InsufficientAllowanceForOrderUpdate();
+
 error InsufficientLiquidityForDynamicFee();
 error SandboxCallFailed();
 error InvalidTransferAddressArray();
