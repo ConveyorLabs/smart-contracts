@@ -49,8 +49,8 @@ error VerifierDilemmaGasPrice(uint256 txGasPrice, uint256 maxGasPrice);
 error InvalidCalldata();
 error InsufficientMsgValue();
 
-error InsufficientLiquidityForDynamicFee();
-error SandboxCallFailed();
+///@notice Returns the index of the call that failed within the SandboxRouter.Call[] array
+error SandboxCallFailed(uint256 callIndex);
 error InvalidTransferAddressArray();
 error AddressIsZero();
 error IdenticalTokenAddresses();

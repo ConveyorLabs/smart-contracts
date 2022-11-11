@@ -71,7 +71,7 @@ contract SandboxRouter {
             (bool success, ) = sandBoxCall.target.call(sandBoxCall.callData);
 
             if (!success) {
-                revert SandboxCallFailed();
+                revert SandboxCallFailed(i);
             }
 
             unchecked {
