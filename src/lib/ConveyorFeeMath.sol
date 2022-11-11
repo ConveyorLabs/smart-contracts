@@ -60,5 +60,4 @@ library ConveyorFeeMath {
 
         return (conveyorReward, beaconReward);
     }
-
 }

@@ -14,8 +14,18 @@ import "./lib/ConveyorMath.sol";
 contract OrderBook is GasOracle {
     address immutable LIMIT_ORDER_EXECUTOR;
 
-    //TODO: Add a comment describing that gas credit buffer/one hundred achieves a markup on the gas credit price of 1.5
+    ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
+    ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
     uint256 constant GAS_CREDIT_BUFFER = 150;
+
+    ///@notice The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut
+    uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
+
+    ///@notice The execution cost of fufilling a SandboxLimitOrder with a standard ERC20 swap from tokenIn to tokenOut
+    uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
+
+    ///@notice Mapping to hold gas credit balances for accounts.
+    mapping(address => uint256) public gasCreditBalance;
 
     address immutable WETH;
     address immutable USDC;
@@ -26,7 +36,9 @@ contract OrderBook is GasOracle {
         address _gasOracle,
         address _limitOrderExecutor,
         address _weth,
-        address _usdc
+        address _usdc,
+        uint256 _limitOrderExecutionGasCost,
+        uint256 _sandboxLimitOrderExecutionGasCost
     ) GasOracle(_gasOracle) {
         require(
             _limitOrderExecutor != address(0),
@@ -35,6 +47,8 @@ contract OrderBook is GasOracle {
         WETH = _weth;
         USDC = _usdc;
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
+        LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
+        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
     }
 
     //----------------------Events------------------------------------//
@@ -57,6 +71,16 @@ contract OrderBook is GasOracle {
     to the orderIds param. 
      */
     event OrderFufilled(bytes32[] orderIds);
+
+    ///@notice Event that notifies off-chain executors when an order has been refreshed.
+    event OrderRefreshed(
+        bytes32 indexed orderId,
+        uint32 indexed lastRefreshTimestamp,
+        uint32 indexed expirationTimestamp
+    );
+
+    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
+    event GasCreditEvent(address indexed sender, uint256 indexed balance);
 
     //----------------------Structs------------------------------------//
 
@@ -201,9 +225,10 @@ contract OrderBook is GasOracle {
     /// @return orderIds - Returns a list of orderIds corresponding to the newly placed orders.
     function placeLimitOrder(LimitOrder[] calldata orderGroup)
         public
+        payable
         returns (bytes32[] memory)
     {
-        //TODO: decide if we should check for gas credits on order placement
+        checkSufficientGasCreditsForOrderPlacement(orderGroup.length);
 
         ///@notice Initialize a new list of bytes32 to store the newly created orderIds.
         bytes32[] memory orderIds = new bytes32[](orderGroup.length);
@@ -230,12 +255,19 @@ contract OrderBook is GasOracle {
 
             ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
             if (!(orderToken == newOrder.tokenIn)) {
-                revert IncongruentTokenInOrderGroup();
+                revert IncongruentInputTokenInOrderGroup(
+                    newOrder.tokenIn,
+                    orderToken
+                );
             }
 
             ///@notice If the msg.sender does not have a sufficent balance to cover the order, revert.
             if (tokenBalance < updatedTotalOrdersValue) {
-                revert InsufficientWalletBalance();
+                revert InsufficientWalletBalance(
+                    msg.sender,
+                    tokenBalance,
+                    updatedTotalOrdersValue
+                );
             }
 
             ///@notice Create a new orderId from the orderNonce and current block timestamp
@@ -296,7 +328,11 @@ contract OrderBook is GasOracle {
 
         ///@notice If the total approved quantity is less than the updatedTotalOrdersValue, revert.
         if (totalApprovedQuantity < updatedTotalOrdersValue) {
-            revert InsufficientAllowanceForOrderPlacement();
+            revert InsufficientAllowanceForOrderPlacement(
+                orderToken,
+                totalApprovedQuantity,
+                updatedTotalOrdersValue
+            );
         }
 
         ///@notice Emit an OrderPlaced event to notify the off-chain executors that a new order has been placed.
@@ -313,7 +349,7 @@ contract OrderBook is GasOracle {
         payable
         returns (bytes32[] memory)
     {
-        //TODO: decide if we should check for gas credits on order placement
+        checkSufficientGasCreditsForOrderPlacement(orderGroup.length);
 
         ///@notice Initialize a new list of bytes32 to store the newly created orderIds.
         bytes32[] memory orderIds = new bytes32[](orderGroup.length);
@@ -340,8 +376,6 @@ contract OrderBook is GasOracle {
 
             {
                 ///@notice Boolean indicating if user wants to cover the fee from the fee credit balance, or by calling placeOrder with payment.
-
-                //TODO: come back to this and review
 
                 ///@notice Calculate the spot price of the input token to WETH on Uni v2.
                 (SwapRouter.SpotReserve[] memory spRes,  ) = IOrderRouter(
@@ -396,12 +430,19 @@ contract OrderBook is GasOracle {
 
             ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
             if (!(orderToken == newOrder.tokenIn)) {
-                revert IncongruentTokenInOrderGroup();
+                revert IncongruentInputTokenInOrderGroup(
+                    newOrder.tokenIn,
+                    orderToken
+                );
             }
 
             ///@notice If the msg.sender does not have a sufficent balance to cover the order, revert.
             if (tokenBalance < updatedTotalOrdersValue) {
-                revert InsufficientWalletBalance();
+                revert InsufficientWalletBalance(
+                    msg.sender,
+                    tokenBalance,
+                    updatedTotalOrdersValue
+                );
             }
 
             ///@notice Create a new orderId from the orderNonce and current block timestamp
@@ -463,13 +504,49 @@ contract OrderBook is GasOracle {
 
         ///@notice If the total approved quantity is less than the updatedTotalOrdersValue, revert.
         if (totalApprovedQuantity < updatedTotalOrdersValue) {
-            revert InsufficientAllowanceForOrderPlacement();
+            revert InsufficientAllowanceForOrderPlacement(
+                orderToken,
+                totalApprovedQuantity,
+                updatedTotalOrdersValue
+            );
         }
 
         ///@notice Emit an OrderPlaced event to notify the off-chain executors that a new order has been placed.
         emit OrderPlaced(orderIds);
 
         return orderIds;
+    }
+
+    function checkSufficientGasCreditsForOrderPlacement(uint256 numberOfOrders)
+        internal
+    {
+        ///@notice Cache the gasPrice and the userGasCreditBalance
+        uint256 gasPrice = getGasPrice();
+        uint256 userGasCreditBalance = gasCreditBalance[msg.sender];
+
+        ///@notice Get the total amount of active orders for the userAddress
+        uint256 totalOrderCount = totalOrdersPerAddress[msg.sender];
+
+        ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
+        uint256 minimumGasCredits = (totalOrderCount + numberOfOrders) *
+            gasPrice *
+            LIMIT_ORDER_EXECUTION_GAS_COST *
+            GAS_CREDIT_BUFFER;
+
+        ///@notice If the gasCreditBalance + msg value does not cover the min gas credits, then revert
+        if (userGasCreditBalance + msg.value < minimumGasCredits) {
+            revert InsufficientGasCreditBalance(
+                msg.sender,
+                userGasCreditBalance + msg.value,
+                minimumGasCredits
+            );
+        }
+
+        if (msg.value != 0) {
+            ///@notice Update the account gas credit balance
+            gasCreditBalance[msg.sender] = userGasCreditBalance + msg.value;
+            emit GasCreditEvent(msg.sender, userGasCreditBalance + msg.value);
+        }
     }
 
     /**@notice Updates an existing order. If the order exists and all order criteria is met, the order at the specified orderId will
@@ -523,7 +600,11 @@ contract OrderBook is GasOracle {
 
         ///@notice If the wallet does not have a sufficient balance for the updated total orders value, revert.
         if (IERC20(order.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
-            revert InsufficientWalletBalance();
+            revert InsufficientWalletBalance(
+                msg.sender,
+                IERC20(order.tokenIn).balanceOf(msg.sender),
+                totalOrdersValue
+            );
         }
 
         ///@notice Update the total orders quantity
@@ -537,7 +618,11 @@ contract OrderBook is GasOracle {
 
         ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
         if (totalApprovedQuantity < quantity) {
-            revert InsufficientAllowanceForOrderUpdate();
+            revert InsufficientAllowanceForOrderUpdate(
+                order.tokenIn,
+                totalApprovedQuantity,
+                quantity
+            );
         }
 
         ///@notice Update the order details stored in the system.
@@ -573,7 +658,11 @@ contract OrderBook is GasOracle {
 
         ///@notice If the wallet does not have a sufficient balance for the updated total orders value, revert.
         if (IERC20(order.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
-            revert InsufficientWalletBalance();
+            revert InsufficientWalletBalance(
+                msg.sender,
+                IERC20(order.tokenIn).balanceOf(msg.sender),
+                totalOrdersValue
+            );
         }
 
         ///@notice Update the total orders quantity
@@ -587,7 +676,11 @@ contract OrderBook is GasOracle {
 
         ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
         if (totalApprovedQuantity < amountInRemaining) {
-            revert InsufficientAllowanceForOrderUpdate();
+            revert InsufficientAllowanceForOrderUpdate(
+                order.tokenIn,
+                totalApprovedQuantity,
+                amountInRemaining
+            );
         }
 
         ///@notice Update the order details stored in the system.
@@ -688,7 +781,10 @@ contract OrderBook is GasOracle {
         }
     }
 
-    ///TODO: need to update this
+    ///@notice Internal function to partially fill a sandbox limit order and update the remaining quantity.
+    ///@param amountInFilled - The amount in that was filled for the order.
+    ///@param amountOutFilled - The amount out that was filled for the order.
+    ///@param orderId - The orderId of the order that was filled.
     function _partialFillSandboxLimitOrder(
         uint128 amountInFilled,
         uint128 amountOutFilled,
@@ -764,7 +860,7 @@ contract OrderBook is GasOracle {
 
             ///@notice If the order has already been removed from the contract revert.
             if (order.orderId == bytes32(0)) {
-                revert DuplicateOrdersInExecution();
+                revert DuplicateOrderIdsInOrderGroup();
             }
             ///@notice Remove the order from the system
             delete orderIdToLimitOrder[orderId];
@@ -789,7 +885,7 @@ contract OrderBook is GasOracle {
 
             ///@notice If the order has already been removed from the contract revert.
             if (order.orderId == bytes32(0)) {
-                revert DuplicateOrdersInExecution();
+                revert DuplicateOrderIdsInOrderGroup();
             }
             ///@notice Remove the order from the system
             delete orderIdToSandboxLimitOrder[orderId];
@@ -863,33 +959,36 @@ contract OrderBook is GasOracle {
         uint256 totalOrderCount = totalOrdersPerAddress[userAddress];
 
         ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
-        uint256 minimumGasCredits = totalOrderCount *
-            gasPrice *
-            executionCost *
-            multiplier;
+        uint256 minimumGasCredits = totalOrderCount * gasPrice * executionCost;
+
+        if (multiplier != 1) {
+            minimumGasCredits = (minimumGasCredits * multiplier) / ONE_HUNDRED;
+        }
+
         ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
-        return (minimumGasCredits * GAS_CREDIT_BUFFER) / ONE_HUNDRED;
+        return minimumGasCredits;
     }
 
     /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders.
     /// @param gasPrice - The current gas price in gwei.
     /// @param executionCost - The cost of gas to exececute an order.
     /// @param userAddress - The account address that will be checked for minimum gas credits.
-    /// @param gasCreditBalance - The current gas credit balance of the userAddress.
+    /// @param userGasCreditBalance - The current gas credit balance of the userAddress.
     /// @return bool - Indicates whether the user has the minimum gas credit requirements.
     function _hasMinGasCredits(
         uint256 gasPrice,
         uint256 executionCost,
         address userAddress,
-        uint256 gasCreditBalance
+        uint256 userGasCreditBalance,
+        uint256 multipler
     ) internal view returns (bool) {
         return
-            gasCreditBalance >=
+            userGasCreditBalance >=
             _calculateMinGasCredits(
                 gasPrice,
                 executionCost,
                 userAddress,
-                GAS_CREDIT_BUFFER
+                multipler
             );
     }
 

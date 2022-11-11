@@ -7,6 +7,8 @@ library ConveyorMath {
     /// @notice maximum uint128 64.64 fixed point number
     uint128 private constant MAX_64x64 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
 
+    uint256 private constant MAX_UINT64 = 0xFFFFFFFFFFFFFFFF;
+
     /// @notice minimum int128 64.64 fixed point number
     int128 private constant MIN_64x64 = -0x80000000000000000000000000000000;
 
@@ -19,7 +21,7 @@ library ConveyorMath {
     /// @return unsigned 64.64 unsigned fixed point number
     function fromUInt256(uint256 x) internal pure returns (uint128) {
         unchecked {
-            require(x <= 0xFFFFFFFFFFFFFFFF);
+            require(x <= MAX_UINT64);
             return uint128(x << 64);
         }
     }

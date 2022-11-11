@@ -1,53 +1,56 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-//TODO: decide if we should add things like order ids and values into the errors
-error InsufficientGasCreditBalance();
-error InsufficientGasCreditBalanceForOrderExecution();
-error InsufficientWalletBalance();
+error InsufficientGasCreditBalance(
+    address account,
+    uint256 gasCreditBalance,
+    uint256 gasCreditBalanceNeeded
+);
+error InsufficientWalletBalance(
+    address account,
+    uint256 balance,
+    uint256 balanceNeeded
+);
 error OrderDoesNotExist(bytes32 orderId);
-error OrderHasInsufficientSlippage(bytes32 orderId);
-error SwapFailed(bytes32 orderId);
-error OrderDoesNotMeetExecutionPrice(bytes32 orderId);
-error TokenTransferFailed(bytes32 orderId);
-error IncongruentTokenInOrderGroup();
-error OrderNotRefreshable();
-error OrderHasReachedExpiration();
-error InsufficientOutputAmount();
-error InsufficientInputAmount();
+error IncongruentInputTokenInOrderGroup(address token, address expectedToken);
+error IncongruentOutputTokenInOrderGroup(address token, address expectedToken);
+error InsufficientOutputAmount(uint256 amountOut, uint256 expectedAmountOut);
+error InsufficientInputAmount(uint256 amountIn, uint256 expectedAmountIn);
 error InsufficientLiquidity();
-error InsufficientDepositAmount();
-error InsufficientAllowanceForOrderPlacement();
-error InvalidBatchOrder();
-error IncongruentInputTokenInBatch();
-error IncongruentOutputTokenInBatch();
-error IncongruentFeeInInBatch();
-error IncongruentFeeOutInBatch();
-error IncongruentTaxedTokenInBatch();
+error InsufficientAllowanceForOrderPlacement(
+    address token,
+    uint256 approvedQuantity,
+    uint256 approvedQuantityNeeded
+);
+error InsufficientAllowanceForOrderUpdate(
+    address token,
+    uint256 approvedQuantity,
+    uint256 approvedQuantityNeeded
+);
+error InvalidOrderGroupSequence();
+error IncongruentFeeInInOrderGroup();
+error IncongruentFeeOutInOrderGroup();
+error IncongruentTaxedTokenInOrderGroup();
+error IncongruentStoplossStatusInOrderGroup();
+error IncongruentBuySellStatusInOrderGroup();
 error NonEOAStoplossExecution();
-error IncongruentStoplossStatus();
-error IncongruentBuySellStatusInBatch();
-error WethWithdrawUnsuccessful();
 error MsgSenderIsNotTxOrigin();
 error MsgSenderIsNotLimitOrderRouter();
 error MsgSenderIsNotLimitOrderExecutor();
 error MsgSenderIsNotSandboxRouter();
 error MsgSenderIsNotOwner();
+error MsgSenderIsNotTempOwner();
 error Reentrancy();
 error ETHTransferFailed();
-error InvalidTokenPairIdenticalAddress();
-error InvalidTokenPair();
 error InvalidAddress();
-error UnauthorizedCaller();
 error UnauthorizedUniswapV3CallbackCaller();
-error InvalidOrderUpdate();
-error DuplicateOrdersInExecution();
-error VerifierDilemmaGasPrice();
+error DuplicateOrderIdsInOrderGroup();
+error VerifierDilemmaGasPrice(uint256 txGasPrice, uint256 maxGasPrice);
 error InvalidCalldata();
 error InsufficientMsgValue();
-error InsufficientAllowanceForOrderUpdate();
-error InsufficientLiquidityForDynamicFee();
-error SandboxCallFailed();
+
+///@notice Returns the index of the call that failed within the SandboxRouter.Call[] array
+error SandboxCallFailed(uint256 callIndex);
 error InvalidTransferAddressArray();
 error AddressIsZero();
 error IdenticalTokenAddresses();
