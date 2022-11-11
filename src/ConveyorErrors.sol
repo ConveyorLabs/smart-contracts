@@ -15,7 +15,8 @@ error InsufficientWalletBalance(
 
 error OrderDoesNotExist(bytes32 orderId);
 
-error IncongruentTokenInOrderGroup(address token, address expectedToken);
+error IncongruentInputTokenInOrderGroup(address token, address expectedToken);
+error IncongruentOutputTokenInOrderGroup(address token, address expectedToken);
 
 error InsufficientOutputAmount();
 error InsufficientInputAmount();
@@ -23,8 +24,6 @@ error InsufficientLiquidity();
 error InsufficientDepositAmount();
 error InsufficientAllowanceForOrderPlacement();
 error InvalidBatchOrder();
-error IncongruentInputTokenInBatch();
-error IncongruentOutputTokenInBatch();
 error IncongruentFeeInInBatch();
 error IncongruentFeeOutInBatch();
 error IncongruentTaxedTokenInBatch();

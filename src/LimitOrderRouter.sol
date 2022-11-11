@@ -737,7 +737,10 @@ contract LimitOrderRouter is OrderBook {
 
             ///@notice Check if the token in is the same for the next order
             if (currentOrder.tokenIn != nextOrder.tokenIn) {
-                revert IncongruentInputTokenInBatch();
+                revert IncongruentInputTokenInOrderGroup(
+                    nextOrder.tokenIn,
+                    currentOrder.tokenIn
+                );
             }
 
             ///@notice Check if the stoploss status is the same for the next order
@@ -747,7 +750,10 @@ contract LimitOrderRouter is OrderBook {
 
             ///@notice Check if the token out is the same for the next order
             if (currentOrder.tokenOut != nextOrder.tokenOut) {
-                revert IncongruentOutputTokenInBatch();
+                revert IncongruentOutputTokenInOrderGroup(
+                    nextOrder.tokenOut,
+                    currentOrder.tokenOut
+                );
             }
 
             ///@notice Check if the buy status is the same for the next order
