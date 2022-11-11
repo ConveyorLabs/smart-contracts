@@ -132,6 +132,7 @@ contract LimitOrderRouter is OrderBook {
     function getSandboxRouterAddress() external view returns (address) {
         return SANDBOX_ROUTER;
     }
+
     //------------Gas Credit Functions------------------------
 
     /// @notice Function to deposit gas credits.
@@ -275,26 +276,26 @@ contract LimitOrderRouter is OrderBook {
             uint256[] memory
         )
     {
-        uint256 orderIdsLength = orderIds.length;
-
         ///@notice Initialize arrays to hold post execution validation state.
         SandboxLimitOrder[] memory sandboxLimitOrders = new SandboxLimitOrder[](
-            orderIdsLength
+            orderIds.length
         );
-        address[] memory orderOwners = new address[](orderIdsLength);
-        uint256[] memory initialTokenInBalances = new uint256[](orderIdsLength);
+
+        address[] memory orderOwners = new address[](orderIds.length);
+        uint256[] memory initialTokenInBalances = new uint256[](
+            orderIds.length
+        );
         uint256[] memory initialTokenOutBalances = new uint256[](
-            orderIdsLength
+            orderIds.length
         );
 
         ///@notice Transfer the tokens from the order owners to the sandbox router contract.
         ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
-        for (uint256 i = 0; i < orderIdsLength; ++i) {
+        for (uint256 i = 0; i < orderIds.length; ++i) {
             ///@notice Get the current order
-            SandboxLimitOrder memory currentOrder = orderIdToSandboxLimitOrder[orderIds[i]];
-            console.log(currentOrder.amountInRemaining);
-
-            orderOwners[i] = currentOrder.owner;
+            SandboxLimitOrder memory currentOrder = orderIdToSandboxLimitOrder[
+                orderIds[i]
+            ];
 
             if (currentOrder.orderId == bytes32(0)) {
                 revert OrderDoesNotExist(orderIds[i]);
@@ -864,7 +865,7 @@ contract LimitOrderRouter is OrderBook {
         }
 
         ///@notice Get the array of order owners.
-        address[] memory orderOwners = getOrderOwners(orders);
+        address[] memory orderOwners = getLimitOrderOwners(orders);
 
         ///@notice Iterate through all orderIds in the batch and delete the orders from queue post execution.
         for (uint256 i = 0; i < orderIds.length; ) {
@@ -894,10 +895,27 @@ contract LimitOrderRouter is OrderBook {
         safeTransferETH(msg.sender, executionGasCompensation);
     }
 
-    ///@notice Function to return an array of order owners.
-    ///@param orders - Array of orders.
+    ///@notice Function to return an array of limit order owners.
+    ///@param orders - Array of LimitOrders.
     ///@return orderOwners - An array of order owners in the orders array.
-    function getOrderOwners(LimitOrder[] memory orders)
+    function getLimitOrderOwners(LimitOrder[] memory orders)
+        internal
+        pure
+        returns (address[] memory orderOwners)
+    {
+        orderOwners = new address[](orders.length);
+        for (uint256 i = 0; i < orders.length; ) {
+            orderOwners[i] = orders[i].owner;
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    ///@notice Function to return an array of sandbox limit order owners.
+    ///@param orders - Array of SandboxLimitOrders.
+    ///@return orderOwners - An array of order owners in the orders array.
+    function getSandboxLimitOrderOwners(SandboxLimitOrder[] memory orders)
         internal
         pure
         returns (address[] memory orderOwners)
