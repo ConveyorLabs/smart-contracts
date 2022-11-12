@@ -3,16 +3,26 @@ pragma solidity 0.8.16;
 
 import "../SandboxRouter.sol";
 import "../OrderBook.sol";
+
+
 interface ILimitOrderRouter {
-    function placeSandboxLimitOrder(OrderBook.SandboxLimitOrder[] calldata orderGroup)
-        external
-        payable
-        returns (bytes32[] memory);
+    error FillAmountSpecifiedGreaterThanAmountRemaining(
+        uint256 fillAmountSpecified,
+        uint256 amountInRemaining,
+        bytes32 orderId
+    );
+
+    function placeSandboxLimitOrder(
+        OrderBook.SandboxLimitOrder[] calldata orderGroup
+    ) external payable returns (bytes32[] memory);
+
     function getSandboxLimitOrderById(bytes32 orderId)
         external
         view
         returns (OrderBook.SandboxLimitOrder memory);
+
     function getSandboxRouterAddress() external view returns (address);
+
     function gasCreditBalance(address addr) external returns (uint256);
 
     function depositGasCredits() external payable returns (bool success);

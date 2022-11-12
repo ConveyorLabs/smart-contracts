@@ -20,6 +20,8 @@ import "../interfaces/ISandboxRouter.sol";
 interface CheatCodes {
     function prank(address) external;
 
+    function expectRevert(bytes memory) external;
+
     function deal(address who, uint256 amount) external;
 
     function expectEmit(
@@ -38,6 +40,7 @@ contract SandboxRouterTest is DSTest {
     LimitOrderQuoter limitOrderQuoter;
     ISandboxRouter sandboxRouter;
     ScriptRunner scriptRunner;
+    LimitOrderRouterWrapper limitOrderRouterWrapper;
 
     Swap swapHelper;
     Swap swapHelperUniV2;
@@ -104,6 +107,16 @@ contract SandboxRouterTest is DSTest {
             aggregatorV3Address,
             300000,
             SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST
+        );
+
+        //Wrapper contract to test internal functions
+        limitOrderRouterWrapper = new LimitOrderRouterWrapper(
+            aggregatorV3Address,
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
+            address(limitOrderExecutor),
+            300000,
+            250000
         );
 
         limitOrderRouter = ILimitOrderRouter(
@@ -554,8 +567,8 @@ contract SandboxRouterTest is DSTest {
             uint256 cumulativeFee = orders[0].fee;
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
             transferAddress[0] = daiWethV2;
-            
-            fillAmounts[0] = order.amountInRemaining+1; //Set fill amount to more than the amountInRemaining
+
+            fillAmounts[0] = order.amountInRemaining + 1; //Set fill amount to more than the amountInRemaining
             ///@notice Create a single v2 swap call for the multicall.
             calls[0] = newUniV2Call(daiWethV2, 0, 100, address(this));
             ///@notice Create a call to compensate the feeAmount
@@ -627,8 +640,8 @@ contract SandboxRouterTest is DSTest {
             uint256 cumulativeFee = orders[0].fee;
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
             transferAddress[0] = daiWethV2;
-            
-            fillAmounts[0] = order.amountInRemaining; 
+
+            fillAmounts[0] = order.amountInRemaining;
             ///@notice Create a single v2 swap call for the multicall.
             //AmountOutMin set to 1 which won't cover the amountOutRemaining
             calls[0] = newUniV2Call(daiWethV2, 0, 1, address(this));
@@ -696,16 +709,16 @@ contract SandboxRouterTest is DSTest {
             address daiWethV2 = 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11;
             ///@notice Place the Order.
             bytes32 orderId = placeMockOrder(order);
-            orderIds[0]=orderId;
-            orderIds[1]=orderId;
+            orderIds[0] = orderId;
+            orderIds[1] = orderId;
             ///@notice Grab the order fee
             orders[0] = limitOrderRouter.getSandboxLimitOrderById(orderIds[0]);
-            uint256 cumulativeFee = orders[0].fee*2;
+            uint256 cumulativeFee = orders[0].fee * 2;
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
             transferAddress[0] = address(daiWethV2);
             transferAddress[1] = address(daiWethV2);
-            fillAmounts[0] = 1; 
-            fillAmounts[1] = 100000000; 
+            fillAmounts[0] = 1;
+            fillAmounts[1] = 100000000;
 
             ///@notice Create a single v2 swap call for the multicall.
             //AmountOutMin set to 1 which won't cover the amountOutRemaining
@@ -727,9 +740,7 @@ contract SandboxRouterTest is DSTest {
         sandboxRouter.executeSandboxMulticall(multiCall);
     }
 
-    function testFailExecuteMulticallOrder_ConveyorFeesNotPaid()
-        public
-    {
+    function testFailExecuteMulticallOrder_ConveyorFeesNotPaid() public {
         ///@notice Deal funds to all of the necessary receivers
         cheatCodes.deal(address(this), type(uint128).max);
         cheatCodes.deal(address(swapHelper), type(uint256).max);
@@ -779,8 +790,8 @@ contract SandboxRouterTest is DSTest {
             uint256 cumulativeFee = 0; //Dont pay a fee should revert on ConveyorFeesNotPaid
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
             transferAddress[0] = daiWethV2;
-            
-            fillAmounts[0] = order.amountInRemaining; 
+
+            fillAmounts[0] = order.amountInRemaining;
             ///@notice Create a single v2 swap call for the multicall.
             //AmountOutMin set to 1 which won't cover the amountOutRemaining
             calls[0] = newUniV2Call(daiWethV2, 0, 1, address(this));
@@ -853,8 +864,8 @@ contract SandboxRouterTest is DSTest {
             uint256 cumulativeFee = orders[0].fee; //Dont pay a fee should revert on ConveyorFeesNotPaid
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
             transferAddress[0] = daiWethV2;
-            
-            fillAmounts[0] = order.amountInRemaining; 
+
+            fillAmounts[0] = order.amountInRemaining;
             ///@notice Create a single v2 swap call for the multicall.
             //AmountOutMin set to 1 which won't cover the amountOutRemaining
             calls[0] = newUniV2Call(daiWethV2, 0, 1, address(this));
@@ -878,6 +889,117 @@ contract SandboxRouterTest is DSTest {
     //================================================================
     //====== Sandbox Execution Unit Tests ~ LimitOrderRouter =========
     //================================================================
+
+    function testInitializeSandboxExecutionState(
+        uint128 wethQuantity,
+        uint128 daiQuantity,
+        uint128 fillAmountWeth,
+        uint128 fillAmountDai
+    ) public {
+        bool run;
+        assembly {
+            run := iszero(or(lt(wethQuantity, 1000000000000000), lt(daiQuantity, 1000000000000000)))
+        }
+        if (run) {
+            ///@notice Deal funds to all of the necessary receivers
+            cheatCodes.deal(address(this), type(uint128).max);
+            cheatCodes.deal(address(swapHelper), type(uint128).max);
+            ///@notice Deposit Gas Credits to cover order execution.
+            depositGasCreditsForMockOrders(type(uint128).max);
+            
+            ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
+            try swapHelper.swapEthForTokenWithUniV2(daiQuantity, DAI) returns (
+                uint256 amountOut
+            ) {
+                ///@notice Max approve the executor on the input token.
+                IERC20(DAI).approve(address(limitOrderExecutor), amountOut);
+                {
+                    cheatCodes.deal(address(this), wethQuantity);
+
+                    ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
+                    (bool depositSuccess, ) = address(WETH).call{
+                        value: wethQuantity
+                    }(abi.encodeWithSignature("deposit()"));
+                    require(depositSuccess, "Fudge");
+                    IERC20(WETH).approve(
+                        address(limitOrderExecutor),
+                        wethQuantity
+                    );
+                }
+                ///@notice Dai/Weth sell limit order
+                ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
+                OrderBook.SandboxLimitOrder
+                    memory orderWeth = newMockSandboxOrder(
+                        false,
+                        wethQuantity,
+                        1,
+                        WETH,
+                        DAI
+                    );
+                OrderBook.SandboxLimitOrder
+                    memory orderDai = newMockSandboxOrder(
+                        false,
+                        uint128(amountOut),
+                        daiQuantity - 10000,
+                        DAI,
+                        WETH
+                    );
+                bytes32[] memory orderIds = new bytes32[](2);
+
+                orderIds[0] = placeMockOrder(orderWeth);
+                orderIds[1] = placeMockOrder(orderDai);
+                uint128[] memory fillAmounts = new uint128[](2);
+                fillAmounts[0] = fillAmountWeth;
+                fillAmounts[1] = fillAmountDai;
+
+                bool expectRevert;
+                assembly {
+                    expectRevert := or(
+                        lt(amountOut, fillAmountDai),
+                        lt(wethQuantity, fillAmountWeth)
+                    )
+                }
+                {
+                    if (expectRevert) {
+                        cheatCodes.expectRevert(
+                            abi.encodeWithSelector(
+                                ILimitOrderRouter
+                                    .FillAmountSpecifiedGreaterThanAmountRemaining
+                                    .selector,
+                                1,
+                                2,
+                                3
+                            )
+                        );
+                        limitOrderRouterWrapper
+                            ._initializePreSandboxExecutionState(
+                                orderIds,
+                                fillAmounts
+                            );
+                    } else {
+                        (
+                            OrderBook.SandboxLimitOrder[]
+                                memory sandboxLimitOrders,
+                            ,
+                            uint256[] memory initialTokenInBalances,
+                            uint256[] memory initialTokenOutBalances
+                        ) = limitOrderRouterWrapper
+                                ._initializePreSandboxExecutionState(
+                                    orderIds,
+                                    fillAmounts
+                                );
+                        
+                        assertEq(initialTokenInBalances[0], wethQuantity);
+                        assertEq(initialTokenOutBalances[1], amountOut);
+                        assertEq(initialTokenOutBalances[0], amountOut);
+                        assertEq(initialTokenOutBalances[1], wethQuantity);
+                        assert(sandboxLimitOrders[0].orderId != bytes32(0));
+                        assert(sandboxLimitOrders[1].orderId != bytes32(0));
+                    }
+                }
+            } catch {}
+        }
+    }
 
     //================================================================
     //====== Sandbox Execution Unit Tests ~ LimitOrderExecutor =======
@@ -1519,5 +1641,63 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
                 _reciever,
                 _sender
             );
+    }
+}
+
+contract LimitOrderRouterWrapper is LimitOrderRouter {
+    LimitOrderRouter limitorderRouter;
+
+    constructor(
+        address _gasOracle,
+        address _weth,
+        address _usdc,
+        address _limitOrderExecutor,
+        uint256 _limitOrderExecutionGasCost,
+        uint256 _sandboxLimitOrderExecutionGasCost
+    )
+        LimitOrderRouter(
+            _gasOracle,
+            _weth,
+            _usdc,
+            _limitOrderExecutor,
+            _limitOrderExecutionGasCost,
+            _sandboxLimitOrderExecutionGasCost
+        )
+    {}
+
+    function invokeOnlyEOA() public onlyEOA {}
+
+    function validateOrderSequencing(LimitOrder[] memory orders) public pure {
+        _validateOrderSequencing(orders);
+    }
+
+    function _initializePreSandboxExecutionState(
+        bytes32[] calldata orderIds,
+        uint128[] calldata fillAmounts
+    )
+        public
+        view
+        returns (
+            SandboxLimitOrder[] memory,
+            address[] memory,
+            uint256[] memory,
+            uint256[] memory
+        )
+    {
+        return initializePreSandboxExecutionState(orderIds, fillAmounts);
+    }
+
+    function _validateSandboxExecutionAndFillOrders(
+        SandboxLimitOrder[] memory sandboxLimitOrders,
+        uint128[] memory fillAmounts,
+        uint256[] memory initialTokenInBalances,
+        uint256[] memory initialTokenOutBalances
+    ) public {
+        validateSandboxExecutionAndFillOrders(
+            sandboxLimitOrders,
+            fillAmounts,
+            initialTokenInBalances,
+            initialTokenOutBalances
+        );
     }
 }
