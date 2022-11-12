@@ -2,13 +2,19 @@
 pragma solidity 0.8.16;
 
 import "../OrderBook.sol";
+import "../SandboxRouter.sol";
 
 interface ILimitOrderExecutor {
-    function executeTokenToWethOrders(OrderBook.Order[] memory orders, bool isStopLossExecution)
+    function executeTokenToWethOrders(OrderBook.LimitOrder[] memory orders)
         external
         returns (uint256, uint256);
 
-    function executeTokenToTokenOrders(OrderBook.Order[] memory orders, bool isStopLossExecution)
+    function executeTokenToTokenOrders(OrderBook.LimitOrder[] memory orders)
         external
         returns (uint256, uint256);
+
+    function executeSandboxLimitOrders(
+        OrderBook.SandboxLimitOrder[] memory orders,
+        SandboxRouter.SandboxMulticall calldata calls
+    ) external;
 }

@@ -4,17 +4,22 @@ pragma solidity 0.8.16;
 import "./SwapRouter.sol";
 import "./lib/ConveyorTickMath.sol";
 
+/// @title LimitOrderExecutor
+/// @author 0xOsiris, 0xKitsune
+/// @notice This contract handles all CFMM quoting logic.
 contract LimitOrderQuoter is ConveyorTickMath {
     address immutable WETH;
+    uint256 constant MAX_UINT256 = type(uint256).max;
+    uint256 constant ZERO = 0;
 
-    constructor(address _weth, address _quoterAddress) {
+    constructor(address _weth) {
         require(_weth != address(0), "Invalid weth address");
         WETH = _weth;
     }
 
     ///@notice Helper function to determine if a pool address is Uni V2 compatible.
     ///@param lp - Pair address.
-    ///@return bool Idicator whether the pool is not Uni V3 compatible.
+    ///@return bool Indicator whether the pool is not Uni V3 compatible.
     function _lpIsNotUniV3(address lp) internal returns (bool) {
         bool success;
         assembly {
@@ -49,7 +54,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ) external pure returns (uint256 bestPriceIndex) {
         ///@notice If the order is a buy order, set the initial best price at 0.
         if (buyOrder) {
-            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+            uint256 bestPrice = MAX_UINT256;
 
             ///@notice For each exectution price in the executionPrices array.
             for (uint256 i = 0; i < executionPrices.length; ) {
@@ -67,12 +72,12 @@ contract LimitOrderQuoter is ConveyorTickMath {
             }
         } else {
             ///@notice If the order is a sell order, set the initial best price at max uint256.
-            uint256 bestPrice = 0;
+            uint256 bestPrice = ZERO;
             for (uint256 i = 0; i < executionPrices.length; ) {
                 uint256 executionPrice = executionPrices[i].price;
 
                 ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
-                if (executionPrice > bestPrice && executionPrice != 0) {
+                if (executionPrice > bestPrice) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
                 }
@@ -92,9 +97,9 @@ contract LimitOrderQuoter is ConveyorTickMath {
         SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex) {
-        ///@notice If the order is a buy order, set the initial best price at 0.
+        ///@notice If the order is a buy order, set the initial best price at type(uint256).max.
         if (buyOrder) {
-            uint256 bestPrice = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+            uint256 bestPrice = MAX_UINT256;
             ///@notice For each exectution price in the executionPrices array.
             for (uint256 i = 0; i < executionPrices.length; ) {
                 uint256 executionPrice = executionPrices[i].price;
@@ -108,14 +113,18 @@ contract LimitOrderQuoter is ConveyorTickMath {
                 }
             }
         } else {
-            uint256 bestPrice = 0;
+            uint256 bestPrice = ZERO;
             ///@notice If the order is a sell order, set the initial best price at max uint256.
-            for (uint256 i = 0; i < executionPrices.length; i++) {
+            for (uint256 i = 0; i < executionPrices.length; ) {
                 uint256 executionPrice = executionPrices[i].price;
                 ///@notice If the execution price is better than the best exectuion price, update the bestPriceIndex.
-                if (executionPrice > bestPrice && executionPrice != 0) {
+                if (executionPrice > bestPrice) {
                     bestPrice = executionPrice;
                     bestPriceIndex = i;
+                }
+
+                unchecked {
+                    ++i;
                 }
             }
         }
@@ -222,48 +231,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
         return (executionPrices);
     }
 
-    ///@notice Function to retrieve the buy/sell status of a single order.
-    ///@param order Order to determine buy/sell status on.
-    ///@return bool Boolean indicating the buy/sell status of the order.
-    function _buyOrSell(OrderBook.Order memory order)
-        internal
-        pure
-        returns (bool)
-    {
-        if (order.buy) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    /// @notice Function to determine if an order meets the execution price.
-    ///@param orderPrice The Spot price for execution of the order.
-    ///@param executionPrice The current execution price of the best prices lp.
-    ///@param buyOrder The buy/sell status of the order.
-    function _orderMeetsExecutionPrice(
-        uint256 orderPrice,
-        uint256 executionPrice,
-        bool buyOrder
-    ) internal pure returns (bool) {
-        if (buyOrder) {
-            return executionPrice <= orderPrice;
-        } else {
-            return executionPrice >= orderPrice;
-        }
-    }
-
-    ///@notice Checks if order can complete without hitting slippage
-    ///@param spot_price The spot price of the liquidity pool.
-    ///@param order_quantity The input quantity of the order.
-    ///@param amountOutMin The slippage set by the order owner.
-    function _orderCanExecute(
-        uint256 spot_price,
-        uint256 order_quantity,
-        uint256 amountOutMin
-    ) internal pure returns (bool) {
-        return ConveyorMath.mul128I(spot_price, order_quantity) >= amountOutMin;
-    }
+    //TODO: Update to the new simulation function @leyton
 
     ///@notice Function to simulate the TokenToToken price change on a pair.
     ///@param alphaX - The input quantity to simulate the price change on.
@@ -272,7 +240,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
         uint128 alphaX,
         SwapRouter.TokenToTokenExecutionPrice memory executionPrice
     ) external returns (SwapRouter.TokenToTokenExecutionPrice memory) {
-        ///@notice Check if the reserves are set to 0. This indicated the tokenPair is Weth to TokenOut if true.
+        ///@notice Check if the reserves are set to 0. This indicates if the tokenPair is Weth to TokenOut if true.
         if (
             executionPrice.aToWethReserve0 != 0 &&
             executionPrice.aToWethReserve1 != 0
@@ -298,6 +266,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
             uint8 tokenInDecimals = token1 == WETH
                 ? IERC20(token0).decimals()
                 : IERC20(token1).decimals();
+
+            //TODO: @leyton check this out
 
             ///@notice Convert to 18 decimals to have correct price change on the reserve quantities in common 18 decimal form.
             uint128 amountIn = tokenInDecimals <= 18
@@ -506,7 +476,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
 
                 ///@notice Spot price = reserveB/reserveA
                 uint256 spotPrice = uint256(
-                    ConveyorMath.divUI(numerator, denominator)
+                    ConveyorMath.divUU(numerator, denominator)
                 ) << 64;
 
                 ///@notice Update update the new reserves array to the simulated reserve values.
@@ -550,7 +520,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
         uint256 reserveOut
     ) internal pure returns (uint256 amountOut) {
         if (amountIn == 0) {
-            revert InsufficientInputAmount();
+            revert InsufficientInputAmount(0, 1);
         }
 
         if (reserveIn == 0) {

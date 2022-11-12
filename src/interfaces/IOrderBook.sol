@@ -4,17 +4,18 @@ pragma solidity 0.8.16;
 import "../OrderBook.sol";
 
 interface IOrderBook {
-    ///@notice This function gets an order by the orderId. If the order does not exist, the order returned will be empty.
-    function getOrderById(bytes32 orderId)
-        external
-        view
-        returns (OrderBook.Order memory order);
-
-    function placeOrder(OrderBook.Order[] calldata orderGroup)
+    function placeLimitOrder(OrderBook.LimitOrder[] calldata orderGroup)
         external
         returns (bytes32[] memory);
 
-    function updateOrder(OrderBook.Order memory newOrder) external;
+    function placeSandboxLimitOrder(OrderBook.SandboxLimitOrder[] calldata orderGroup)
+        external
+        returns (bytes32[] memory);
+    function updateOrder(
+        bytes32 orderId,
+        uint128 price,
+        uint128 quantity
+    ) external;
 
     function cancelOrder(bytes32 orderId) external;
 
@@ -24,4 +25,16 @@ interface IOrderBook {
         external
         view
         returns (bytes32[][] memory);
+
+    function getGasPrice() external view returns (uint256);
+
+    function getLimitOrderById(bytes32 orderId)
+        external
+        view
+        returns (OrderBook.LimitOrder memory);
+
+    function getSandBoxOrderById(bytes32 orderId)
+        external
+        view
+        returns (OrderBook.SandboxLimitOrder memory);
 }
