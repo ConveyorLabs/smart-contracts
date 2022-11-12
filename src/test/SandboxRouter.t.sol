@@ -137,19 +137,23 @@ contract SandboxRouterTest is DSTest {
         require(depositSuccess, "Fudge");
         ///@notice Initialize Arrays for Multicall struct.
         bytes32[] memory orderIds = new bytes32[](1);
-        address[] memory transferAddress = new address[](1);
-        uint128[] memory fillAmounts = new uint128[](1);
-        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](2);
 
+        ///@notice Create a new SandboxMulticall
+        SandboxRouter.SandboxMulticall memory multiCall;
+
+        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](2);
+        OrderBook.SandboxLimitOrder[]
+            memory orders = new OrderBook.SandboxLimitOrder[](1);
         {
+            address[] memory transferAddress = new address[](1);
+            uint128[] memory fillAmounts = new uint128[](1);
             ///NOTE: Token0 = DAI & Token1 = WETH
             address daiWethV2 = 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11;
             ///@notice Place the Order.
             orderIds[0] = placeMockOrder(order);
             ///@notice Grab the order fee
-            uint256 cumulativeFee = limitOrderRouter
-                .getSandboxLimitOrderById(orderIds[0])
-                .fee;
+            orders[0] = limitOrderRouter.getSandboxLimitOrderById(orderIds[0]);
+            uint256 cumulativeFee = orders[0].fee;
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
             transferAddress[0] = daiWethV2;
             ///@notice Set the fill amount to the total amountIn on the order i.e. 1000 DAI.
@@ -158,21 +162,50 @@ contract SandboxRouterTest is DSTest {
             calls[0] = newUniV2Call(daiWethV2, 0, 100, address(this));
             ///@notice Create a call to compensate the feeAmount
             calls[1] = feeCompensationCall(cumulativeFee);
+            multiCall = newMockMulticall(
+                orderIds,
+                fillAmounts,
+                transferAddress,
+                calls
+            );
         }
 
-        ///@notice Create a new SandboxMulticall
-        SandboxRouter.SandboxMulticall memory multiCall = newMockMulticall(
-            orderIds,
-            fillAmounts,
-            transferAddress,
-            calls
-        );
+        {
+            (
+                uint256[] memory tokenInBalances,
+                uint256[] memory tokenOutBalances,
+                uint256[] memory gasCreditBalances
+            ) = initializePreExecutionOwnerBalances(orderIds);
+            (
+                uint256 txOriginBalanceBefore,
+                uint256 gasCompensationUpperBound
+            ) = initializePreSandboxExecutionTxOriginGasCompensationState(
+                    orderIds,
+                    tx.origin
+                );
 
-        ///@notice Prank tx.origin to mock an external executor
-        cheatCodes.prank(tx.origin);
+            uint256 wethBalanceBefore = IERC20(WETH).balanceOf(
+                address(limitOrderExecutor)
+            );
+            ///@notice Prank tx.origin to mock an external executor
+            cheatCodes.prank(tx.origin);
 
-        ///@notice Execute the SandboxMulticall on the sandboxRouter
-        sandboxRouter.executeSandboxMulticall(multiCall);
+            ///@notice Execute the SandboxMulticall on the sandboxRouter
+            sandboxRouter.executeSandboxMulticall(multiCall);
+
+            validatePostSandboxExecutionGasCompensation(
+                txOriginBalanceBefore,
+                gasCompensationUpperBound,
+                gasCreditBalances
+            );
+            validatePostSandboxExecutionTokenBalancesAndOrderFillState(
+                tokenInBalances,
+                tokenOutBalances,
+                orders,
+                multiCall.fillAmounts
+            );
+            validatePostExecutionProtocolFees(wethBalanceBefore, orders);
+        }
     }
 
     ///@notice ExecuteMulticallOrder Sandbox Router test
@@ -250,7 +283,6 @@ contract SandboxRouterTest is DSTest {
         }
 
         {
-
             (
                 uint256[] memory tokenInBalances,
                 uint256[] memory tokenOutBalances,
@@ -259,7 +291,10 @@ contract SandboxRouterTest is DSTest {
             (
                 uint256 txOriginBalanceBefore,
                 uint256 gasCompensationUpperBound
-            ) = initializePreSandboxExecutionTxOriginGasCompensationState(orderIds, tx.origin);
+            ) = initializePreSandboxExecutionTxOriginGasCompensationState(
+                    orderIds,
+                    tx.origin
+                );
 
             uint256 wethBalanceBefore = IERC20(WETH).balanceOf(
                 address(limitOrderExecutor)
@@ -284,7 +319,7 @@ contract SandboxRouterTest is DSTest {
             validatePostExecutionProtocolFees(wethBalanceBefore, orders);
         }
     }
-    
+
     function initializePreExecutionOwnerBalances(bytes32[] memory orderIds)
         internal
         returns (
