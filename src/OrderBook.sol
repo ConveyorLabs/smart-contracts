@@ -7,7 +7,7 @@ import "./ConveyorErrors.sol";
 import "./interfaces/IOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
-
+import "./test/utils/Console.sol";
 /// @title OrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
@@ -382,58 +382,61 @@ contract OrderBook is GasOracle {
 
             ///@notice Increment the total value of orders by the quantity of the new order
             updatedTotalOrdersValue += newOrder.amountInRemaining;
-
+            uint256 relativeWethValue;
             {
                 ///@notice Boolean indicating if user wants to cover the fee from the fee credit balance, or by calling placeOrder with payment.
+                if (!(newOrder.tokenIn == WETH)) {
+                    ///@notice Calculate the spot price of the input token to WETH on Uni v2.
+                    (SwapRouter.SpotReserve[] memory spRes, ) = IOrderRouter(
+                        LIMIT_ORDER_EXECUTOR
+                    )._getAllPrices(newOrder.tokenIn, WETH, 500);
+                    uint256 tokenAWethSpotPrice;
+                    for (uint256 k = 0; k < spRes.length; ) {
+                        if (spRes[k].spotPrice != 0) {
+                            tokenAWethSpotPrice = spRes[k].spotPrice;
+                            break;
+                        }
 
-                ///@notice Calculate the spot price of the input token to WETH on Uni v2.
-                (SwapRouter.SpotReserve[] memory spRes, ) = IOrderRouter(
-                    LIMIT_ORDER_EXECUTOR
-                )._getAllPrices(newOrder.tokenIn, WETH, 500);
-                uint256 tokenAWethSpotPrice;
-                for (uint256 k = 0; k < spRes.length; ) {
-                    if (spRes[i].spotPrice != 0) {
-                        tokenAWethSpotPrice = spRes[i].spotPrice;
-                        break;
+                        unchecked {
+                            ++k;
+                        }
+                    }
+                    if (tokenAWethSpotPrice == 0) {
+                        revert InvalidInputTokenForOrderPlacement();
                     }
 
-                    unchecked {
-                        ++k;
+                    if (!(tokenAWethSpotPrice == 0)) {
+                        ///@notice Get the tokenIn decimals to normalize the relativeWethValue.
+                        uint8 tokenInDecimals = IERC20(newOrder.tokenIn)
+                            .decimals();
+                        ///@notice Multiply the amountIn*spotPrice to get the value of the input amount in weth.
+                        relativeWethValue = tokenInDecimals <= 18
+                            ? ConveyorMath.mul128U(
+                                tokenAWethSpotPrice,
+                                newOrder.amountInRemaining
+                            ) * 10**(18 - tokenInDecimals)
+                            : ConveyorMath.mul128U(
+                                tokenAWethSpotPrice,
+                                newOrder.amountInRemaining
+                            ) / 10**(tokenInDecimals - 18);
                     }
+                } else {
+                    relativeWethValue = newOrder.amountInRemaining;
                 }
+                ///@notice Set the minimum fee to the fee*wethValue*subsidy.
+                uint128 minFeeReceived = uint128(
+                    ConveyorMath.mul64U(
+                        IOrderRouter(LIMIT_ORDER_EXECUTOR)._calculateFee(
+                            uint128(relativeWethValue),
+                            USDC,
+                            WETH
+                        ),
+                        relativeWethValue
+                    )
+                );
+                ///@notice Set the Orders min fee to be received during execution.
+                newOrder.fee = minFeeReceived;
 
-                if (tokenAWethSpotPrice == 0) {
-                    revert InvalidInputTokenForOrderPlacement();
-                }
-
-                if (!(tokenAWethSpotPrice == 0)) {
-                    ///@notice Get the tokenIn decimals to normalize the relativeWethValue.
-                    uint8 tokenInDecimals = IERC20(newOrder.tokenIn).decimals();
-                    ///@notice Multiply the amountIn*spotPrice to get the value of the input amount in weth.
-                    uint256 relativeWethValue = tokenInDecimals <= 18
-                        ? ConveyorMath.mul128U(
-                            tokenAWethSpotPrice,
-                            newOrder.amountInRemaining
-                        ) * 10**(18 - tokenInDecimals)
-                        : ConveyorMath.mul128U(
-                            tokenAWethSpotPrice,
-                            newOrder.amountInRemaining
-                        ) / 10**(tokenInDecimals - 18);
-
-                    ///@notice Set the minimum fee to the fee*wethValue*subsidy.
-                    uint128 minFeeReceived = uint128(
-                        ConveyorMath.mul64U(
-                            IOrderRouter(LIMIT_ORDER_EXECUTOR)._calculateFee(
-                                uint128(relativeWethValue),
-                                USDC,
-                                WETH
-                            ),
-                            relativeWethValue
-                        )
-                    );
-                    ///@notice Set the Orders min fee to be received during execution.
-                    newOrder.fee = minFeeReceived;
-                }
             }
 
             ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
@@ -810,10 +813,10 @@ contract OrderBook is GasOracle {
         orderIdToSandboxLimitOrder[orderId].amountInRemaining =
             order.amountInRemaining -
             amountInFilled;
-
+        console.log(amountOutFilled);
         orderIdToSandboxLimitOrder[orderId].amountOutRemaining =
-            order.amountOutRemaining -
-            amountOutFilled;
+            order.amountOutRemaining -amountOutFilled
+            ;
     }
 
     ///@notice Function to remove an order from the system.
