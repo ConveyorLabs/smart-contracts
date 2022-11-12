@@ -4,13 +4,8 @@ pragma solidity 0.8.16;
 import "../SandboxRouter.sol";
 import "../OrderBook.sol";
 
-
 interface ILimitOrderRouter {
-    error FillAmountSpecifiedGreaterThanAmountRemaining(
-        uint256 fillAmountSpecified,
-        uint256 amountInRemaining,
-        bytes32 orderId
-    );
+    
 
     function placeSandboxLimitOrder(
         OrderBook.SandboxLimitOrder[] calldata orderGroup

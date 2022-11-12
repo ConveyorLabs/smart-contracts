@@ -32,6 +32,30 @@ interface CheatCodes {
     ) external;
 }
 
+interface Errors {
+    error FillAmountSpecifiedGreaterThanAmountRemaining(
+        uint256 fillAmountSpecified,
+        uint256 amountInRemaining,
+        bytes32 orderId
+    );
+    error SandboxFillAmountNotSatisfied(
+        bytes32 orderId,
+        uint256 amountFilled,
+        uint256 fillAmountRequired
+    );
+
+    error SandboxAmountOutRequiredNotSatisfied(
+        bytes32 orderId,
+        uint256 amountOut,
+        uint256 amountOutRequired
+    );
+    error ConveyorFeesNotPaid(
+        uint256 expectedFees,
+        uint256 feesPaid,
+        uint256 unpaidFeesRemaining
+    );
+}
+
 contract SandboxRouterTest is DSTest {
     //Initialize All contract and Interface instances
     ILimitOrderRouter limitOrderRouter;
@@ -898,19 +922,18 @@ contract SandboxRouterTest is DSTest {
     ) public {
         bool run;
         assembly {
-            run := iszero(and(
+            run := and(
                 and(
                     lt(1000000000000000, wethQuantity),
                     lt(1000000000000000, daiQuantity)
                 ),
                 and(
-                    lt(wethQuantity,100000000000000000000000),
-                    lt(daiQuantity,100000000000000000000000)
+                    lt(wethQuantity, 10000000000000000000000),
+                    lt(daiQuantity, 10000000000000000000000)
                 )
-            ))
-           
+            )
         }
-        if (!run) {
+        if (run) {
             ///@notice Deal funds to all of the necessary receivers
             cheatCodes.deal(address(this), type(uint128).max);
             cheatCodes.deal(address(swapHelper), type(uint128).max);
@@ -963,26 +986,30 @@ contract SandboxRouterTest is DSTest {
                     fillAmounts[0] = fillAmountWeth;
                     fillAmounts[1] = fillAmountDai;
                 }
-                
+
                 {
-                    if (fillAmountDai > amountOut || fillAmountWeth > wethQuantity) {
+                    if (
+                        fillAmountDai > amountOut ||
+                        fillAmountWeth > wethQuantity
+                    ) {
                         cheatCodes.expectRevert(
                             abi.encodeWithSelector(
-                                ILimitOrderRouter
+                                Errors
                                     .FillAmountSpecifiedGreaterThanAmountRemaining
                                     .selector,
                                 fillAmountWeth > wethQuantity
                                     ? fillAmountWeth
                                     : fillAmountDai,
-                                fillAmountWeth > wethQuantity ? wethQuantity : amountOut,
-                                fillAmountWeth > wethQuantity ? orderIds[0] : orderIds[1]
+                                fillAmountWeth > wethQuantity
+                                    ? wethQuantity
+                                    : amountOut,
+                                fillAmountWeth > wethQuantity
+                                    ? orderIds[0]
+                                    : orderIds[1]
                             )
                         );
-                        limitOrderRouterWrapper
-                            ._initializePreSandboxExecutionState(
-                                orderIds,
-                                fillAmounts
-                            );
+                        (bool reverted,)=address(limitOrderRouterWrapper).call(abi.encodeWithSignature("_initializePreSandboxExecutionState(bytes32[],uint128[])", orderIds, fillAmounts));
+                        assertTrue(reverted);
                     } else {
                         (
                             ,
@@ -999,17 +1026,211 @@ contract SandboxRouterTest is DSTest {
                         assertEq(initialTokenOutBalances[0], amountOut);
                         assertEq(initialTokenInBalances[1], amountOut);
                         assertEq(initialTokenOutBalances[1], wethQuantity);
-                        
                     }
                 }
             } catch {}
         }
     }
 
+    function testValidateSandboxExecutionAndFillOrders(
+        uint128 wethQuantity,
+        uint128 initialBalanceIn,
+        uint128 daiQuantity,
+        uint128 amountOutRemaining,
+        uint128 fillAmountWeth
+    ) public {
+        bool run;
+        {
+            assembly {
+                run := and(
+                    and(
+                        lt(1000000000000000, wethQuantity),
+                        lt(1000000000000000, daiQuantity)
+                    ),
+                    and(
+                        lt(wethQuantity, 10000000000000000000000),
+                        lt(daiQuantity, 10000000000000000000000)
+                    )
+                )
+            }
+        }
+        if (run) {
+            if (
+                fillAmountWeth <= wethQuantity &&
+                initialBalanceIn < wethQuantity
+            ) {
+                initializeTestBalanceState(wethQuantity);
+
+                uint256[] memory initialBalancesIn = new uint256[](1);
+                uint256[] memory initialBalancesOut = new uint256[](1);
+
+                {
+                    initialBalancesIn[0] = initialBalanceIn;
+                    initialBalancesOut[0] = 0;
+                }
+                ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
+                try
+                    swapHelper.swapEthForTokenWithUniV2(daiQuantity, DAI)
+                returns (uint256 amountOut) {
+                    {}
+                    OrderBook.SandboxLimitOrder[]
+                        memory orders = new OrderBook.SandboxLimitOrder[](1);
+
+                    uint128[] memory fillAmounts = new uint128[](2);
+
+                    {
+                        ///@notice Dai/Weth sell limit order
+                        ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
+                        orders[0] = newMockSandboxOrder(
+                            false,
+                            wethQuantity,
+                            amountOutRemaining,
+                            WETH,
+                            DAI
+                        );
+                        bytes32[] memory orderIds = new bytes32[](2);
+                        orderIds[0] = placeMockOrderWrapper(orders[0]);
+                        fillAmounts[0] = fillAmountWeth;
+                    }
+
+                    validateSandboxExecutionAndFillOrders(
+                        initialBalancesIn,
+                        initialBalancesOut,
+                        wethQuantity,
+                        orders,
+                        fillAmounts,
+                        amountOut
+                    );
+                } catch {}
+            }
+        }
+    }
+
+    function validateSandboxExecutionAndFillOrders(
+        uint256[] memory initialBalancesIn,
+        uint256[] memory initialBalancesOut,
+        uint256 wethQuantity,
+        OrderBook.SandboxLimitOrder[] memory orders,
+        uint128[] memory fillAmounts,
+        uint256 amountOut
+    ) internal {
+        if (
+            initialBalancesIn[0] - wethQuantity > fillAmounts[0] ||
+            amountOut < orders[0].amountOutRemaining
+        ) {
+            cheatCodes.expectRevert(
+                abi.encodeWithSelector(
+                    initialBalancesIn[0] - wethQuantity > fillAmounts[0]
+                        ? Errors
+                            .SandboxFillAmountNotSatisfied
+                            .selector
+                        : Errors
+                            .SandboxAmountOutRequiredNotSatisfied
+                            .selector,
+                    orders[0].orderId,
+                    initialBalancesIn[0] - wethQuantity > fillAmounts[0]
+                        ? initialBalancesIn[0] - wethQuantity
+                        : amountOut,
+                    initialBalancesIn[0] - wethQuantity > fillAmounts[0]
+                        ? fillAmounts[0]
+                        : ConveyorMath.mul64U(
+                            ConveyorMath.divUU(
+                                orders[0].amountOutRemaining,
+                                orders[0].amountInRemaining
+                            ),
+                            fillAmounts[0]
+                        )
+                )
+            );
+            (bool status, )=address(limitOrderRouterWrapper).call(abi.encodeWithSignature("_validateSandboxExecutionAndFillOrders(OrderBook.SandboxLimitOrder[],uint128[],uint256[],uint256[])", orders,fillAmounts,initialBalancesIn,initialBalancesOut));
+            assertTrue(status);
+        } else {
+            limitOrderRouterWrapper._validateSandboxExecutionAndFillOrders(
+                orders,
+                fillAmounts,
+                initialBalancesIn,
+                initialBalancesOut
+            );
+            {
+                OrderBook.SandboxLimitOrder
+                    memory postExecutionOrder = limitOrderRouterWrapper
+                        .getSandboxLimitOrderById(orders[0].orderId);
+                if (fillAmounts[0] == orders[0].amountInRemaining) {
+                    assert(postExecutionOrder.orderId == bytes32(0));
+                } else {
+                    assertEq(
+                        postExecutionOrder.amountInRemaining,
+                        orders[0].amountInRemaining - fillAmounts[0]
+                    );
+                    assertEq(
+                        postExecutionOrder.amountOutRemaining,
+                        ConveyorMath.mul64U(
+                            ConveyorMath.divUU(
+                                orders[0].amountOutRemaining,
+                                orders[0].amountInRemaining
+                            ),
+                            fillAmounts[0]
+                        )
+                    );
+                }
+            }
+        }
+    }
+
+    function initializeTestBalanceState(uint128 wethQuantity) internal {
+        ///@notice Deal funds to all of the necessary receivers
+        cheatCodes.deal(address(this), type(uint128).max);
+        cheatCodes.deal(address(swapHelper), type(uint128).max);
+        ///@notice Deposit Gas Credits to cover order execution.
+        depositGasCreditsForMockOrdersWrapper(type(uint128).max);
+        cheatCodes.deal(address(this), wethQuantity);
+
+        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
+        (bool depositSuccess, ) = address(WETH).call{value: wethQuantity}(
+            abi.encodeWithSignature("deposit()")
+        );
+        require(depositSuccess, "Fudge");
+        IERC20(WETH).approve(address(limitOrderExecutor), wethQuantity);
+    }
+
     //================================================================
     //====== Sandbox Execution Unit Tests ~ LimitOrderExecutor =======
     //================================================================
-    ///TODO:
+    function _requireConveyorFeeIsPaid(
+        uint128 contractBalancePreExecution,
+        uint128 expectedAccumulatedFees,
+        uint128 compensationAmount
+    ) public {
+        cheatCodes.deal(address(limitOrderExecutor), compensationAmount);
+        cheatCodes.prank(address(limitOrderExecutor));
+        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
+        (bool depositSuccess, ) = address(WETH).call{value: compensationAmount}(
+            abi.encodeWithSignature("deposit()")
+        );
+        require(depositSuccess, "Fudge");
+
+        if (
+            contractBalancePreExecution + expectedAccumulatedFees >
+            compensationAmount
+        ) {
+            cheatCodes.expectRevert(
+                abi.encodeWithSelector(
+                    Errors.ConveyorFeesNotPaid.selector,
+                    expectedAccumulatedFees,
+                    IERC20(WETH).balanceOf(address(limitOrderExecutor)) -
+                        contractBalancePreExecution,
+                    expectedAccumulatedFees -
+                        ((compensationAmount + contractBalancePreExecution) -
+                            contractBalancePreExecution)
+                )
+            );
+            (bool reverted, )=address(limitOrderExecutor).call(abi.encodeWithSignature("requireConveyorFeeIsPaid(uint256, uint256)", uint256(contractBalancePreExecution), uint256(expectedAccumulatedFees)));
+            contractBalancePreExecution + expectedAccumulatedFees >
+            compensationAmount ? assertTrue(reverted) : assertTrue(!reverted);
+        }
+        
+    }
+
     //================================================================
     //=========== Sandbox Execution State Assertion Helpers ==========
     //================================================================
@@ -1559,6 +1780,16 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         )
     {}
 
+    function requireConveyorFeeIsPaid(
+        uint256 contractBalancePreExecution,
+        uint256 expectedAccumulatedFees
+    ) public view {
+        _requireConveyorFeeIsPaid(
+            contractBalancePreExecution,
+            expectedAccumulatedFees
+        );
+    }
+
     function getV3PoolFee(address pairAddress)
         public
         view
@@ -1730,5 +1961,14 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
             initialTokenInBalances,
             initialTokenOutBalances
         );
+    }
+
+    function executeSandboxLimitOrders(
+        OrderBook.SandboxLimitOrder[] memory orders,
+        SandboxRouter.SandboxMulticall calldata sandboxMulticall,
+        address limitOrderExecutor
+    ) public {
+        ILimitOrderExecutor(address(limitOrderExecutor))
+            .executeSandboxLimitOrders(orders, sandboxMulticall);
     }
 }
