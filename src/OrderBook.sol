@@ -1063,14 +1063,12 @@ contract OrderBook is GasOracle {
                 ++cancelledOrderIdsIndex;
             }
         }
-        ///Reassign length of each array
-        uint256 pendingOrderIdsLength = pendingOrderIds.length;
-        uint256 fufilledOrderIdsLength = fufilledOrderIds.length;
-        uint256 cancelledOrderIdsLength = cancelledOrderIds.length;
+
+        //Reassign length of each array
         assembly {
-            mstore(pendingOrderIds, pendingOrderIdsLength)
-            mstore(fufilledOrderIds, fufilledOrderIdsLength)
-            mstore(cancelledOrderIds, cancelledOrderIdsLength)
+            mstore(pendingOrderIds, add(pendingOrderIdsIndex, 1))
+            mstore(fufilledOrderIds, add(fufilledOrderIdsIndex, 1))
+            mstore(cancelledOrderIds, add(cancelledOrderIdsIndex, 1))
         }
         orderIdsStatus[0] = pendingOrderIds;
         orderIdsStatus[1] = fufilledOrderIds;
