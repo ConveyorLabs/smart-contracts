@@ -7,11 +7,25 @@ import "../lib/AggregatorV3Interface.sol";
 /// @author 0xOsiris, 0xKitsune
 /// @notice This contract fetches the latest fast gas price from the Chainlink Gas Oracle
 contract GasOracle {
-    ///@notice The gasOracleAddress is the address of the Chainlink Gas Oracle.
-    address immutable gasOracleAddress;
     uint256 constant ONE_HUNDRED_TWENTY_FIVE = 125;
     uint256 constant ONE_HUNDRED = 100;
-
+     ///@notice Time horizon for arithmetic mean of has price.
+    uint256 constant timeHorizon = 86400;
+    
+    ///@notice The gasOracleAddress is the address of the Chainlink Gas Oracle.
+    address immutable gasOracleAddress;
+   
+    ///@notice Last timestamp that the getGasPrice() function was called.
+    uint256 lastGasOracleTimestamp;
+    ///@notice Mean of gas oracle prices across the time horizon
+    uint256 meanGasPrice;
+    
+    event MeanGasPriceUpdate(
+        uint256 timestamp,
+        uint256 gasPrice,
+        uint256 meanGasPrice
+    );
+    
     ///@notice Stale Price delay interval between blocks.
     constructor(address _gasOracleAddress) {
         require(_gasOracleAddress != address(0), "Invalid address");
@@ -19,9 +33,22 @@ contract GasOracle {
     }
 
     ///@notice Gets the latest gas price from the Chainlink data feed for the fast gas oracle
-    function getGasPrice() public view returns (uint256) {
+    function getGasPrice() public returns (uint256) {
         (, int256 answer, , , ) = IAggregatorV3(gasOracleAddress)
             .latestRoundData();
+
+        uint256 gasPrice = uint256(answer);
+
+        ///@notice update the meanGasPrice
+        uint256 newMeanGasPrice = (((meanGasPrice +
+            (((block.timestamp - lastGasOracleTimestamp) << 64) / timeHorizon) *
+            gasPrice)>>64) /
+            (1 +
+                ((((block.timestamp - lastGasOracleTimestamp) << 64) /
+                    timeHorizon)>>64)));
+
+        ///@notice Update the last gas timestamp
+        lastGasOracleTimestamp = block.timestamp;
 
         ///@notice
         /* The gas price is determined to be the oracleGasPrice * 1.25 since the Chainlink Gas Oracle can deviate up to 25% between updates
@@ -30,6 +57,7 @@ contract GasOracle {
          This allows for the off chain executor to always be incentivized to execute a transaction, regardless of how far the gasOracle deviates
          from the fair market price. 
         */
+
         uint256 adjustedGasPrice = (uint256(answer) * ONE_HUNDRED_TWENTY_FIVE) /
             ONE_HUNDRED;
 
