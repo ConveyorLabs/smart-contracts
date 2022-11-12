@@ -69,7 +69,7 @@ contract SandboxRouterTest is DSTest {
     bytes32[] _hexDems = [_uniswapV2HexDem, _uniswapV2HexDem];
     address[] _dexFactories = [_uniV2FactoryAddress, _uniV3FactoryAddress];
     bool[] _isUniV2 = [true, false];
-
+    uint256 SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = 250000;
     ///@notice Fast Gwei Aggregator V3 address
     address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
 
@@ -92,7 +92,7 @@ contract SandboxRouterTest is DSTest {
             _isUniV2,
             aggregatorV3Address,
             300000,
-            250000
+            SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST
         );
 
         limitOrderRouter = ILimitOrderRouter(
@@ -204,27 +204,30 @@ contract SandboxRouterTest is DSTest {
             DAI,
             WETH
         );
-
+        SandboxRouter.SandboxMulticall memory multiCall;
         ///@notice Initialize Arrays for Multicall struct.
         bytes32[] memory orderIds = new bytes32[](1);
-        address[] memory transferAddress = new address[](1);
-        uint128[] memory fillAmounts = new uint128[](1);
-        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](2);
-
+        OrderBook.SandboxLimitOrder[]
+            memory orders = new OrderBook.SandboxLimitOrder[](1);
         {
+            address[] memory transferAddress = new address[](1);
+            uint128[] memory fillAmounts = new uint128[](1);
+            SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](2);
+
             ///NOTE: Token0 = DAI & Token1 = WETH
             address daiWethV3 = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
             ///@notice Place the Order.
             orderIds[0] = placeMockOrder(order);
+
             ///@notice Grab the order fee
-            uint256 cumulativeFee = limitOrderRouter
-                .getSandboxLimitOrderById(orderIds[0])
-                .fee;
-            console.log(cumulativeFee);
+            orders[0] = limitOrderRouter.getSandboxLimitOrderById(orderIds[0]);
+            uint256 cumulativeFee = orders[0].fee;
+
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
             transferAddress[0] = address(sandboxRouter);
             ///@notice Set the fill amount to the total amountIn on the order i.e. 1000 DAI.
             fillAmounts[0] = order.amountInRemaining;
+
             ///@notice Create a single v2 swap call for the multicall.
             calls[0] = newUniV3Call(
                 daiWethV3,
@@ -236,21 +239,180 @@ contract SandboxRouterTest is DSTest {
             );
             ///@notice Create a call to compensate the feeAmount
             calls[1] = feeCompensationCall(cumulativeFee);
+
+            ///@notice Create a new SandboxMulticall
+            multiCall = newMockMulticall(
+                orderIds,
+                fillAmounts,
+                transferAddress,
+                calls
+            );
         }
 
-        ///@notice Create a new SandboxMulticall
-        SandboxRouter.SandboxMulticall memory multiCall = newMockMulticall(
-            orderIds,
-            fillAmounts,
-            transferAddress,
-            calls
-        );
+        {
 
-        ///@notice Prank tx.origin to mock an external executor
-        cheatCodes.prank(tx.origin);
+            (
+                uint256[] memory tokenInBalances,
+                uint256[] memory tokenOutBalances,
+                uint256[] memory gasCreditBalances
+            ) = initializePreExecutionOwnerBalances(orderIds);
+            (
+                uint256 txOriginBalanceBefore,
+                uint256 gasCompensationUpperBound
+            ) = initializePreSandboxExecutionTxOriginGasCompensationState(orderIds, tx.origin);
 
-        ///@notice Execute the SandboxMulticall on the sandboxRouter
-        sandboxRouter.executeSandboxMulticall(multiCall);
+            uint256 wethBalanceBefore = IERC20(WETH).balanceOf(
+                address(limitOrderExecutor)
+            );
+            ///@notice Prank tx.origin to mock an external executor
+            cheatCodes.prank(tx.origin);
+
+            ///@notice Execute the SandboxMulticall on the sandboxRouter
+            sandboxRouter.executeSandboxMulticall(multiCall);
+
+            validatePostSandboxExecutionGasCompensation(
+                txOriginBalanceBefore,
+                gasCompensationUpperBound,
+                gasCreditBalances
+            );
+            validatePostSandboxExecutionTokenBalancesAndOrderFillState(
+                tokenInBalances,
+                tokenOutBalances,
+                orders,
+                multiCall.fillAmounts
+            );
+            validatePostExecutionProtocolFees(wethBalanceBefore, orders);
+        }
+    }
+    
+    function initializePreExecutionOwnerBalances(bytes32[] memory orderIds)
+        internal
+        returns (
+            uint256[] memory,
+            uint256[] memory,
+            uint256[] memory
+        )
+    {
+        uint256[] memory tokenInBalances = new uint256[](orderIds.length);
+        uint256[] memory tokenOutBalances = new uint256[](orderIds.length);
+        uint256[] memory gasCreditBalances = new uint256[](orderIds.length);
+        for (uint256 i = 0; i < orderIds.length; ++i) {
+            OrderBook.SandboxLimitOrder memory order = limitOrderRouter
+                .getSandboxLimitOrderById(orderIds[i]);
+
+            tokenInBalances[i] = IERC20(order.tokenIn).balanceOf(order.owner);
+            tokenOutBalances[i] = IERC20(order.tokenOut).balanceOf(order.owner);
+            gasCreditBalances[i] = limitOrderRouter.gasCreditBalance(
+                order.owner
+            );
+        }
+        return (tokenInBalances, tokenOutBalances, gasCreditBalances);
+    }
+
+    function initializePreSandboxExecutionTxOriginGasCompensationState(
+        bytes32[] memory orderIds,
+        address txOrigin
+    )
+        internal
+        view
+        returns (
+            uint256 txOriginBalanceBefore,
+            uint256 gasCompensationUpperBound
+        )
+    {
+        gasCompensationUpperBound =
+            limitOrderRouter.getGasPrice() *
+            orderIds.length *
+            SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
+        txOriginBalanceBefore = address(txOrigin).balance;
+        for (uint256 i = 0; i < orderIds.length; ++i) {
+            OrderBook.SandboxLimitOrder memory order = limitOrderRouter
+                .getSandboxLimitOrderById(orderIds[i]);
+
+            assert(order.orderId != bytes32(0));
+        }
+    }
+
+    function validatePostSandboxExecutionGasCompensation(
+        uint256 txOriginBalanceBefore,
+        uint256 gasCompensationUpperBound,
+        uint256[] memory gasCreditBalancesBefore
+    ) internal {
+        ///@notice The ETH balance of tx.origin - txOriginBalanceBefore is the total amount of gas credits compensated to the beacon for execution.
+        uint256 totalGasCompensated = address(tx.origin).balance -
+            txOriginBalanceBefore;
+        uint256 cumulativeGasCreditDecrementValue = 0;
+
+        uint256 gasCreditsPaid = gasCreditBalancesBefore[0] -
+            limitOrderRouter.gasCreditBalance(address(this));
+        cumulativeGasCreditDecrementValue += gasCreditsPaid;
+
+        ///@notice Ensure only the users gas credits was sent to the beacon
+        assertEq(totalGasCompensated, cumulativeGasCreditDecrementValue);
+        ///@notice Ensure the totalGasCompensation didn't exceed the upper bound.
+        assertLe(totalGasCompensated, gasCompensationUpperBound);
+    }
+
+    function validatePostSandboxExecutionTokenBalancesAndOrderFillState(
+        uint256[] memory tokenInBalances,
+        uint256[] memory tokenOutBalances,
+        OrderBook.SandboxLimitOrder[] memory orders,
+        uint128[] memory fillAmounts
+    ) internal {
+        for (uint256 i = 0; i < orders.length; ++i) {
+            OrderBook.SandboxLimitOrder
+                memory postExecutionOrder = limitOrderRouter
+                    .getSandboxLimitOrderById(orders[i].orderId);
+            uint256 tokenInBalancePostExecution = IERC20(orders[i].tokenIn)
+                .balanceOf(address(this));
+            uint256 tokenOutBalancePostExecution = IERC20(orders[i].tokenOut)
+                .balanceOf(orders[i].owner);
+            uint256 amountExpectedTokenOutFilled = ConveyorMath.mul64U(
+                ConveyorMath.divUU(
+                    orders[i].amountOutRemaining,
+                    orders[i].amountInRemaining
+                ),
+                fillAmounts[i]
+            );
+
+            assertEq(
+                tokenInBalances[i] - tokenInBalancePostExecution,
+                fillAmounts[i]
+            );
+            assertGe(
+                tokenOutBalancePostExecution - tokenOutBalances[i],
+                amountExpectedTokenOutFilled
+            );
+            ///@notice Partial Fill assertions
+            if (!(fillAmounts[i] == orders[i].amountInRemaining)) {
+                assertEq(
+                    postExecutionOrder.amountInRemaining,
+                    orders[i].amountInRemaining - fillAmounts[i]
+                );
+                assertEq(
+                    postExecutionOrder.amountOutRemaining,
+                    orders[i].amountOutRemaining -
+                        (tokenOutBalancePostExecution - tokenOutBalances[i])
+                );
+            } else {
+                ///@notice If the fill amount is the order quantity the order should have been cleaned
+                assert(postExecutionOrder.orderId == bytes32(0));
+            }
+        }
+    }
+
+    function validatePostExecutionProtocolFees(
+        uint256 wethBalanceBefore,
+        OrderBook.SandboxLimitOrder[] memory orders
+    ) internal {
+        uint256 totalOrderFees = 0;
+        for (uint256 i = 0; i < orders.length; ++i) {
+            totalOrderFees += orders[i].fee;
+        }
+        uint256 feesCompensated = IERC20(WETH).balanceOf(
+            address(limitOrderExecutor)
+        ) - wethBalanceBefore;
+        assertEq(feesCompensated, totalOrderFees);
     }
 
     ///@notice Helper function to create call to compensate the fees during execution
