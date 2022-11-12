@@ -105,8 +105,7 @@ contract LimitOrderQuoterTest is DSTest {
         swapHelperUniV2 = new Swap(uniV2Addr, WETH);
 
         limitOrderQuoter = new ExecutionWrapper(
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
         iQuoter = IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
     }
@@ -409,9 +408,7 @@ contract LimitOrderQuoterTest is DSTest {
 }
 
 contract ExecutionWrapper is LimitOrderQuoter {
-    constructor(address _weth, address _quoterAddress)
-        LimitOrderQuoter(_weth, _quoterAddress)
-    {}
+    constructor(address _weth) LimitOrderQuoter(_weth) {}
 
     function simulateAToBPriceChange(
         uint128 alphaX,

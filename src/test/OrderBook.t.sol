@@ -32,7 +32,7 @@ contract OrderBookTest is DSTest {
     LimitOrderQuoter limitOrderQuoter;
     Swap swapHelper;
 
-    OrderBookWrapper orderBook;
+    LimitOrderRouterWrapper orderBook;
 
     event OrderPlaced(bytes32[] orderIds);
     event OrderCancelled(bytes32[] orderIds);
@@ -74,8 +74,7 @@ contract OrderBookTest is DSTest {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         limitOrderQuoter = new LimitOrderQuoter(
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
 
         limitOrderExecutor = new LimitOrderExecutor(
@@ -85,15 +84,22 @@ contract OrderBookTest is DSTest {
             _hexDems,
             _dexFactories,
             _isUniV2,
-            aggregatorV3Address
+            aggregatorV3Address,
+            300000,
+            250000
         );
 
-        orderBook = new OrderBookWrapper(
+        //Wrapper contract to test internal functions
+        orderBook = new LimitOrderRouterWrapper(
             aggregatorV3Address,
-            address(limitOrderExecutor),
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
+            address(limitOrderExecutor),
+            300000,
+            250000
         );
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
     }
 
     ///@notice Test get order by id
@@ -113,9 +119,9 @@ contract OrderBookTest is DSTest {
         //place a mock order
         bytes32 orderId = placeMockOrder(order);
 
-        OrderBook.LimitOrder memory returnedOrder = orderBook.getLimitOrderById(
-            orderId
-        );
+        OrderBook.LimitOrder memory returnedOrder = orderBook
+            ._getLimitOrderById(orderId);
+        (orderId);
 
         // assert that the two orders are the same
         assertEq(returnedOrder.tokenIn, order.tokenIn);
@@ -135,7 +141,6 @@ contract OrderBookTest is DSTest {
         OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
             swapToken,
             wnato,
-            false,
             5,
             5
         );
@@ -143,7 +148,7 @@ contract OrderBookTest is DSTest {
         bytes32 orderId = placeMockSandboxLimitOrder(order);
 
         OrderBook.SandboxLimitOrder memory returnedOrder = orderBook
-            .getSandboxLimitOrderById(orderId);
+            ._getSandboxLimitOrderById(orderId);
 
         // assert that the two orders are the same
         assertEq(returnedOrder.tokenIn, order.tokenIn);
@@ -166,11 +171,8 @@ contract OrderBookTest is DSTest {
         //place a mock order
         placeMockOrder(order);
 
-        orderBook.getLimitOrderById(bytes32(0));
+        orderBook._getLimitOrderById(bytes32(0));
     }
-
-    ///TODO: Fuzz test this
-    function testDepositFeeCredits() public {}
 
     ///@notice Test palce order fuzz test
     function testPlaceOrder(uint256 swapAmount, uint256 executionPrice) public {
@@ -231,7 +233,6 @@ contract OrderBookTest is DSTest {
                 OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
                     swapToken,
                     wnato,
-                    false,
                     uint112(amountOut),
                     uint112(amountOutRemaining)
                 );
@@ -263,77 +264,6 @@ contract OrderBookTest is DSTest {
         }
     }
 
-    ///@notice Test to ensure if fee balance is not sufficient and prePay == true, then Order Placement will revert.
-    function testFailPlaceSandboxLimitOrder_InsufficientFeeCreditBalanceForOrderExecution()
-        public
-    {
-        uint256 amountInRemaining = 100000000000000000;
-        uint256 amountOutRemaining = 100000000000000000;
-        cheatCodes.deal(address(this), MAX_UINT);
-        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
-        if (!(amountInRemaining < 10000000000)) {
-            //if the fuzzed amount is enough to complete the swap
-            try
-                swapHelper.swapEthForTokenWithUniV2(
-                    amountInRemaining,
-                    swapToken
-                )
-            returns (uint256 amountOut) {
-                OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
-                    swapToken,
-                    wnato,
-                    true,
-                    uint112(amountOut),
-                    uint112(amountOutRemaining)
-                );
-
-                //create a new array of orders
-                OrderBook.SandboxLimitOrder[]
-                    memory orderGroup = new OrderBook.SandboxLimitOrder[](1);
-                //add the order to the arrOrder and add the arrOrder to the orderGroup
-                orderGroup[0] = order;
-
-                //place order
-                bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
-                    orderGroup
-                );
-            } catch {}
-        }
-    }
-
-    ///@notice Test To assert failure on Same token pair being passed in SandboxOrder struct on placement.
-    function testFailPlaceSandboxLimitOrder_IncongruentTokenInOrderGroup()
-        public
-    {
-        uint256 amountInRemaining = 100000000000000000;
-        uint256 amountOutRemaining = 100000000000000000;
-        cheatCodes.deal(address(this), MAX_UINT);
-        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
-        //if the fuzzed amount is enough to complete the swap
-        try
-            swapHelper.swapEthForTokenWithUniV2(amountInRemaining, swapToken)
-        returns (uint256 amountOut) {
-            OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
-                swapToken,
-                swapToken, //Same in out token should throw reversion
-                true,
-                uint112(amountOut),
-                uint112(amountOutRemaining)
-            );
-
-            //create a new array of orders
-            OrderBook.SandboxLimitOrder[]
-                memory orderGroup = new OrderBook.SandboxLimitOrder[](1);
-            //add the order to the arrOrder and add the arrOrder to the orderGroup
-            orderGroup[0] = order;
-
-            //place order
-            bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
-                orderGroup
-            );
-        } catch {}
-    }
-
     ///TODO: Write a fuzz test for this
     function testFailPlaceSandboxLimitOrder_InsufficientWalletBalance(
         uint112 amountOutRemaining
@@ -347,7 +277,6 @@ contract OrderBookTest is DSTest {
         OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
             swapToken,
             wnato,
-            false,
             uint112(amountInRemaining),
             uint112(amountOutRemaining)
         );
@@ -359,10 +288,7 @@ contract OrderBookTest is DSTest {
         orderGroup[0] = order;
 
         //place order
-        bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
-            orderGroup
-        );
-        bytes32 orderId = orderIds[0];
+        orderBook.placeSandboxLimitOrder(orderGroup);
     }
 
     ///TODO: Write a fuzz test for this
@@ -380,7 +306,6 @@ contract OrderBookTest is DSTest {
             OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
                 swapToken,
                 swapToken, //Same in out token should throw reversion
-                true,
                 uint112(amountOut),
                 uint112(amountOutRemaining)
             );
@@ -392,14 +317,9 @@ contract OrderBookTest is DSTest {
             orderGroup[0] = order;
 
             //place order
-            bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
-                orderGroup
-            );
+            orderBook.placeSandboxLimitOrder(orderGroup);
         } catch {}
     }
-
-    ///TODO: Write a fuzz test for this
-    function testUpdateSandboxLimitOrder() public {}
 
     ///TODO: Write a fuzz test for this
     function testCancelSandboxLimitOrder(uint256 amountOutRemaining) public {
@@ -415,7 +335,6 @@ contract OrderBookTest is DSTest {
             OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
                 swapToken,
                 wnato,
-                false,
                 uint112(amountOut),
                 uint112(amountOutRemaining)
             );
@@ -585,40 +504,47 @@ contract OrderBookTest is DSTest {
         uint128 newPrice,
         uint64 newQuantity
     ) public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+        if (
+            !(price == 0 ||
+                quantity == 0 ||
+                amountOutMin == 0 ||
+                newPrice == 0 ||
+                newQuantity == 0)
+        ) {
+            cheatCodes.deal(address(this), MAX_UINT);
+            IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
+            cheatCodes.deal(address(swapHelper), MAX_UINT);
+            swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
 
-        //create a new order
-        OrderBook.LimitOrder memory order = newOrder(
-            swapToken,
-            wnato,
-            price,
-            quantity,
-            amountOutMin
-        );
+            //create a new order
+            OrderBook.LimitOrder memory order = newOrder(
+                swapToken,
+                wnato,
+                price,
+                quantity,
+                amountOutMin
+            );
 
-        //place a mock order
-        bytes32 orderId = placeMockOrder(order);
+            //place a mock order
+            bytes32 orderId = placeMockOrder(order);
 
-        //submit the updated order
-        orderBook.updateOrder(orderId, newPrice, newQuantity);
+            //submit the updated order
+            orderBook.updateOrder(orderId, newPrice, newQuantity);
 
-        OrderBook.LimitOrder memory updatedOrder = orderBook.getLimitOrderById(
-            orderId
-        );
+            OrderBook.LimitOrder memory updatedOrder = orderBook
+                ._getLimitOrderById(orderId);
 
-        //Cache the total orders value after the update
-        uint256 totalOrdersValueAfter = orderBook.getTotalOrdersValue(
-            swapToken
-        );
+            //Cache the total orders value after the update
+            uint256 totalOrdersValueAfter = orderBook.getTotalOrdersValue(
+                swapToken
+            );
 
-        //Make sure the order was updated properly
-        assertEq(newQuantity, totalOrdersValueAfter);
-        assertEq(newQuantity, updatedOrder.quantity);
-        assertEq(newPrice, updatedOrder.price);
+            //Make sure the order was updated properly
+            assertEq(newQuantity, totalOrdersValueAfter);
+            assertEq(newQuantity, updatedOrder.quantity);
+            assertEq(newPrice, updatedOrder.price);
+        }
     }
 
     ///@notice Test update sandbox order
@@ -635,7 +561,6 @@ contract OrderBookTest is DSTest {
         OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
             swapToken,
             wnato,
-            false,
             1000000000000000000,
             1000000000000000000
         );
@@ -647,7 +572,7 @@ contract OrderBookTest is DSTest {
         orderBook.updateOrder(orderId, price, newAmountInRemaining);
 
         OrderBook.SandboxLimitOrder memory updatedOrder = orderBook
-            .getSandboxLimitOrderById(orderId);
+            ._getSandboxLimitOrderById(orderId);
 
         //Cache the total orders value after the update
         uint256 totalOrdersValueAfter = orderBook.getTotalOrdersValue(
@@ -744,7 +669,8 @@ contract OrderBookTest is DSTest {
             50000000000,
             300000,
             address(this),
-            15000000000000000000000
+            15000000000000000000000,
+            1
         );
 
         assert(hasMinGasCredits);
@@ -772,7 +698,8 @@ contract OrderBookTest is DSTest {
             50000000000,
             300000,
             address(this),
-            15000000000
+            15000000000,
+            1
         );
 
         assert(hasMinGasCredits);
@@ -962,7 +889,8 @@ contract OrderBookTest is DSTest {
             1000000,
             300000,
             address(this),
-            100000000000000
+            100000000000000,
+            1
         );
         //Assert the order should have the minimum gas credit requirements
         assertTrue(hasMinGasCredits);
@@ -995,7 +923,8 @@ contract OrderBookTest is DSTest {
             50000000000,
             250000,
             address(this),
-            150
+            150,
+            1
         );
 
         assertTrue(hasMinGasCredits);
@@ -1033,14 +962,12 @@ contract OrderBookTest is DSTest {
     function newSandboxLimitOrder(
         address tokenIn,
         address tokenOut,
-        bool prePaid,
         uint128 amountInRemaining,
         uint128 amountOutRemaining
     ) internal view returns (OrderBook.SandboxLimitOrder memory order) {
         //Initialize mock order
         order = OrderBook.SandboxLimitOrder({
             buy: false,
-            prePayFee: prePaid,
             lastRefreshTimestamp: 0,
             expirationTimestamp: uint32(MAX_UINT),
             fee: 0,
@@ -1086,16 +1013,51 @@ contract OrderBookTest is DSTest {
 
         orderId = orderIds[0];
     }
+
+    function depositGasCreditsForMockOrders(uint256 _amount) public {
+        (bool depositSuccess, ) = address(orderBook).call{value: _amount}(
+            abi.encodeWithSignature("depositGasCredits()")
+        );
+
+        require(depositSuccess, "error when depositing gas credits");
+    }
 }
 
 ///@notice wrapper around the OrderBook contract to expose internal functions for testing
-contract OrderBookWrapper is OrderBook {
+contract LimitOrderRouterWrapper is LimitOrderRouter {
     constructor(
         address _gasOracle,
         address _limitOrderExecutor,
         address _weth,
-        address _usdc
-    ) OrderBook(_gasOracle, _limitOrderExecutor, _weth, _usdc) {}
+        address _usdc,
+        uint256 _limitOrderExecutionGasCost,
+        uint256 _sandboxLimitOrderExecutionGasCost
+    )
+        LimitOrderRouter(
+            _gasOracle,
+            _limitOrderExecutor,
+            _weth,
+            _usdc,
+            _limitOrderExecutionGasCost,
+            _sandboxLimitOrderExecutionGasCost
+        )
+    {}
+
+    function _getLimitOrderById(bytes32 orderId)
+        public
+        view
+        returns (OrderBook.LimitOrder memory)
+    {
+        return getLimitOrderById(orderId);
+    }
+
+    function _getSandboxLimitOrderById(bytes32 orderId)
+        public
+        view
+        returns (OrderBook.SandboxLimitOrder memory)
+    {
+        return getSandboxLimitOrderById(orderId);
+    }
 
     function calculateMinGasCredits(
         uint256 gasPrice,
@@ -1120,14 +1082,16 @@ contract OrderBookWrapper is OrderBook {
         uint256 gasPrice,
         uint256 executionCost,
         address userAddress,
-        uint256 gasCreditBalance
+        uint256 gasCreditBalance,
+        uint256 multiplier
     ) public view returns (bool) {
         return
             _hasMinGasCredits(
                 gasPrice,
                 executionCost,
                 userAddress,
-                gasCreditBalance
+                gasCreditBalance,
+                multiplier
             );
     }
 

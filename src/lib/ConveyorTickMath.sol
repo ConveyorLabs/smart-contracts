@@ -14,6 +14,7 @@ import "../../lib/libraries/Uniswap/LiquidityMath.sol";
 import "../../lib/libraries/Uniswap/Tick.sol";
 import "../../lib/libraries/Uniswap/SafeCast.sol";
 import "../../lib/interfaces/token/IERC20.sol";
+
 contract ConveyorTickMath {
     ///@notice Initialize all libraries. 
     using SafeCast for uint256;

@@ -6,13 +6,12 @@ import "./OrderBook.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "./SwapRouter.sol";
-
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./interfaces/ILimitOrderRouter.sol";
 
 /// @title LimitOrderRouter
-/// @author LeytonTaylor, 0xKitsune, Conveyor Labs
+/// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
 contract LimitOrderRouter is OrderBook {
     using SafeERC20 for IERC20;
@@ -38,7 +37,7 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice Modifier to restrict reentrancy into a function.
     modifier nonReentrant() {
-        if (reentrancyStatus == true) {
+        if (reentrancyStatus) {
             revert Reentrancy();
         }
         reentrancyStatus = true;
@@ -56,7 +55,7 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlySandboxRouter() {
-        if (msg.sender != LIMIT_ORDER_EXECUTOR) {
+        if (msg.sender != SANDBOX_ROUTER) {
             revert MsgSenderIsNotSandboxRouter();
         }
         _;
@@ -68,18 +67,16 @@ contract LimitOrderRouter is OrderBook {
     uint256 constant REFRESH_INTERVAL = 2592000;
 
     ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
+    ///@notice The refresh fee is 0.02 ETH
     uint256 constant REFRESH_FEE = 20000000000000000;
+
+    // ========================================= Immutables  =============================================
+    address public immutable SANDBOX_ROUTER;
 
     // ========================================= State Variables =============================================
 
     ///@notice Boolean responsible for indicating if a function has been entered when the nonReentrant modifier is used.
     bool reentrancyStatus = false;
-
-    ///@notice Mapping to hold gas credit balances for accounts.
-    mapping(address => uint256) public gasCreditBalance;
-
-    ///@notice The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
-    uint256 public constant ORDER_EXECUTION_GAS_COST = 300000;
 
     ///@notice State variable to track the amount of gas initally alloted during executeLimitOrders.
     uint256 initialTxGas;
@@ -91,48 +88,49 @@ contract LimitOrderRouter is OrderBook {
     ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
     address owner;
 
-    address public SANDBOX_ROUTER;
-
     // ========================================= Constructor =============================================
 
     ///@param _gasOracle - Address of the ChainLink fast gas oracle.
     ///@param _weth - Address of the wrapped native token for the chain.
-    ///@param _limitOrderExecutor - Address of the USD pegged token for the chain.
+    ///@param _usdc - Address of the USD pegged token for the chain.
+    ///@param _limitOrderExecutor - Address of the limit order executor contract
     constructor(
         address _gasOracle,
         address _weth,
         address _usdc,
-        address _limitOrderExecutor
-    ) OrderBook(_gasOracle, _limitOrderExecutor, _weth, _usdc) {
+        address _limitOrderExecutor,
+        uint256 _limitOrderExecutionGasCost,
+        uint256 _sandboxLimitOrderExecutionGasCost
+    )
+        OrderBook(
+            _gasOracle,
+            _limitOrderExecutor,
+            _weth,
+            _usdc,
+            _limitOrderExecutionGasCost,
+            _sandboxLimitOrderExecutionGasCost
+        )
+    {
+        ///@notice Require that deployment addresses are not zero
+        ///@dev All other addresses are being asserted in the limit order executor, which deploys the limit order router
         require(
             _limitOrderExecutor != address(0),
             "Invalid LimitOrderExecutor address"
         );
 
-        require(_weth != address(0), "Invalid weth address");
+        ///@notice Deploy the SandboxRouter and set the SANDBOX_ROUTER address
         SANDBOX_ROUTER = address(
             new SandboxRouter(address(_limitOrderExecutor), address(this))
         );
 
+        ///@notice Set the owner of the contract
         owner = msg.sender;
     }
 
-    // ========================================= Events  =============================================
-
-    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
-    event GasCreditEvent(address indexed sender, uint256 indexed balance);
-
-    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
-    event FeeCreditEvent(address indexed sender, uint256 indexed balance);
-
-    ///@notice Event that notifies off-chain executors when an order has been refreshed.
-    event OrderRefreshed(
-        bytes32 indexed orderId,
-        uint32 indexed lastRefreshTimestamp,
-        uint32 indexed expirationTimestamp
-    );
-
     // ========================================= FUNCTIONS =============================================
+    function getSandboxRouterAddress() external view returns (address) {
+        return SANDBOX_ROUTER;
+    }
 
     //------------Gas Credit Functions------------------------
 
@@ -164,9 +162,14 @@ contract LimitOrderRouter is OrderBook {
         nonReentrant
         returns (bool success)
     {
+        uint256 userGasCreditBalance = gasCreditBalance[msg.sender];
         ///@notice Require that account's credit balance is larger than withdraw amount
-        if (gasCreditBalance[msg.sender] < value) {
-            revert InsufficientGasCreditBalance();
+        if (userGasCreditBalance < value) {
+            revert InsufficientGasCreditBalance(
+                msg.sender,
+                userGasCreditBalance,
+                value
+            );
         }
 
         ///@notice Get the current gas price from the v3 Aggregator.
@@ -177,13 +180,25 @@ contract LimitOrderRouter is OrderBook {
             !(
                 _hasMinGasCredits(
                     gasPrice,
-                    ORDER_EXECUTION_GAS_COST,
+                    LIMIT_ORDER_EXECUTION_GAS_COST,
                     msg.sender,
-                    gasCreditBalance[msg.sender] - value
+                    userGasCreditBalance - value,
+                    GAS_CREDIT_BUFFER
                 )
             )
         ) {
-            revert InsufficientGasCreditBalanceForOrderExecution();
+            uint256 minGasCredits = _calculateMinGasCredits(
+                gasPrice,
+                LIMIT_ORDER_EXECUTION_GAS_COST,
+                msg.sender,
+                GAS_CREDIT_BUFFER
+            );
+
+            revert InsufficientGasCreditBalance(
+                msg.sender,
+                userGasCreditBalance,
+                minGasCredits
+            );
         }
 
         ///@notice Decrease the account's gas credit balance
@@ -201,54 +216,6 @@ contract LimitOrderRouter is OrderBook {
         return true;
     }
 
-    /// @notice Function to deposit fee credits.
-    /// @return success - Boolean that indicates if the deposit completed successfully.
-    function depositFeeCredits() public payable returns (bool success) {
-        if (msg.value == 0) {
-            revert InsufficientMsgValue();
-        }
-        ///@notice Increment the gas credit balance for the user by the msg.value
-        uint256 newBalance = feeBalance[msg.sender] + msg.value;
-
-        ///@notice Set the gas credit balance of the sender to the new balance.
-        feeBalance[msg.sender] = newBalance;
-
-        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
-        emit FeeCreditEvent(msg.sender, newBalance);
-
-        return true;
-    }
-
-    /**@notice Function to withdraw fee credits from an account's balance. If the withdraw results in the account's fee credit
-    balance required to execute existing orders, those orders must be canceled before the fee credits can be withdrawn.
-    */
-    /// @param value - The amount to withdraw from the fee credit balance.
-    /// @return success - Boolean that indicates if the withdraw completed successfully.
-    function withdrawFeeCredits(uint256 value)
-        public
-        nonReentrant
-        returns (bool success)
-    {
-        ///@notice Require that account's credit balance is larger than withdraw amount
-        if (feeBalance[msg.sender] < value) {
-            revert InsufficientFeeCreditBalanceForOrderExecution();
-        }
-
-        ///@notice Decrease the account's gas credit balance
-        uint256 newBalance = feeBalance[msg.sender] - value;
-
-        ///@notice Set the senders new gas credit balance.
-        feeBalance[msg.sender] = newBalance;
-
-        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
-        emit FeeCreditEvent(msg.sender, newBalance);
-
-        ///@notice Transfer the withdraw amount to the account.
-        safeTransferETH(msg.sender, value);
-
-        return true;
-    }
-
     ///@notice
     /* This function caches the state of the specified orders before and after arbitrary execution, ensuring that the proper
     prices and fill amounts have been satisfied.
@@ -258,30 +225,45 @@ contract LimitOrderRouter is OrderBook {
     function executeOrdersViaSandboxMulticall(
         SandboxRouter.SandboxMulticall calldata sandboxMulticall
     ) external onlySandboxRouter nonReentrant {
+        //Update the initial gas balance.
+        assembly {
+            sstore(initialTxGas.slot, gas())
+        }
+
         ///@notice Initialize arrays to hold pre execution validation state.
         (
             SandboxLimitOrder[] memory sandboxLimitOrders,
+            address[] memory orderOwners,
             uint256[] memory initialTokenInBalances,
             uint256[] memory initialTokenOutBalances
         ) = initializePreSandboxExecutionState(
                 sandboxMulticall.orderIds,
-                sandboxMulticall.fillAmount
+                sandboxMulticall.fillAmounts
             );
 
         ///@notice Call the limit order executor to transfer all of the order owners tokens to the contract.
         ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeSandboxLimitOrders(
             sandboxLimitOrders,
-            sandboxMulticall,
-            SANDBOX_ROUTER
+            sandboxMulticall
         );
 
         ///@notice Post execution, assert that all of the order owners have received >= their exact amount out
         validateSandboxExecutionAndFillOrders(
             sandboxLimitOrders,
-            sandboxMulticall.fillAmount,
+            sandboxMulticall.fillAmounts,
             initialTokenInBalances,
             initialTokenOutBalances
         );
+
+        ///@notice Decrement gas credit balances for each order owner
+        uint256 executionGasCompensation = calculateExecutionGasCompensation(
+            getGasPrice(),
+            orderOwners,
+            OrderType.SandboxLimitOrder
+        );
+
+        ///@notice Transfer the reward to the off-chain executor.
+        safeTransferETH(tx.origin, executionGasCompensation);
     }
 
     function initializePreSandboxExecutionState(
@@ -292,56 +274,69 @@ contract LimitOrderRouter is OrderBook {
         view
         returns (
             SandboxLimitOrder[] memory,
+            address[] memory,
             uint256[] memory,
             uint256[] memory
         )
     {
-        uint256 orderIdsLength = orderIds.length;
-
         ///@notice Initialize arrays to hold post execution validation state.
         SandboxLimitOrder[] memory sandboxLimitOrders = new SandboxLimitOrder[](
-            orderIdsLength
+            orderIds.length
         );
 
-        uint256[] memory initialTokenInBalances = new uint256[](orderIdsLength);
+        address[] memory orderOwners = new address[](orderIds.length);
+
+        uint256[] memory initialTokenInBalances = new uint256[](
+            orderIds.length
+        );
         uint256[] memory initialTokenOutBalances = new uint256[](
-            orderIdsLength
+            orderIds.length
         );
 
-        ///@notice Transfer the tokens from the order owners to the sandbox router contract.
-        ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
-        for (uint256 i = 0; i < orderIdsLength; ++i) {
-            ///@notice Get the current order
-            SandboxLimitOrder memory currentOrder = orderIdToSandboxLimitOrder[
-                orderIds[i]
-            ];
+        {
+            ///@notice Transfer the tokens from the order owners to the sandbox router contract.
+            ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
+            for (uint256 i = 0; i < orderIds.length; ++i) {
+                ///@notice Get the current order
+                SandboxLimitOrder
+                    memory currentOrder = orderIdToSandboxLimitOrder[
+                        orderIds[i]
+                    ];
 
-            sandboxLimitOrders[i] = currentOrder;
+                orderOwners[i] = currentOrder.owner;
 
-            ///@notice Cache amountSpecifiedToFill for intermediate calculations
-            uint128 amountSpecifiedToFill = fillAmounts[i];
-            ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
-            if (amountSpecifiedToFill > currentOrder.amountInRemaining) {
-                revert FillAmountSpecifiedGreaterThanAmountRemaining(
-                    amountSpecifiedToFill,
-                    currentOrder.amountInRemaining,
-                    currentOrder.orderId
-                );
+                if (currentOrder.orderId == bytes32(0)) {
+                    revert OrderDoesNotExist(orderIds[i]);
+                }
+
+                sandboxLimitOrders[i] = currentOrder;
+
+                ///@notice Cache amountSpecifiedToFill for intermediate calculations
+                uint128 amountSpecifiedToFill = fillAmounts[i];
+                ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
+                if (amountSpecifiedToFill > currentOrder.amountInRemaining) {
+                    revert FillAmountSpecifiedGreaterThanAmountRemaining(
+                        amountSpecifiedToFill,
+                        currentOrder.amountInRemaining,
+                        currentOrder.orderId
+                    );
+                }
+
+                ///@notice Cache the the pre execution state of the order details
+                initialTokenInBalances[i] = IERC20(currentOrder.tokenIn)
+                    .balanceOf(currentOrder.owner);
+
+                initialTokenOutBalances[i] = IERC20(currentOrder.tokenOut)
+                    .balanceOf(currentOrder.owner);
             }
 
-            ///@notice Cache the the pre execution state of the order details
-            initialTokenInBalances[i] = IERC20(currentOrder.tokenIn).balanceOf(
-                currentOrder.owner
+            return (
+                sandboxLimitOrders,
+                orderOwners,
+                initialTokenInBalances,
+                initialTokenOutBalances
             );
-            initialTokenOutBalances[i] = IERC20(currentOrder.tokenOut)
-                .balanceOf(currentOrder.owner);
         }
-
-        return (
-            sandboxLimitOrders,
-            initialTokenInBalances,
-            initialTokenOutBalances
-        );
     }
 
     function validateSandboxExecutionAndFillOrders(
@@ -376,9 +371,8 @@ contract LimitOrderRouter is OrderBook {
                 .balanceOf(currentOrder.owner);
 
             ///@notice Assert that the tokenIn balance is decremented by the fill amount exactly
-            if (
-                initialTokenInBalance - currentTokenInBalance != fillAmounts[i]
-            ) {
+            uint256 fillAmount = fillAmounts[i];
+            if (initialTokenInBalance - currentTokenInBalance > fillAmount) {
                 revert SandboxFillAmountNotSatisfied(
                     currentOrder.orderId,
                     initialTokenInBalance - currentTokenInBalance,
@@ -399,13 +393,18 @@ contract LimitOrderRouter is OrderBook {
             }
 
             ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
-            if (currentOrder.amountOutRemaining == amountOutRequired) {
+            if (currentOrder.amountInRemaining == fillAmount) {
                 _resolveCompletedOrder(
                     currentOrder.orderId,
                     OrderType.SandboxLimitOrder
                 );
             } else {
-                sandboxLimitOrders[i].amountOutRemaining -= amountOutRequired;
+                ///@notice Update the state of the order to parial filled quantities.
+                _partialFillSandboxLimitOrder(
+                    uint128(initialTokenInBalance - currentTokenInBalance),
+                    uint128(currentTokenOutBalance - initialTokenOutBalance),
+                    currentOrder.orderId
+                );
             }
         }
     }
@@ -459,21 +458,22 @@ contract LimitOrderRouter is OrderBook {
         safeTransferETH(msg.sender, totalRefreshFees);
     }
 
+    ///@notice Internal helper function to refresh a Sandbox Limit Order.
+    ///@param order - The Sandbox Limit Order to be refreshed.
+    ///@param gasPrice - The current gasPrice from the Gas oracle.
+    ///@return uint256 - The refresh fee to be compensated to the off-chain executor.
     function _refreshSandboxLimitOrder(
         SandboxLimitOrder memory order,
         uint256 gasPrice
     ) internal returns (uint256) {
         ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
         if (block.timestamp > order.expirationTimestamp) {
-            _cancelSandboxLimitOrder(order.orderId);
-            return 0;
+            return _cancelSandboxLimitOrderViaExecutor(order);
         }
 
         ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
         if (gasCreditBalance[order.owner] < REFRESH_FEE) {
-            _cancelSandboxLimitOrder(order.orderId);
-
-            return 0;
+            return _cancelSandboxLimitOrderViaExecutor(order);
         }
 
         ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
@@ -486,14 +486,14 @@ contract LimitOrderRouter is OrderBook {
             !(
                 _hasMinGasCredits(
                     gasPrice,
-                    ORDER_EXECUTION_GAS_COST,
+                    LIMIT_ORDER_EXECUTION_GAS_COST,
                     order.owner,
-                    gasCreditBalance[order.owner] - REFRESH_FEE
+                    gasCreditBalance[order.owner] - REFRESH_FEE,
+                    1 ///@dev Multiplier is set to 1 for refresh order
                 )
             )
         ) {
-            _cancelSandboxLimitOrder(order.orderId);
-            return 0;
+            return _cancelSandboxLimitOrderViaExecutor(order);
         }
 
         ///@notice Decrement the order.owner's gas credit balance
@@ -515,21 +515,22 @@ contract LimitOrderRouter is OrderBook {
         return REFRESH_FEE;
     }
 
+    ///@notice Internal helper function to refresh a Limit Order.
+    ///@param order - The Limit Order to be refreshed.
+    ///@param gasPrice - The current gasPrice from the Gas oracle.
+    ///@return executorFee - The fee to be compensated to the off-chain executor.
     function _refreshLimitOrder(LimitOrder memory order, uint256 gasPrice)
         internal
-        returns (uint256 refreshFee)
+        returns (uint256 executorFee)
     {
         ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
         if (block.timestamp > order.expirationTimestamp) {
-            //TODO: instead of returning 0, return the fee earned from cancel limit order instead so you can send it as one big fee
-            _cancelLimitOrder(order);
-            return 0;
+            return _cancelLimitOrderViaExecutor(order);
         }
 
         ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
         if (gasCreditBalance[order.owner] < REFRESH_FEE) {
-            _cancelLimitOrder(order);
-            return 0;
+            return _cancelLimitOrderViaExecutor(order);
         }
 
         ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
@@ -542,14 +543,14 @@ contract LimitOrderRouter is OrderBook {
             !(
                 _hasMinGasCredits(
                     gasPrice,
-                    ORDER_EXECUTION_GAS_COST,
+                    LIMIT_ORDER_EXECUTION_GAS_COST,
                     order.owner,
-                    gasCreditBalance[order.owner] - REFRESH_FEE
+                    gasCreditBalance[order.owner] - REFRESH_FEE,
+                    1 ///@dev Multiplier is set to 1 for refresh order
                 )
             )
         ) {
-            _cancelLimitOrder(order);
-            return 0;
+            return _cancelLimitOrderViaExecutor(order);
         }
 
         ///@notice Decrement the order.owner's gas credit balance
@@ -588,8 +589,6 @@ contract LimitOrderRouter is OrderBook {
         }
     }
 
-    //TODO: resolve issues and warnings, something is off here
-
     /// @notice Function for off-chain executors to cancel an Order that does not have the minimum gas credit balance for order execution.
     /// @param orderId - Order Id of the order to cancel.
     /// @return success - Boolean to indicate if the order was successfully cancelled and compensation was sent to the off-chain executor.
@@ -598,19 +597,9 @@ contract LimitOrderRouter is OrderBook {
         nonReentrant
         returns (bool success)
     {
-        LimitOrder memory order = orderIdToLimitOrder[orderId];
         uint256 gasPrice = getGasPrice();
+
         (OrderType orderType, bytes memory orderBytes) = getOrderById(orderId);
-        ///@notice Check if order exists, otherwise revert.
-        if (orderType == OrderType.None) {
-            revert OrderDoesNotExist(orderId);
-        } else if (orderType == OrderType.LimitOrder) {
-            LimitOrder memory limitOrder = abi.decode(orderBytes, (LimitOrder));
-        }
-        ///@notice Get the current gas price from the v3 Aggregator.
-        ///@notice Cache the order in memory.
-
-        address orderOwner;
 
         ///@notice Check if order exists, otherwise revert.
         if (orderType == OrderType.None) {
@@ -618,37 +607,52 @@ contract LimitOrderRouter is OrderBook {
         } else if (orderType == OrderType.LimitOrder) {
             LimitOrder memory limitOrder = abi.decode(orderBytes, (LimitOrder));
 
-            orderOwner = limitOrder.owner;
-            orderId = limitOrder.orderId;
+            ///@notice If the order owner does not have min gas credits, cancel the order
+            if (
+                !(
+                    _hasMinGasCredits(
+                        gasPrice,
+                        LIMIT_ORDER_EXECUTION_GAS_COST,
+                        limitOrder.owner,
+                        gasCreditBalance[limitOrder.owner],
+                        1 ///@dev Multiplier is set to 1
+                    )
+                )
+            ) {
+                ///@notice Remove the order from the limit order system.
+                safeTransferETH(
+                    msg.sender,
+                    _cancelLimitOrderViaExecutor(limitOrder)
+                );
+                return true;
+            }
         } else {
             SandboxLimitOrder memory sandboxLimitOrder = abi.decode(
                 orderBytes,
                 (SandboxLimitOrder)
             );
 
-            orderOwner = sandboxLimitOrder.owner;
-            orderId = sandboxLimitOrder.orderId;
-        }
-
-        ///@notice Check if the account has the minimum gas credits for
-        if (
-            !(
-                _hasMinGasCredits(
-                    gasPrice,
-                    ORDER_EXECUTION_GAS_COST,
-                    orderOwner,
-                    gasCreditBalance[orderOwner]
+            ///@notice If the order owner does not have min gas credits, cancel the order
+            if (
+                !(
+                    _hasMinGasCredits(
+                        gasPrice,
+                        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST,
+                        sandboxLimitOrder.owner,
+                        gasCreditBalance[sandboxLimitOrder.owner],
+                        1 ///@dev Multiplier is set to 1
+                    )
                 )
-            )
-        ) {
-            ///@notice Remove the order from the limit order system.
+            ) {
+                ///@notice Remove the order from the limit order system.
 
-            if (orderType == OrderType.LimitOrder) {
-                _cancelLimitOrder(orderId);
-            } else {
-                _cancelSandboxLimitOrder(orderId);
+                safeTransferETH(
+                    msg.sender,
+                    _cancelSandboxLimitOrderViaExecutor(sandboxLimitOrder)
+                );
+
+                return true;
             }
-            return true;
         }
 
         return false;
@@ -657,16 +661,15 @@ contract LimitOrderRouter is OrderBook {
     /// @notice Internal helper function to cancel an order. This function is only called after cancel order validation.
     /// @param order - The order to cancel.
     /// @return success - Boolean to indicate if the order was successfully cancelled.
-    function _cancelLimitOrder(LimitOrder memory order)
+    function _cancelLimitOrderViaExecutor(LimitOrder memory order)
         internal
-        returns (bool success)
+        returns (uint256)
     {
         ///@notice Get the current gas price from the v3 Aggregator.
         uint256 gasPrice = getGasPrice();
 
         ///@notice Get the minimum gas credits needed for a single order
-        uint256 minimumGasCreditsForSingleOrder = gasPrice *
-            ORDER_EXECUTION_GAS_COST;
+        uint256 executorFee = gasPrice * LIMIT_ORDER_EXECUTION_GAS_COST;
 
         ///@notice Remove the order from the limit order system.
         _removeOrderFromSystem(order.orderId, OrderType.LimitOrder);
@@ -674,17 +677,13 @@ contract LimitOrderRouter is OrderBook {
         uint256 orderOwnerGasCreditBalance = gasCreditBalance[order.owner];
 
         ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
-        if (orderOwnerGasCreditBalance > minimumGasCreditsForSingleOrder) {
+        if (orderOwnerGasCreditBalance > executorFee) {
             ///@notice Decrement from the order owner's gas credit balance.
-            gasCreditBalance[order.owner] -= minimumGasCreditsForSingleOrder;
-
-            ///@notice Send the off-chain executor the reward for cancelling the order.
-            safeTransferETH(msg.sender, minimumGasCreditsForSingleOrder);
+            gasCreditBalance[order.owner] -= executorFee;
         } else {
             ///@notice Otherwise, decrement the entire gas credit balance.
             gasCreditBalance[order.owner] -= orderOwnerGasCreditBalance;
-            ///@notice Send the off-chain executor the reward for cancelling the order.
-            safeTransferETH(msg.sender, orderOwnerGasCreditBalance);
+            executorFee = orderOwnerGasCreditBalance;
         }
 
         ///@notice Emit an order cancelled event to notify the off-chain exectors.
@@ -692,7 +691,41 @@ contract LimitOrderRouter is OrderBook {
         orderIds[0] = order.orderId;
         emit OrderCancelled(orderIds);
 
-        return true;
+        return executorFee;
+    }
+
+    ///@notice Remove an order from the system if the order exists.
+    function _cancelSandboxLimitOrderViaExecutor(SandboxLimitOrder memory order)
+        internal
+        returns (uint256)
+    {
+        ///@notice Get the current gas price from the v3 Aggregator.
+        uint256 gasPrice = getGasPrice();
+
+        ///@notice Get the minimum gas credits needed for a single order
+        uint256 executorFee = gasPrice * SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
+
+        ///@notice Remove the order from the limit order system.
+        _removeOrderFromSystem(order.orderId, OrderType.SandboxLimitOrder);
+
+        uint256 orderOwnerGasCreditBalance = gasCreditBalance[order.owner];
+
+        ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
+        if (orderOwnerGasCreditBalance > executorFee) {
+            ///@notice Decrement from the order owner's gas credit balance.
+            gasCreditBalance[order.owner] -= executorFee;
+        } else {
+            ///@notice Otherwise, decrement the entire gas credit balance.
+            gasCreditBalance[order.owner] -= orderOwnerGasCreditBalance;
+            executorFee = orderOwnerGasCreditBalance;
+        }
+
+        ///@notice Emit an order cancelled event to notify the off-chain exectors.
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = order.orderId;
+        emit OrderCancelled(orderIds);
+
+        return executorFee;
     }
 
     ///@notice Function to validate the congruency of an array of orders.
@@ -709,42 +742,48 @@ contract LimitOrderRouter is OrderBook {
 
             ///@notice Check if the current order is less than or equal to the next order
             if (currentOrder.quantity > nextOrder.quantity) {
-                revert InvalidBatchOrder();
+                revert InvalidOrderGroupSequence();
             }
 
             ///@notice Check if the token in is the same for the next order
             if (currentOrder.tokenIn != nextOrder.tokenIn) {
-                revert IncongruentInputTokenInBatch();
+                revert IncongruentInputTokenInOrderGroup(
+                    nextOrder.tokenIn,
+                    currentOrder.tokenIn
+                );
             }
 
             ///@notice Check if the stoploss status is the same for the next order
             if (currentOrder.stoploss != nextOrder.stoploss) {
-                revert IncongruentStoplossStatus();
+                revert IncongruentStoplossStatusInOrderGroup();
             }
 
             ///@notice Check if the token out is the same for the next order
             if (currentOrder.tokenOut != nextOrder.tokenOut) {
-                revert IncongruentOutputTokenInBatch();
+                revert IncongruentOutputTokenInOrderGroup(
+                    nextOrder.tokenOut,
+                    currentOrder.tokenOut
+                );
             }
 
             ///@notice Check if the buy status is the same for the next order
             if (currentOrder.buy != nextOrder.buy) {
-                revert IncongruentBuySellStatusInBatch();
+                revert IncongruentBuySellStatusInOrderGroup();
             }
 
             ///@notice Check if the tax status is the same for the next order
             if (currentOrder.taxed != nextOrder.taxed) {
-                revert IncongruentTaxedTokenInBatch();
+                revert IncongruentTaxedTokenInOrderGroup();
             }
 
             ///@notice Check if the fee in is the same for the next order
             if (currentOrder.feeIn != nextOrder.feeIn) {
-                revert IncongruentFeeInInBatch();
+                revert IncongruentFeeInInOrderGroup();
             }
 
             ///@notice Check if the fee out is the same for the next order
             if (currentOrder.feeOut != nextOrder.feeOut) {
-                revert IncongruentFeeOutInBatch();
+                revert IncongruentFeeOutInOrderGroup();
             }
         }
     }
@@ -773,15 +812,17 @@ contract LimitOrderRouter is OrderBook {
         from the protocol, incentivizing the off-chain executor to be the first to compute the execution opportunity and submit a transaction. Any while miners/block builders can order a block as they desire
         there is not an incentive to order one transaction in front of the other, allowing the first to submit the transaction to be included in most cases.
         */
+
         uint256 gasPrice = getGasPrice();
         if (tx.gasprice > gasPrice) {
-            revert VerifierDilemmaGasPrice();
+            revert VerifierDilemmaGasPrice(tx.gasprice, gasPrice);
         }
 
         //Update the initial gas balance.
         assembly {
             sstore(initialTxGas.slot, gas())
         }
+
         ///@notice Revert if the length of the orderIds array is 0.
         if (orderIds.length == 0) {
             revert InvalidCalldata();
@@ -832,7 +873,7 @@ contract LimitOrderRouter is OrderBook {
         }
 
         ///@notice Get the array of order owners.
-        address[] memory orderOwners = getOrderOwners(orders);
+        address[] memory orderOwners = getLimitOrderOwners(orders);
 
         ///@notice Iterate through all orderIds in the batch and delete the orders from queue post execution.
         for (uint256 i = 0; i < orderIds.length; ) {
@@ -854,17 +895,35 @@ contract LimitOrderRouter is OrderBook {
         ///@notice Calculate the execution gas compensation.
         uint256 executionGasCompensation = calculateExecutionGasCompensation(
             gasPrice,
-            orderOwners
+            orderOwners,
+            OrderType.LimitOrder
         );
 
         ///@notice Transfer the reward to the off-chain executor.
         safeTransferETH(msg.sender, executionGasCompensation);
     }
 
-    ///@notice Function to return an array of order owners.
-    ///@param orders - Array of orders.
+    ///@notice Function to return an array of limit order owners.
+    ///@param orders - Array of LimitOrders.
     ///@return orderOwners - An array of order owners in the orders array.
-    function getOrderOwners(LimitOrder[] memory orders)
+    function getLimitOrderOwners(LimitOrder[] memory orders)
+        internal
+        pure
+        returns (address[] memory orderOwners)
+    {
+        orderOwners = new address[](orders.length);
+        for (uint256 i = 0; i < orders.length; ) {
+            orderOwners[i] = orders[i].owner;
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    ///@notice Function to return an array of sandbox limit order owners.
+    ///@param orders - Array of SandboxLimitOrders.
+    ///@return orderOwners - An array of order owners in the orders array.
+    function getSandboxLimitOrderOwners(SandboxLimitOrder[] memory orders)
         internal
         pure
         returns (address[] memory orderOwners)
@@ -881,9 +940,10 @@ contract LimitOrderRouter is OrderBook {
     ///@notice Function to confirm ownership transfer of the contract.
     function confirmTransferOwnership() external {
         if (msg.sender != tempOwner) {
-            revert UnauthorizedCaller();
+            revert MsgSenderIsNotTempOwner();
         }
         owner = msg.sender;
+        tempOwner = address(0);
     }
 
     ///@notice Function to transfer ownership of the contract.
@@ -896,16 +956,34 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice Function to calculate the execution gas consumed during executeLimitOrders
     ///@return executionGasConsumed - The amount of gas consumed.
-    function calculateExecutionGasConsumed(uint256 gasPrice)
-        internal
-        view
-        returns (uint256 executionGasConsumed)
-    {
+    function calculateExecutionGasConsumed(
+        uint256 gasPrice,
+        uint256 numberOfOrders,
+        OrderType orderType
+    ) internal view returns (uint256 executionGasConsumed) {
         assembly {
             executionGasConsumed := mul(
                 gasPrice,
                 sub(sload(initialTxGas.slot), gas())
             )
+        }
+
+        if (orderType == OrderType.LimitOrder) {
+            ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
+            uint256 maxExecutionCompensation = LIMIT_ORDER_EXECUTION_GAS_COST *
+                numberOfOrders *
+                gasPrice;
+            if (executionGasConsumed > maxExecutionCompensation) {
+                executionGasConsumed = maxExecutionCompensation;
+            }
+        } else {
+            ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
+            uint256 maxExecutionCompensation = SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST *
+                    numberOfOrders *
+                    gasPrice;
+            if (executionGasConsumed > maxExecutionCompensation) {
+                executionGasConsumed = maxExecutionCompensation;
+            }
         }
     }
 
@@ -914,12 +992,18 @@ contract LimitOrderRouter is OrderBook {
     ///@return gasExecutionCompensation - The amount to be paid to the off-chain executor for execution gas.
     function calculateExecutionGasCompensation(
         uint256 gasPrice,
-        address[] memory orderOwners
+        address[] memory orderOwners,
+        OrderType orderType
     ) internal returns (uint256 gasExecutionCompensation) {
         uint256 orderOwnersLength = orderOwners.length;
 
         ///@notice Decrement gas credit balances for each order owner
-        uint256 executionGasConsumed = calculateExecutionGasConsumed(gasPrice);
+        uint256 executionGasConsumed = calculateExecutionGasConsumed(
+            gasPrice,
+            orderOwners.length,
+            orderType
+        );
+
         uint256 gasDecrementValue = executionGasConsumed / orderOwnersLength;
 
         ///@notice Unchecked for gas efficiency
