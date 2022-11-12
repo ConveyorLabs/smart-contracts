@@ -9,23 +9,23 @@ import "../lib/AggregatorV3Interface.sol";
 contract GasOracle {
     uint256 constant ONE_HUNDRED_TWENTY_FIVE = 125;
     uint256 constant ONE_HUNDRED = 100;
-     ///@notice Time horizon for arithmetic mean of has price.
+    ///@notice Time horizon for arithmetic mean of has price.
     uint256 constant timeHorizon = 86400;
-    
+
     ///@notice The gasOracleAddress is the address of the Chainlink Gas Oracle.
     address immutable gasOracleAddress;
-   
+
     ///@notice Last timestamp that the getGasPrice() function was called.
     uint256 lastGasOracleTimestamp;
     ///@notice Mean of gas oracle prices across the time horizon
     uint256 meanGasPrice;
-    
+
     event MeanGasPriceUpdate(
         uint256 timestamp,
         uint256 gasPrice,
         uint256 meanGasPrice
     );
-    
+
     ///@notice Stale Price delay interval between blocks.
     constructor(address _gasOracleAddress) {
         require(_gasOracleAddress != address(0), "Invalid address");
@@ -42,10 +42,12 @@ contract GasOracle {
         ///@notice update the meanGasPrice
         uint256 newMeanGasPrice = (((meanGasPrice +
             (((block.timestamp - lastGasOracleTimestamp) << 64) / timeHorizon) *
-            gasPrice)>>64) /
+            gasPrice) >> 64) /
             (1 +
                 ((((block.timestamp - lastGasOracleTimestamp) << 64) /
-                    timeHorizon)>>64)));
+                    timeHorizon) >> 64)));
+
+        emit MeanGasPriceUpdate(block.timestamp, gasPrice, meanGasPrice);
 
         ///@notice Update the last gas timestamp
         lastGasOracleTimestamp = block.timestamp;
@@ -58,8 +60,8 @@ contract GasOracle {
          from the fair market price. 
         */
 
-        uint256 adjustedGasPrice = (uint256(answer) * ONE_HUNDRED_TWENTY_FIVE) /
-            ONE_HUNDRED;
+        uint256 adjustedGasPrice = (uint256(newMeanGasPrice) *
+            ONE_HUNDRED_TWENTY_FIVE) / ONE_HUNDRED;
 
         return adjustedGasPrice;
     }

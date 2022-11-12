@@ -296,7 +296,7 @@ transaction will never work and block the service. The following is the list of 
 
 ### Resolution
 
-# QSP-16 Gas Oracle Reliability ❌
+# QSP-16 Gas Oracle Reliability ✅
 ### Description
 1. Chainlink updates the feeds periodically (heartbeat idle time). The application should check that the timestamp of the latest answer is updated within the latest
 heartbeat or within the time limits acceptable for the application (see: Chainlink docs). The GasOracle.getGasPrice() function does not check the timestamp of the
@@ -306,7 +306,38 @@ malicious activity.
 
 
 ### Resolution
-The contract now checks if the GasOracle timestamp is past 7200 seconds, denoting that the gas price is stale. The stale price time is 7200 seconds as the Chainlink docs mention that a price update should happen every time the real-time price deviates 25% from the last gas price, or when 7200 seconds has passed since the last update.
+The GasOracle now stores a moving average over a 24 hour time horizon, adjusting the average everytime the gas oracle is called, accounting for any volitility or stale gas prices. 
+
+```js
+
+contract GasOracle {
+    //--snip--
+
+    uint256 constant timeHorizon = 86400;
+    //--snip--
+
+
+    ///@notice Gets the latest gas price from the Chainlink data feed for the fast gas oracle
+    function getGasPrice() public returns (uint256) {
+        (, int256 answer, , , ) = IAggregatorV3(gasOracleAddress)
+            .latestRoundData();
+
+        uint256 gasPrice = uint256(answer);  
+
+        ///@notice update the meanGasPrice
+        uint256 newMeanGasPrice = (((meanGasPrice +
+            (((block.timestamp - lastGasOracleTimestamp) << 64) / timeHorizon) *
+            gasPrice) >> 64) /
+            (1 +
+                ((((block.timestamp - lastGasOracleTimestamp) << 64) /
+                    timeHorizon) >> 64)));
+
+        //--snip--
+
+    }
+
+}
+```
 
 
 # QSP-17 Math Function Returns Wrong Type ✅
@@ -475,6 +506,7 @@ Severity: 🔵Informational🔵
 ## Description: 
 In the function `fromUInt256()`, if the input `x` is an unsigned integer and `x <= 0xFFFFFFFFFFFFFFFF`, then after `x << 64`, it will be less than or equal to `MAX64.64`. However
 the restriction for `x` is set to `<= 0x7FFFFFFFFFFFFFFF` in the current implementation.
+
 ### Resolution
 Changed the require statement to the reccomended validation logic. Reference `ConveyorMath.sol#L20-25`.
 ```solidity
@@ -494,7 +526,7 @@ File(s) affected: `LimitOrderBatcher.sol`, `SwapRouter.sol`
 According to the discussion with the team, the motivation for executing orders in batches is to save gas by reducing the number of swaps. However, when it comes to Uniswap V3, the code heavily relies on the `QUOTER.quoteExactInputSingle()` call to get the output amount of the swap. Unfortunately, the `QUOTER.quoteExactInputSingle()` is as costly as a real swap because it is performing the swap and then force reverting to undo it (see: code and doc). `QUOTER.quoteExactInputSingle()` is called in `SwapRouter.getNextSqrtPriceV3()`, `LimitOrderBatcher.calculateNextSqrtPriceX96()`, and `LimitOrderBatcher.calculateAmountOutMinAToWeth()`.
 ### Resolution
 Changes made to mitigate Gas consumption in execution:
-    As per the reccomendation of the quant stamp team we changed the execution architecture of the contract to a stricly linear flow. The changes to linear execution architecture immediately reduced the gas consumption overall, most significantly when a V3 pool was utilized during execution because of a reduced amount of calls to the quoter. Further, we eliminated using the v3 quoter completely from the contract, and built our own internal logic to simulate the amountOut yielded on a V3 swap. Reference `Contract Architecture Changes/Uniswap V3` for a detailed report of the code, and it's implementation throughout the contract. 
+As per the reccomendation of the quant stamp team we changed the execution architecture of the contract to a stricly linear flow. The changes to linear execution architecture immediately reduced the gas consumption overall, most significantly when a V3 pool was utilized during execution because of a reduced amount of calls to the quoter. Further, we eliminated using the v3 quoter completely from the contract, and built our own internal logic to simulate the amountOut yielded on a V3 swap. Reference `Contract Architecture Changes/Uniswap V3` for a detailed report of the code, and it's implementation throughout the contract. 
 
 Relevant Gas Snapshot Post Changes:
 ```js
