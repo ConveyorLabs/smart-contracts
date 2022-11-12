@@ -409,7 +409,7 @@ contract SwapRouterWrapper is SwapRouter {
         uint24 _fee,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address _reciever,
+        address _receiver,
         address _sender
     ) public returns (uint256) {
         return
@@ -420,7 +420,7 @@ contract SwapRouterWrapper is SwapRouter {
                 _fee,
                 _amountIn,
                 _amountOutMin,
-                _reciever,
+                _receiver,
                 _sender
             );
     }

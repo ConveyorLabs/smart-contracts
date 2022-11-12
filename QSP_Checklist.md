@@ -558,8 +558,6 @@ This constant is used in place of the `maxBeaconReward` in the case of stoploss 
 # QSP-28 Taxed Token Swaps Using Uniswap V3 Might Fail ❌
 
 # **Code Documentation**
-
-
 Consider providing instructions on how to build and test the contracts in the README.  </br>
 Consider providing a link in the code comment for the SwapRouter._getV2PairAddress() function (L1025-1045) on how the address is determined: Uniswap V2 Pair Address doc. ✅ </br>
 
@@ -676,7 +674,7 @@ The function `mostSignificantBit()` exists in both ConveyorBitMath.sol and Quadr
 
 Typos in variables:
 
-### Several variables contain the typo fufilled instead of fulfilled. Some of these are externally visible. 
+### Several variables contain the typo fufilled instead of fulfilled. Some of these are externally visible. ✅
     parameter _reciever in `SwapRouter._swapV2()` should be renamed to _receiver, the return variable amountRecieved should be amountReceived
     parameter _reciever in `SwapRouter._swapV3()` should be renamed to _receiver, the return variable amountRecieved should be amountReceived
     parameter _reciever in `SwapRouter._swap()` should be renamed to _receiver, the return variable amountRecieved should be amountReceived.

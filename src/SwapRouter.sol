@@ -214,7 +214,7 @@ contract SwapRouter is ConveyorTickMath {
             ConveyorMath.divUU(amountInUSDCDollarValue, 75000)
         );
 
-        ///@notice This is to prevent overflow, and order is of sufficient size to recieve 0.001 fee
+        ///@notice This is to prevent overflow, and order is of sufficient size to receive 0.001 fee
         if (exponent >= 0x400000000000000000) {
             return MIN_FEE_64x64;
         }
@@ -271,7 +271,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@param _lp - Address of the lp.
     ///@param _amountIn - AmountIn for the swap.
     ///@param _amountOutMin - AmountOutMin for the swap.
-    ///@param _reciever - Address to receive the amountOut.
+    ///@param _receiver - Address to receive the amountOut.
     ///@param _sender - Address to send the tokenIn.
     ///@return amountReceived - Amount received from the swap.
     function _swapV2(
@@ -280,7 +280,7 @@ contract SwapRouter is ConveyorTickMath {
         address _lp,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address _reciever,
+        address _receiver,
         address _sender
     ) internal returns (uint256 amountReceived) {
         ///@notice If the sender is not the current context
@@ -302,18 +302,18 @@ contract SwapRouter is ConveyorTickMath {
             : (_amountOutMin, uint256(0));
 
         ///@notice Get the balance before the swap to know how much was received from swapping.
-        uint256 balanceBefore = IERC20(_tokenOut).balanceOf(_reciever);
+        uint256 balanceBefore = IERC20(_tokenOut).balanceOf(_receiver);
 
         ///@notice Execute the swap on the lp for the amounts specified.
         IUniswapV2Pair(_lp).swap(
             amount0Out,
             amount1Out,
-            _reciever,
+            _receiver,
             new bytes(0)
         );
 
         ///@notice calculate the amount recieved
-        amountReceived = IERC20(_tokenOut).balanceOf(_reciever) - balanceBefore;
+        amountReceived = IERC20(_tokenOut).balanceOf(_receiver) - balanceBefore;
 
         ///@notice if the amount recieved is less than the amount out min, revert
         if (amountReceived < _amountOutMin) {
@@ -332,7 +332,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@param _fee - Fee for the lp address.
     ///@param _amountIn - AmountIn for the swap.
     ///@param _amountOutMin - AmountOutMin for the swap.
-    ///@param _reciever - Address to receive the amountOut.
+    ///@param _receiver - Address to receive the amountOut.
     ///@param _sender - Address to send the tokenIn.
     ///@return amountReceived - Amount received from the swap.
     function swap(
@@ -342,7 +342,7 @@ contract SwapRouter is ConveyorTickMath {
         uint24 _fee,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address _reciever,
+        address _receiver,
         address _sender
     ) internal returns (uint256 amountReceived) {
         if (_lpIsNotUniV3(_lp)) {
@@ -352,7 +352,7 @@ contract SwapRouter is ConveyorTickMath {
                 _lp,
                 _amountIn,
                 _amountOutMin,
-                _reciever,
+                _receiver,
                 _sender
             );
         } else {
@@ -363,7 +363,7 @@ contract SwapRouter is ConveyorTickMath {
                 _fee,
                 _amountIn,
                 _amountOutMin,
-                _reciever,
+                _receiver,
                 _sender
             );
         }
@@ -375,7 +375,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@param _fee - The swap fee on the liquiditiy pool.
     ///@param _amountIn The amount in for the swap.
     ///@param _amountOutMin The minimum amount out in TokenOut post swap.
-    ///@param _reciever The receiver of the tokens post swap.
+    ///@param _receiver The receiver of the tokens post swap.
     ///@param _sender The sender of TokenIn on the swap.
     ///@return amountReceived The amount of TokenOut received post swap.
     function _swapV3(
@@ -385,7 +385,7 @@ contract SwapRouter is ConveyorTickMath {
         uint24 _fee,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address _reciever,
+        address _receiver,
         address _sender
     ) internal returns (uint256 amountReceived) {
         ///@notice Initialize variables to prevent stack too deep.
@@ -409,7 +409,7 @@ contract SwapRouter is ConveyorTickMath {
 
         ///@notice Execute the swap on the lp for the amounts specified.
         IUniswapV3Pool(_lp).swap(
-            _reciever,
+            _receiver,
             _zeroForOne,
             int256(_amountIn),
             _zeroForOne
@@ -709,11 +709,7 @@ contract SwapRouter is ConveyorTickMath {
         address token0,
         address token1,
         uint24 FEE
-    )
-        public
-        view
-        returns (SpotReserve[] memory prices, address[] memory lps)
-    {
+    ) public view returns (SpotReserve[] memory prices, address[] memory lps) {
         ///@notice Check if the token address' are identical.
         if (token0 != token1) {
             ///@notice Initialize SpotReserve and lp arrays of lenth dexes.length

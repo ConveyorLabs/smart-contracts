@@ -731,7 +731,7 @@ contract LimitOrderExecutorWrapper is SwapRouter {
         address _lp,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address _reciever,
+        address _receiver,
         address _sender
     ) public returns (uint256) {
         return
@@ -741,7 +741,7 @@ contract LimitOrderExecutorWrapper is SwapRouter {
                 _lp,
                 _amountIn,
                 _amountOutMin,
-                _reciever,
+                _receiver,
                 _sender
             );
     }
@@ -753,7 +753,7 @@ contract LimitOrderExecutorWrapper is SwapRouter {
         uint24 _fee,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address _reciever,
+        address _receiver,
         address _sender
     ) public returns (uint256) {
         return
@@ -764,7 +764,7 @@ contract LimitOrderExecutorWrapper is SwapRouter {
                 _fee,
                 _amountIn,
                 _amountOutMin,
-                _reciever,
+                _receiver,
                 _sender
             );
     }
@@ -810,7 +810,7 @@ contract LimitOrderExecutorWrapper is SwapRouter {
         uint24 _fee,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address _reciever,
+        address _receiver,
         address _sender
     ) public returns (uint256 amountReceived) {
         return
@@ -821,7 +821,7 @@ contract LimitOrderExecutorWrapper is SwapRouter {
                 _fee,
                 _amountIn,
                 _amountOutMin,
-                _reciever,
+                _receiver,
                 _sender
             );
     }

@@ -1810,7 +1810,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         address _lp,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address _reciever,
+        address _receiver,
         address _sender
     ) public returns (uint256) {
         return
@@ -1820,7 +1820,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
                 _lp,
                 _amountIn,
                 _amountOutMin,
-                _reciever,
+                _receiver,
                 _sender
             );
     }
@@ -1832,7 +1832,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         uint24 _fee,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address _reciever,
+        address _receiver,
         address _sender
     ) public returns (uint256) {
         return
@@ -1843,7 +1843,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
                 _fee,
                 _amountIn,
                 _amountOutMin,
-                _reciever,
+                _receiver,
                 _sender
             );
     }
@@ -1889,7 +1889,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         uint24 _fee,
         uint256 _amountIn,
         uint256 _amountOutMin,
-        address _reciever,
+        address _receiver,
         address _sender
     ) public returns (uint256 amountReceived) {
         return
@@ -1900,7 +1900,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
                 _fee,
                 _amountIn,
                 _amountOutMin,
-                _reciever,
+                _receiver,
                 _sender
             );
     }
