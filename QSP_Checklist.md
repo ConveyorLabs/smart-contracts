@@ -552,7 +552,11 @@ uint128 constant STOP_LOSS_MAX_BEACON_REWARD = 50000000000000000;
 ```
 This constant is used in place of the `maxBeaconReward` in the case of stoploss orders. 
 
-# QSP-27 Verifier's Dilemma ❌
+# QSP-27 Verifier's Dilemma ✅
+For order execution, the gas price that can be used is capped so that an off-chain executor can assign the max gas to avoid being frontrun by another off-chain executor. The cap is 1.75% above the Chainlink fast gas oracle. The Chainlink oracle's gas price can deviate from the real competitive gas price by 25% before an update. If the gas oracle is 25% lower than
+the competitive gas price, the execution transaction gas price is still priced at a competitive rate. If the gas oracle is 25% higher than the competitive gas price, the execution gas price will be faster than the current competitive rate. At all times, the execution transaction's gas price will be competitve.
+
+Since the gas price is an exact value, searchers can not monitor the mempool and front run the transaction with a higher gas price. This effecively eliminates the verifier's delimma from the protocol, incentivizing the off-chain executor to be the first to compute the execution opportunity and submit a transaction. Any while miners/block builders can order a block as they desire there is not an incentive to order one transaction in front of the other, allowing the first to submit the transaction to be included in most cases. There is still a chance that block builders (or validators, depending on the chain) could reorder transactions before including them in the block. Off-chain executors are encouraged to use Flashbots or equivalent, for chains that have private relays to further avoid potential frontrunning. 
 
 
 # QSP-28 Taxed Token Swaps Using Uniswap V3 Might Fail ❌
