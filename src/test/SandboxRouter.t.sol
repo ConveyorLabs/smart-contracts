@@ -898,15 +898,25 @@ contract SandboxRouterTest is DSTest {
     ) public {
         bool run;
         assembly {
-            run := iszero(or(lt(wethQuantity, 1000000000000000), lt(daiQuantity, 1000000000000000)))
+            run := iszero(and(
+                and(
+                    lt(1000000000000000, wethQuantity),
+                    lt(1000000000000000, daiQuantity)
+                ),
+                and(
+                    lt(wethQuantity,100000000000000000000000),
+                    lt(daiQuantity,100000000000000000000000)
+                )
+            ))
+           
         }
-        if (run) {
+        if (!run) {
             ///@notice Deal funds to all of the necessary receivers
             cheatCodes.deal(address(this), type(uint128).max);
             cheatCodes.deal(address(swapHelper), type(uint128).max);
             ///@notice Deposit Gas Credits to cover order execution.
-            depositGasCreditsForMockOrders(type(uint128).max);
-            
+            depositGasCreditsForMockOrdersWrapper(type(uint128).max);
+
             ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
             try swapHelper.swapEthForTokenWithUniV2(daiQuantity, DAI) returns (
                 uint256 amountOut
@@ -945,30 +955,27 @@ contract SandboxRouterTest is DSTest {
                         WETH
                     );
                 bytes32[] memory orderIds = new bytes32[](2);
-
-                orderIds[0] = placeMockOrder(orderWeth);
-                orderIds[1] = placeMockOrder(orderDai);
                 uint128[] memory fillAmounts = new uint128[](2);
-                fillAmounts[0] = fillAmountWeth;
-                fillAmounts[1] = fillAmountDai;
-
-                bool expectRevert;
-                assembly {
-                    expectRevert := or(
-                        lt(amountOut, fillAmountDai),
-                        lt(wethQuantity, fillAmountWeth)
-                    )
-                }
                 {
-                    if (expectRevert) {
+                    orderIds[0] = placeMockOrderWrapper(orderWeth);
+                    orderIds[1] = placeMockOrderWrapper(orderDai);
+
+                    fillAmounts[0] = fillAmountWeth;
+                    fillAmounts[1] = fillAmountDai;
+                }
+                
+                {
+                    if (fillAmountDai > amountOut || fillAmountWeth > wethQuantity) {
                         cheatCodes.expectRevert(
                             abi.encodeWithSelector(
                                 ILimitOrderRouter
                                     .FillAmountSpecifiedGreaterThanAmountRemaining
                                     .selector,
-                                1,
-                                2,
-                                3
+                                fillAmountWeth > wethQuantity
+                                    ? fillAmountWeth
+                                    : fillAmountDai,
+                                fillAmountWeth > wethQuantity ? wethQuantity : amountOut,
+                                fillAmountWeth > wethQuantity ? orderIds[0] : orderIds[1]
                             )
                         );
                         limitOrderRouterWrapper
@@ -978,8 +985,7 @@ contract SandboxRouterTest is DSTest {
                             );
                     } else {
                         (
-                            OrderBook.SandboxLimitOrder[]
-                                memory sandboxLimitOrders,
+                            ,
                             ,
                             uint256[] memory initialTokenInBalances,
                             uint256[] memory initialTokenOutBalances
@@ -988,13 +994,12 @@ contract SandboxRouterTest is DSTest {
                                     orderIds,
                                     fillAmounts
                                 );
-                        
+
                         assertEq(initialTokenInBalances[0], wethQuantity);
-                        assertEq(initialTokenOutBalances[1], amountOut);
                         assertEq(initialTokenOutBalances[0], amountOut);
+                        assertEq(initialTokenInBalances[1], amountOut);
                         assertEq(initialTokenOutBalances[1], wethQuantity);
-                        assert(sandboxLimitOrders[0].orderId != bytes32(0));
-                        assert(sandboxLimitOrders[1].orderId != bytes32(0));
+                        
                     }
                 }
             } catch {}
@@ -1278,6 +1283,14 @@ contract SandboxRouterTest is DSTest {
         require(depositSuccess, "error when depositing gas credits");
     }
 
+    function depositGasCreditsForMockOrdersWrapper(uint256 _amount) public {
+        (bool depositSuccess, ) = address(limitOrderRouterWrapper).call{
+            value: _amount
+        }(abi.encodeWithSignature("depositGasCredits()"));
+
+        require(depositSuccess, "error when depositing gas credits");
+    }
+
     ///@notice Gas credit deposit helper function.
     function depositGasCreditsForMockOrdersCustomOwner(
         uint256 _amount,
@@ -1306,6 +1319,24 @@ contract SandboxRouterTest is DSTest {
         bytes32[] memory orderIds = limitOrderRouter.placeSandboxLimitOrder(
             orderGroup
         );
+
+        orderId = orderIds[0];
+    }
+
+    ///@notice Helper function to place a single sandbox limit order
+    function placeMockOrderWrapper(OrderBook.SandboxLimitOrder memory order)
+        internal
+        returns (bytes32 orderId)
+    {
+        //create a new array of orders
+        OrderBook.SandboxLimitOrder[]
+            memory orderGroup = new OrderBook.SandboxLimitOrder[](1);
+        //add the order to the arrOrder and add the arrOrder to the orderGroup
+        orderGroup[0] = order;
+
+        //place order
+        bytes32[] memory orderIds = limitOrderRouterWrapper
+            .placeSandboxLimitOrder(orderGroup);
 
         orderId = orderIds[0];
     }
