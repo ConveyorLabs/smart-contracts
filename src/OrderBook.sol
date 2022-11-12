@@ -8,6 +8,7 @@ import "./interfaces/IOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 import "./test/utils/Console.sol";
+
 /// @title OrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
@@ -436,7 +437,6 @@ contract OrderBook is GasOracle {
                 );
                 ///@notice Set the Orders min fee to be received during execution.
                 newOrder.fee = minFeeReceived;
-
             }
 
             ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
@@ -815,8 +815,8 @@ contract OrderBook is GasOracle {
             amountInFilled;
         console.log(amountOutFilled);
         orderIdToSandboxLimitOrder[orderId].amountOutRemaining =
-            order.amountOutRemaining -amountOutFilled
-            ;
+            order.amountOutRemaining -
+            amountOutFilled;
     }
 
     ///@notice Function to remove an order from the system.
@@ -1003,6 +1003,10 @@ contract OrderBook is GasOracle {
             );
     }
 
+    function getAllOrderIdsLength(address owner) public view returns (uint256) {
+        return addressToAllOrderIds[owner].length;
+    }
+
     ///@notice Get all of the order Ids for a given address
     ///@param owner - Target address to get all order Ids for.
     /**@return - Nested array of order Ids organized by status. 
@@ -1010,48 +1014,67 @@ contract OrderBook is GasOracle {
     The second array represents fufilled orders.
     The third array represents cancelled orders.
     **/
-    function getAllOrderIds(address owner)
-        public
-        view
-        returns (bytes32[][] memory)
-    {
-        //TODO: have to figure this out
-        // bytes32[] memory allOrderIds = addressToAllOrderIds[owner];
-        // bytes32[][] memory orderIdsStatus = new bytes32[][](3);
-        // bytes32[] memory fufilledOrderIds = new bytes32[](allOrderIds.length);
-        // uint256 fufilledOrderIdsIndex = 0;
-        // bytes32[] memory pendingOrderIds = new bytes32[](allOrderIds.length);
-        // uint256 pendingOrderIdsIndex = 0;
-        // bytes32[] memory cancelledOrderIds = new bytes32[](allOrderIds.length);
-        // uint256 cancelledOrderIdsIndex = 0;
-        // for (uint256 i = 0; i < allOrderIds.length; ++i) {
-        //     bytes32 orderId = allOrderIds[i];
-        //     //If it is fufilled
-        //     if (addressToFufilledOrderIds[owner][orderId]) {
-        //         fufilledOrderIds[fufilledOrderIdsIndex] = orderId;
-        //         ++fufilledOrderIdsIndex;
-        //     } else if (addressToOrderIds[owner][orderId]) {
-        //         //Else if the order is pending
-        //         pendingOrderIds[pendingOrderIdsIndex] = orderId;
-        //         ++pendingOrderIdsIndex;
-        //     } else {
-        //         //Else if the order has been cancelled
-        //         cancelledOrderIds[cancelledOrderIdsIndex] = orderId;
-        //         ++cancelledOrderIdsIndex;
-        //     }
-        // }
-        // ///Reassign length of each array
-        // uint256 pendingOrderIdsLength = pendingOrderIds.length;
-        // uint256 fufilledOrderIdsLength = fufilledOrderIds.length;
-        // uint256 cancelledOrderIdsLength = cancelledOrderIds.length;
-        // assembly {
-        //     mstore(pendingOrderIds, pendingOrderIdsLength)
-        //     mstore(fufilledOrderIds, fufilledOrderIdsLength)
-        //     mstore(cancelledOrderIds, cancelledOrderIdsLength)
-        // }
-        // orderIdsStatus[0] = pendingOrderIds;
-        // orderIdsStatus[1] = fufilledOrderIds;
-        // orderIdsStatus[2] = cancelledOrderIds;
-        // return orderIdsStatus;
+    function getOrderIds(
+        address owner,
+        uint256 orderOffset,
+        uint256 length
+    ) public view returns (bytes32[][] memory) {
+        bytes32[] memory allOrderIds = addressToAllOrderIds[owner];
+
+        bytes32[][] memory orderIdsStatus = new bytes32[][](3);
+        bytes32[] memory fufilledOrderIds = new bytes32[](allOrderIds.length);
+        uint256 fufilledOrderIdsIndex = 0;
+        bytes32[] memory pendingOrderIds = new bytes32[](allOrderIds.length);
+        uint256 pendingOrderIdsIndex = 0;
+        bytes32[] memory cancelledOrderIds = new bytes32[](allOrderIds.length);
+        uint256 cancelledOrderIdsIndex = 0;
+
+        uint256 orderOffsetSlot = orderOffset + 0x20;
+
+        assembly {
+            //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order
+            orderOffsetSlot := add(
+                add(allOrderIds, 0x20),
+                mul(orderOffset, 0x20)
+            )
+        }
+
+        for (uint256 i = 0; i < length; ++i) {
+            bytes32 orderId;
+
+            assembly {
+                //Get the orderId at the orderOffsetSlot
+                orderId := mload(orderOffsetSlot)
+                //Update the orderOffsetSlot
+                orderOffsetSlot := add(orderOffsetSlot, 0x20)
+            }
+
+            //If it is fufilled
+            if (addressToFufilledOrderIds[owner][orderId]) {
+                fufilledOrderIds[fufilledOrderIdsIndex] = orderId;
+                ++fufilledOrderIdsIndex;
+            } else if (addressToOrderIds[owner][orderId]) {
+                //Else if the order is pending
+                pendingOrderIds[pendingOrderIdsIndex] = orderId;
+                ++pendingOrderIdsIndex;
+            } else {
+                //Else if the order has been cancelled
+                cancelledOrderIds[cancelledOrderIdsIndex] = orderId;
+                ++cancelledOrderIdsIndex;
+            }
+        }
+        ///Reassign length of each array
+        uint256 pendingOrderIdsLength = pendingOrderIds.length;
+        uint256 fufilledOrderIdsLength = fufilledOrderIds.length;
+        uint256 cancelledOrderIdsLength = cancelledOrderIds.length;
+        assembly {
+            mstore(pendingOrderIds, pendingOrderIdsLength)
+            mstore(fufilledOrderIds, fufilledOrderIdsLength)
+            mstore(cancelledOrderIds, cancelledOrderIdsLength)
+        }
+        orderIdsStatus[0] = pendingOrderIds;
+        orderIdsStatus[1] = fufilledOrderIds;
+        orderIdsStatus[2] = cancelledOrderIds;
+        return orderIdsStatus;
     }
 }
