@@ -11,19 +11,22 @@ import "./interfaces/ISandboxRouter.sol";
 /// @title LimitOrderExecutor
 /// @author 0xOsiris, 0xKitsune
 /// @notice This contract handles all order execution.
-contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
+contract LimitOrderExecutor is SwapRouter {
     using SafeERC20 for IERC20;
     ///====================================Immutable Storage Variables==============================================//
     address immutable WETH;
     address immutable USDC;
     address immutable LIMIT_ORDER_QUOTER;
     address public immutable LIMIT_ORDER_ROUTER;
+    address immutable SANDBOX_ROUTER;
 
     ///====================================Constants==============================================//
     ///@notice The Maximum Reward a beacon can receive from stoploss execution.
     ///Note:
+
+    //TODO: update this comment
     /*
-        The STOP_LOSS_MAX_BEACON_REWARD is set to 0.06 WETH. Also Note the protocol is receiving 0.05 WETH for trades with fees surpassing the STOP_LOSS_MAX_BEACON_REWARD.
+        The STOP_LOSS_MAX_BEACON_REWARD is set to 0.05 WETH. Also Note the protocol is receiving 0.05 WETH for trades with fees surpassing the STOP_LOSS_MAX_BEACON_REWARD.
         What this means is that for stoploss orders, if the quantity of the Order surpasses the threshold such that 0.1% of the order quantity in WETH 
         is greater than 0.1 WETH total. Then the fee paid by the user will be 0.1/OrderQuantity where OrderQuantity is in terms of the amount received from the 
         output of the first Swap if WETH is not the input token. Note: For all other types of Limit Orders there is no hardcoded cap on the fee paid by the end user.
@@ -43,13 +46,25 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         _;
     }
 
-    bool entered = false;
     ///@notice Reentrancy modifier for transferToSandBoxRouter.
     modifier nonReentrant() {
-        require(!entered, "Unauthorized Callback from ChaosRouter");
-        entered = true;
+        if (reentrancyStatus) {
+            revert Reentrancy();
+        }
+
+        reentrancyStatus = true;
         _;
-        entered = false;
+        reentrancyStatus = false;
+    }
+
+    ///@notice Modifier function to only allow the owner of the contract to call specific functions
+    ///@dev Functions with onlyOwner: withdrawConveyorFees, transferOwnership.
+    modifier onlyOwner() {
+        if (msg.sender != owner) {
+            revert MsgSenderIsNotOwner();
+        }
+
+        _;
     }
 
     ///@notice Temporary owner storage variable when transferring ownership of the contract.
@@ -71,6 +86,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
     ///@param _deploymentByteCodes The deployment bytecodes of all dex factory contracts.
     ///@param _dexFactories The Dex factory addresses.
     ///@param _isUniV2 Array of booleans indication whether the Dex is V2 architecture.
+    ///@param _gasOracle Address for the chainlink fast gas oracle.
     constructor(
         address _weth,
         address _usdc,
@@ -78,28 +94,73 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
-        address _gasOracle
+        address _gasOracle,
+        uint256 _limitOrderExecutionGasCost,
+        uint256 _sandboxLimitOrderExecutionGasCost
     ) SwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
+        require(_gasOracle != address(0), "Invalid gas oracle address");
         require(_weth != address(0), "Invalid weth address");
         require(_usdc != address(0), "Invalid usdc address");
         require(
             _limitOrderQuoterAddress != address(0),
             "Invalid LimitOrderQuoter address"
         );
+
         USDC = _usdc;
         WETH = _weth;
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
 
-        LIMIT_ORDER_ROUTER = address(
-            new LimitOrderRouter(_gasOracle, _weth, _usdc, address(this))
+        address limitOrderRouter = address(
+            new LimitOrderRouter(
+                _gasOracle,
+                _weth,
+                _usdc,
+                address(this),
+                _limitOrderExecutionGasCost,
+                _sandboxLimitOrderExecutionGasCost
+            )
         );
 
+        LIMIT_ORDER_ROUTER = limitOrderRouter;
+
+        address sandboxRouter;
+        bool success;
+
+        assembly {
+            //store the function sig for  "SANDBOX_ROUTER()"
+            mstore(
+                0x00,
+                0x0d89c48200000000000000000000000000000000000000000000000000000000
+            )
+
+            success := call(
+                gas(), // gas remaining
+                limitOrderRouter, // destination address
+                0, // no ether
+                0x00, // input buffer (starts after the first 32 bytes in the `data` array)
+                0x04, // input length (loaded from the first 32 bytes in the `data` array)
+                0x00, // output buffer
+                0x20 // output length
+            )
+
+            //Assign the sandboxRouter address
+            sandboxRouter := mload(0x00)
+        }
+
+        require(
+            success,
+            "Error when getting Sandbox Router address from the limitOrderRouter"
+        );
+
+        ///@notice Assign the SANDBOX_ROUTER address
+        SANDBOX_ROUTER = sandboxRouter;
+
+        ///@notice assign the owner address
         owner = msg.sender;
     }
 
     ///@notice Function to execute a batch of Token to Weth Orders.
     ///@param orders The orders to be executed.
-
     function executeTokenToWethOrders(OrderBook.LimitOrder[] memory orders)
         external
         onlyLimitOrderRouter
@@ -124,6 +185,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         uint256 totalBeaconReward = 0;
 
         ///@notice Set totalConveyorReward to 0
+
         uint256 totalConveyorReward = 0;
 
         for (uint256 i = 0; i < orders.length; ) {
@@ -214,7 +276,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         address tokenIn = order.tokenIn;
 
         ///@notice Calculate the amountOutMin for the tokenA to Weth swap.
-        uint256 batchAmountOutMinAToWeth = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
+        uint256 amountOutMinAToWeth = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
             .calculateAmountOutMinAToWeth(
                 lpAddressAToWeth,
                 orderQuantity,
@@ -231,7 +293,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
                 lpAddressAToWeth,
                 feeIn,
                 order.quantity,
-                batchAmountOutMinAToWeth,
+                amountOutMinAToWeth,
                 address(this),
                 order.owner
             )
@@ -368,7 +430,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
                 );
 
                 if (amountInWethToB == 0) {
-                    revert InsufficientOutputAmount();
+                    revert InsufficientOutputAmount(0, 1);
                 }
             } else {
                 ///@notice Transfer the TokenIn to the contract.
@@ -414,7 +476,7 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         );
 
         if (amountOutInB == 0) {
-            revert InsufficientOutputAmount();
+            revert InsufficientOutputAmount(0, 1);
         }
 
         return (uint256(conveyorReward), uint256(beaconReward));
@@ -432,39 +494,22 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         );
     }
 
-    //TODO: can we make the sandbox router address an immutable instead of a something that gets passed in?
-
     ///@notice Function to execute multicall orders from the context of LimitOrderExecutor.
     ///@param orders The orders to be executed.
     ///@param sandboxMulticall -
-    ///@param sandBoxRouter The address of the multicall contract.
     ///@dev
     /*The sandBoxRouter address is an immutable address from the limitOrderRouter.
     Since the function is onlyLimitOrderRouter, the sandBoxRouter address will never change*/
+
     function executeSandboxLimitOrders(
         OrderBook.SandboxLimitOrder[] memory orders,
-        SandboxRouter.SandboxMulticall calldata sandboxMulticall,
-        address sandBoxRouter
+        SandboxRouter.SandboxMulticall calldata sandboxMulticall
     ) external onlyLimitOrderRouter nonReentrant {
-        ///@notice Create an array of swap tokens to be swapped out into weth. At max there will be orders.length
-        address[] memory swapTokens = new address[](orders.length);
-
         uint256 expectedAccumulatedFees = 0;
 
-        if (sandboxMulticall.transferAddress.length == 0) {
-            ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
-            for (uint256 i = 0; i < orders.length; ++i) {
-                IERC20(orders[i].tokenIn).safeTransferFrom(
-                    orders[i].owner,
-                    sandBoxRouter,
-                    sandboxMulticall.fillAmount[i]
-                );
-
-                expectedAccumulatedFees += orders[i].fee;
-            }
-        } else {
+        if (sandboxMulticall.transferAddresses.length > 0) {
             ///@notice Ensure that the transfer address array is equal to the length of orders to avoid out of bounds index errors
-            if (sandboxMulticall.transferAddress.length != orders.length) {
+            if (sandboxMulticall.transferAddresses.length != orders.length) {
                 revert InvalidTransferAddressArray();
             }
 
@@ -472,8 +517,19 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
             for (uint256 i = 0; i < orders.length; ++i) {
                 IERC20(orders[i].tokenIn).safeTransferFrom(
                     orders[i].owner,
-                    sandboxMulticall.transferAddress[i],
-                    sandboxMulticall.fillAmount[i]
+                    sandboxMulticall.transferAddresses[i],
+                    sandboxMulticall.fillAmounts[i]
+                );
+
+                expectedAccumulatedFees += orders[i].fee;
+            }
+        } else {
+            ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
+            for (uint256 i = 0; i < orders.length; ++i) {
+                IERC20(orders[i].tokenIn).safeTransferFrom(
+                    orders[i].owner,
+                    SANDBOX_ROUTER,
+                    sandboxMulticall.fillAmounts[i]
                 );
 
                 expectedAccumulatedFees += orders[i].fee;
@@ -481,13 +537,12 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         }
 
         ///@notice Cache the contract balance to check if the fee was paid post execution
-        uint256 contractBalancePreExecution;
-        assembly {
-            contractBalancePreExecution := selfbalance()
-        }
+        uint256 contractBalancePreExecution = IERC20(WETH).balanceOf(
+            address(this)
+        );
 
         ///@notice acll the SandboxRouter callback to execute the calldata from the sandboxMulticall
-        ISandboxRouter(sandBoxRouter).sandboxRouterCallback(sandboxMulticall);
+        ISandboxRouter(SANDBOX_ROUTER).sandboxRouterCallback(sandboxMulticall);
 
         _requireConveyorFeeIsPaid(
             contractBalancePreExecution,
@@ -500,11 +555,12 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
         uint256 expectedAccumulatedFees
     ) internal view {
         ///@notice Check if the contract balance is greater than or equal to the contractBalancePreExecution + expectedAccumulatedFees
-        uint256 contractBalancePostExecution;
+        uint256 contractBalancePostExecution = IERC20(WETH).balanceOf(
+            address(this)
+        );
+
         bool feeIsPaid;
         assembly {
-            contractBalancePostExecution := selfbalance()
-
             feeIsPaid := iszero(
                 lt(
                     contractBalancePostExecution,
@@ -515,41 +571,24 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
 
         ///@notice If the fees are not paid, revert
         if (!feeIsPaid) {
-            uint256 feesPaid = contractBalancePreExecution +
-                expectedAccumulatedFees;
-
-            uint256 unpaidFeesRemaining = expectedAccumulatedFees -
-                contractBalancePostExecution;
-
             revert ConveyorFeesNotPaid(
                 expectedAccumulatedFees,
-                feesPaid,
-                unpaidFeesRemaining
+                contractBalancePostExecution - contractBalancePreExecution,
+                expectedAccumulatedFees -
+                    (contractBalancePostExecution - contractBalancePreExecution)
             );
         }
     }
 
     ///@notice Function to withdraw owner fee's accumulated
-    function withdrawConveyorFees() external {
-        if (reentrancyStatus == true) {
-            revert Reentrancy();
-        }
-        reentrancyStatus = true;
-
-        ///@notice Revert if caller is not the owner.
-        if (msg.sender != owner) {
-            revert MsgSenderIsNotOwner();
-        }
-
+    function withdrawConveyorFees() external nonReentrant onlyOwner {
         ///@notice Unwrap the the conveyorBalance.
         IWETH(WETH).withdraw(conveyorBalance);
 
-        safeTransferETH(owner, conveyorBalance);
+        uint256 withdrawAmount = conveyorBalance;
         ///@notice Set the conveyorBalance to 0 prior to transferring the ETH.
         conveyorBalance = 0;
-
-        ///@notice Set the reentrancy status to false after the conveyorBalance has been decremented to prevent reentrancy.
-        reentrancyStatus = false;
+        safeTransferETH(owner, withdrawAmount);
     }
 
     ///@notice Function to confirm ownership transfer of the contract.
@@ -563,42 +602,10 @@ contract LimitOrderExecutor is SwapRouter, ILimitOrderExecutor {
     }
 
     ///@notice Function to transfer ownership of the contract.
-    function transferOwnership(address newOwner) external {
-        if (msg.sender != owner) {
-            revert UnauthorizedCaller();
-        }
-
+    function transferOwnership(address newOwner) external onlyOwner {
         if (newOwner == address(0)) {
             revert InvalidAddress();
         }
         tempOwner = newOwner;
-    }
-
-    ///@notice Function to get the amountOut from a UniV2 lp.
-    ///@param amountIn - AmountIn for the swap.
-    ///@param reserveIn - tokenIn reserve for the swap.
-    ///@param reserveOut - tokenOut reserve for the swap.
-    ///@return amountOut - AmountOut from the given parameters.
-    function getAmountOut(
-        uint256 amountIn,
-        uint256 reserveIn,
-        uint256 reserveOut
-    ) internal pure returns (uint256 amountOut) {
-        if (amountIn == 0) {
-            revert InsufficientInputAmount();
-        }
-
-        if (reserveIn == 0) {
-            revert InsufficientLiquidity();
-        }
-
-        if (reserveOut == 0) {
-            revert InsufficientLiquidity();
-        }
-
-        uint256 amountInWithFee = amountIn * 997;
-        uint256 numerator = amountInWithFee * reserveOut;
-        uint256 denominator = reserveIn * 1000 + (amountInWithFee);
-        amountOut = numerator / denominator;
     }
 }

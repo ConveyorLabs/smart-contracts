@@ -92,8 +92,7 @@ contract LimitOrderExecutorTest is DSTest {
         swapHelperUniV2 = new Swap(uniV2Addr, WETH);
 
         limitOrderQuoter = new LimitOrderQuoter(
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
 
         limitOrderExecutor = new LimitOrderExecutorWrapper(
@@ -103,7 +102,9 @@ contract LimitOrderExecutorTest is DSTest {
             _hexDems,
             _dexFactories,
             _isUniV2,
-            aggregatorV3Address
+            aggregatorV3Address,
+            300000,
+            250000
         );
 
         limitOrderRouter = ILimitOrderRouter(
@@ -117,7 +118,9 @@ contract LimitOrderExecutorTest is DSTest {
             aggregatorV3Address,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
-            address(limitOrderExecutor)
+            address(limitOrderExecutor),
+            300000,
+            250000
         );
     }
 
@@ -3030,8 +3033,19 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
         address _gasOracle,
         address _weth,
         address _usdc,
-        address _limitOrderExecutor
-    ) LimitOrderRouter(_gasOracle, _weth, _usdc, _limitOrderExecutor) {}
+        address _limitOrderExecutor,
+        uint256 _limitOrderExecutionGasCost,
+        uint256 _sandboxLimitOrderExecutionGasCost
+    )
+        LimitOrderRouter(
+            _gasOracle,
+            _weth,
+            _usdc,
+            _limitOrderExecutor,
+            _limitOrderExecutionGasCost,
+            _sandboxLimitOrderExecutionGasCost
+        )
+    {}
 }
 
 //wrapper around SwapRouter to expose internal functions for testing
@@ -3043,7 +3057,9 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
-        address _gasOracle
+        address _gasOracle,
+        uint256 _limitOrderExecutionGasCost,
+        uint256 _sandboxLimitOrderExecutionGasCost
     )
         LimitOrderExecutor(
             _weth,
@@ -3052,7 +3068,9 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
             _initBytecodes,
             _dexFactories,
             _isUniV2,
-            _gasOracle
+            _gasOracle,
+            _limitOrderExecutionGasCost,
+            _sandboxLimitOrderExecutionGasCost
         )
     {}
 

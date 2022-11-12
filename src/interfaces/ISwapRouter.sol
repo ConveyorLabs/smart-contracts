@@ -31,4 +31,13 @@ interface IOrderRouter {
         address usdc,
         address weth
     ) external view returns (uint128);
+
+    function _getAllPrices(
+        address token0,
+        address token1,
+        uint24 FEE
+    )
+        external
+        view
+        returns (SwapRouter.SpotReserve[] memory prices, address[] memory lps);
 }
