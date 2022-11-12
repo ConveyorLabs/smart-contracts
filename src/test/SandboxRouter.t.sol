@@ -85,7 +85,6 @@ contract SandboxRouterTest is DSTest {
     address payable mockOwner10 = payable(address(10));
 
     function setUp() public {
-        
         scriptRunner = new ScriptRunner();
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         swapHelper = new Swap(_sushiSwapRouterAddress, WETH);
@@ -169,8 +168,6 @@ contract SandboxRouterTest is DSTest {
         }
     }
 
-    
-
     //================================================================
     //=========== Sandbox Integration Tests ~ SandboxRouter  =========
     //================================================================
@@ -243,7 +240,6 @@ contract SandboxRouterTest is DSTest {
         }
 
         {
-           
             ///@notice Get the Cached balances pre execution
 
             (
@@ -485,16 +481,17 @@ contract SandboxRouterTest is DSTest {
                         order.amountInRemaining,
                         orders[i].amountInRemaining - multiCall.fillAmounts[i]
                     );
-                    
+
                     assertEq(
                         order.amountOutRemaining,
-                        orders[i].amountOutRemaining-ConveyorMath.mul64U(
-                            ConveyorMath.divUU(
-                                orders[i].amountOutRemaining,
-                                orders[i].amountInRemaining
-                            ),
-                            multiCall.fillAmounts[i]
-                        )
+                        orders[i].amountOutRemaining -
+                            ConveyorMath.mul64U(
+                                ConveyorMath.divUU(
+                                    orders[i].amountOutRemaining,
+                                    orders[i].amountInRemaining
+                                ),
+                                multiCall.fillAmounts[i]
+                            )
                     );
                 }
             }
@@ -504,15 +501,383 @@ contract SandboxRouterTest is DSTest {
         }
     }
 
-    //================Multi Order Execution Tests====================
+    //================Execution Fail Case Tests====================
+    function testFailExecuteMulticallOrder_FillAmountSpecifiedGreaterThanAmountRemaining()
+        public
+    {
+        ///@notice Deal funds to all of the necessary receivers
+        cheatCodes.deal(address(this), type(uint128).max);
+        cheatCodes.deal(address(swapHelper), type(uint256).max);
+        ///@notice Deposit Gas Credits to cover order execution.
+        depositGasCreditsForMockOrders(type(uint128).max);
+        ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        ///@notice Max approve the executor on the input token.
+        IERC20(DAI).approve(address(limitOrderExecutor), type(uint256).max);
 
-    
+        ///@notice Dai/Weth sell limit order
+        ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
+        OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(
+            false,
+            10000000000000000000,
+            1,
+            DAI,
+            WETH
+        );
+
+        ///@notice Deal some ETH to compensate the fee
+        cheatCodes.deal(address(sandboxRouter), type(uint128).max);
+        cheatCodes.prank(address(sandboxRouter));
+        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
+        (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
+            abi.encodeWithSignature("deposit()")
+        );
+        require(depositSuccess, "Fudge");
+        ///@notice Initialize Arrays for Multicall struct.
+        bytes32[] memory orderIds = new bytes32[](1);
+
+        ///@notice Create a new SandboxMulticall
+        SandboxRouter.SandboxMulticall memory multiCall;
+
+        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](2);
+        OrderBook.SandboxLimitOrder[]
+            memory orders = new OrderBook.SandboxLimitOrder[](1);
+        {
+            address[] memory transferAddress = new address[](1);
+            uint128[] memory fillAmounts = new uint128[](1);
+            ///NOTE: Token0 = DAI & Token1 = WETH
+            address daiWethV2 = 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11;
+            ///@notice Place the Order.
+            orderIds[0] = placeMockOrder(order);
+            ///@notice Grab the order fee
+            orders[0] = limitOrderRouter.getSandboxLimitOrderById(orderIds[0]);
+            uint256 cumulativeFee = orders[0].fee;
+            ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
+            transferAddress[0] = daiWethV2;
+            
+            fillAmounts[0] = order.amountInRemaining+1; //Set fill amount to more than the amountInRemaining
+            ///@notice Create a single v2 swap call for the multicall.
+            calls[0] = newUniV2Call(daiWethV2, 0, 100, address(this));
+            ///@notice Create a call to compensate the feeAmount
+            calls[1] = feeCompensationCall(cumulativeFee);
+            multiCall = newMockMulticall(
+                orderIds,
+                fillAmounts,
+                transferAddress,
+                calls
+            );
+        }
+
+        ///@notice Prank tx.origin to mock an external executor
+        cheatCodes.prank(tx.origin);
+
+        ///@notice Execute the SandboxMulticall on the sandboxRouter
+        sandboxRouter.executeSandboxMulticall(multiCall);
+    }
+
+    function testFailExecuteMulticallOrder_SandboxAmountOutRequiredNotSatisfied()
+        public
+    {
+        ///@notice Deal funds to all of the necessary receivers
+        cheatCodes.deal(address(this), type(uint128).max);
+        cheatCodes.deal(address(swapHelper), type(uint256).max);
+        ///@notice Deposit Gas Credits to cover order execution.
+        depositGasCreditsForMockOrders(type(uint128).max);
+        ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        ///@notice Max approve the executor on the input token.
+        IERC20(DAI).approve(address(limitOrderExecutor), type(uint256).max);
+
+        ///@notice Dai/Weth sell limit order
+        ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
+        OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(
+            false,
+            10000000000000000000,
+            100000000000000000,
+            DAI,
+            WETH
+        );
+
+        ///@notice Deal some ETH to compensate the fee
+        cheatCodes.deal(address(sandboxRouter), type(uint128).max);
+        cheatCodes.prank(address(sandboxRouter));
+        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
+        (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
+            abi.encodeWithSignature("deposit()")
+        );
+        require(depositSuccess, "Fudge");
+        ///@notice Initialize Arrays for Multicall struct.
+        bytes32[] memory orderIds = new bytes32[](1);
+
+        ///@notice Create a new SandboxMulticall
+        SandboxRouter.SandboxMulticall memory multiCall;
+
+        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](2);
+        OrderBook.SandboxLimitOrder[]
+            memory orders = new OrderBook.SandboxLimitOrder[](1);
+        {
+            address[] memory transferAddress = new address[](1);
+            uint128[] memory fillAmounts = new uint128[](1);
+            ///NOTE: Token0 = DAI & Token1 = WETH
+            address daiWethV2 = 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11;
+            ///@notice Place the Order.
+            orderIds[0] = placeMockOrder(order);
+            ///@notice Grab the order fee
+            orders[0] = limitOrderRouter.getSandboxLimitOrderById(orderIds[0]);
+            uint256 cumulativeFee = orders[0].fee;
+            ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
+            transferAddress[0] = daiWethV2;
+            
+            fillAmounts[0] = order.amountInRemaining; 
+            ///@notice Create a single v2 swap call for the multicall.
+            //AmountOutMin set to 1 which won't cover the amountOutRemaining
+            calls[0] = newUniV2Call(daiWethV2, 0, 1, address(this));
+            ///@notice Create a call to compensate the feeAmount
+            calls[1] = feeCompensationCall(cumulativeFee);
+            multiCall = newMockMulticall(
+                orderIds,
+                fillAmounts,
+                transferAddress,
+                calls
+            );
+        }
+
+        ///@notice Prank tx.origin to mock an external executor
+        cheatCodes.prank(tx.origin);
+
+        ///@notice Execute the SandboxMulticall on the sandboxRouter
+        sandboxRouter.executeSandboxMulticall(multiCall);
+    }
+
+    function testFailExecuteMulticallOrder_SandboxFillAmountNotSatisfied()
+        public
+    {
+        ///@notice Deal funds to all of the necessary receivers
+        cheatCodes.deal(address(this), type(uint128).max);
+        cheatCodes.deal(address(swapHelper), type(uint256).max);
+        ///@notice Deposit Gas Credits to cover order execution.
+        depositGasCreditsForMockOrders(type(uint128).max);
+        ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        ///@notice Max approve the executor on the input token.
+        IERC20(DAI).approve(address(limitOrderExecutor), type(uint256).max);
+
+        ///@notice Dai/Weth sell limit order
+        ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
+        OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(
+            false,
+            10000000000000000000,
+            1,
+            DAI,
+            WETH
+        );
+
+        ///@notice Deal some ETH to compensate the fee
+        cheatCodes.deal(address(sandboxRouter), type(uint128).max);
+        cheatCodes.prank(address(sandboxRouter));
+        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
+        (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
+            abi.encodeWithSignature("deposit()")
+        );
+        require(depositSuccess, "Fudge");
+        ///@notice Initialize Arrays for Multicall struct.
+        bytes32[] memory orderIds = new bytes32[](2);
+
+        ///@notice Create a new SandboxMulticall
+        SandboxRouter.SandboxMulticall memory multiCall;
+
+        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](2);
+        OrderBook.SandboxLimitOrder[]
+            memory orders = new OrderBook.SandboxLimitOrder[](1);
+        {
+            address[] memory transferAddress = new address[](2);
+            uint128[] memory fillAmounts = new uint128[](2);
+            ///NOTE: Token0 = DAI & Token1 = WETH
+            address daiWethV2 = 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11;
+            ///@notice Place the Order.
+            bytes32 orderId = placeMockOrder(order);
+            orderIds[0]=orderId;
+            orderIds[1]=orderId;
+            ///@notice Grab the order fee
+            orders[0] = limitOrderRouter.getSandboxLimitOrderById(orderIds[0]);
+            uint256 cumulativeFee = orders[0].fee*2;
+            ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
+            transferAddress[0] = address(daiWethV2);
+            transferAddress[1] = address(daiWethV2);
+            fillAmounts[0] = 1; 
+            fillAmounts[1] = 100000000; 
+
+            ///@notice Create a single v2 swap call for the multicall.
+            //AmountOutMin set to 1 which won't cover the amountOutRemaining
+            calls[0] = newUniV2Call(daiWethV2, 0, 1, address(this));
+            ///@notice Create a call to compensate the feeAmount
+            calls[1] = feeCompensationCall(cumulativeFee);
+            multiCall = newMockMulticall(
+                orderIds,
+                fillAmounts,
+                transferAddress,
+                calls
+            );
+        }
+
+        ///@notice Prank tx.origin to mock an external executor
+        cheatCodes.prank(tx.origin);
+
+        ///@notice Execute the SandboxMulticall on the sandboxRouter
+        sandboxRouter.executeSandboxMulticall(multiCall);
+    }
+
+    function testFailExecuteMulticallOrder_ConveyorFeesNotPaid()
+        public
+    {
+        ///@notice Deal funds to all of the necessary receivers
+        cheatCodes.deal(address(this), type(uint128).max);
+        cheatCodes.deal(address(swapHelper), type(uint256).max);
+        ///@notice Deposit Gas Credits to cover order execution.
+        depositGasCreditsForMockOrders(type(uint128).max);
+        ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        ///@notice Max approve the executor on the input token.
+        IERC20(DAI).approve(address(limitOrderExecutor), type(uint256).max);
+
+        ///@notice Dai/Weth sell limit order
+        ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
+        OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(
+            false,
+            10000000000000000000,
+            1,
+            DAI,
+            WETH
+        );
+
+        ///@notice Deal some ETH to compensate the fee
+        cheatCodes.deal(address(sandboxRouter), type(uint128).max);
+        cheatCodes.prank(address(sandboxRouter));
+        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
+        (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
+            abi.encodeWithSignature("deposit()")
+        );
+        require(depositSuccess, "Fudge");
+        ///@notice Initialize Arrays for Multicall struct.
+        bytes32[] memory orderIds = new bytes32[](1);
+
+        ///@notice Create a new SandboxMulticall
+        SandboxRouter.SandboxMulticall memory multiCall;
+
+        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](2);
+        OrderBook.SandboxLimitOrder[]
+            memory orders = new OrderBook.SandboxLimitOrder[](1);
+        {
+            address[] memory transferAddress = new address[](1);
+            uint128[] memory fillAmounts = new uint128[](1);
+            ///NOTE: Token0 = DAI & Token1 = WETH
+            address daiWethV2 = 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11;
+            ///@notice Place the Order.
+            orderIds[0] = placeMockOrder(order);
+            ///@notice Grab the order fee
+            orders[0] = limitOrderRouter.getSandboxLimitOrderById(orderIds[0]);
+            uint256 cumulativeFee = 0; //Dont pay a fee should revert on ConveyorFeesNotPaid
+            ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
+            transferAddress[0] = daiWethV2;
+            
+            fillAmounts[0] = order.amountInRemaining; 
+            ///@notice Create a single v2 swap call for the multicall.
+            //AmountOutMin set to 1 which won't cover the amountOutRemaining
+            calls[0] = newUniV2Call(daiWethV2, 0, 1, address(this));
+            ///@notice Create a call to compensate the feeAmount
+            calls[1] = feeCompensationCall(cumulativeFee);
+            multiCall = newMockMulticall(
+                orderIds,
+                fillAmounts,
+                transferAddress,
+                calls
+            );
+        }
+
+        ///@notice Prank tx.origin to mock an external executor
+        cheatCodes.prank(tx.origin);
+
+        ///@notice Execute the SandboxMulticall on the sandboxRouter
+        sandboxRouter.executeSandboxMulticall(multiCall);
+    }
+
+    function testFailExecuteMulticallOrder_InvalidTransferAddressArray()
+        public
+    {
+        ///@notice Deal funds to all of the necessary receivers
+        cheatCodes.deal(address(this), type(uint128).max);
+        cheatCodes.deal(address(swapHelper), type(uint256).max);
+        ///@notice Deposit Gas Credits to cover order execution.
+        depositGasCreditsForMockOrders(type(uint128).max);
+        ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        ///@notice Max approve the executor on the input token.
+        IERC20(DAI).approve(address(limitOrderExecutor), type(uint256).max);
+
+        ///@notice Dai/Weth sell limit order
+        ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
+        OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(
+            false,
+            10000000000000000000,
+            1,
+            DAI,
+            WETH
+        );
+
+        ///@notice Deal some ETH to compensate the fee
+        cheatCodes.deal(address(sandboxRouter), type(uint128).max);
+        cheatCodes.prank(address(sandboxRouter));
+        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
+        (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
+            abi.encodeWithSignature("deposit()")
+        );
+        require(depositSuccess, "Fudge");
+        ///@notice Initialize Arrays for Multicall struct.
+        bytes32[] memory orderIds = new bytes32[](1);
+
+        ///@notice Create a new SandboxMulticall
+        SandboxRouter.SandboxMulticall memory multiCall;
+
+        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](2);
+        OrderBook.SandboxLimitOrder[]
+            memory orders = new OrderBook.SandboxLimitOrder[](1);
+        {
+            address[] memory transferAddress = new address[](2); //Set transfer addresses to a different size than orderIds, should revert on InvalidTransferAddressArray
+            uint128[] memory fillAmounts = new uint128[](1);
+            ///NOTE: Token0 = DAI & Token1 = WETH
+            address daiWethV2 = 0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11;
+            ///@notice Place the Order.
+            orderIds[0] = placeMockOrder(order);
+            ///@notice Grab the order fee
+            orders[0] = limitOrderRouter.getSandboxLimitOrderById(orderIds[0]);
+            uint256 cumulativeFee = orders[0].fee; //Dont pay a fee should revert on ConveyorFeesNotPaid
+            ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
+            transferAddress[0] = daiWethV2;
+            
+            fillAmounts[0] = order.amountInRemaining; 
+            ///@notice Create a single v2 swap call for the multicall.
+            //AmountOutMin set to 1 which won't cover the amountOutRemaining
+            calls[0] = newUniV2Call(daiWethV2, 0, 1, address(this));
+            ///@notice Create a call to compensate the feeAmount
+            calls[1] = feeCompensationCall(cumulativeFee);
+            multiCall = newMockMulticall(
+                orderIds,
+                fillAmounts,
+                transferAddress,
+                calls
+            );
+        }
+
+        ///@notice Prank tx.origin to mock an external executor
+        cheatCodes.prank(tx.origin);
+
+        ///@notice Execute the SandboxMulticall on the sandboxRouter
+        sandboxRouter.executeSandboxMulticall(multiCall);
+    }
 
     //================================================================
     //====== Sandbox Execution Unit Tests ~ LimitOrderRouter =========
     //================================================================
-
-    
 
     //================================================================
     //====== Sandbox Execution Unit Tests ~ LimitOrderExecutor =======
@@ -950,7 +1315,7 @@ contract SandboxRouterTest is DSTest {
         cheatCodes.deal(address(mockOwner9), 100000 ether);
         cheatCodes.prank(mockOwner9);
         IERC20(WETH).approve(address(limitOrderExecutor), type(uint128).max);
-        
+
         {
             cheatCodes.prank(mockOwner9);
             ///@notice Wrap the weth to send to the executor in a call.
@@ -971,7 +1336,7 @@ contract SandboxRouterTest is DSTest {
         cheatCodes.deal(address(mockOwner10), 100000 ether);
         cheatCodes.prank(mockOwner10);
         IERC20(WETH).approve(address(limitOrderExecutor), type(uint128).max);
-        
+
         {
             cheatCodes.prank(mockOwner10);
             ///@notice Wrap the weth to send to the executor in a call.
