@@ -463,12 +463,11 @@ contract SandboxRouterTest is DSTest {
         ///@notice Deal funds to all of the necessary receivers
         cheatCodes.deal(address(this), type(uint128).max);
         cheatCodes.deal(address(swapHelper), type(uint256).max);
-        ///@notice Deposit Gas Credits to cover order execution.
-        depositGasCreditsForMockOrders(type(uint128).max);
 
         // IERC20(DAI).approve(address(sandboxRouter), type(uint256).max);
         ///@notice Deal some ETH to compensate the fee
         cheatCodes.deal(address(sandboxRouter), type(uint128).max);
+
         cheatCodes.prank(address(sandboxRouter));
         ///@notice Wrap the weth to send to the executor in a call.
         (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
@@ -1008,7 +1007,14 @@ contract SandboxRouterTest is DSTest {
                                     : orderIds[1]
                             )
                         );
-                        (bool reverted,)=address(limitOrderRouterWrapper).call(abi.encodeWithSignature("_initializePreSandboxExecutionState(bytes32[],uint128[])", orderIds, fillAmounts));
+                        (bool reverted, ) = address(limitOrderRouterWrapper)
+                            .call(
+                                abi.encodeWithSignature(
+                                    "_initializePreSandboxExecutionState(bytes32[],uint128[])",
+                                    orderIds,
+                                    fillAmounts
+                                )
+                            );
                         assertTrue(reverted);
                     } else {
                         (
@@ -1121,12 +1127,8 @@ contract SandboxRouterTest is DSTest {
             cheatCodes.expectRevert(
                 abi.encodeWithSelector(
                     initialBalancesIn[0] - wethQuantity > fillAmounts[0]
-                        ? Errors
-                            .SandboxFillAmountNotSatisfied
-                            .selector
-                        : Errors
-                            .SandboxAmountOutRequiredNotSatisfied
-                            .selector,
+                        ? Errors.SandboxFillAmountNotSatisfied.selector
+                        : Errors.SandboxAmountOutRequiredNotSatisfied.selector,
                     orders[0].orderId,
                     initialBalancesIn[0] - wethQuantity > fillAmounts[0]
                         ? initialBalancesIn[0] - wethQuantity
@@ -1142,7 +1144,15 @@ contract SandboxRouterTest is DSTest {
                         )
                 )
             );
-            (bool status, )=address(limitOrderRouterWrapper).call(abi.encodeWithSignature("_validateSandboxExecutionAndFillOrders(OrderBook.SandboxLimitOrder[],uint128[],uint256[],uint256[])", orders,fillAmounts,initialBalancesIn,initialBalancesOut));
+            (bool status, ) = address(limitOrderRouterWrapper).call(
+                abi.encodeWithSignature(
+                    "_validateSandboxExecutionAndFillOrders(OrderBook.SandboxLimitOrder[],uint128[],uint256[],uint256[])",
+                    orders,
+                    fillAmounts,
+                    initialBalancesIn,
+                    initialBalancesOut
+                )
+            );
             assertTrue(status);
         } else {
             limitOrderRouterWrapper._validateSandboxExecutionAndFillOrders(
@@ -1224,11 +1234,18 @@ contract SandboxRouterTest is DSTest {
                             contractBalancePreExecution)
                 )
             );
-            (bool reverted, )=address(limitOrderExecutor).call(abi.encodeWithSignature("requireConveyorFeeIsPaid(uint256, uint256)", uint256(contractBalancePreExecution), uint256(expectedAccumulatedFees)));
+            (bool reverted, ) = address(limitOrderExecutor).call(
+                abi.encodeWithSignature(
+                    "requireConveyorFeeIsPaid(uint256, uint256)",
+                    uint256(contractBalancePreExecution),
+                    uint256(expectedAccumulatedFees)
+                )
+            );
             contractBalancePreExecution + expectedAccumulatedFees >
-            compensationAmount ? assertTrue(reverted) : assertTrue(!reverted);
+                compensationAmount
+                ? assertTrue(reverted)
+                : assertTrue(!reverted);
         }
-        
     }
 
     //================================================================
@@ -1266,14 +1283,13 @@ contract SandboxRouterTest is DSTest {
         address txOrigin
     )
         internal
-        view
         returns (
             uint256 txOriginBalanceBefore,
             uint256 gasCompensationUpperBound
         )
     {
         gasCompensationUpperBound =
-            limitOrderRouter.getGasPrice() *
+            limitOrderRouterWrapper.getGasPrice() *
             orderIds.length *
             SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
         txOriginBalanceBefore = address(txOrigin).balance;
@@ -1579,7 +1595,7 @@ contract SandboxRouterTest is DSTest {
         returns (bytes32[] memory)
     {
         cheatCodes.prank(mockOwner1);
-        swapHelper.swapEthForTokenWithUniV2(100 ether, DAI);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         cheatCodes.prank(mockOwner1);
         IERC20(DAI).approve(address(limitOrderExecutor), type(uint128).max);
         bytes32[] memory orderIds = new bytes32[](10);
@@ -1593,7 +1609,7 @@ contract SandboxRouterTest is DSTest {
             WETH
         );
         cheatCodes.prank(mockOwner2);
-        swapHelper.swapEthForTokenWithUniV2(100 ether, DAI);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         cheatCodes.prank(mockOwner2);
         IERC20(DAI).approve(address(limitOrderExecutor), type(uint128).max);
         ///@notice Dai/Weth sell limit order
@@ -1606,7 +1622,7 @@ contract SandboxRouterTest is DSTest {
             WETH
         );
         cheatCodes.prank(mockOwner3);
-        swapHelper.swapEthForTokenWithUniV2(100 ether, DAI);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         cheatCodes.prank(mockOwner3);
         IERC20(DAI).approve(address(limitOrderExecutor), type(uint128).max);
         ///@notice Dai/Weth sell limit order
@@ -1619,7 +1635,7 @@ contract SandboxRouterTest is DSTest {
             WETH
         );
         cheatCodes.prank(mockOwner4);
-        swapHelper.swapEthForTokenWithUniV2(100 ether, DAI);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         cheatCodes.prank(mockOwner4);
         IERC20(DAI).approve(address(limitOrderExecutor), type(uint128).max);
         ///@notice Dai/Weth sell limit order
@@ -1632,7 +1648,7 @@ contract SandboxRouterTest is DSTest {
             WETH
         );
         cheatCodes.prank(mockOwner5);
-        swapHelper.swapEthForTokenWithUniV2(100 ether, DAI);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         cheatCodes.prank(mockOwner5);
         IERC20(DAI).approve(address(limitOrderExecutor), type(uint128).max);
         ///@notice Dai/Weth sell limit order
@@ -1646,7 +1662,7 @@ contract SandboxRouterTest is DSTest {
         );
 
         cheatCodes.prank(mockOwner6);
-        swapHelper.swapEthForTokenWithUniV2(100 ether, USDC);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, USDC);
         cheatCodes.prank(mockOwner6);
         IERC20(USDC).approve(address(limitOrderExecutor), type(uint128).max);
         ///@notice Dai/Weth sell limit order
@@ -1659,7 +1675,7 @@ contract SandboxRouterTest is DSTest {
             WETH
         );
         cheatCodes.prank(mockOwner7);
-        swapHelper.swapEthForTokenWithUniV2(100 ether, USDC);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, USDC);
         cheatCodes.prank(mockOwner7);
         IERC20(USDC).approve(address(limitOrderExecutor), type(uint128).max);
         ///@notice Dai/Weth sell limit order
@@ -1673,7 +1689,7 @@ contract SandboxRouterTest is DSTest {
         );
 
         cheatCodes.prank(mockOwner8);
-        swapHelper.swapEthForTokenWithUniV2(100 ether, USDC);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, USDC);
         cheatCodes.prank(mockOwner8);
         IERC20(USDC).approve(address(limitOrderExecutor), type(uint128).max);
 
@@ -1686,14 +1702,14 @@ contract SandboxRouterTest is DSTest {
             USDC,
             WETH
         );
-        cheatCodes.deal(address(mockOwner9), 100000 ether);
+        cheatCodes.deal(address(mockOwner9), 1000000 ether);
         cheatCodes.prank(mockOwner9);
         IERC20(WETH).approve(address(limitOrderExecutor), type(uint128).max);
 
         {
             cheatCodes.prank(mockOwner9);
             ///@notice Wrap the weth to send to the executor in a call.
-            (bool success, ) = address(WETH).call{value: 100000 ether}(
+            (bool success, ) = address(WETH).call{value: 1000000 ether}(
                 abi.encodeWithSignature("deposit()")
             );
             require(success, "fudge");
@@ -1707,14 +1723,14 @@ contract SandboxRouterTest is DSTest {
             WETH,
             DAI
         );
-        cheatCodes.deal(address(mockOwner10), 100000 ether);
+        cheatCodes.deal(address(mockOwner10), 1000000 ether);
         cheatCodes.prank(mockOwner10);
         IERC20(WETH).approve(address(limitOrderExecutor), type(uint128).max);
 
         {
             cheatCodes.prank(mockOwner10);
             ///@notice Wrap the weth to send to the executor in a call.
-            (bool depositSuccess, ) = address(WETH).call{value: 10000 ether}(
+            (bool depositSuccess, ) = address(WETH).call{value: 1000000 ether}(
                 abi.encodeWithSignature("deposit()")
             );
             require(depositSuccess, "fudge");
@@ -1907,8 +1923,6 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
 }
 
 contract LimitOrderRouterWrapper is LimitOrderRouter {
-    LimitOrderRouter limitorderRouter;
-
     constructor(
         address _gasOracle,
         address _weth,

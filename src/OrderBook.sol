@@ -1019,60 +1019,54 @@ contract OrderBook is GasOracle {
         uint256 orderOffset,
         uint256 length
     ) public view returns (bytes32[][] memory) {
-        bytes32[] memory allOrderIds = addressToAllOrderIds[owner];
-
-        bytes32[][] memory orderIdsStatus = new bytes32[][](3);
-        bytes32[] memory fufilledOrderIds = new bytes32[](allOrderIds.length);
-        uint256 fufilledOrderIdsIndex = 0;
-        bytes32[] memory pendingOrderIds = new bytes32[](allOrderIds.length);
-        uint256 pendingOrderIdsIndex = 0;
-        bytes32[] memory cancelledOrderIds = new bytes32[](allOrderIds.length);
-        uint256 cancelledOrderIdsIndex = 0;
-
-        uint256 orderOffsetSlot = orderOffset + 0x20;
-
-        assembly {
-            //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order
-            orderOffsetSlot := add(
-                add(allOrderIds, 0x20),
-                mul(orderOffset, 0x20)
-            )
-        }
-
-        for (uint256 i = 0; i < length; ++i) {
-            bytes32 orderId;
-
-            assembly {
-                //Get the orderId at the orderOffsetSlot
-                orderId := mload(orderOffsetSlot)
-                //Update the orderOffsetSlot
-                orderOffsetSlot := add(orderOffsetSlot, 0x20)
-            }
-
-            //If it is fufilled
-            if (addressToFufilledOrderIds[owner][orderId]) {
-                fufilledOrderIds[fufilledOrderIdsIndex] = orderId;
-                ++fufilledOrderIdsIndex;
-            } else if (addressToOrderIds[owner][orderId]) {
-                //Else if the order is pending
-                pendingOrderIds[pendingOrderIdsIndex] = orderId;
-                ++pendingOrderIdsIndex;
-            } else {
-                //Else if the order has been cancelled
-                cancelledOrderIds[cancelledOrderIdsIndex] = orderId;
-                ++cancelledOrderIdsIndex;
-            }
-        }
-
-        //Reassign length of each array
-        assembly {
-            mstore(pendingOrderIds, add(pendingOrderIdsIndex, 1))
-            mstore(fufilledOrderIds, add(fufilledOrderIdsIndex, 1))
-            mstore(cancelledOrderIds, add(cancelledOrderIdsIndex, 1))
-        }
-        orderIdsStatus[0] = pendingOrderIds;
-        orderIdsStatus[1] = fufilledOrderIds;
-        orderIdsStatus[2] = cancelledOrderIds;
-        return orderIdsStatus;
+        //     bytes32[] memory allOrderIds = addressToAllOrderIds[owner];
+        //     bytes32[][] memory orderIdsStatus = new bytes32[][](3);
+        //     bytes32[] memory fufilledOrderIds = new bytes32[](allOrderIds.length);
+        //     uint256 fufilledOrderIdsIndex = 0;
+        //     bytes32[] memory pendingOrderIds = new bytes32[](allOrderIds.length);
+        //     uint256 pendingOrderIdsIndex = 0;
+        //     bytes32[] memory cancelledOrderIds = new bytes32[](allOrderIds.length);
+        //     uint256 cancelledOrderIdsIndex = 0;
+        //     uint256 orderOffsetSlot = orderOffset + 0x20;
+        //     assembly {
+        //         //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order
+        //         orderOffsetSlot := add(
+        //             add(allOrderIds, 0x20),
+        //             mul(orderOffset, 0x20)
+        //         )
+        //     }
+        //     for (uint256 i = 0; i < length; ++i) {
+        //         bytes32 orderId;
+        //         assembly {
+        //             //Get the orderId at the orderOffsetSlot
+        //             orderId := mload(orderOffsetSlot)
+        //             //Update the orderOffsetSlot
+        //             orderOffsetSlot := add(orderOffsetSlot, 0x20)
+        //         }
+        //         //If it is fufilled
+        //         if (addressToFufilledOrderIds[owner][orderId]) {
+        //             fufilledOrderIds[fufilledOrderIdsIndex] = orderId;
+        //             ++fufilledOrderIdsIndex;
+        //         } else if (addressToOrderIds[owner][orderId]) {
+        //             //Else if the order is pending
+        //             pendingOrderIds[pendingOrderIdsIndex] = orderId;
+        //             ++pendingOrderIdsIndex;
+        //         } else {
+        //             //Else if the order has been cancelled
+        //             cancelledOrderIds[cancelledOrderIdsIndex] = orderId;
+        //             ++cancelledOrderIdsIndex;
+        //         }
+        //     }
+        //     //Reassign length of each array
+        //     assembly {
+        //         mstore(pendingOrderIds, add(pendingOrderIdsIndex, 1))
+        //         mstore(fufilledOrderIds, add(fufilledOrderIdsIndex, 1))
+        //         mstore(cancelledOrderIds, add(cancelledOrderIdsIndex, 1))
+        //     }
+        //     orderIdsStatus[0] = pendingOrderIds;
+        //     orderIdsStatus[1] = fufilledOrderIds;
+        //     orderIdsStatus[2] = cancelledOrderIds;
+        //     return orderIdsStatus;
+        // }
     }
 }

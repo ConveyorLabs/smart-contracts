@@ -30,10 +30,9 @@ interface CheatCodes {
 }
 
 contract LimitOrderExecutorTest is DSTest {
-    //Initialize limit-v0 contract for testing
-    LimitOrderRouterWrapper limitOrderRouterWrapper;
     ILimitOrderRouter limitOrderRouter;
     IOrderBook orderBook;
+    LimitOrderRouter limitOrderRouterWrapper;
     LimitOrderExecutorWrapper limitOrderExecutor;
     LimitOrderQuoter limitOrderQuoter;
 
@@ -110,11 +109,8 @@ contract LimitOrderExecutorTest is DSTest {
         limitOrderRouter = ILimitOrderRouter(
             limitOrderExecutor.LIMIT_ORDER_ROUTER()
         );
-
-        orderBook = IOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
-
         //Wrapper contract to test internal functions
-        limitOrderRouterWrapper = new LimitOrderRouterWrapper(
+        limitOrderRouterWrapper = new LimitOrderRouter(
             aggregatorV3Address,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
@@ -122,10 +118,9 @@ contract LimitOrderExecutorTest is DSTest {
             300000,
             250000
         );
-    }
 
-    ///TODO: Write a test for this to assert token transfers and all conditional logic
-    function testExecuteMultiCallOrders() public {}
+        orderBook = IOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
+    }
 
     //================================================================
     //==================== Execution Tests ===========================
@@ -321,7 +316,7 @@ contract LimitOrderExecutorTest is DSTest {
                 uint256 gasCompensationBefore = address(tx.origin).balance;
 
                 ///@notice Get the gas price and set the lower and upper bound threshold.
-                uint256 gasPrice = limitOrderRouter.getGasPrice();
+                uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
                 uint256 executionCostUpper = 300000; //Should be an upper bound
                 uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -398,7 +393,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouter.getGasPrice();
+        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -500,7 +495,7 @@ contract LimitOrderExecutorTest is DSTest {
                 uint256 gasCompensationBefore = address(tx.origin).balance;
 
                 ///@notice Get the gas price and set the lower and upper bound threshold.
-                uint256 gasPrice = limitOrderRouter.getGasPrice();
+                uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
 
                 uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -564,7 +559,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouter.getGasPrice();
+        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -666,7 +661,7 @@ contract LimitOrderExecutorTest is DSTest {
                 uint256 gasCompensationBefore = address(tx.origin).balance;
 
                 ///@notice Get the gas price and set the lower and upper bound threshold.
-                uint256 gasPrice = limitOrderRouter.getGasPrice();
+                uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
 
                 uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -737,7 +732,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouter.getGasPrice();
+        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -804,7 +799,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouter.getGasPrice();
+        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -863,7 +858,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouter.getGasPrice();
+        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -923,7 +918,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouter.getGasPrice();
+        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -994,7 +989,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouter.getGasPrice();
+        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -1053,7 +1048,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouter.getGasPrice();
+        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -1103,7 +1098,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouter.getGasPrice();
+        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -1165,7 +1160,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouter.getGasPrice();
+        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -3026,28 +3021,6 @@ contract LimitOrderExecutorTest is DSTest {
     }
 }
 
-contract LimitOrderRouterWrapper is LimitOrderRouter {
-    LimitOrderRouter limitorderRouter;
-
-    constructor(
-        address _gasOracle,
-        address _weth,
-        address _usdc,
-        address _limitOrderExecutor,
-        uint256 _limitOrderExecutionGasCost,
-        uint256 _sandboxLimitOrderExecutionGasCost
-    )
-        LimitOrderRouter(
-            _gasOracle,
-            _weth,
-            _usdc,
-            _limitOrderExecutor,
-            _limitOrderExecutionGasCost,
-            _sandboxLimitOrderExecutionGasCost
-        )
-    {}
-}
-
 //wrapper around SwapRouter to expose internal functions for testing
 contract LimitOrderExecutorWrapper is LimitOrderExecutor {
     constructor(
@@ -3187,5 +3160,31 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
                 _receiver,
                 _sender
             );
+    }
+}
+
+contract LimitOrderRouterWrapper is LimitOrderRouter {
+    constructor(
+        address _gasOracle,
+        address _weth,
+        address _usdc,
+        address _limitOrderExecutor,
+        uint256 _limitOrderExecutionGasCost,
+        uint256 _sandboxLimitOrderExecutionGasCost
+    )
+        LimitOrderRouter(
+            _gasOracle,
+            _weth,
+            _usdc,
+            _limitOrderExecutor,
+            _limitOrderExecutionGasCost,
+            _sandboxLimitOrderExecutionGasCost
+        )
+    {}
+
+    function invokeOnlyEOA() public onlyEOA {}
+
+    function validateOrderSequencing(LimitOrder[] memory orders) public pure {
+        _validateOrderSequencing(orders);
     }
 }

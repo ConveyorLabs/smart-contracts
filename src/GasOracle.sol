@@ -2,6 +2,8 @@
 pragma solidity 0.8.16;
 
 import "../lib/AggregatorV3Interface.sol";
+import "./lib/ConveyorMath.sol";
+import "./test/utils/Console.sol";
 
 /// @title GasOracle
 /// @author 0xOsiris, 0xKitsune
@@ -30,39 +32,75 @@ contract GasOracle {
     constructor(address _gasOracleAddress) {
         require(_gasOracleAddress != address(0), "Invalid address");
         gasOracleAddress = _gasOracleAddress;
+
+        (, int256 answer, , , ) = IAggregatorV3(gasOracleAddress)
+            .latestRoundData();
+        meanGasPrice = uint256(answer);
+        lastGasOracleTimestamp = block.timestamp;
     }
 
     ///@notice Gets the latest gas price from the Chainlink data feed for the fast gas oracle
     function getGasPrice() public returns (uint256) {
-        (, int256 answer, , , ) = IAggregatorV3(gasOracleAddress)
-            .latestRoundData();
+        bool sufficientlyElapsedTime;
+        assembly {
+            sufficientlyElapsedTime := iszero(
+                lt(
+                    sub(timeHorizon, 1),
+                    mod(
+                        timeHorizon,
+                        sub(lastGasOracleTimestamp.slot, timestamp())
+                    )
+                )
+            )
+        }
+        if (sufficientlyElapsedTime) {
+            (, int256 answer, , , ) = IAggregatorV3(gasOracleAddress)
+                .latestRoundData();
 
-        uint256 gasPrice = uint256(answer);
+            uint256 gasPrice = uint256(answer);
 
-        ///@notice update the meanGasPrice
-        uint256 newMeanGasPrice = (((meanGasPrice +
-            (((block.timestamp - lastGasOracleTimestamp) << 64) / timeHorizon) *
-            gasPrice) >> 64) /
-            (1 +
-                ((((block.timestamp - lastGasOracleTimestamp) << 64) /
-                    timeHorizon) >> 64)));
+            uint128 proportionalTimeHorizonElapsed = ConveyorMath.divUU(
+                block.timestamp - lastGasOracleTimestamp,
+                timeHorizon
+            );
+            console.log(proportionalTimeHorizonElapsed);
 
-        emit MeanGasPriceUpdate(block.timestamp, gasPrice, meanGasPrice);
+            uint128 divisor = (uint128(1) +
+                (ConveyorMath.divUU(
+                    block.timestamp - lastGasOracleTimestamp,
+                    timeHorizon
+                ) % 2**64));
 
-        ///@notice Update the last gas timestamp
-        lastGasOracleTimestamp = block.timestamp;
+            ///@notice update the meanGasPrice
+            meanGasPrice = ConveyorMath.divUU(
+                uint256(
+                    meanGasPrice +
+                        ConveyorMath.mul64U(
+                            proportionalTimeHorizonElapsed,
+                            gasPrice
+                        )
+                ),
+                uint256(divisor)
+            );
 
-        ///@notice
-        /* The gas price is determined to be the oracleGasPrice * 1.25 since the Chainlink Gas Oracle can deviate up to 25% between updates
+            emit MeanGasPriceUpdate(block.timestamp, gasPrice, meanGasPrice);
+
+            ///@notice Update the last gas timestamp
+            lastGasOracleTimestamp = block.timestamp;
+
+            ///@notice
+            /* The gas price is determined to be the oracleGasPrice * 1.25 since the Chainlink Gas Oracle can deviate up to 25% between updates
          If the Chainlink Gas oracle is reporting a price that is 25% less than the actual price, then the adjustedGasPrice will report the fair market gas price
          If the Gas oracle is reporting a price 25% greater than the actual gas price, the adjusted price is still 25% greater than the oracle.
          This allows for the off chain executor to always be incentivized to execute a transaction, regardless of how far the gasOracle deviates
          from the fair market price. 
         */
 
-        uint256 adjustedGasPrice = (uint256(newMeanGasPrice) *
-            ONE_HUNDRED_TWENTY_FIVE) / ONE_HUNDRED;
-
-        return adjustedGasPrice;
+            uint256 adjustedGasPrice = (uint256(meanGasPrice) *
+                ONE_HUNDRED_TWENTY_FIVE) / ONE_HUNDRED;
+            return adjustedGasPrice;
+        } else {
+            return meanGasPrice;
+        }
     }
 }

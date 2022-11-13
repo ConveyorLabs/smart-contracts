@@ -8,9 +8,10 @@ interface IOrderBook {
         external
         returns (bytes32[] memory);
 
-    function placeSandboxLimitOrder(OrderBook.SandboxLimitOrder[] calldata orderGroup)
-        external
-        returns (bytes32[] memory);
+    function placeSandboxLimitOrder(
+        OrderBook.SandboxLimitOrder[] calldata orderGroup
+    ) external returns (bytes32[] memory);
+
     function updateOrder(
         bytes32 orderId,
         uint128 price,

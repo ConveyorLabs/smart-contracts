@@ -5,8 +5,6 @@ import "../SandboxRouter.sol";
 import "../OrderBook.sol";
 
 interface ILimitOrderRouter {
-    
-
     function placeSandboxLimitOrder(
         OrderBook.SandboxLimitOrder[] calldata orderGroup
     ) external payable returns (bytes32[] memory);
@@ -39,6 +37,4 @@ interface ILimitOrderRouter {
     function confirmTransferOwnership() external;
 
     function transferOwnership(address newOwner) external;
-
-    function getGasPrice() external view returns (uint256);
 }
