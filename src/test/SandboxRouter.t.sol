@@ -1047,17 +1047,13 @@ contract SandboxRouterTest is DSTest {
     ) public {
         bool run;
         {
-            assembly {
-                run := and(
-                    and(
-                        lt(1000000000000000, wethQuantity),
-                        lt(1000000000000000, daiQuantity)
-                    ),
-                    and(
-                        lt(wethQuantity, 10000000000000000000000),
-                        lt(daiQuantity, 10000000000000000000000)
-                    )
-                )
+            if (
+                wethQuantity < 1000000000000000 ||
+                daiQuantity < 1000000000000000 ||
+                wethQuantity > 10000000000000000000000 ||
+                daiQuantity > 10000000000000000000000
+            ) {
+                run = false;
             }
         }
         if (run) {

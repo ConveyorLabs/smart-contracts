@@ -16,7 +16,7 @@ import "../../lib/libraries/Uniswap/SafeCast.sol";
 import "../../lib/interfaces/token/IERC20.sol";
 
 contract ConveyorTickMath {
-    ///@notice Initialize all libraries. 
+    ///@notice Initialize all libraries.
     using SafeCast for uint256;
     using LowGasSafeMath for int256;
     using Tick for mapping(int24 => Tick.Info);
@@ -62,14 +62,19 @@ contract ConveyorTickMath {
         uint256 feeAmount;
     }
 
-    ///@notice Function to convers a SqrtPrice Q96.64 fixed point to Price as 128.128 fixed point resolution. 
-    ///@dev token0 is token0 on the pool, and token1 is token1 on the pool. Not tokenIn,tokenOut on the swap. 
+    ///@notice Function to convers a SqrtPrice Q96.64 fixed point to Price as 128.128 fixed point resolution.
+    ///@dev token0 is token0 on the pool, and token1 is token1 on the pool. Not tokenIn,tokenOut on the swap.
     ///@param sqrtPriceX96 The slot0 sqrtPriceX96 on the pool.
     ///@param token0IsReserve0 Bool indicating whether the tokenIn to be quoted is token0 on the pool.
     ///@param token0 Token0 in the pool.
     ///@param token1 Token1 in the pool.
-    ///@return priceX128 The spot price of TokenIn as 128.128 fixed point. 
-    function fromSqrtX96(uint160 sqrtPriceX96, bool token0IsReserve0, address token0, address token1) internal view returns (uint256 priceX128) {
+    ///@return priceX128 The spot price of TokenIn as 128.128 fixed point.
+    function fromSqrtX96(
+        uint160 sqrtPriceX96,
+        bool token0IsReserve0,
+        address token0,
+        address token1
+    ) internal view returns (uint256 priceX128) {
         unchecked {
             ///@notice Cache the difference between the input and output token decimals. p=y/x ==> p*10**(x_decimals-y_decimals)>>Q192 will be the proper price in base 10.
             int8 decimalShift = int8(IERC20(token0).decimals()) -
@@ -84,13 +89,13 @@ contract ConveyorTickMath {
                 ? priceSquaredX96 / Q96
                 : (Q96 * 0xffffffffffffffffffffffffffffffff) /
                     (priceSquaredX96 / Q96);
-            
+
             ///@notice Convert the first value to 128X fixed point by shifting it left 128 bits and normalizing the value by Q96.
             priceX128 = token0IsReserve0
                 ? (uint256(priceSquaredShiftQ96) *
                     0xffffffffffffffffffffffffffffffff) / Q96
                 : priceSquaredShiftQ96;
-            require(priceX128 <= type(uint256).max,"Overflow");
+            require(priceX128 <= type(uint256).max, "Overflow");
         }
     }
 
@@ -119,6 +124,11 @@ contract ConveyorTickMath {
             lpAddressAToWeth
         ).slot0();
 
+        ///@notice Set the sqrtPriceLimit to Min or Max sqrtRatio
+        uint160 sqrtPriceLimitX96 = zeroForOne
+            ? TickMath.MIN_SQRT_RATIO + 1
+            : TickMath.MAX_SQRT_RATIO - 1;
+
         ///@notice Initialize the initial simulation state
         CurrentState memory currentState = CurrentState({
             sqrtPriceX96: sqrtPriceX96,
@@ -128,10 +138,8 @@ contract ConveyorTickMath {
             liquidity: liquidity
         });
 
-        uint160 sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(sqrtPriceX96, liquidity, amountIn, zeroForOne);
-
         ///@notice While the current state still has an amount to swap continue.
-        while (currentState.amountSpecifiedRemaining > 0) {
+        while (currentState.amountSpecifiedRemaining != 0) {
             ///@notice Initialize step structure.
             StepComputations memory step;
             ///@notice Set sqrtPriceStartX96.
@@ -159,7 +167,11 @@ contract ConveyorTickMath {
                 step.feeAmount
             ) = SwapMath.computeSwapStep(
                 currentState.sqrtPriceX96,
-                (zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)
+                (
+                    zeroForOne
+                        ? step.sqrtPriceNextX96 < sqrtPriceLimitX96
+                        : step.sqrtPriceNextX96 > sqrtPriceLimitX96
+                )
                     ? sqrtPriceLimitX96
                     : step.sqrtPriceNextX96,
                 currentState.liquidity,
@@ -177,10 +189,13 @@ contract ConveyorTickMath {
                     ///@notice Get the net liquidity after crossing the tick.
                     int128 liquidityNet = ticks.cross(step.tickNext);
                     ///@notice If swapping token0 for token1 then negate the liquidtyNet.
-                    
+
                     if (zeroForOne) liquidityNet = -liquidityNet;
-                    
-                    currentState.liquidity = LiquidityMath.addDelta(currentState.liquidity, liquidityNet);
+
+                    currentState.liquidity = LiquidityMath.addDelta(
+                        currentState.liquidity,
+                        liquidityNet
+                    );
                 }
                 ///@notice Update the currentStates tick.
                 unchecked {

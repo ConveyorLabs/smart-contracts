@@ -96,39 +96,27 @@ contract ConveyorTickMathTest is DSTest {
     ///@notice Test simulateAmountOutOnSqrtPriceX96 Quoted Amount out calculation.
     ///@dev This tests the case when swapping token0 for token1 in the v3 pool.
     function testSimulateAmountOutOnSqrtPriceX96__ZeroForOneFalse(
-        uint112 _alphaX
+        uint64 _alphaX
     ) public {
         bool run = true;
         //range 10-10000 dai
-        if (_alphaX < 1000000000000000000 || _alphaX > 100000000000000000000) {
+        if (_alphaX < 10000000000000000) {
             run = false;
         }
 
         if (run) {
-            //Grab all relevant storage data from the v3 pool
-            (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(daiWethPoolV3)
-                .slot0();
             int24 tickSpacing = IUniswapV3Pool(daiWethPoolV3).tickSpacing();
             address token0 = IUniswapV3Pool(daiWethPoolV3).token0();
             uint128 liquidity = IUniswapV3Pool(daiWethPoolV3).liquidity();
 
-            //Calculate the change in price on the input quantity
-            uint160 sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
-                sqrtPriceX96,
-                liquidity,
-                _alphaX,
-                false
-            );
             //Get the expected amountOut in Dai from the v3 quoter.
             uint256 amountOutExpected = iQuoter.quoteExactInputSingle(
                 WETH,
                 DAI,
                 3000,
                 _alphaX,
-                sqrtPriceLimitX96
+                TickMath.MAX_SQRT_RATIO - 1
             );
-
-            //Get the quoted amount out from _simulateAmountOutOnSqrtPriceX96.
             uint256 amountOutToValidate = uint256(
                 -conveyorTickMath._simulateAmountOutOnSqrtPriceX96(
                     token0,
@@ -142,73 +130,40 @@ contract ConveyorTickMathTest is DSTest {
             );
 
             {
-                cheatCodes.deal(address(this), MAX_UINT);
-
-                //Wrap the Ether
-                address(WETH).call{value: 500000000000 ether}(
-                    abi.encodeWithSignature("deposit()")
-                );
-
-                //Transfer the input amount to the SwapRotuer contract to be sent to the pool in the swap callback.
-                IERC20(WETH).transfer(address(swapRouter), _alphaX);
-
-                //Attempt a swap on our derived quote
-                //Perform the swap
-                uint256 amountReceived = swapRouter.swapV3(
-                    daiWethPoolV3,
-                    WETH,
-                    DAI,
-                    3000,
-                    _alphaX,
-                    amountOutToValidate,
-                    address(this),
-                    address(swapRouter)
-                );
-
-                //Make sure we got more than our amountOutMin
-                assertGe(amountReceived, amountOutToValidate);
-
                 //Ensure they are equal within 10 wei
-                assertEq(amountOutToValidate / 10, amountOutExpected / 10);
+                assertEq(
+                    int256(amountOutToValidate),
+                    int256(amountOutExpected)
+                );
+
+                console.log(amountOutToValidate, amountOutExpected);
             }
         }
     }
 
     ///@notice Test simulateAmountOutOnSqrtPriceX96 Quoted Amount out calculation.
     ///@dev This tests the case when swapping token1 for token0 in the v3 pool.
-    function testSimulateAmountOutOnSqrtPriceX96__ZeroForOneTrue(
-        uint112 _alphaX
-    ) public {
+    function testSimulateAmountOutOnSqrtPriceX96__ZeroForOneTrue(uint72 _alphaX)
+        public
+    {
         bool run = true;
         //range 10-10000 dai
-        if (
-            _alphaX < 10000000000000000000 || _alphaX > 10000000000000000000000
-        ) {
+        if (_alphaX < 100000000000000000000) {
             run = false;
         }
 
         if (run) {
-            //Grab all relevant storage data from the v3 pool
-            (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(daiWethPoolV3)
-                .slot0();
             int24 tickSpacing = IUniswapV3Pool(daiWethPoolV3).tickSpacing();
             address token0 = IUniswapV3Pool(daiWethPoolV3).token0();
             uint128 liquidity = IUniswapV3Pool(daiWethPoolV3).liquidity();
 
-            //Calculate the change in price on the input quantity
-            uint160 sqrtPriceLimitX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
-                sqrtPriceX96,
-                liquidity,
-                _alphaX,
-                true
-            );
             //Get the expected amountOut in Dai from the v3 quoter.
             uint256 amountOutExpected = iQuoter.quoteExactInputSingle(
                 DAI,
                 WETH,
                 3000,
                 _alphaX,
-                sqrtPriceLimitX96
+                TickMath.MIN_SQRT_RATIO + 1
             );
 
             //Get the quoted amount out from _simulateAmountOutOnSqrtPriceX96.
@@ -225,33 +180,8 @@ contract ConveyorTickMathTest is DSTest {
             );
 
             {
-                //Deal the swapHelper eth
-                cheatCodes.deal(address(swapHelper), MAX_UINT);
-                //Swap eth for DAI
-                swapHelper.swapEthForTokenWithUniV2(
-                    100000000000000000000000,
-                    DAI
-                );
-                //Transfer the dai to the swap router
-                IERC20(DAI).transfer(address(swapRouter), _alphaX);
-
-                //Attempt a swap on our derived quote
-                uint256 amountReceived = swapRouter.swapV3(
-                    daiWethPoolV3,
-                    DAI,
-                    WETH,
-                    3000,
-                    _alphaX,
-                    amountOutToValidate,
-                    address(this),
-                    address(swapRouter)
-                );
-
-                //Make sure we got at least our quote from the swap
-                assertGe(amountReceived, amountOutToValidate);
-
                 //Ensure they are equal within 10 wei
-                assertEq(amountOutToValidate / 10, amountOutExpected / 10);
+                assertEq(amountOutToValidate, amountOutExpected);
             }
         }
     }
