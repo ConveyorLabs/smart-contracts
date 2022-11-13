@@ -98,8 +98,8 @@ contract OrderBookTest is DSTest {
             300000,
             250000
         );
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(this), type(uint128).max);
+        depositGasCreditsForMockOrders(type(uint64).max);
     }
 
     ///@notice Test get order by id
@@ -326,7 +326,10 @@ contract OrderBookTest is DSTest {
         uint256 amountInRemaining = 1000000000000000000;
 
         cheatCodes.deal(address(this), MAX_UINT);
-        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+        IERC20(swapToken).approve(
+            address(limitOrderExecutor),
+            type(uint128).max
+        );
 
         //if the fuzzed amount is enough to complete the swap
         try
@@ -374,8 +377,76 @@ contract OrderBookTest is DSTest {
         } catch {}
     }
 
-    ///TODO: Write a test for this
-    function testPartialFillSandboxLimitOrder() public {}
+    ///@notice Unit Test On _partialFillSandboxLimitOrder
+    function testPartialFillSandboxLimitOrder(
+        uint128 amountIn,
+        uint128 amountOut,
+        uint8 amountInDivisor,
+        uint8 amountOutDivisor
+    ) public {
+        if (!(amountInDivisor == 0 || amountOutDivisor == 0)) {
+            cheatCodes.deal(address(this), MAX_UINT);
+            IERC20(swapToken).approve(
+                address(limitOrderExecutor),
+                type(uint128).max
+            );
+
+            //if the fuzzed amount is enough to complete the swap
+            try
+                swapHelper.swapEthForTokenWithUniV2(amountIn, swapToken)
+            returns (uint256 amountOutTokenIn) {
+                OrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
+                    swapToken,
+                    wnato,
+                    uint128(amountOutTokenIn),
+                    amountOut
+                );
+
+                //create a new array of orders
+                OrderBook.SandboxLimitOrder[]
+                    memory orderGroup = new OrderBook.SandboxLimitOrder[](1);
+                //add the order to the arrOrder and add the arrOrder to the orderGroup
+                orderGroup[0] = order;
+
+                //place order
+                bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
+                    orderGroup
+                );
+                bytes32 orderId = orderIds[0];
+                uint256 totalQuantityBefore = orderBook.getTotalOrdersValue(
+                    swapToken
+                );
+
+                orderBook.partialFillSandboxLimitOrder(
+                    uint128(amountOutTokenIn / amountInDivisor),
+                    amountOut / amountOutDivisor,
+                    orderId
+                );
+
+                uint256 totalOrdersQuantityAfter = orderBook
+                    .getTotalOrdersValue(swapToken);
+                OrderBook.SandboxLimitOrder
+                    memory orderPostPartialFill = orderBook
+                        ._getSandboxLimitOrderById(orderId);
+
+                assertEq(
+                    totalQuantityBefore - totalOrdersQuantityAfter,
+                    amountOutTokenIn / amountInDivisor
+                );
+
+                assertEq(
+                    orderPostPartialFill.amountInRemaining,
+                    (uint128(amountOutTokenIn)) -
+                        uint128(amountOutTokenIn / amountInDivisor)
+                );
+
+                assertEq(
+                    orderPostPartialFill.amountOutRemaining,
+                    amountOut - amountOut / amountOutDivisor
+                );
+            } catch {}
+        }
+    }
 
     ///@notice Test fail place order InsufficientAlllowanceForOrderPlacement
     function testFailPlaceOrder_InsufficientAllowanceForOrderPlacement(
@@ -1015,6 +1086,7 @@ contract OrderBookTest is DSTest {
     }
 
     function depositGasCreditsForMockOrders(uint256 _amount) public {
+        cheatCodes.deal(address(this), _amount);
         (bool depositSuccess, ) = address(orderBook).call{value: _amount}(
             abi.encodeWithSignature("depositGasCredits()")
         );
@@ -1042,6 +1114,14 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
             _sandboxLimitOrderExecutionGasCost
         )
     {}
+
+    function partialFillSandboxLimitOrder(
+        uint128 amountInFilled,
+        uint128 amountOutFilled,
+        bytes32 orderId
+    ) public {
+        _partialFillSandboxLimitOrder(amountInFilled, amountOutFilled, orderId);
+    }
 
     function _getLimitOrderById(bytes32 orderId)
         public

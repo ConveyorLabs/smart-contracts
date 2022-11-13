@@ -813,7 +813,7 @@ contract OrderBook is GasOracle {
         orderIdToSandboxLimitOrder[orderId].amountInRemaining =
             order.amountInRemaining -
             amountInFilled;
-        console.log(amountOutFilled);
+        
         orderIdToSandboxLimitOrder[orderId].amountOutRemaining =
             order.amountOutRemaining -
             amountOutFilled;
