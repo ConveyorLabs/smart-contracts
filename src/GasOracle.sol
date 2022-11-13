@@ -44,9 +44,10 @@ contract GasOracle {
         bool sufficientlyElapsedTime;
         assembly {
             sufficientlyElapsedTime := iszero(
+                ///@notice Limit only 1 call to to the oracle per block.
                 lt(
                     sub(timeHorizon, 1),
-                    mod(
+                    sub(
                         timeHorizon,
                         sub(lastGasOracleTimestamp.slot, timestamp())
                     )
