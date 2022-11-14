@@ -441,6 +441,16 @@ contract OrderBookTest is DSTest {
                 );
 
                 assertEq(
+                    orderPostPartialFill.fillPercent,
+                    ConveyorMath.fromX64ToX16(
+                        ConveyorMath.divUU(
+                            uint128(amountOutTokenIn / amountInDivisor),
+                            uint128(amountOutTokenIn)
+                        )
+                    )
+                );
+
+                assertEq(
                     orderPostPartialFill.amountInRemaining,
                     (uint128(amountOutTokenIn)) -
                         uint128(amountOutTokenIn / amountInDivisor)
