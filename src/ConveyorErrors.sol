@@ -45,7 +45,6 @@ error ETHTransferFailed();
 error InvalidAddress();
 error UnauthorizedUniswapV3CallbackCaller();
 error DuplicateOrderIdsInOrderGroup();
-error VerifierDilemmaGasPrice(uint256 txGasPrice, uint256 maxGasPrice);
 error InvalidCalldata();
 error InsufficientMsgValue();
 error UnauthorizedCaller();
