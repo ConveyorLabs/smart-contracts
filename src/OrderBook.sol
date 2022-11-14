@@ -145,8 +145,14 @@ contract OrderBook is GasOracle {
 
     enum OrderType {
         None,
-        LimitOrder,
-        SandboxLimitOrder
+        PendingLimitOrder,
+        PendingSandboxLimitOrder,
+        PartialFilledLimitOrder,
+        PartialFilledSandboxLimitOrder,
+        FilledLimitOrder,
+        FilledSandboxLimitOrder,
+        CancelledLimitOrder,
+        CancelledSandboxLimitOrder
     }
 
     //----------------------State Structures------------------------------------//
