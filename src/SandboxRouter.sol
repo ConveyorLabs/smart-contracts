@@ -23,7 +23,7 @@ contract SandboxRouter {
         _;
     }
 
-    ///@notice Multicall Order Stsruct for multicall optimistic Order execution.
+    ///@notice Multicall Order Struct for multicall optimistic Order execution.
     ///@param orderIds - Array of orderIds that will be executed.
     ///@param fillAmounts - Array of quantities representing the quantity to be filled.
     ///@param transferAddresses - Array of addresses specifying where to transfer each order quantity at the corresponding index in the array.
