@@ -203,9 +203,8 @@ contract OrderBook is GasOracle {
         }
     }
 
-    ///TODO: Change this to internal after test debugging
     function getLimitOrderById(bytes32 orderId)
-        public
+        internal
         view
         returns (LimitOrder memory)
     {
@@ -213,9 +212,8 @@ contract OrderBook is GasOracle {
         return order;
     }
 
-    ///TODO: Change this to internal after test debugging
     function getSandboxLimitOrderById(bytes32 orderId)
-        public
+        internal
         view
         returns (SandboxLimitOrder memory)
     {
@@ -813,7 +811,7 @@ contract OrderBook is GasOracle {
         orderIdToSandboxLimitOrder[orderId].amountInRemaining =
             order.amountInRemaining -
             amountInFilled;
-        
+
         orderIdToSandboxLimitOrder[orderId].amountOutRemaining =
             order.amountOutRemaining -
             amountOutFilled;
