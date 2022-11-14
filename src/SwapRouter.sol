@@ -81,6 +81,7 @@ contract SwapRouter is ConveyorTickMath {
 
     //----------------------State Variables------------------------------------//
 
+    ///@notice Storage variable to hold the amount received from a v3 swap in the v3 callback.
     uint256 uniV3AmountOut;
 
     //----------------------State Structures------------------------------------//
@@ -97,6 +98,7 @@ contract SwapRouter is ConveyorTickMath {
     event UniV3SwapError(string indexed reason);
 
     //======================Constants================================
+
     uint128 constant MIN_FEE_64x64 = 18446744073709552;
     uint128 constant BASE_SWAP_FEE = 55340232221128660;
     uint128 constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
@@ -112,6 +114,7 @@ contract SwapRouter is ConveyorTickMath {
 
     //======================Immutables================================
 
+    ///@notice The address of the Uniswap V3 factory. b
     address uniswapV3Factory;
 
     //======================Constructor================================
@@ -144,14 +147,12 @@ contract SwapRouter is ConveyorTickMath {
                 })
             );
 
-            //If the dex is a univ3 variant, then update the uniswapV3FactoryAddress
+            ///@notice If the dex is a univ3 variant, then set the uniswapV3Factory storage address.
             if (!_isUniV2[i]) {
                 uniswapV3Factory = _dexFactories[i];
             }
         }
     }
-
-    //======================Functions================================
 
     ///@notice Transfer ETH to a specific address and require that the call was successful.
     ///@param to - The address that should be sent Ether.
@@ -243,6 +244,10 @@ contract SwapRouter is ConveyorTickMath {
         return calculated_fee_64x64;
     }
 
+    ///@notice Helper function to transfer ERC20 tokens out to an order owner address.
+    ///@param orderOwner - The address to send the tokens to.
+    ///@param amount - The amount of tokenOut to send to orderOwner.
+    ///@param tokenOut - The address of the ERC20 token being sent to orderOwner.
     function transferTokensOutToOwner(
         address orderOwner,
         uint256 amount,
@@ -251,6 +256,10 @@ contract SwapRouter is ConveyorTickMath {
         IERC20(tokenOut).safeTransfer(orderOwner, amount);
     }
 
+    ///@notice Helper function to transfer the reward to the off-chain executor.
+    ///@param totalBeaconReward - The total reward to be transferred to the executor.
+    ///@param executorAddress - The address to send the reward to.
+    ///@param weth - The wrapped native token address.
     function transferBeaconReward(
         uint256 totalBeaconReward,
         address executorAddress,
@@ -262,8 +271,6 @@ contract SwapRouter is ConveyorTickMath {
         ///@notice Send the off-chain executor their reward.
         safeTransferETH(executorAddress, totalBeaconReward);
     }
-
-    //------------------------Admin Functions----------------------------
 
     ///@notice Helper function to execute a swap on a UniV2 LP
     ///@param _tokenIn - Address of the tokenIn.
@@ -323,6 +330,7 @@ contract SwapRouter is ConveyorTickMath {
         return amountReceived;
     }
 
+    ///@notice Payable fallback to receive ether.
     receive() external payable {}
 
     ///@notice Agnostic swap function that determines whether or not to swap on univ2 or univ3
