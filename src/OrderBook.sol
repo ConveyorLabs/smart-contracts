@@ -396,6 +396,7 @@ contract OrderBook is GasOracle {
                         if (spRes[k].spotPrice != 0) {
                             tokenAWethSpotPrice = spRes[k].spotPrice;
                             break;
+                            ///TODO: Revisit this
                         }
 
                         unchecked {
@@ -813,7 +814,7 @@ contract OrderBook is GasOracle {
         orderIdToSandboxLimitOrder[orderId].amountInRemaining =
             order.amountInRemaining -
             amountInFilled;
-        
+
         orderIdToSandboxLimitOrder[orderId].amountOutRemaining =
             order.amountOutRemaining -
             amountOutFilled;
