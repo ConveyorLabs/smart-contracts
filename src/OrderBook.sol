@@ -122,6 +122,7 @@ contract OrderBook is GasOracle {
     ///@param buy - Indicates if the order is a buy or sell
     ///@param lastRefreshTimestamp - Unix timestamp representing the last time the order was refreshed.
     ///@param expirationTimestamp - Unix timestamp representing when the order should expire.
+    ///@param fillPercent - The percentage filled on the initial amountInRemaining represented as 16.16 fixed point.
     ///@param price - The execution price representing the spot price of tokenIn/tokenOut that the order should be filled at. This is simply amountOutRemaining/amountInRemaining.
     ///@param executionFee - The fee paid in WETH for Order execution.
     ///@param amountOutRemaining - The exact amountOut out that the order owner is willing to accept. This value is represented in tokenOut.
@@ -134,6 +135,7 @@ contract OrderBook is GasOracle {
         bool buy;
         uint32 lastRefreshTimestamp;
         uint32 expirationTimestamp;
+        uint32 fillPercent;
         uint128 fee;
         uint128 amountInRemaining;
         uint128 amountOutRemaining;
@@ -404,6 +406,7 @@ contract OrderBook is GasOracle {
                         if (spRes[k].spotPrice != 0) {
                             tokenAWethSpotPrice = spRes[k].spotPrice;
                             break;
+                            ///TODO: Revisit this
                         }
 
                         unchecked {
@@ -536,6 +539,8 @@ contract OrderBook is GasOracle {
         return orderIds;
     }
 
+    ///@notice Function to check if an order owner has sufficient gas credits for all active orders at order placement time.
+    ///@param numberOfOrders - The owners current number of active orders.
     function checkSufficientGasCreditsForOrderPlacement(uint256 numberOfOrders)
         internal
     {
@@ -823,6 +828,14 @@ contract OrderBook is GasOracle {
             order.owner,
             amountInFilled
         );
+        ///@notice Cache the Orders amountInRemaining.
+        uint128 amountInRemaining = orderIdToSandboxLimitOrder[orderId]
+            .amountInRemaining;
+        ///@notice Update the orders fillPercent to amountInFilled/amountInRemaining as 16.16 fixed point
+        orderIdToSandboxLimitOrder[orderId].fillPercent += ConveyorMath
+            .fromX64ToX16(
+                ConveyorMath.divUU(amountInFilled, amountInRemaining)
+            );
 
         orderIdToSandboxLimitOrder[orderId].amountInRemaining =
             order.amountInRemaining -
