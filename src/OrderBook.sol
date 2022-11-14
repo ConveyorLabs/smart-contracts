@@ -134,6 +134,7 @@ contract OrderBook is GasOracle {
         bool buy;
         uint32 lastRefreshTimestamp;
         uint32 expirationTimestamp;
+        uint32 fillPercent;
         uint128 fee;
         uint128 amountInRemaining;
         uint128 amountOutRemaining;
@@ -811,6 +812,17 @@ contract OrderBook is GasOracle {
             order.tokenIn,
             order.owner,
             amountInFilled
+        );
+        ///@notice Cache the Orders amountInRemaining.
+        uint128 amountInRemaining = orderIdToSandboxLimitOrder[orderId]
+            .amountInRemaining;
+        ///@notice Set fillPercent
+        uint128 fillPercent = ConveyorMath.divUU(
+            amountInFilled,
+            amountInRemaining
+        );
+        orderIdToSandboxLimitOrder[orderId].fillPercent = uint32(
+            ConveyorMath.divUU(amountInFilled, amountInRemaining) >> 32
         );
 
         orderIdToSandboxLimitOrder[orderId].amountInRemaining =

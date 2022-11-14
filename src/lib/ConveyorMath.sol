@@ -293,6 +293,15 @@ library ConveyorMath {
         }
     }
 
+    function fromX64ToX16(uint128 x) internal pure returns (uint32) {
+        uint16 decimals = uint16(
+            uint64(x & 0xFFFFFFFFFFFFFFFFF) & 0xFFFFFFFFFFFF
+        );
+        uint16 integers = uint16(uint64(x >> 64) >> 48);
+        uint32 result = (uint32(integers) << 16) + decimals;
+        return result;
+    }
+
     /// @notice helper to calculate binary exponent of 64.64 unsigned fixed point number
     /// @param x unsigned 64.64 fixed point number
     /// @return unsigend 64.64 fixed point number
