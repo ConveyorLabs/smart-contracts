@@ -758,6 +758,10 @@ contract OrderBook is GasOracle {
             order.quantity
         );
 
+        ///@notice Update the status of the order to cancelled
+        addressToOrderIds[order.owner][order.orderId] = OrderType
+            .CancelledLimitOrder;
+
         ///@notice Emit an event to notify the off-chain executors that the order has been cancelled.
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = order.orderId;
@@ -785,6 +789,10 @@ contract OrderBook is GasOracle {
             order.owner,
             order.amountInRemaining
         );
+
+        ///@notice Update the status of the order to cancelled
+        addressToOrderIds[order.owner][order.orderId] = OrderType
+            .CancelledSandboxLimitOrder;
 
         ///@notice Emit an event to notify the off-chain executors that the order has been cancelled.
         bytes32[] memory orderIds = new bytes32[](1);
@@ -910,6 +918,10 @@ contract OrderBook is GasOracle {
                 order.owner,
                 order.quantity
             );
+
+            ///@notice Update the status of the order to filled
+            addressToOrderIds[order.owner][order.orderId] = OrderType
+                .FilledLimitOrder;
         } else {
             ///@dev the None order type can not reach here so we can use `else`
 
@@ -935,6 +947,10 @@ contract OrderBook is GasOracle {
                 order.owner,
                 order.amountInRemaining
             );
+
+            ///@notice Update the status of the order to filled
+            addressToOrderIds[order.owner][order.orderId] = OrderType
+                .FilledSandboxLimitOrder;
         }
     }
 
