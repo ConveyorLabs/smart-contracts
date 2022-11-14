@@ -199,13 +199,16 @@ contract OrderBook is GasOracle {
             return (OrderType.None, new bytes(0));
         }
 
-        if (orderType == OrderType.LimitOrder) {
+        if (orderType == OrderType.PendingLimitOrder) {
             LimitOrder memory limitOrder = orderIdToLimitOrder[orderId];
-            return (OrderType.LimitOrder, abi.encode(limitOrder));
+            return (OrderType.PendingLimitOrder, abi.encode(limitOrder));
         } else {
             SandboxLimitOrder
                 memory sandboxLimitOrder = orderIdToSandboxLimitOrder[orderId];
-            return (OrderType.SandboxLimitOrder, abi.encode(sandboxLimitOrder));
+            return (
+                OrderType.PendingSandboxLimitOrder,
+                abi.encode(sandboxLimitOrder)
+            );
         }
     }
 
@@ -311,7 +314,8 @@ contract OrderBook is GasOracle {
             orderIdToLimitOrder[orderId] = newOrder;
 
             ///@notice Add the orderId to the addressToOrderIds mapping
-            addressToOrderIds[msg.sender][orderId] = OrderType.LimitOrder;
+            addressToOrderIds[msg.sender][orderId] = OrderType
+                .PendingLimitOrder;
 
             ///@notice Increment the total orders per address for the msg.sender
             ++totalOrdersPerAddress[msg.sender];
@@ -488,7 +492,7 @@ contract OrderBook is GasOracle {
 
             ///@notice Add the orderId to the addressToOrderIds mapping
             addressToOrderIds[msg.sender][orderId] = OrderType
-                .SandboxLimitOrder;
+                .PendingSandboxLimitOrder;
 
             ///@notice Increment the total orders per address for the msg.sender
             ++totalOrdersPerAddress[msg.sender];
@@ -583,7 +587,10 @@ contract OrderBook is GasOracle {
             revert OrderDoesNotExist(orderId);
         }
 
-        if (orderType == OrderType.LimitOrder) {
+        if (
+            orderType == OrderType.PendingLimitOrder ||
+            orderType == OrderType.PartialFilledLimitOrder
+        ) {
             _updateLimitOrder(orderId, price, quantity);
         } else {
             _updateSandboxLimitOrder(
@@ -721,7 +728,10 @@ contract OrderBook is GasOracle {
             revert OrderDoesNotExist(orderId);
         }
 
-        if (orderType == OrderType.LimitOrder) {
+        if (
+            orderType == OrderType.PendingLimitOrder ||
+            orderType == OrderType.PartialFilledLimitOrder
+        ) {
             _cancelLimitOrder(orderId);
         } else {
             _cancelSandboxLimitOrder(orderId);
@@ -828,7 +838,10 @@ contract OrderBook is GasOracle {
     function _removeOrderFromSystem(bytes32 orderId, OrderType orderType)
         internal
     {
-        if (orderType == OrderType.LimitOrder) {
+        if (
+            orderType == OrderType.PendingLimitOrder ||
+            orderType == OrderType.PartialFilledLimitOrder
+        ) {
             LimitOrder memory order = orderIdToLimitOrder[orderId];
 
             ///@notice Remove the order from the system
@@ -869,7 +882,10 @@ contract OrderBook is GasOracle {
     function _resolveCompletedOrder(bytes32 orderId, OrderType orderType)
         internal
     {
-        if (orderType == OrderType.LimitOrder) {
+        if (
+            orderType == OrderType.PendingLimitOrder ||
+            orderType == OrderType.PartialFilledLimitOrder
+        ) {
             ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
             LimitOrder memory order = orderIdToLimitOrder[orderId];
 

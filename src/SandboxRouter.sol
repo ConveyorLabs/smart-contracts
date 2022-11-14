@@ -82,7 +82,7 @@ contract SandboxRouter {
         }
     }
 
-     ///@notice Uniswap V3 callback function called during a swap on a v3 liqudity pool.
+    ///@notice Uniswap V3 callback function called during a swap on a v3 liqudity pool.
     ///@param amount0Delta - The change in token0 reserves from the swap.
     ///@param amount1Delta - The change in token1 reserves from the swap.
     ///@param data - The data packed into the swap.
@@ -92,14 +92,10 @@ contract SandboxRouter {
         bytes memory data
     ) external {
         ///@notice Decode all of the swap data.
-        (
-            bool _zeroForOne,
-            address tokenIn,
-            address _sender
-        ) = abi.decode(
-                data,
-                (bool, address, address)
-            );
+        (bool _zeroForOne, address tokenIn, address _sender) = abi.decode(
+            data,
+            (bool, address, address)
+        );
 
         ///@notice Set amountIn to the amountInDelta depending on boolean zeroForOne.
         uint256 amountIn = _zeroForOne
@@ -113,5 +109,4 @@ contract SandboxRouter {
             IERC20(tokenIn).safeTransfer(msg.sender, amountIn);
         }
     }
-
 }
