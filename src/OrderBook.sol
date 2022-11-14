@@ -122,6 +122,7 @@ contract OrderBook is GasOracle {
     ///@param buy - Indicates if the order is a buy or sell
     ///@param lastRefreshTimestamp - Unix timestamp representing the last time the order was refreshed.
     ///@param expirationTimestamp - Unix timestamp representing when the order should expire.
+    ///@param fillPercent - The percentage filled on the initial amountInRemaining represented as 16.16 fixed point.
     ///@param price - The execution price representing the spot price of tokenIn/tokenOut that the order should be filled at. This is simply amountOutRemaining/amountInRemaining.
     ///@param executionFee - The fee paid in WETH for Order execution.
     ///@param amountOutRemaining - The exact amountOut out that the order owner is willing to accept. This value is represented in tokenOut.
@@ -817,7 +818,7 @@ contract OrderBook is GasOracle {
         uint128 amountInRemaining = orderIdToSandboxLimitOrder[orderId]
             .amountInRemaining;
         ///@notice Update the orders fillPercent to amountInFilled/amountInRemaining as 16.16 fixed point
-        orderIdToSandboxLimitOrder[orderId].fillPercent = ConveyorMath
+        orderIdToSandboxLimitOrder[orderId].fillPercent += ConveyorMath
             .fromX64ToX16(
                 ConveyorMath.divUU(amountInFilled, amountInRemaining)
             );
