@@ -1495,6 +1495,7 @@ contract SandboxRouterTest is DSTest {
         //Initialize mock order
         order = OrderBook.SandboxLimitOrder({
             buy: buy,
+            fillPercent: 0,
             amountOutRemaining: amountOutRemaining,
             amountInRemaining: amountInRemaining,
             lastRefreshTimestamp: 0,

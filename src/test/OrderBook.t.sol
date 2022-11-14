@@ -102,6 +102,12 @@ contract OrderBookTest is DSTest {
         depositGasCreditsForMockOrders(type(uint64).max);
     }
 
+    function testFrom64XToX16() public {
+        uint128 number = 18446744073709552; //0.0001 64.64
+        uint32 result = ConveyorMath.fromX64ToX16(number);
+        console.log(result);
+    }
+
     ///@notice Test get order by id
     function testgetLimitOrderById() public {
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
@@ -1039,6 +1045,7 @@ contract OrderBookTest is DSTest {
         //Initialize mock order
         order = OrderBook.SandboxLimitOrder({
             buy: false,
+            fillPercent: 0,
             lastRefreshTimestamp: 0,
             expirationTimestamp: uint32(MAX_UINT),
             fee: 0,

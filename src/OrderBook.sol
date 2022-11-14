@@ -816,7 +816,7 @@ contract OrderBook is GasOracle {
         ///@notice Cache the Orders amountInRemaining.
         uint128 amountInRemaining = orderIdToSandboxLimitOrder[orderId]
             .amountInRemaining;
-        ///@notice Update the orders fillPercent to amountInFilled/amountInRemaining as
+        ///@notice Update the orders fillPercent to amountInFilled/amountInRemaining as 16.16 fixed point
         orderIdToSandboxLimitOrder[orderId].fillPercent = ConveyorMath
             .fromX64ToX16(
                 ConveyorMath.divUU(amountInFilled, amountInRemaining)
