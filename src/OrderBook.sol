@@ -149,7 +149,6 @@ contract OrderBook is GasOracle {
         None,
         PendingLimitOrder,
         PendingSandboxLimitOrder,
-        PartialFilledLimitOrder,
         PartialFilledSandboxLimitOrder,
         FilledLimitOrder,
         FilledSandboxLimitOrder,
@@ -592,10 +591,7 @@ contract OrderBook is GasOracle {
             revert OrderDoesNotExist(orderId);
         }
 
-        if (
-            orderType == OrderType.PendingLimitOrder ||
-            orderType == OrderType.PartialFilledLimitOrder
-        ) {
+        if (orderType == OrderType.PendingLimitOrder) {
             _updateLimitOrder(orderId, price, quantity);
         } else {
             _updateSandboxLimitOrder(
@@ -733,10 +729,7 @@ contract OrderBook is GasOracle {
             revert OrderDoesNotExist(orderId);
         }
 
-        if (
-            orderType == OrderType.PendingLimitOrder ||
-            orderType == OrderType.PartialFilledLimitOrder
-        ) {
+        if (orderType == OrderType.PendingLimitOrder) {
             _cancelLimitOrder(orderId);
         } else {
             _cancelSandboxLimitOrder(orderId);
@@ -844,6 +837,10 @@ contract OrderBook is GasOracle {
         orderIdToSandboxLimitOrder[orderId].amountOutRemaining =
             order.amountOutRemaining -
             amountOutFilled;
+
+        ///@notice Update the status of the order to PartialFilled
+        addressToOrderIds[order.owner][order.orderId] = OrderType
+            .PartialFilledSandboxLimitOrder;
     }
 
     ///@notice Function to remove an order from the system.
@@ -851,10 +848,7 @@ contract OrderBook is GasOracle {
     function _removeOrderFromSystem(bytes32 orderId, OrderType orderType)
         internal
     {
-        if (
-            orderType == OrderType.PendingLimitOrder ||
-            orderType == OrderType.PartialFilledLimitOrder
-        ) {
+        if (orderType == OrderType.PendingLimitOrder) {
             LimitOrder memory order = orderIdToLimitOrder[orderId];
 
             ///@notice Remove the order from the system
@@ -895,10 +889,7 @@ contract OrderBook is GasOracle {
     function _resolveCompletedOrder(bytes32 orderId, OrderType orderType)
         internal
     {
-        if (
-            orderType == OrderType.PendingLimitOrder ||
-            orderType == OrderType.PartialFilledLimitOrder
-        ) {
+        if (orderType == OrderType.PendingLimitOrder) {
             ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
             LimitOrder memory order = orderIdToLimitOrder[orderId];
 
