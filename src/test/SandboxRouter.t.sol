@@ -1391,8 +1391,8 @@ contract SandboxRouterTest is DSTest {
             calls[1] = newUniV2Call(usdcWethV2, 0, 3000000, address(this));
             calls[2] = feeCompensationCall(cumulativeFee);
             address[] memory transferAddresses = new address[](10);
-            transferAddresses[0] = address(mockOwner10); //Synthetically fill with WETH/DAI Order 1
-            transferAddresses[1] = address(mockOwner9); //Synthetically fill with WETH/DAI Order 2
+            transferAddresses[0] = address(mockOwner10); //Synthetically fill with WETH/DAI Order 10
+            transferAddresses[1] = address(mockOwner9); //Synthetically fill with WETH/DAI Order 9
             transferAddresses[2] = address(sandboxRouter);
             transferAddresses[3] = address(sandboxRouter);
             transferAddresses[4] = address(sandboxRouter);
@@ -1661,8 +1661,8 @@ contract SandboxRouterTest is DSTest {
         swapHelper.swapEthForTokenWithUniV2(1000 ether, USDC);
         cheatCodes.prank(mockOwner6);
         IERC20(USDC).approve(address(limitOrderExecutor), type(uint128).max);
-        ///@notice Dai/Weth sell limit order
-        ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
+        ///@notice USDC/Weth sell limit order
+        ///@dev amountInRemaining 10000 USDC amountOutRemaining 1 Wei
         OrderBook.SandboxLimitOrder memory order6 = newMockSandboxOrder(
             false,
             10000000000,
@@ -1674,8 +1674,8 @@ contract SandboxRouterTest is DSTest {
         swapHelper.swapEthForTokenWithUniV2(1000 ether, USDC);
         cheatCodes.prank(mockOwner7);
         IERC20(USDC).approve(address(limitOrderExecutor), type(uint128).max);
-        ///@notice Dai/Weth sell limit order
-        ///@dev amountInRemaining 1000 USDC amountOutRemaining 1 Wei
+        ///@notice USDC/Weth sell limit order
+        ///@dev amountInRemaining 10000 USDC amountOutRemaining 1 Wei
         OrderBook.SandboxLimitOrder memory order7 = newMockSandboxOrder(
             false,
             10000000000,
@@ -1689,8 +1689,8 @@ contract SandboxRouterTest is DSTest {
         cheatCodes.prank(mockOwner8);
         IERC20(USDC).approve(address(limitOrderExecutor), type(uint128).max);
 
-        ///@notice Dai/Weth sell limit order
-        ///@dev amountInRemaining 1000 USDC amountOutRemaining 1 Wei
+        ///@notice USDC/Weth sell limit order
+        ///@dev amountInRemaining 10000 USDC amountOutRemaining 1 Wei
         OrderBook.SandboxLimitOrder memory order8 = newMockSandboxOrder(
             false,
             10000000000,
@@ -1801,121 +1801,6 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
             expectedAccumulatedFees
         );
     }
-
-    function getV3PoolFee(address pairAddress)
-        public
-        view
-        returns (uint24 poolFee)
-    {
-        return getV3PoolFee(pairAddress);
-    }
-
-    function lpIsNotUniV3(address lp) public returns (bool) {
-        return _lpIsNotUniV3(lp);
-    }
-
-    // receive() external payable {}
-
-    function swapV2(
-        address _tokenIn,
-        address _tokenOut,
-        address _lp,
-        uint256 _amountIn,
-        uint256 _amountOutMin,
-        address _receiver,
-        address _sender
-    ) public returns (uint256) {
-        return
-            _swapV2(
-                _tokenIn,
-                _tokenOut,
-                _lp,
-                _amountIn,
-                _amountOutMin,
-                _receiver,
-                _sender
-            );
-    }
-
-    function swapV3(
-        address _lp,
-        address _tokenIn,
-        address _tokenOut,
-        uint24 _fee,
-        uint256 _amountIn,
-        uint256 _amountOutMin,
-        address _receiver,
-        address _sender
-    ) public returns (uint256) {
-        return
-            _swapV3(
-                _lp,
-                _tokenIn,
-                _tokenOut,
-                _fee,
-                _amountIn,
-                _amountOutMin,
-                _receiver,
-                _sender
-            );
-    }
-
-    function getAllPrices(
-        address token0,
-        address token1,
-        uint24 FEE
-    ) public view returns (SpotReserve[] memory prices, address[] memory lps) {
-        return _getAllPrices(token0, token1, FEE);
-    }
-
-    function calculateV2SpotPrice(
-        address token0,
-        address token1,
-        address _factory,
-        bytes32 _initBytecode
-    ) public view returns (SpotReserve memory spRes, address poolAddress) {
-        return _calculateV2SpotPrice(token0, token1, _factory, _initBytecode);
-    }
-
-    function calculateV3SpotPrice(
-        address token0,
-        address token1,
-        uint24 FEE,
-        address _factory
-    ) public returns (SpotReserve memory, address) {
-        return _calculateV3SpotPrice(token0, token1, FEE, _factory);
-    }
-
-    function calculateFee(
-        uint128 amountIn,
-        address usdc,
-        address weth
-    ) public view returns (uint128) {
-        return _calculateFee(amountIn, usdc, weth);
-    }
-
-    function _swap(
-        address _tokenIn,
-        address _tokenOut,
-        address _lp,
-        uint24 _fee,
-        uint256 _amountIn,
-        uint256 _amountOutMin,
-        address _receiver,
-        address _sender
-    ) public returns (uint256 amountReceived) {
-        return
-            swap(
-                _tokenIn,
-                _tokenOut,
-                _lp,
-                _fee,
-                _amountIn,
-                _amountOutMin,
-                _receiver,
-                _sender
-            );
-    }
 }
 
 contract LimitOrderRouterWrapper is LimitOrderRouter {
@@ -1936,12 +1821,6 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
             _sandboxLimitOrderExecutionGasCost
         )
     {}
-
-    function invokeOnlyEOA() public onlyEOA {}
-
-    function validateOrderSequencing(LimitOrder[] memory orders) public pure {
-        _validateOrderSequencing(orders);
-    }
 
     function _initializePreSandboxExecutionState(
         bytes32[] calldata orderIds,

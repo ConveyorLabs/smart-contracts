@@ -529,6 +529,8 @@ contract OrderBook is GasOracle {
         return orderIds;
     }
 
+    ///@notice Function to check if an order owner has sufficient gas credits for all active orders at order placement time.
+    ///@param numberOfOrders - The owners current number of active orders.
     function checkSufficientGasCreditsForOrderPlacement(uint256 numberOfOrders)
         internal
     {
