@@ -152,6 +152,11 @@ contract LimitOrderExecutorTest is DSTest {
             OrderBook.LimitOrder memory order = orderBook.getLimitOrderById(
                 tokenToWethOrderBatch[i]
             );
+            OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                address(this),
+                tokenToWethOrderBatch[i]
+            );
+            assert(orderType == OrderBook.OrderType.FilledLimitOrder);
             assert(order.orderId == bytes32(0));
         }
     }
@@ -185,6 +190,7 @@ contract LimitOrderExecutorTest is DSTest {
             OrderBook.LimitOrder memory order = orderBook.getLimitOrderById(
                 tokenToWethOrderBatch[i]
             );
+
             assert(order.orderId == bytes32(0));
         }
     }
@@ -240,6 +246,11 @@ contract LimitOrderExecutorTest is DSTest {
             OrderBook.LimitOrder memory order0 = orderBook.getLimitOrderById(
                 orderBatch[i]
             );
+            OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                address(this),
+                orderId
+            );
+            assert(orderType == OrderBook.OrderType.FilledLimitOrder);
             assert(order0.orderId == bytes32(0));
         }
     }
@@ -351,6 +362,11 @@ contract LimitOrderExecutorTest is DSTest {
                         gasCompensationAfter - gasCompensationBefore,
                         executionCostUpper * gasPrice
                     );
+                    OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                        address(this),
+                        orderId
+                    );
+                    assert(orderType == OrderBook.OrderType.FilledLimitOrder);
                     ///@notice Ensure the order was removed from the contract.
                     assert(order0.orderId == bytes32(0));
                 }
@@ -413,6 +429,11 @@ contract LimitOrderExecutorTest is DSTest {
                 gasCompensationAfter - gasCompensationBefore,
                 executionCostLower * gasPrice * 6
             );
+            OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                address(this),
+                tokenToWethOrderBatch[i]
+            );
+            assert(orderType == OrderBook.OrderType.FilledLimitOrder);
 
             assert(order0.orderId == bytes32(0));
         }
@@ -526,6 +547,11 @@ contract LimitOrderExecutorTest is DSTest {
                         gasCompensationAfter - gasCompensationBefore,
                         executionCostLower * gasPrice
                     );
+                    OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                        address(this),
+                        orderId
+                    );
+                    assert(orderType == OrderBook.OrderType.FilledLimitOrder);
 
                     ///@notice Ensure the order was removed from the contract.
                     assert(order0.orderId == bytes32(0));
@@ -579,6 +605,11 @@ contract LimitOrderExecutorTest is DSTest {
                 gasCompensationAfter - gasCompensationBefore,
                 executionCostLower * gasPrice * 2
             );
+            OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                address(this),
+                tokenToTokenOrderBatch[i]
+            );
+            assert(orderType == OrderBook.OrderType.FilledLimitOrder);
 
             assert(order0.orderId == bytes32(0));
         }
@@ -692,6 +723,11 @@ contract LimitOrderExecutorTest is DSTest {
                         gasCompensationAfter - gasCompensationBefore,
                         executionCostLower * gasPrice
                     );
+                    OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                        address(this),
+                        orderId
+                    );
+                    assert(orderType == OrderBook.OrderType.FilledLimitOrder);
 
                     ///@notice Ensure the order was removed from the contract.
                     assert(order0.orderId == bytes32(0));
@@ -752,6 +788,11 @@ contract LimitOrderExecutorTest is DSTest {
                 gasCompensationAfter - gasCompensationBefore,
                 executionCostLower * gasPrice * 2
             );
+            OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                address(this),
+                wethToTaxedOrderBatch[i]
+            );
+            assert(orderType == OrderBook.OrderType.FilledLimitOrder);
 
             assert(order0.orderId == bytes32(0));
         }
@@ -831,6 +872,11 @@ contract LimitOrderExecutorTest is DSTest {
 
             ///@notice Ensure the order was removed from the contract.
             assert(order0.orderId == bytes32(0));
+            OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                address(this),
+                orderBatch[i]
+            );
+            assert(orderType == OrderBook.OrderType.FilledLimitOrder);
         }
     }
 
@@ -879,6 +925,11 @@ contract LimitOrderExecutorTest is DSTest {
                 gasCompensationAfter - gasCompensationBefore,
                 executionCostLower * gasPrice * 2
             );
+            OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                address(this),
+                tokenToWethOrderBatch[i]
+            );
+            assert(orderType == OrderBook.OrderType.FilledLimitOrder);
 
             assert(order0.orderId == bytes32(0));
         }
@@ -947,6 +998,11 @@ contract LimitOrderExecutorTest is DSTest {
                 gasCompensationAfter - gasCompensationBefore,
                 executionCostLower * gasPrice
             );
+            OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                address(this),
+                orderBatch[i]
+            );
+            assert(orderType == OrderBook.OrderType.FilledLimitOrder);
 
             ///@notice Ensure the order was removed from the contract.
             assert(order0.orderId == bytes32(0));
@@ -1018,6 +1074,11 @@ contract LimitOrderExecutorTest is DSTest {
                 gasCompensationAfter - gasCompensationBefore,
                 executionCostLower * gasPrice
             );
+            OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                address(this),
+                orderBatch[i]
+            );
+            assert(orderType == OrderBook.OrderType.FilledLimitOrder);
 
             ///@notice Ensure the order was removed from the contract.
             assert(order0.orderId == bytes32(0));
@@ -1069,6 +1130,11 @@ contract LimitOrderExecutorTest is DSTest {
                 gasCompensationAfter - gasCompensationBefore,
                 executionCostLower * gasPrice * 2
             );
+            OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                address(this),
+                orderBatch[i]
+            );
+            assert(orderType == OrderBook.OrderType.FilledLimitOrder);
 
             assert(order0.orderId == bytes32(0));
         }
@@ -1119,6 +1185,11 @@ contract LimitOrderExecutorTest is DSTest {
                 gasCompensationAfter - gasCompensationBefore,
                 executionCostLower * gasPrice * 2
             );
+            OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                address(this),
+                orderBatch[i]
+            );
+            assert(orderType == OrderBook.OrderType.FilledLimitOrder);
 
             assert(order0.orderId == bytes32(0));
         }
@@ -1189,6 +1260,11 @@ contract LimitOrderExecutorTest is DSTest {
                 gasCompensationAfter - gasCompensationBefore,
                 executionCostLower * gasPrice
             );
+            OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                address(this),
+                orderBatch[i]
+            );
+            assert(orderType == OrderBook.OrderType.FilledLimitOrder);
 
             ///@notice Ensure the order was removed from the contract.
             assert(order0.orderId == bytes32(0));

@@ -147,8 +147,13 @@ contract OrderBook is GasOracle {
 
     enum OrderType {
         None,
-        LimitOrder,
-        SandboxLimitOrder
+        PendingLimitOrder,
+        PendingSandboxLimitOrder,
+        PartialFilledSandboxLimitOrder,
+        FilledLimitOrder,
+        FilledSandboxLimitOrder,
+        CancelledLimitOrder,
+        CancelledSandboxLimitOrder
     }
 
     //----------------------State Structures------------------------------------//
@@ -160,7 +165,7 @@ contract OrderBook is GasOracle {
     mapping(bytes32 => SandboxLimitOrder) internal orderIdToSandboxLimitOrder;
 
     ///@notice Mapping to find the total orders quantity for a specific token, for an individual account
-    ///@notice The key is represented as: keccak256(abi.encode(owner, token));
+    ///@dev The key is represented as: keccak256(abi.encode(owner, token));
     mapping(bytes32 => uint256) public totalOrdersQuantity;
 
     ///@notice Mapping to check if an order exists, as well as get all the orders for an individual account.
@@ -195,17 +200,19 @@ contract OrderBook is GasOracle {
             return (OrderType.None, new bytes(0));
         }
 
-        if (orderType == OrderType.LimitOrder) {
+        if (orderType == OrderType.PendingLimitOrder) {
             LimitOrder memory limitOrder = orderIdToLimitOrder[orderId];
-            return (OrderType.LimitOrder, abi.encode(limitOrder));
+            return (OrderType.PendingLimitOrder, abi.encode(limitOrder));
         } else {
             SandboxLimitOrder
                 memory sandboxLimitOrder = orderIdToSandboxLimitOrder[orderId];
-            return (OrderType.SandboxLimitOrder, abi.encode(sandboxLimitOrder));
+            return (
+                OrderType.PendingSandboxLimitOrder,
+                abi.encode(sandboxLimitOrder)
+            );
         }
     }
 
-    ///TODO: Change this to internal after test debugging
     function getLimitOrderById(bytes32 orderId)
         public
         view
@@ -215,7 +222,6 @@ contract OrderBook is GasOracle {
         return order;
     }
 
-    ///TODO: Change this to internal after test debugging
     function getSandboxLimitOrderById(bytes32 orderId)
         public
         view
@@ -309,7 +315,8 @@ contract OrderBook is GasOracle {
             orderIdToLimitOrder[orderId] = newOrder;
 
             ///@notice Add the orderId to the addressToOrderIds mapping
-            addressToOrderIds[msg.sender][orderId] = OrderType.LimitOrder;
+            addressToOrderIds[msg.sender][orderId] = OrderType
+                .PendingLimitOrder;
 
             ///@notice Increment the total orders per address for the msg.sender
             ++totalOrdersPerAddress[msg.sender];
@@ -487,7 +494,7 @@ contract OrderBook is GasOracle {
 
             ///@notice Add the orderId to the addressToOrderIds mapping
             addressToOrderIds[msg.sender][orderId] = OrderType
-                .SandboxLimitOrder;
+                .PendingSandboxLimitOrder;
 
             ///@notice Increment the total orders per address for the msg.sender
             ++totalOrdersPerAddress[msg.sender];
@@ -584,7 +591,7 @@ contract OrderBook is GasOracle {
             revert OrderDoesNotExist(orderId);
         }
 
-        if (orderType == OrderType.LimitOrder) {
+        if (orderType == OrderType.PendingLimitOrder) {
             _updateLimitOrder(orderId, price, quantity);
         } else {
             _updateSandboxLimitOrder(
@@ -722,7 +729,7 @@ contract OrderBook is GasOracle {
             revert OrderDoesNotExist(orderId);
         }
 
-        if (orderType == OrderType.LimitOrder) {
+        if (orderType == OrderType.PendingLimitOrder) {
             _cancelLimitOrder(orderId);
         } else {
             _cancelSandboxLimitOrder(orderId);
@@ -751,6 +758,10 @@ contract OrderBook is GasOracle {
             order.quantity
         );
 
+        ///@notice Update the status of the order to cancelled
+        addressToOrderIds[order.owner][order.orderId] = OrderType
+            .CancelledLimitOrder;
+
         ///@notice Emit an event to notify the off-chain executors that the order has been cancelled.
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = order.orderId;
@@ -778,6 +789,10 @@ contract OrderBook is GasOracle {
             order.owner,
             order.amountInRemaining
         );
+
+        ///@notice Update the status of the order to cancelled
+        addressToOrderIds[order.owner][order.orderId] = OrderType
+            .CancelledSandboxLimitOrder;
 
         ///@notice Emit an event to notify the off-chain executors that the order has been cancelled.
         bytes32[] memory orderIds = new bytes32[](1);
@@ -830,6 +845,10 @@ contract OrderBook is GasOracle {
         orderIdToSandboxLimitOrder[orderId].amountOutRemaining =
             order.amountOutRemaining -
             amountOutFilled;
+
+        ///@notice Update the status of the order to PartialFilled
+        addressToOrderIds[order.owner][order.orderId] = OrderType
+            .PartialFilledSandboxLimitOrder;
     }
 
     ///@notice Function to remove an order from the system.
@@ -837,7 +856,7 @@ contract OrderBook is GasOracle {
     function _removeOrderFromSystem(bytes32 orderId, OrderType orderType)
         internal
     {
-        if (orderType == OrderType.LimitOrder) {
+        if (orderType == OrderType.PendingLimitOrder) {
             LimitOrder memory order = orderIdToLimitOrder[orderId];
 
             ///@notice Remove the order from the system
@@ -878,7 +897,7 @@ contract OrderBook is GasOracle {
     function _resolveCompletedOrder(bytes32 orderId, OrderType orderType)
         internal
     {
-        if (orderType == OrderType.LimitOrder) {
+        if (orderType == OrderType.PendingLimitOrder) {
             ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
             LimitOrder memory order = orderIdToLimitOrder[orderId];
 
@@ -899,6 +918,10 @@ contract OrderBook is GasOracle {
                 order.owner,
                 order.quantity
             );
+
+            ///@notice Update the status of the order to filled
+            addressToOrderIds[order.owner][order.orderId] = OrderType
+                .FilledLimitOrder;
         } else {
             ///@dev the None order type can not reach here so we can use `else`
 
@@ -924,6 +947,10 @@ contract OrderBook is GasOracle {
                 order.owner,
                 order.amountInRemaining
             );
+
+            ///@notice Update the status of the order to filled
+            addressToOrderIds[order.owner][order.orderId] = OrderType
+                .FilledSandboxLimitOrder;
         }
     }
 
