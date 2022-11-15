@@ -228,7 +228,7 @@ Logic to stop reentrancy has been added to `LimitOrderRouter.executeOrders()` an
 
 # QSP-9 Not Cancelling Order as Expected ✅
 ### Description
-A few code comments state that orders should be cancelled in certain cases while the implementation does not cancel them.
+A few code comments state that orders should be canceled in certain cases while the implementation does not cancel them.
 
 ### Resolution
 Comments referring to order cancellation in these instances have been removed or cancellation logic has been added.

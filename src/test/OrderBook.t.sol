@@ -35,7 +35,7 @@ contract OrderBookTest is DSTest {
     LimitOrderRouterWrapper orderBook;
 
     event OrderPlaced(bytes32[] orderIds);
-    event OrderCancelled(bytes32[] orderIds);
+    event OrderCanceled(bytes32[] orderIds);
     event OrderUpdated(bytes32[] orderIds);
 
     //----------------State variables for testing--------------------
@@ -225,6 +225,73 @@ contract OrderBookTest is DSTest {
         } catch {}
     }
 
+    function testGetOrderIds() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+        //if the fuzzed amount is enough to complete the swap
+        swapHelper.swapEthForTokenWithUniV2(10000, swapToken);
+
+        ///@notice Place orders
+        bytes32 orderId1 = placeMockOrder(
+            newOrder(swapToken, wnato, uint128(1), uint112(1), uint112(1))
+        );
+
+        bytes32 orderId2 = placeMockOrder(
+            newOrder(swapToken, wnato, uint128(1), uint112(1), uint112(1))
+        );
+
+        bytes32 orderId4 = placeMockSandboxLimitOrder(
+            newSandboxLimitOrder(swapToken, wnato, uint112(1), uint112(1))
+        );
+
+        bytes32 orderId5 = placeMockSandboxLimitOrder(
+            newSandboxLimitOrder(swapToken, wnato, uint112(1), uint112(1))
+        );
+
+        orderBook.cancelOrder(orderId2);
+        orderBook.cancelOrder(orderId5);
+
+        uint256 orderIdsLength = orderBook.getAllOrderIdsLength(address(this));
+
+        bytes32[] memory pendingLimitOrders = orderBook.getOrderIds(
+            address(this),
+            OrderBook.OrderType.PendingLimitOrder,
+            0,
+            orderIdsLength
+        );
+
+        bytes32[] memory pendingSandboxLimitOrders = orderBook.getOrderIds(
+            address(this),
+            OrderBook.OrderType.PendingSandboxLimitOrder,
+            0,
+            orderIdsLength
+        );
+
+        bytes32[] memory canceledLimitOrders = orderBook.getOrderIds(
+            address(this),
+            OrderBook.OrderType.CanceledLimitOrder,
+            0,
+            orderIdsLength
+        );
+
+        bytes32[] memory canceledSandboxLimitOrders = orderBook.getOrderIds(
+            address(this),
+            OrderBook.OrderType.CanceledSandboxLimitOrder,
+            0,
+            orderIdsLength
+        );
+
+        assertEq(pendingLimitOrders.length, 1);
+        assertEq(pendingSandboxLimitOrders.length, 1);
+        assertEq(canceledLimitOrders.length, 1);
+        assertEq(canceledSandboxLimitOrders.length, 1);
+
+        assertEq(pendingLimitOrders[0], orderId1);
+        assertEq(pendingSandboxLimitOrders[0], orderId4);
+        assertEq(canceledLimitOrders[0], orderId2);
+        assertEq(canceledSandboxLimitOrders[0], orderId5);
+    }
+
     ///@notice Test palce order fuzz test
     function testPlaceSandboxOrder(
         uint112 amountInRemaining,
@@ -386,7 +453,7 @@ contract OrderBookTest is DSTest {
                 address(this),
                 orderId
             );
-            assert(orderType == OrderBook.OrderType.CancelledSandboxLimitOrder);
+            assert(orderType == OrderBook.OrderType.CanceledSandboxLimitOrder);
             assertEq(
                 orderBook.totalOrdersQuantity(
                     keccak256(abi.encode(address(this), swapToken))
