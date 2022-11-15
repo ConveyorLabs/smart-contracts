@@ -1060,7 +1060,7 @@ contract OrderBook is GasOracle {
         uint256 orderIdIndex = 0;
         bytes32[] memory orderIds = new bytes32[](allOrderIds.length);
 
-        uint256 orderOffsetSlot = orderOffset + 0x20;
+        uint256 orderOffsetSlot;
         assembly {
             //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order
             orderOffsetSlot := add(
@@ -1088,7 +1088,7 @@ contract OrderBook is GasOracle {
 
         //Reassign length of each array
         assembly {
-            mstore(orderIds, add(orderIdIndex, 1))
+            mstore(orderIds, orderIdIndex)
         }
 
         return orderIds;
