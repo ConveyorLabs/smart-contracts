@@ -1268,6 +1268,18 @@ contract SandboxRouterTest is DSTest {
     //================================================================
     //====================== Misc Helpers ============================
     //================================================================
+    function initialize10DimensionalOrderIdBundles()
+        internal
+        pure
+        returns (bytes32[][] memory)
+    {
+        bytes32[][] memory orderIdBundles = new bytes32[][](10);
+
+        for (uint256 i = 0; i < orderIdBundles.length; ++i) {
+            orderIdBundles[i] = new bytes32[](1);
+        }
+        return orderIdBundles;
+    }
 
     function dealSandboxRouterExecutionFee() internal {
         ///@notice Deal some ETH to compensate the fee
@@ -1328,7 +1340,8 @@ contract SandboxRouterTest is DSTest {
         }
 
         SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](3);
-        bytes32[][] memory orderIdBundles = new bytes32[][](10);
+        bytes32[][]
+            memory orderIdBundles = initialize10DimensionalOrderIdBundles();
         {
             orderIdBundles[0][0] = orderIds[0];
             orderIdBundles[1][0] = orderIds[1];
