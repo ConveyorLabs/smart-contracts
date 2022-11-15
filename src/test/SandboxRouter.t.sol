@@ -535,6 +535,184 @@ contract SandboxRouterTest is DSTest {
         }
     }
 
+    ///@notice ExecuteMulticallOrder Sandbox Router test
+    function testExecuteMulticallOrdersSameOwnerBundleInputToken() public {
+        ///@notice Deal funds to all of the necessary receivers
+        cheatCodes.deal(address(this), type(uint128).max);
+        cheatCodes.deal(address(swapHelper), type(uint256).max);
+        ///@notice Deposit Gas Credits to cover order execution.
+        depositGasCreditsForMockOrders(type(uint128).max);
+        ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        ///@notice Max approve the executor on the input token.
+        IERC20(DAI).approve(address(limitOrderExecutor), type(uint256).max);
+        // IERC20(DAI).approve(address(sandboxRouter), type(uint256).max);
+        dealSandboxRouterExecutionFee();
+
+        SandboxRouter.SandboxMulticall memory multiCall;
+        ///@notice Initialize Arrays for Multicall struct.
+
+        OrderBook.SandboxLimitOrder[]
+            memory orders = createMockOrdersSameInputToken();
+        ///@notice Place the Order.
+        bytes32[] memory orderIds = placeMultipleMockOrder(orders);
+        {
+            address[] memory transferAddress = new address[](2);
+            uint128[] memory fillAmounts = new uint128[](2);
+            SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](2);
+
+            ///NOTE: Token0 = DAI & Token1 = WETH
+            address daiWethV3 = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
+
+            console.logBytes32(orderIds[0]);
+            console.logBytes32(orderIds[1]);
+            ///@notice Grab the order fee
+            orders[0] = limitOrderRouter.getSandboxLimitOrderById(orderIds[0]);
+            orders[1] = limitOrderRouter.getSandboxLimitOrderById(orderIds[1]);
+            console.log(orders[0].owner);
+            console.log(orders[1].owner);
+
+            uint256 cumulativeFee = orders[0].fee + orders[1].fee;
+
+            ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
+            transferAddress[0] = address(sandboxRouter);
+            transferAddress[1] = address(sandboxRouter);
+
+            ///@notice Set the fill amount to the total amountIn on the order i.e. 1000 DAI.
+            fillAmounts[0] = orders[0].amountInRemaining;
+            fillAmounts[1] = orders[1].amountInRemaining;
+
+            ///@notice Create a single v2 swap call for the multicall.
+            calls[0] = newUniV3Call(
+                daiWethV3,
+                address(sandboxRouter),
+                address(this),
+                true,
+                200000000000000000000,
+                DAI
+            );
+            ///@notice Create a call to compensate the feeAmount
+            calls[1] = feeCompensationCall(cumulativeFee);
+            bytes32[][]
+                memory orderIdBundles = initialize2DimensionalOrderIdBundlesArray();
+            ///@notice If the owner address is the same and the input/output token is the same.
+            ///The orderIds must be adjacent in the orderIdBundles array so the contract can do proper
+            ///Validation on the tokenBalances vs the fillAmounts and amountOutRequired
+            orderIdBundles[0][0] = orderIds[0];
+            orderIdBundles[0][1] = orderIds[1];
+            multiCall = newMockMulticall(
+                orderIdBundles,
+                fillAmounts,
+                transferAddress,
+                calls
+            );
+        }
+
+        {
+            ///@notice Get the Cached balances pre execution
+
+            ///@notice Get the txOrigin and GasCompensation upper bound pre execution
+            (
+                uint256 txOriginBalanceBefore,
+                uint256 gasCompensationUpperBound
+            ) = initializePreSandboxExecutionTxOriginGasCompensationState(
+                    orderIds,
+                    tx.origin
+                );
+            ///@notice Cache the executor weth balance pre execution for fee validation
+            uint256 wethBalanceBefore = IERC20(WETH).balanceOf(
+                address(limitOrderExecutor)
+            );
+
+            ///@notice Prank tx.origin to mock an external executor
+            cheatCodes.prank(tx.origin);
+
+            ///@notice Execute the SandboxMulticall on the sandboxRouter
+            sandboxRouter.executeSandboxMulticall(multiCall);
+
+            ///@notice Assert the Gas for execution was as expected.
+            validatePostSandboxExecutionGasCompensation(
+                txOriginBalanceBefore,
+                gasCompensationUpperBound
+            );
+            for (uint256 i = 0; i < orders.length; ++i) {
+                OrderBook.SandboxLimitOrder memory orderPost = limitOrderRouter
+                    .getSandboxLimitOrderById(orders[i].orderId);
+                if (orders[i].amountInRemaining == multiCall.fillAmounts[i]) {
+                    console.log("this assertion");
+                    assert(orderPost.orderId == bytes32(0));
+                    OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                        address(this),
+                        orders[i].orderId
+                    );
+                    assert(
+                        orderType == OrderBook.OrderType.FilledSandboxLimitOrder
+                    );
+                } else {
+                    assertEq(
+                        orderPost.amountInRemaining,
+                        orders[i].amountInRemaining - multiCall.fillAmounts[i]
+                    );
+                    assertEq(
+                        orderPost.amountOutRemaining,
+                        ConveyorMath.mul64U(
+                            ConveyorMath.divUU(
+                                orders[i].amountOutRemaining,
+                                orders[i].amountInRemaining
+                            ),
+                            multiCall.fillAmounts[i]
+                        )
+                    );
+                }
+            }
+
+            ///@notice Assert the protocol fees were compensated as expected
+            validatePostExecutionProtocolFees(wethBalanceBefore, orders);
+        }
+    }
+
+    function createMockOrdersSameInputToken()
+        internal
+        view
+        returns (OrderBook.SandboxLimitOrder[] memory orders)
+    {
+        ///@notice Dai/Weth sell limit order
+        ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
+        OrderBook.SandboxLimitOrder memory order0 = newMockSandboxOrder(
+            false,
+            100000000000000000000,
+            1,
+            DAI,
+            WETH
+        );
+        ///@notice Dai/Weth sell limit order
+        ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
+        OrderBook.SandboxLimitOrder memory order1 = newMockSandboxOrder(
+            false,
+            100000000000000000000,
+            1,
+            DAI,
+            WETH
+        );
+
+        orders = new OrderBook.SandboxLimitOrder[](2);
+        orders[0] = order0;
+        orders[1] = order1;
+    }
+
+    function initialize2DimensionalOrderIdBundlesArray()
+        internal
+        pure
+        returns (bytes32[][] memory)
+    {
+        bytes32[][] memory orderIdBundles = new bytes32[][](1);
+
+        for (uint256 i = 0; i < orderIdBundles.length; ++i) {
+            orderIdBundles[i] = new bytes32[](2);
+        }
+        return orderIdBundles;
+    }
+
     //================Execution Fail Case Tests====================
     function testFailExecuteMulticallOrder_FillAmountSpecifiedGreaterThanAmountRemaining()
         public

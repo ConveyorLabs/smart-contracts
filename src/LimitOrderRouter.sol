@@ -9,6 +9,7 @@ import "./SwapRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./interfaces/ILimitOrderRouter.sol";
+import "./test/utils/Console.sol";
 
 /// @title LimitOrderRouter
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
@@ -340,12 +341,14 @@ contract LimitOrderRouter is OrderBook {
                     initialTokenOutBalances[arrayIndex] = IERC20(
                         currentOrder.tokenOut
                     ).balanceOf(currentOrder.owner);
-                }
 
-                unchecked {
-                    ++arrayIndex;
+                    unchecked {
+                        ++arrayIndex;
+                    }
                 }
             }
+            console.log(sandboxLimitOrders[0].owner);
+            console.log(sandboxLimitOrders[1].owner);
 
             return (
                 sandboxLimitOrders,
@@ -654,6 +657,7 @@ contract LimitOrderRouter is OrderBook {
                         lastOrder.orderId
                     );
                 }
+                lastOrder = currentOrder;
                 ++offset;
             }
         }
