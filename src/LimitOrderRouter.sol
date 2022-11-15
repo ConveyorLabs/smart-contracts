@@ -237,7 +237,7 @@ contract LimitOrderRouter is OrderBook {
             uint256[] memory initialTokenInBalances,
             uint256[] memory initialTokenOutBalances
         ) = initializePreSandboxExecutionState(
-                sandboxMulticall.orderIds,
+                sandboxMulticall.orderIdBundles,
                 sandboxMulticall.fillAmounts
             );
 
@@ -249,6 +249,7 @@ contract LimitOrderRouter is OrderBook {
 
         ///@notice Post execution, assert that all of the order owners have received >= their exact amount out
         validateSandboxExecutionAndFillOrders(
+            sandboxMulticall.orderIdBundles,
             sandboxLimitOrders,
             sandboxMulticall.fillAmounts,
             initialTokenInBalances,
@@ -267,7 +268,7 @@ contract LimitOrderRouter is OrderBook {
     }
 
     function initializePreSandboxExecutionState(
-        bytes32[] calldata orderIds,
+        bytes32[][] calldata orderIdBundles,
         uint128[] calldata fillAmounts
     )
         internal
@@ -281,53 +282,65 @@ contract LimitOrderRouter is OrderBook {
     {
         ///@notice Initialize arrays to hold post execution validation state.
         SandboxLimitOrder[] memory sandboxLimitOrders = new SandboxLimitOrder[](
-            orderIds.length
+            fillAmounts.length
         );
 
-        address[] memory orderOwners = new address[](orderIds.length);
+        address[] memory orderOwners = new address[](fillAmounts.length);
 
         uint256[] memory initialTokenInBalances = new uint256[](
-            orderIds.length
+            fillAmounts.length
         );
         uint256[] memory initialTokenOutBalances = new uint256[](
-            orderIds.length
+            fillAmounts.length
         );
 
+        uint256 arrayIndex = 0;
         {
-            ///@notice Transfer the tokens from the order owners to the sandbox router contract.
-            ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
-            for (uint256 i = 0; i < orderIds.length; ++i) {
-                ///@notice Get the current order
-                SandboxLimitOrder
-                    memory currentOrder = orderIdToSandboxLimitOrder[
-                        orderIds[i]
-                    ];
+            for (uint256 i = 0; i < orderIdBundles.length; ++i) {
+                bytes32[] memory orderIdBundle = orderIdBundles[i];
 
-                orderOwners[i] = currentOrder.owner;
+                for (uint256 j = 0; j < orderIdBundle.length; ++j) {
+                    bytes32 orderId = orderIdBundle[j];
 
-                if (currentOrder.orderId == bytes32(0)) {
-                    revert OrderDoesNotExist(orderIds[i]);
+                    ///@notice Transfer the tokens from the order owners to the sandbox router contract.
+                    ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
+
+                    ///@notice Get the current order
+                    SandboxLimitOrder
+                        memory currentOrder = orderIdToSandboxLimitOrder[
+                            orderId
+                        ];
+
+                    orderOwners[arrayIndex] = currentOrder.owner;
+
+                    if (currentOrder.orderId == bytes32(0)) {
+                        revert OrderDoesNotExist(orderId);
+                    }
+
+                    sandboxLimitOrders[arrayIndex] = currentOrder;
+
+                    ///@notice Cache amountSpecifiedToFill for intermediate calculations
+                    uint128 amountSpecifiedToFill = fillAmounts[arrayIndex];
+                    ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
+                    if (
+                        amountSpecifiedToFill > currentOrder.amountInRemaining
+                    ) {
+                        revert FillAmountSpecifiedGreaterThanAmountRemaining(
+                            amountSpecifiedToFill,
+                            currentOrder.amountInRemaining,
+                            currentOrder.orderId
+                        );
+                    }
+
+                    ///@notice Cache the the pre execution state of the order details
+                    initialTokenInBalances[arrayIndex] = IERC20(
+                        currentOrder.tokenIn
+                    ).balanceOf(currentOrder.owner);
+
+                    initialTokenOutBalances[arrayIndex] = IERC20(
+                        currentOrder.tokenOut
+                    ).balanceOf(currentOrder.owner);
                 }
-
-                sandboxLimitOrders[i] = currentOrder;
-
-                ///@notice Cache amountSpecifiedToFill for intermediate calculations
-                uint128 amountSpecifiedToFill = fillAmounts[i];
-                ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
-                if (amountSpecifiedToFill > currentOrder.amountInRemaining) {
-                    revert FillAmountSpecifiedGreaterThanAmountRemaining(
-                        amountSpecifiedToFill,
-                        currentOrder.amountInRemaining,
-                        currentOrder.orderId
-                    );
-                }
-
-                ///@notice Cache the the pre execution state of the order details
-                initialTokenInBalances[i] = IERC20(currentOrder.tokenIn)
-                    .balanceOf(currentOrder.owner);
-
-                initialTokenOutBalances[i] = IERC20(currentOrder.tokenOut)
-                    .balanceOf(currentOrder.owner);
             }
 
             return (
@@ -340,74 +353,303 @@ contract LimitOrderRouter is OrderBook {
     }
 
     function validateSandboxExecutionAndFillOrders(
+        bytes32[][] memory orderIdBundles,
         SandboxLimitOrder[] memory sandboxLimitOrders,
         uint128[] memory fillAmounts,
         uint256[] memory initialTokenInBalances,
         uint256[] memory initialTokenOutBalances
     ) internal {
-        uint256 ordersLength = sandboxLimitOrders.length;
-        ///@notice Verify all of the order owners have received their out amounts.
-        for (uint256 i = 0; i < ordersLength; ++i) {
-            SandboxLimitOrder memory currentOrder = sandboxLimitOrders[i];
+        uint256 orderIdIndex = 0;
 
-            ///@notice Cache values for post execution assertions
-            uint128 amountOutRequired = uint128(
-                ConveyorMath.mul64U(
-                    ConveyorMath.divUU(
-                        currentOrder.amountOutRemaining,
-                        currentOrder.amountInRemaining
-                    ),
-                    fillAmounts[i]
-                )
-            );
+        for (uint256 i = 0; i < orderIdBundles.length; ++i) {
+            bytes32[] memory orderIdBundle = orderIdBundles[i];
 
-            uint256 initialTokenInBalance = initialTokenInBalances[i];
-            uint256 initialTokenOutBalance = initialTokenOutBalances[i];
-
-            uint256 currentTokenInBalance = IERC20(currentOrder.tokenIn)
-                .balanceOf(currentOrder.owner);
-
-            uint256 currentTokenOutBalance = IERC20(currentOrder.tokenOut)
-                .balanceOf(currentOrder.owner);
-
-            ///@notice Assert that the tokenIn balance is decremented by the fill amount exactly
-            uint256 fillAmount = fillAmounts[i];
-            if (initialTokenInBalance - currentTokenInBalance > fillAmount) {
-                revert SandboxFillAmountNotSatisfied(
-                    currentOrder.orderId,
-                    initialTokenInBalance - currentTokenInBalance,
-                    fillAmounts[i]
+            if (orderIdBundle.length > 1) {
+                _validateMultiOrderBundle(
+                    orderIdIndex,
+                    sandboxLimitOrders,
+                    fillAmounts,
+                    initialTokenInBalances,
+                    initialTokenOutBalances
                 );
-            }
 
-            ///@notice Assert that the tokenOut balance is greater than or equal to the amountOutRequired
-            if (
-                currentTokenOutBalance - initialTokenOutBalance <
-                amountOutRequired
-            ) {
-                revert SandboxAmountOutRequiredNotSatisfied(
-                    currentOrder.orderId,
-                    currentTokenOutBalance - initialTokenOutBalance,
-                    amountOutRequired
-                );
-            }
-
-            ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
-            if (currentOrder.amountInRemaining == fillAmount) {
-                _resolveCompletedOrder(
-                    currentOrder.orderId,
-                    OrderType.PendingSandboxLimitOrder
-                );
+                orderIdIndex += orderIdBundle.length - 1;
             } else {
-                ///@notice Update the state of the order to parial filled quantities.
-                _partialFillSandboxLimitOrder(
-                    uint128(initialTokenInBalance - currentTokenInBalance),
-                    uint128(currentTokenOutBalance - initialTokenOutBalance),
-                    currentOrder.orderId
+                _validateSingleOrderBundle(
+                    sandboxLimitOrders[orderIdIndex],
+                    fillAmounts[orderIdIndex],
+                    initialTokenInBalances[orderIdIndex],
+                    initialTokenOutBalances[orderIdIndex]
                 );
+
+                ++orderIdIndex;
             }
         }
     }
+
+    // function validateSandboxExecutionAndFillOrders(
+    //     bytes32[][] memory orderIdBundles,
+    //     SandboxLimitOrder[] memory sandboxLimitOrders,
+    //     uint128[] memory fillAmounts,
+    //     uint256[] memory initialTokenInBalances,
+    //     uint256[] memory initialTokenOutBalances
+    // ) internal {
+    //     uint256 orderIdIndex = 0;
+
+    //     for (uint256 i = 0; i < orderIdBundles.length; ++i) {
+    //         bytes32[] memory orderIdBundle = orderIdBundles[i];
+
+    //         if (orderIdBundle.length > 1){
+
+    //         } else{
+    //             _validateSingleOrderBundle(orderIdBundle)
+    //         }
+
+    //         uint256 cumulativeFillAmount = 0;
+    //         uint256 cumulativeAmountOutRequired = 0;
+
+    //         address lastTokenIn;
+    //         address lastTokenOut;
+
+    //         for (uint256 j = 0; j < orderIdBundle.length; ++i) {
+    //             SandboxLimitOrder memory currentOrder = sandboxLimitOrders[
+    //                 orderIdIndex
+    //             ];
+
+    //             ///@notice Cache values for post execution assertions
+    //             uint128 amountOutRequired = uint128(
+    //                 ConveyorMath.mul64U(
+    //                     ConveyorMath.divUU(
+    //                         currentOrder.amountOutRemaining,
+    //                         currentOrder.amountInRemaining
+    //                     ),
+    //                     fillAmounts[i]
+    //                 )
+    //             );
+
+    //             uint256 initialTokenInBalance = initialTokenInBalances[i];
+    //             uint256 initialTokenOutBalance = initialTokenOutBalances[i];
+
+    //             uint256 currentTokenInBalance = IERC20(currentOrder.tokenIn)
+    //                 .balanceOf(currentOrder.owner);
+
+    //             uint256 currentTokenOutBalance = IERC20(currentOrder.tokenOut)
+    //                 .balanceOf(currentOrder.owner);
+
+    //             ///@notice Assert that the tokenIn balance is decremented by the fill amount exactly
+    //             uint256 fillAmount = fillAmounts[i];
+    //             if (
+    //                 initialTokenInBalance - currentTokenInBalance > fillAmount
+    //             ) {
+    //                 revert SandboxFillAmountNotSatisfied(
+    //                     currentOrder.orderId,
+    //                     initialTokenInBalance - currentTokenInBalance,
+    //                     fillAmounts[i]
+    //                 );
+    //             }
+
+    //             ///@notice Assert that the tokenOut balance is greater than or equal to the amountOutRequired
+    //             if (
+    //                 currentTokenOutBalance - initialTokenOutBalance !=
+    //                 amountOutRequired
+    //             ) {
+    //                 revert SandboxAmountOutRequiredNotSatisfied(
+    //                     currentOrder.orderId,
+    //                     currentTokenOutBalance - initialTokenOutBalance,
+    //                     amountOutRequired
+    //                 );
+    //             }
+
+    //             ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
+    //             if (currentOrder.amountInRemaining == fillAmount) {
+    //                 _resolveCompletedOrder(
+    //                     currentOrder.orderId,
+    //                     OrderType.PendingSandboxLimitOrder
+    //                 );
+    //             } else {
+    //                 ///@notice Update the state of the order to parial filled quantities.
+    //                 _partialFillSandboxLimitOrder(
+    //                     uint128(initialTokenInBalance - currentTokenInBalance),
+    //                     uint128(
+    //                         currentTokenOutBalance - initialTokenOutBalance
+    //                     ),
+    //                     currentOrder.orderId
+    //                 );
+    //             }
+    //         }
+    //     }
+    // }
+
+    function _validateSingleOrderBundle(
+        SandboxLimitOrder memory currentOrder,
+        uint128 fillAmount,
+        uint256 initialTokenInBalance,
+        uint256 initialTokenOutBalance
+    ) internal {
+        ///@notice Cache values for post execution assertions
+        uint128 amountOutRequired = uint128(
+            ConveyorMath.mul64U(
+                ConveyorMath.divUU(
+                    currentOrder.amountOutRemaining,
+                    currentOrder.amountInRemaining
+                ),
+                fillAmount
+            )
+        );
+
+        uint256 currentTokenInBalance = IERC20(currentOrder.tokenIn).balanceOf(
+            currentOrder.owner
+        );
+
+        uint256 currentTokenOutBalance = IERC20(currentOrder.tokenOut)
+            .balanceOf(currentOrder.owner);
+
+        ///@notice Assert that the tokenIn balance is decremented by the fill amount exactly
+        if (initialTokenInBalance - currentTokenInBalance > fillAmount) {
+            revert SandboxFillAmountNotSatisfied(
+                currentOrder.orderId,
+                initialTokenInBalance - currentTokenInBalance,
+                fillAmount
+            );
+        }
+
+        ///@notice Assert that the tokenOut balance is greater than or equal to the amountOutRequired
+        if (
+            currentTokenOutBalance - initialTokenOutBalance < amountOutRequired
+        ) {
+            revert SandboxAmountOutRequiredNotSatisfied(
+                currentOrder.orderId,
+                currentTokenOutBalance - initialTokenOutBalance,
+                amountOutRequired
+            );
+        }
+
+        ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
+        if (currentOrder.amountInRemaining == fillAmount) {
+            _resolveCompletedOrder(
+                currentOrder.orderId,
+                OrderType.PendingSandboxLimitOrder
+            );
+        } else {
+            ///@notice Update the state of the order to parial filled quantities.
+            _partialFillSandboxLimitOrder(
+                uint128(initialTokenInBalance - currentTokenInBalance),
+                uint128(currentTokenOutBalance - initialTokenOutBalance),
+                currentOrder.orderId
+            );
+        }
+    }
+
+    function _validateMultiOrderBundle(
+        uint256 orderIdIndex,
+        uint256 bundleLength,
+        SandboxLimitOrder[] memory sandboxLimitOrders,
+        uint128[] memory fillAmounts,
+        uint256[] memory initialTokenInBalances,
+        uint256[] memory initialTokenOutBalances
+    ) internal {
+        SandboxLimitOrder memory lastOrder = sandboxLimitOrders[orderIdIndex];
+
+        uint256 cumulativeFillAmount = fillAmounts[orderIdIndex];
+        uint256 cumulativeAmountOutRequired = lastOrder.amountOutRemaining;
+
+        for (uint256 i = 1; i < bundleLength; ++i) {
+            uint256 offset = orderIdIndex + i;
+
+            SandboxLimitOrder memory currentOrder = sandboxLimitOrders[offset];
+
+            if (currentOrder.tokenIn != lastOrder.tokenIn) {
+                //TODO: verify cumulative fill amount in
+            } else {
+                cumulativeFillAmount += fillAmounts[offset];
+            }
+
+            if (currentOrder.tokenOut != lastOrder.tokenOut) {
+                //TODO: verify cumulative fill amount in
+            } else {
+                cumulativeAmountOutRequired += currentOrder.amountOutRemaining;
+            }
+        }
+    }
+
+    // function validateSandboxExecutionAndFillOrders(
+    //     bytes32[][] memory orderIdBundles,
+    //     SandboxLimitOrder[] memory sandboxLimitOrders,
+    //     uint128[] memory fillAmounts,
+    //     uint256[] memory initialTokenInBalances,
+    //     uint256[] memory initialTokenOutBalances
+    // ) internal {
+    //     uint256 orderIdIndex = 0;
+
+    //     for (uint256 i = 0; i < orderIdBundles.length; ++i) {
+    //         // for (uint256 i = 0; i < bundle.length; ++i) {
+    //         //     //get the order
+    //         //     fillamountinbundle += fillAmount[fillAmountIndex]
+    //     }
+
+    //     uint256 ordersLength = sandboxLimitOrders.length;
+    //     ///@notice Verify all of the order owners have received their out amounts.
+    //     for (uint256 i = 0; i < ordersLength; ++i) {
+    //         SandboxLimitOrder memory currentOrder = sandboxLimitOrders[i];
+
+    //         ///@notice Cache values for post execution assertions
+    //         uint128 amountOutRequired = uint128(
+    //             ConveyorMath.mul64U(
+    //                 ConveyorMath.divUU(
+    //                     currentOrder.amountOutRemaining,
+    //                     currentOrder.amountInRemaining
+    //                 ),
+    //                 fillAmounts[i]
+    //             )
+    //         );
+
+    //         uint256 initialTokenInBalance = initialTokenInBalances[i];
+    //         uint256 initialTokenOutBalance = initialTokenOutBalances[i];
+
+    //         uint256 currentTokenInBalance = IERC20(currentOrder.tokenIn)
+    //             .balanceOf(currentOrder.owner);
+
+    //         uint256 currentTokenOutBalance = IERC20(currentOrder.tokenOut)
+    //             .balanceOf(currentOrder.owner);
+
+    //         ///@notice Assert that the tokenIn balance is decremented by the fill amount exactly
+    //         uint256 fillAmount = fillAmounts[i];
+    //         if (initialTokenInBalance - currentTokenInBalance > fillAmount) {
+    //             revert SandboxFillAmountNotSatisfied(
+    //                 currentOrder.orderId,
+    //                 initialTokenInBalance - currentTokenInBalance,
+    //                 fillAmounts[i]
+    //             );
+    //         }
+
+    //         ///@notice Assert that the tokenOut balance is greater than or equal to the amountOutRequired
+    //         if (
+    //             currentTokenOutBalance - initialTokenOutBalance !=
+    //             amountOutRequired
+    //         ) {
+    //             revert SandboxAmountOutRequiredNotSatisfied(
+    //                 currentOrder.orderId,
+    //                 currentTokenOutBalance - initialTokenOutBalance,
+    //                 amountOutRequired
+    //             );
+    //         }
+
+    //         ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
+    //         if (currentOrder.amountInRemaining == fillAmount) {
+    //             _resolveCompletedOrder(
+    //                 currentOrder.orderId,
+    //                 OrderType.PendingSandboxLimitOrder
+    //             );
+    //         } else {
+    //             ///@notice Update the state of the order to parial filled quantities.
+    //             _partialFillSandboxLimitOrder(
+    //                 uint128(initialTokenInBalance - currentTokenInBalance),
+    //                 uint128(currentTokenOutBalance - initialTokenOutBalance),
+    //                 currentOrder.orderId
+    //             );
+    //         }
+    //     }
+    // }
 
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
