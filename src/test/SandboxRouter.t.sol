@@ -235,14 +235,8 @@ contract SandboxRouterTest is DSTest {
             WETH
         );
 
-        ///@notice Deal some ETH to compensate the fee
-        cheatCodes.deal(address(sandboxRouter), type(uint128).max);
-        cheatCodes.prank(address(sandboxRouter));
-        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
-        (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
-            abi.encodeWithSignature("deposit()")
-        );
-        require(depositSuccess, "Fudge");
+        dealSandboxRouterExecutionFee();
+
         ///@notice Initialize Arrays for Multicall struct.
         bytes32[] memory orderIds = new bytes32[](1);
 
@@ -270,8 +264,10 @@ contract SandboxRouterTest is DSTest {
             calls[0] = newUniV2Call(daiWethV2, 0, 100, address(this));
             ///@notice Create a call to compensate the feeAmount
             calls[1] = feeCompensationCall(cumulativeFee);
+            bytes32[][] memory orderIdBundles = new bytes32[][](1);
+            orderIdBundles[0] = orderIds;
             multiCall = newMockMulticall(
-                orderIds,
+                orderIdBundles,
                 fillAmounts,
                 transferAddress,
                 calls
@@ -348,14 +344,7 @@ contract SandboxRouterTest is DSTest {
         ///@notice Max approve the executor on the input token.
         IERC20(DAI).approve(address(limitOrderExecutor), type(uint256).max);
         // IERC20(DAI).approve(address(sandboxRouter), type(uint256).max);
-        ///@notice Deal some ETH to compensate the fee
-        cheatCodes.deal(address(sandboxRouter), type(uint128).max);
-        cheatCodes.prank(address(sandboxRouter));
-        ///@notice Wrap the weth to send to the executor in a call.
-        (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
-            abi.encodeWithSignature("deposit()")
-        );
-        require(depositSuccess, "Fudge");
+        dealSandboxRouterExecutionFee();
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
         OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(
@@ -401,9 +390,10 @@ contract SandboxRouterTest is DSTest {
             ///@notice Create a call to compensate the feeAmount
             calls[1] = feeCompensationCall(cumulativeFee);
 
-            ///@notice Create a new SandboxMulticall
+            bytes32[][] memory orderIdBundles = new bytes32[][](1);
+            orderIdBundles[0] = orderIds;
             multiCall = newMockMulticall(
-                orderIds,
+                orderIdBundles,
                 fillAmounts,
                 transferAddress,
                 calls
@@ -481,15 +471,7 @@ contract SandboxRouterTest is DSTest {
         cheatCodes.deal(address(swapHelper), type(uint256).max);
 
         // IERC20(DAI).approve(address(sandboxRouter), type(uint256).max);
-        ///@notice Deal some ETH to compensate the fee
-        cheatCodes.deal(address(sandboxRouter), type(uint128).max);
-
-        cheatCodes.prank(address(sandboxRouter));
-        ///@notice Wrap the weth to send to the executor in a call.
-        (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
-            abi.encodeWithSignature("deposit()")
-        );
-        require(depositSuccess, "Fudge");
+        dealSandboxRouterExecutionFee();
 
         (
             SandboxRouter.SandboxMulticall memory multiCall,
@@ -577,14 +559,7 @@ contract SandboxRouterTest is DSTest {
             WETH
         );
 
-        ///@notice Deal some ETH to compensate the fee
-        cheatCodes.deal(address(sandboxRouter), type(uint128).max);
-        cheatCodes.prank(address(sandboxRouter));
-        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
-        (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
-            abi.encodeWithSignature("deposit()")
-        );
-        require(depositSuccess, "Fudge");
+        dealSandboxRouterExecutionFee();
         ///@notice Initialize Arrays for Multicall struct.
         bytes32[] memory orderIds = new bytes32[](1);
 
@@ -612,8 +587,10 @@ contract SandboxRouterTest is DSTest {
             calls[0] = newUniV2Call(daiWethV2, 0, 100, address(this));
             ///@notice Create a call to compensate the feeAmount
             calls[1] = feeCompensationCall(cumulativeFee);
+            bytes32[][] memory orderIdBundles = new bytes32[][](1);
+            orderIdBundles[0] = orderIds;
             multiCall = newMockMulticall(
-                orderIds,
+                orderIdBundles,
                 fillAmounts,
                 transferAddress,
                 calls
@@ -650,14 +627,7 @@ contract SandboxRouterTest is DSTest {
             WETH
         );
 
-        ///@notice Deal some ETH to compensate the fee
-        cheatCodes.deal(address(sandboxRouter), type(uint128).max);
-        cheatCodes.prank(address(sandboxRouter));
-        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
-        (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
-            abi.encodeWithSignature("deposit()")
-        );
-        require(depositSuccess, "Fudge");
+        dealSandboxRouterExecutionFee();
         ///@notice Initialize Arrays for Multicall struct.
         bytes32[] memory orderIds = new bytes32[](1);
 
@@ -686,8 +656,10 @@ contract SandboxRouterTest is DSTest {
             calls[0] = newUniV2Call(daiWethV2, 0, 1, address(this));
             ///@notice Create a call to compensate the feeAmount
             calls[1] = feeCompensationCall(cumulativeFee);
+            bytes32[][] memory orderIdBundles = new bytes32[][](1);
+            orderIdBundles[0] = orderIds;
             multiCall = newMockMulticall(
-                orderIds,
+                orderIdBundles,
                 fillAmounts,
                 transferAddress,
                 calls
@@ -724,14 +696,7 @@ contract SandboxRouterTest is DSTest {
             WETH
         );
 
-        ///@notice Deal some ETH to compensate the fee
-        cheatCodes.deal(address(sandboxRouter), type(uint128).max);
-        cheatCodes.prank(address(sandboxRouter));
-        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
-        (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
-            abi.encodeWithSignature("deposit()")
-        );
-        require(depositSuccess, "Fudge");
+        dealSandboxRouterExecutionFee();
         ///@notice Initialize Arrays for Multicall struct.
         bytes32[] memory orderIds = new bytes32[](2);
 
@@ -764,8 +729,10 @@ contract SandboxRouterTest is DSTest {
             calls[0] = newUniV2Call(daiWethV2, 0, 1, address(this));
             ///@notice Create a call to compensate the feeAmount
             calls[1] = feeCompensationCall(cumulativeFee);
+            bytes32[][] memory orderIdBundles = new bytes32[][](1);
+            orderIdBundles[0] = orderIds;
             multiCall = newMockMulticall(
-                orderIds,
+                orderIdBundles,
                 fillAmounts,
                 transferAddress,
                 calls
@@ -800,14 +767,7 @@ contract SandboxRouterTest is DSTest {
             WETH
         );
 
-        ///@notice Deal some ETH to compensate the fee
-        cheatCodes.deal(address(sandboxRouter), type(uint128).max);
-        cheatCodes.prank(address(sandboxRouter));
-        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
-        (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
-            abi.encodeWithSignature("deposit()")
-        );
-        require(depositSuccess, "Fudge");
+        dealSandboxRouterExecutionFee();
         ///@notice Initialize Arrays for Multicall struct.
         bytes32[] memory orderIds = new bytes32[](1);
 
@@ -836,8 +796,10 @@ contract SandboxRouterTest is DSTest {
             calls[0] = newUniV2Call(daiWethV2, 0, 1, address(this));
             ///@notice Create a call to compensate the feeAmount
             calls[1] = feeCompensationCall(cumulativeFee);
+            bytes32[][] memory orderIdBundles = new bytes32[][](1);
+            orderIdBundles[0] = orderIds;
             multiCall = newMockMulticall(
-                orderIds,
+                orderIdBundles,
                 fillAmounts,
                 transferAddress,
                 calls
@@ -874,14 +836,7 @@ contract SandboxRouterTest is DSTest {
             WETH
         );
 
-        ///@notice Deal some ETH to compensate the fee
-        cheatCodes.deal(address(sandboxRouter), type(uint128).max);
-        cheatCodes.prank(address(sandboxRouter));
-        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
-        (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
-            abi.encodeWithSignature("deposit()")
-        );
-        require(depositSuccess, "Fudge");
+        dealSandboxRouterExecutionFee();
         ///@notice Initialize Arrays for Multicall struct.
         bytes32[] memory orderIds = new bytes32[](1);
 
@@ -891,6 +846,7 @@ contract SandboxRouterTest is DSTest {
         SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](2);
         OrderBook.SandboxLimitOrder[]
             memory orders = new OrderBook.SandboxLimitOrder[](1);
+
         {
             address[] memory transferAddress = new address[](2); //Set transfer addresses to a different size than orderIds, should revert on InvalidTransferAddressArray
             uint128[] memory fillAmounts = new uint128[](1);
@@ -910,8 +866,10 @@ contract SandboxRouterTest is DSTest {
             calls[0] = newUniV2Call(daiWethV2, 0, 1, address(this));
             ///@notice Create a call to compensate the feeAmount
             calls[1] = feeCompensationCall(cumulativeFee);
+            bytes32[][] memory orderIdBundles = new bytes32[][](1);
+            orderIdBundles[0] = orderIds;
             multiCall = newMockMulticall(
-                orderIds,
+                orderIdBundles,
                 fillAmounts,
                 transferAddress,
                 calls
@@ -931,21 +889,13 @@ contract SandboxRouterTest is DSTest {
 
     function testInitializeSandboxExecutionState(
         uint128 wethQuantity,
-        uint128 daiQuantity,
-        uint128 fillAmountWeth,
-        uint128 fillAmountDai
+        uint128 fillAmountWeth
     ) public {
         bool run;
         assembly {
             run := and(
-                and(
-                    lt(1000000000000000, wethQuantity),
-                    lt(1000000000000000, daiQuantity)
-                ),
-                and(
-                    lt(wethQuantity, 10000000000000000000000),
-                    lt(daiQuantity, 10000000000000000000000)
-                )
+                lt(1000000000000000, wethQuantity),
+                lt(wethQuantity, 10000000000000000000000)
             )
         }
         if (run) {
@@ -955,102 +905,71 @@ contract SandboxRouterTest is DSTest {
             ///@notice Deposit Gas Credits to cover order execution.
             depositGasCreditsForMockOrdersWrapper(type(uint128).max);
 
-            ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
-            try swapHelper.swapEthForTokenWithUniV2(daiQuantity, DAI) returns (
-                uint256 amountOut
-            ) {
-                ///@notice Max approve the executor on the input token.
-                IERC20(DAI).approve(address(limitOrderExecutor), amountOut);
-                {
-                    cheatCodes.deal(address(this), wethQuantity);
+            cheatCodes.deal(address(this), wethQuantity);
 
-                    ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
-                    (bool depositSuccess, ) = address(WETH).call{
-                        value: wethQuantity
-                    }(abi.encodeWithSignature("deposit()"));
-                    require(depositSuccess, "Fudge");
-                    IERC20(WETH).approve(
-                        address(limitOrderExecutor),
-                        wethQuantity
-                    );
-                }
-                ///@notice Dai/Weth sell limit order
-                ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
-                OrderBook.SandboxLimitOrder
-                    memory orderWeth = newMockSandboxOrder(
-                        false,
-                        wethQuantity,
-                        1,
-                        WETH,
-                        DAI
-                    );
-                OrderBook.SandboxLimitOrder
-                    memory orderDai = newMockSandboxOrder(
-                        false,
-                        uint128(amountOut),
-                        daiQuantity - 10000,
-                        DAI,
-                        WETH
-                    );
-                bytes32[] memory orderIds = new bytes32[](2);
-                uint128[] memory fillAmounts = new uint128[](2);
-                {
-                    orderIds[0] = placeMockOrderWrapper(orderWeth);
-                    orderIds[1] = placeMockOrderWrapper(orderDai);
+            ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
+            (bool depositSuccess, ) = address(WETH).call{value: wethQuantity}(
+                abi.encodeWithSignature("deposit()")
+            );
+            require(depositSuccess, "Fudge");
+            IERC20(WETH).approve(address(limitOrderExecutor), wethQuantity);
 
-                    fillAmounts[0] = fillAmountWeth;
-                    fillAmounts[1] = fillAmountDai;
-                }
+            ///@notice Dai/Weth sell limit order
+            ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
+            OrderBook.SandboxLimitOrder memory orderWeth = newMockSandboxOrder(
+                false,
+                wethQuantity,
+                1,
+                WETH,
+                DAI
+            );
 
-                {
-                    if (
-                        fillAmountDai > amountOut ||
-                        fillAmountWeth > wethQuantity
-                    ) {
-                        cheatCodes.expectRevert(
-                            abi.encodeWithSelector(
-                                Errors
-                                    .FillAmountSpecifiedGreaterThanAmountRemaining
-                                    .selector,
-                                fillAmountWeth > wethQuantity
-                                    ? fillAmountWeth
-                                    : fillAmountDai,
-                                fillAmountWeth > wethQuantity
-                                    ? wethQuantity
-                                    : amountOut,
-                                fillAmountWeth > wethQuantity
-                                    ? orderIds[0]
-                                    : orderIds[1]
-                            )
-                        );
-                        (bool reverted, ) = address(limitOrderRouterWrapper)
-                            .call(
-                                abi.encodeWithSignature(
-                                    "_initializePreSandboxExecutionState(bytes32[],uint128[])",
-                                    orderIds,
-                                    fillAmounts
-                                )
+            bytes32[] memory orderIds = new bytes32[](1);
+            uint128[] memory fillAmounts = new uint128[](1);
+            bytes32[][] memory orderIdBundles = new bytes32[][](1);
+            {
+                orderIds[0] = placeMockOrderWrapper(orderWeth);
+                orderIdBundles[0] = orderIds;
+
+                fillAmounts[0] = fillAmountWeth;
+            }
+
+            {
+                if (fillAmountWeth > wethQuantity) {
+                    cheatCodes.expectRevert(
+                        abi.encodeWithSelector(
+                            Errors
+                                .FillAmountSpecifiedGreaterThanAmountRemaining
+                                .selector,
+                            fillAmountWeth,
+                            wethQuantity,
+                            orderIds[0]
+                        )
+                    );
+                    (bool reverted, ) = address(limitOrderRouterWrapper).call(
+                        abi.encodeWithSignature(
+                            "_initializePreSandboxExecutionState(bytes32[][],uint128[])",
+                            orderIdBundles,
+                            fillAmounts
+                        )
+                    );
+                    assertTrue(reverted);
+                } else {
+                    (
+                        ,
+                        ,
+                        uint256[] memory initialTokenInBalances,
+                        uint256[] memory initialTokenOutBalances
+                    ) = limitOrderRouterWrapper
+                            ._initializePreSandboxExecutionState(
+                                orderIdBundles,
+                                fillAmounts
                             );
-                        assertTrue(reverted);
-                    } else {
-                        (
-                            ,
-                            ,
-                            uint256[] memory initialTokenInBalances,
-                            uint256[] memory initialTokenOutBalances
-                        ) = limitOrderRouterWrapper
-                                ._initializePreSandboxExecutionState(
-                                    orderIds,
-                                    fillAmounts
-                                );
 
-                        assertEq(initialTokenInBalances[0], wethQuantity);
-                        assertEq(initialTokenOutBalances[0], amountOut);
-                        assertEq(initialTokenInBalances[1], amountOut);
-                        assertEq(initialTokenOutBalances[1], wethQuantity);
-                    }
+                    assertEq(initialTokenInBalances[0], wethQuantity);
+                    assertEq(initialTokenOutBalances[0], 0);
                 }
-            } catch {}
+            }
         }
     }
 
@@ -1095,7 +1014,7 @@ contract SandboxRouterTest is DSTest {
                         memory orders = new OrderBook.SandboxLimitOrder[](1);
 
                     uint128[] memory fillAmounts = new uint128[](2);
-
+                    bytes32[][] memory orderIdBundles = new bytes32[][](1);
                     {
                         ///@notice Dai/Weth sell limit order
                         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
@@ -1106,12 +1025,15 @@ contract SandboxRouterTest is DSTest {
                             WETH,
                             DAI
                         );
-                        bytes32[] memory orderIds = new bytes32[](2);
+
+                        bytes32[] memory orderIds = new bytes32[](1);
                         orderIds[0] = placeMockOrderWrapper(orders[0]);
                         fillAmounts[0] = fillAmountWeth;
+                        orderIdBundles[0] = orderIds;
                     }
 
                     validateSandboxExecutionAndFillOrders(
+                        orderIdBundles,
                         initialBalancesIn,
                         initialBalancesOut,
                         wethQuantity,
@@ -1125,6 +1047,7 @@ contract SandboxRouterTest is DSTest {
     }
 
     function validateSandboxExecutionAndFillOrders(
+        bytes32[][] memory orderIdBundles,
         uint256[] memory initialBalancesIn,
         uint256[] memory initialBalancesOut,
         uint256 wethQuantity,
@@ -1156,9 +1079,11 @@ contract SandboxRouterTest is DSTest {
                         )
                 )
             );
+
             (bool status, ) = address(limitOrderRouterWrapper).call(
                 abi.encodeWithSignature(
-                    "_validateSandboxExecutionAndFillOrders(OrderBook.SandboxLimitOrder[],uint128[],uint256[],uint256[])",
+                    "_validateSandboxExecutionAndFillOrders(bytes32[][],OrderBook.SandboxLimitOrder[],uint128[],uint256[],uint256[])",
+                    orderIdBundles,
                     orders,
                     fillAmounts,
                     initialBalancesIn,
@@ -1168,6 +1093,7 @@ contract SandboxRouterTest is DSTest {
             assertTrue(status);
         } else {
             limitOrderRouterWrapper._validateSandboxExecutionAndFillOrders(
+                orderIdBundles,
                 orders,
                 fillAmounts,
                 initialBalancesIn,
@@ -1343,6 +1269,17 @@ contract SandboxRouterTest is DSTest {
     //====================== Misc Helpers ============================
     //================================================================
 
+    function dealSandboxRouterExecutionFee() internal {
+        ///@notice Deal some ETH to compensate the fee
+        cheatCodes.deal(address(sandboxRouter), type(uint128).max);
+        cheatCodes.prank(address(sandboxRouter));
+        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
+        (bool depositSuccess, ) = address(WETH).call{value: 500000 ether}(
+            abi.encodeWithSignature("deposit()")
+        );
+        require(depositSuccess, "Fudge");
+    }
+
     function createSandboxCallMultiOrderMulticall()
         internal
         returns (
@@ -1391,7 +1328,18 @@ contract SandboxRouterTest is DSTest {
         }
 
         SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](3);
+        bytes32[][] memory orderIdBundles = new bytes32[][](10);
         {
+            orderIdBundles[0][0] = orderIds[0];
+            orderIdBundles[1][0] = orderIds[1];
+            orderIdBundles[2][0] = orderIds[2];
+            orderIdBundles[3][0] = orderIds[3];
+            orderIdBundles[4][0] = orderIds[4];
+            orderIdBundles[5][0] = orderIds[5];
+            orderIdBundles[6][0] = orderIds[6];
+            orderIdBundles[7][0] = orderIds[7];
+            orderIdBundles[8][0] = orderIds[8];
+            orderIdBundles[9][0] = orderIds[9];
             ///NOTE: Token0 = USDC & Token1 = WETH
             address usdcWethV2 = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
             //NOTE: Token0 = DAI & Token1 = WETH
@@ -1418,7 +1366,7 @@ contract SandboxRouterTest is DSTest {
             transferAddresses[8] = address(mockOwner1); //Synthetically fill with DAI/WETH Order 1
             transferAddresses[9] = address(mockOwner2); //Synthetically fill with DAI/WETH Order 2
             SandboxRouter.SandboxMulticall memory multiCall = newMockMulticall(
-                orderIds,
+                orderIdBundles,
                 fillAmounts,
                 transferAddresses,
                 calls
@@ -1486,14 +1434,14 @@ contract SandboxRouterTest is DSTest {
 
     ///@notice Helper function to create a Sandox Multicall
     function newMockMulticall(
-        bytes32[] memory orderId,
+        bytes32[][] memory orderIdBundles,
         uint128[] memory fillAmounts,
         address[] memory transferAddresses,
         SandboxRouter.Call[] memory _calls
     ) public pure returns (SandboxRouter.SandboxMulticall memory) {
         return
             SandboxRouter.SandboxMulticall({
-                orderIds: orderId,
+                orderIdBundles: orderIdBundles,
                 fillAmounts: fillAmounts,
                 transferAddresses: transferAddresses,
                 calls: _calls
@@ -1848,7 +1796,7 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
     }
 
     function _initializePreSandboxExecutionState(
-        bytes32[] calldata orderIds,
+        bytes32[][] calldata orderIdBundles,
         uint128[] calldata fillAmounts
     )
         public
@@ -1860,16 +1808,18 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
             uint256[] memory
         )
     {
-        return initializePreSandboxExecutionState(orderIds, fillAmounts);
+        return initializePreSandboxExecutionState(orderIdBundles, fillAmounts);
     }
 
     function _validateSandboxExecutionAndFillOrders(
+        bytes32[][] memory orderIdBundles,
         SandboxLimitOrder[] memory sandboxLimitOrders,
         uint128[] memory fillAmounts,
         uint256[] memory initialTokenInBalances,
         uint256[] memory initialTokenOutBalances
     ) public {
         validateSandboxExecutionAndFillOrders(
+            orderIdBundles,
             sandboxLimitOrders,
             fillAmounts,
             initialTokenInBalances,

@@ -367,6 +367,7 @@ contract LimitOrderRouter is OrderBook {
             if (orderIdBundle.length > 1) {
                 _validateMultiOrderBundle(
                     orderIdIndex,
+                    orderIdBundles.length,
                     sandboxLimitOrders,
                     fillAmounts,
                     initialTokenInBalances,
@@ -552,6 +553,7 @@ contract LimitOrderRouter is OrderBook {
 
         uint256 cumulativeFillAmount = fillAmounts[orderIdIndex];
         uint256 cumulativeAmountOutRequired = lastOrder.amountOutRemaining;
+
         ///@notice Cache values for post execution assertions
         uint128 amountOutRequired = uint128(
             ConveyorMath.mul64U(
@@ -565,89 +567,91 @@ contract LimitOrderRouter is OrderBook {
         address orderOwner = lastOrder.owner;
 
         uint256 offset = orderIdIndex;
+        {
+            for (uint256 i = 1; i < bundleLength; ++i) {
+                SandboxLimitOrder memory currentOrder = sandboxLimitOrders[
+                    offset + 1
+                ];
 
-        for (uint256 i = 1; i < bundleLength; ++i) {
-            SandboxLimitOrder memory currentOrder = sandboxLimitOrders[
-                offset + 1
-            ];
+                uint256 currentTokenInBalance = IERC20(lastOrder.tokenIn)
+                    .balanceOf(orderOwner);
 
-            uint256 currentTokenInBalance = IERC20(lastOrder.tokenIn).balanceOf(
-                orderOwner
-            );
+                uint256 currentTokenOutBalance = IERC20(currentOrder.tokenOut)
+                    .balanceOf(orderOwner);
 
-            uint256 currentTokenOutBalance = IERC20(currentOrder.tokenOut)
-                .balanceOf(orderOwner);
-
-            ///@notice Cache values for post execution assertions
-            amountOutRequired = uint128(
-                ConveyorMath.mul64U(
-                    ConveyorMath.divUU(
-                        currentOrder.amountOutRemaining,
-                        currentOrder.amountInRemaining
-                    ),
-                    fillAmounts[offset + 1]
-                )
-            );
-            if (currentOrder.tokenIn != lastOrder.tokenIn) {
-                //TODO: verify cumulative fill amount in
-                ///@notice Assert that the tokenIn balance is decremented by the fill amount exactly
-                if (
-                    initialTokenInBalances[offset] - currentTokenInBalance >
-                    fillAmounts[offset]
-                ) {
-                    revert SandboxFillAmountNotSatisfied(
-                        lastOrder.orderId,
-                        initialTokenInBalances[offset] - currentTokenInBalance,
+                ///@notice Cache values for post execution assertions
+                amountOutRequired = uint128(
+                    ConveyorMath.mul64U(
+                        ConveyorMath.divUU(
+                            currentOrder.amountOutRemaining,
+                            currentOrder.amountInRemaining
+                        ),
+                        fillAmounts[offset + 1]
+                    )
+                );
+                if (currentOrder.tokenIn != lastOrder.tokenIn) {
+                    //TODO: verify cumulative fill amount in
+                    ///@notice Assert that the tokenIn balance is decremented by the fill amount exactly
+                    if (
+                        initialTokenInBalances[offset] - currentTokenInBalance >
                         fillAmounts[offset]
-                    );
-                }
-                cumulativeFillAmount = fillAmounts[offset + 1];
-            } else {
-                cumulativeFillAmount += fillAmounts[offset + 1];
-            }
-
-            if (currentOrder.tokenOut != lastOrder.tokenOut) {
-                //TODO: verify cumulative fill amount in
-                ///@notice Assert that the tokenOut balance is greater than or equal to the amountOutRequired
-                if (
-                    currentTokenOutBalance - initialTokenOutBalances[offset] !=
-                    cumulativeAmountOutRequired
-                ) {
-                    revert SandboxAmountOutRequiredNotSatisfied(
-                        lastOrder.orderId,
-                        currentTokenOutBalance -
-                            initialTokenOutBalances[offset],
-                        amountOutRequired
-                    );
-                }
-                cumulativeAmountOutRequired = amountOutRequired;
-            } else {
-                cumulativeAmountOutRequired += amountOutRequired;
-            }
-
-            ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
-            if (lastOrder.amountInRemaining == fillAmounts[offset]) {
-                _resolveCompletedOrder(
-                    lastOrder.orderId,
-                    OrderType.PendingSandboxLimitOrder
-                );
-            } else {
-                ///@notice Update the state of the order to parial filled quantities.
-                _partialFillSandboxLimitOrder(
-                    uint128(fillAmounts[offset]),
-                    uint128(
-                        ConveyorMath.mul64U(
-                            ConveyorMath.divUU(
-                                lastOrder.amountOutRemaining,
-                                lastOrder.amountInRemaining
-                            ),
+                    ) {
+                        revert SandboxFillAmountNotSatisfied(
+                            lastOrder.orderId,
+                            initialTokenInBalances[offset] -
+                                currentTokenInBalance,
                             fillAmounts[offset]
-                        )
-                    ),
-                    lastOrder.orderId
-                );
+                        );
+                    }
+                    cumulativeFillAmount = fillAmounts[offset + 1];
+                } else {
+                    cumulativeFillAmount += fillAmounts[offset + 1];
+                }
+
+                if (currentOrder.tokenOut != lastOrder.tokenOut) {
+                    //TODO: verify cumulative fill amount in
+                    ///@notice Assert that the tokenOut balance is greater than or equal to the amountOutRequired
+                    if (
+                        currentTokenOutBalance -
+                            initialTokenOutBalances[offset] !=
+                        cumulativeAmountOutRequired
+                    ) {
+                        revert SandboxAmountOutRequiredNotSatisfied(
+                            lastOrder.orderId,
+                            currentTokenOutBalance -
+                                initialTokenOutBalances[offset],
+                            amountOutRequired
+                        );
+                    }
+                    cumulativeAmountOutRequired = amountOutRequired;
+                } else {
+                    cumulativeAmountOutRequired += amountOutRequired;
+                }
+
+                ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
+                if (lastOrder.amountInRemaining == fillAmounts[offset]) {
+                    _resolveCompletedOrder(
+                        lastOrder.orderId,
+                        OrderType.PendingSandboxLimitOrder
+                    );
+                } else {
+                    ///@notice Update the state of the order to parial filled quantities.
+                    _partialFillSandboxLimitOrder(
+                        uint128(fillAmounts[offset]),
+                        uint128(
+                            ConveyorMath.mul64U(
+                                ConveyorMath.divUU(
+                                    lastOrder.amountOutRemaining,
+                                    lastOrder.amountInRemaining
+                                ),
+                                fillAmounts[offset]
+                            )
+                        ),
+                        lastOrder.orderId
+                    );
+                }
+                ++offset;
             }
-            ++offset;
         }
     }
 
