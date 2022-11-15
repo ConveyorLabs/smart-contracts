@@ -1047,7 +1047,7 @@ contract OrderBook is GasOracle {
     ///@param owner - Target address to get all order Ids for.
     ///@param orderOffset - The first order to start from when checking orderstatus. For example, if order offset is 2, the function will start checking orderId status from the second order.
     ///@param length - The amount of orders to check order status for.
-    /**@return - Nested array of order Ids organized by status. 
+    /**@return - Nested array of order Ids organized by status.
     The first array represents pending limit orders.
     The second array represents pending sandbox limit orders.
     **/
@@ -1113,161 +1113,202 @@ contract OrderBook is GasOracle {
         return pendingOrderIds;
     }
 
-    ///@notice Get all of the pending order Ids for a given address
-    ///@param owner - Target address to get all order Ids for.
-    ///@param orderOffset - The first order to start from when checking orderstatus. For example, if order offset is 2, the function will start checking orderId status from the second order.
-    ///@param length - The amount of orders to check order status for.
-    /**@return - Nested array of order Ids organized by status. 
-    The first array represents filled limit orders.
-    The second array represents filled sandbox limit orders.
-    The third array represents partial filled sandbox limit orders.
-    **/
-    function getFufilledOrderIds(
-        address owner,
-        uint256 orderOffset,
-        uint256 length
-    ) public view returns (bytes32[][] memory) {
-        bytes32[] memory allOrderIds = addressToAllOrderIds[owner];
-        bytes32[][] memory filledOrderIds = new bytes32[][](3);
+    // ///@notice Get all of the pending order Ids for a given address
+    // ///@param owner - Target address to get all order Ids for.
+    // ///@param orderOffset - The first order to start from when checking orderstatus. For example, if order offset is 2, the function will start checking orderId status from the second order.
+    // ///@param length - The amount of orders to check order status for.
+    // /**@return - Nested array of order Ids organized by status.
+    // The first array represents filled limit orders.
+    // The second array represents filled sandbox limit orders.
+    // **/
+    // function getFilledOrderIds(
+    //     address owner,
+    //     uint256 orderOffset,
+    //     uint256 length
+    // ) public view returns (bytes32[][] memory) {
+    //     bytes32[] memory allOrderIds = addressToAllOrderIds[owner];
+    //     bytes32[][] memory filledOrderIds = new bytes32[][](2);
 
-        uint256 filledLimitOrdersIndex = 0;
-        bytes32[] memory filledLimitOrders = new bytes32[](allOrderIds.length);
+    //     uint256 filledLimitOrdersIndex = 0;
+    //     bytes32[] memory filledLimitOrders = new bytes32[](allOrderIds.length);
 
-        uint256 filledSandboxLimitOrdersIndex = 0;
-        bytes32[] memory filledSandboxLimitOrders = new bytes32[](
-            allOrderIds.length
-        );
+    //     uint256 filledSandboxLimitOrdersIndex = 0;
+    //     bytes32[] memory filledSandboxLimitOrders = new bytes32[](
+    //         allOrderIds.length
+    //     );
 
-        uint256 partialFilledSandboxLimitOrdersIndex = 0;
-        bytes32[] memory partialFilledSandboxLimitOrders = new bytes32[](
-            allOrderIds.length
-        );
+    //     uint256 orderOffsetSlot = orderOffset + 0x20;
+    //     assembly {
+    //         //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order
+    //         orderOffsetSlot := add(
+    //             add(allOrderIds, 0x20),
+    //             mul(orderOffset, 0x20)
+    //         )
+    //     }
 
-        uint256 orderOffsetSlot = orderOffset + 0x20;
-        assembly {
-            //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order
-            orderOffsetSlot := add(
-                add(allOrderIds, 0x20),
-                mul(orderOffset, 0x20)
-            )
-        }
+    //     for (uint256 i = 0; i < length; ++i) {
+    //         bytes32 orderId;
+    //         assembly {
+    //             //Get the orderId at the orderOffsetSlot
+    //             orderId := mload(orderOffsetSlot)
+    //             //Update the orderOffsetSlot
+    //             orderOffsetSlot := add(orderOffsetSlot, 0x20)
+    //         }
 
-        for (uint256 i = 0; i < length; ++i) {
-            bytes32 orderId;
-            assembly {
-                //Get the orderId at the orderOffsetSlot
-                orderId := mload(orderOffsetSlot)
-                //Update the orderOffsetSlot
-                orderOffsetSlot := add(orderOffsetSlot, 0x20)
-            }
+    //         OrderType orderType = addressToOrderIds[owner][orderId];
 
-            OrderType orderType = addressToOrderIds[owner][orderId];
+    //         if (orderType == OrderType.FilledLimitOrder) {
+    //             filledLimitOrders[filledLimitOrdersIndex] = orderId;
+    //             ++filledLimitOrdersIndex;
+    //         } else if (orderType == OrderType.FilledSandboxLimitOrder) {
+    //             filledSandboxLimitOrders[
+    //                 filledSandboxLimitOrdersIndex
+    //             ] = orderId;
+    //             ++filledSandboxLimitOrdersIndex;
+    //         }
+    //     }
 
-            if (orderType == OrderType.FilledLimitOrder) {
-                filledLimitOrders[filledLimitOrdersIndex] = orderId;
-                ++filledLimitOrdersIndex;
-            } else if (orderType == OrderType.FilledSandboxLimitOrder) {
-                filledSandboxLimitOrders[
-                    filledSandboxLimitOrdersIndex
-                ] = orderId;
-                ++filledSandboxLimitOrdersIndex;
-            } else if (orderType == OrderType.PartialFilledSandboxLimitOrder) {
-                partialFilledSandboxLimitOrders[
-                    partialFilledSandboxLimitOrdersIndex
-                ] = orderId;
-                ++partialFilledSandboxLimitOrdersIndex;
-            }
-        }
+    //     //Reassign length of each array
+    //     assembly {
+    //         mstore(filledLimitOrders, add(filledLimitOrdersIndex, 1))
+    //         mstore(
+    //             filledSandboxLimitOrders,
+    //             add(filledSandboxLimitOrdersIndex, 1)
+    //         )
+    //     }
 
-        //Reassign length of each array
-        assembly {
-            mstore(filledLimitOrders, add(filledLimitOrdersIndex, 1))
-            mstore(
-                filledSandboxLimitOrders,
-                add(filledSandboxLimitOrdersIndex, 1)
-            )
-            mstore(
-                partialFilledSandboxLimitOrders,
-                add(partialFilledSandboxLimitOrdersIndex, 1)
-            )
-        }
+    //     filledOrderIds[0] = filledLimitOrders;
+    //     filledOrderIds[1] = filledSandboxLimitOrders;
 
-        filledOrderIds[0] = filledLimitOrders;
-        filledOrderIds[1] = filledSandboxLimitOrders;
-        filledOrderIds[2] = partialFilledSandboxLimitOrders;
+    //     return filledOrderIds;
+    // }
 
-        return filledOrderIds;
-    }
+    // ///@notice Get all of the pending order Ids for a given address
+    // ///@param owner - Target address to get all order Ids for.
+    // ///@param orderOffset - The first order to start from when checking orderstatus. For example, if order offset is 2, the function will start checking orderId status from the second order.
+    // ///@param length - The amount of orders to check order status for.
+    // ///@return Array of partial filled sandbox limit order Ids
 
-    ///@notice Get all of the canceled order Ids for a given address
-    ///@param owner - Target address to get all order Ids for.
-    ///@param orderOffset - The first order to start from when checking orderstatus. For example, if order offset is 2, the function will start checking orderId status from the second order.
-    ///@param length - The amount of orders to check order status for.
-    /**@return - Nested array of order Ids organized by status. 
-    The first array represents canceled limit orders.
-    The second array represents canceled sandbox limit orders.
-    **/
-    function getCanceledOrderIds(
-        address owner,
-        uint256 orderOffset,
-        uint256 length
-    ) public view returns (bytes32[][] memory) {
-        bytes32[] memory allOrderIds = addressToAllOrderIds[owner];
-        bytes32[][] memory canceledOrderIds = new bytes32[][](2);
+    // function getPartialFilledOrderIds(
+    //     address owner,
+    //     uint256 orderOffset,
+    //     uint256 length
+    // ) public view returns (bytes32[] memory) {
+    //     bytes32[] memory allOrderIds = addressToAllOrderIds[owner];
 
-        uint256 canceledLimitOrdersIndex = 0;
-        bytes32[] memory canceledLimitOrders = new bytes32[](
-            allOrderIds.length
-        );
+    //     uint256 partialFilledSandboxLimitOrdersIndex = 0;
+    //     bytes32[] memory partialFilledSandboxLimitOrders = new bytes32[](
+    //         allOrderIds.length
+    //     );
 
-        uint256 canceledSandboxLimitOrdersIndex = 0;
-        bytes32[] memory canceledSandboxLimitOrders = new bytes32[](
-            allOrderIds.length
-        );
+    //     uint256 orderOffsetSlot = orderOffset + 0x20;
+    //     assembly {
+    //         //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order
+    //         orderOffsetSlot := add(
+    //             add(allOrderIds, 0x20),
+    //             mul(orderOffset, 0x20)
+    //         )
+    //     }
 
-        uint256 orderOffsetSlot = orderOffset + 0x20;
-        assembly {
-            //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order
-            orderOffsetSlot := add(
-                add(allOrderIds, 0x20),
-                mul(orderOffset, 0x20)
-            )
-        }
+    //     for (uint256 i = 0; i < length; ++i) {
+    //         bytes32 orderId;
+    //         assembly {
+    //             //Get the orderId at the orderOffsetSlot
+    //             orderId := mload(orderOffsetSlot)
+    //             //Update the orderOffsetSlot
+    //             orderOffsetSlot := add(orderOffsetSlot, 0x20)
+    //         }
 
-        for (uint256 i = 0; i < length; ++i) {
-            bytes32 orderId;
-            assembly {
-                //Get the orderId at the orderOffsetSlot
-                orderId := mload(orderOffsetSlot)
-                //Update the orderOffsetSlot
-                orderOffsetSlot := add(orderOffsetSlot, 0x20)
-            }
+    //         OrderType orderType = addressToOrderIds[owner][orderId];
 
-            OrderType orderType = addressToOrderIds[owner][orderId];
+    //         if (orderType == OrderType.PartialFilledSandboxLimitOrder) {
+    //             partialFilledSandboxLimitOrders[
+    //                 partialFilledSandboxLimitOrdersIndex
+    //             ] = orderId;
+    //             ++partialFilledSandboxLimitOrdersIndex;
+    //         }
+    //     }
 
-            if (orderType == OrderType.CanceledLimitOrder) {
-                canceledLimitOrders[canceledLimitOrdersIndex] = orderId;
-                ++canceledLimitOrdersIndex;
-            } else if (orderType == OrderType.CanceledSandboxLimitOrder) {
-                canceledSandboxLimitOrders[
-                    canceledSandboxLimitOrdersIndex
-                ] = orderId;
-                ++canceledSandboxLimitOrdersIndex;
-            }
-        }
+    //     //Reassign length of each array
+    //     assembly {
+    //         mstore(
+    //             partialFilledSandboxLimitOrders,
+    //             add(partialFilledSandboxLimitOrdersIndex, 1)
+    //         )
+    //     }
 
-        //Reassign length of each array
-        assembly {
-            mstore(canceledLimitOrders, add(canceledLimitOrdersIndex, 1))
-            mstore(
-                canceledSandboxLimitOrders,
-                add(canceledSandboxLimitOrdersIndex, 1)
-            )
-        }
+    //     return partialFilledSandboxLimitOrders;
+    // }
 
-        canceledOrderIds[0] = canceledLimitOrders;
-        canceledOrderIds[1] = canceledSandboxLimitOrders;
+    // ///@notice Get all of the canceled order Ids for a given address
+    // ///@param owner - Target address to get all order Ids for.
+    // ///@param orderOffset - The first order to start from when checking orderstatus. For example, if order offset is 2, the function will start checking orderId status from the second order.
+    // ///@param length - The amount of orders to check order status for.
+    // /**@return - Nested array of order Ids organized by status.
+    // The first array represents canceled limit orders.
+    // The second array represents canceled sandbox limit orders.
+    // **/
+    // function getCanceledOrderIds(
+    //     address owner,
+    //     uint256 orderOffset,
+    //     uint256 length
+    // ) public view returns (bytes32[][] memory) {
+    //     bytes32[] memory allOrderIds = addressToAllOrderIds[owner];
+    //     bytes32[][] memory canceledOrderIds = new bytes32[][](2);
 
-        return canceledOrderIds;
-    }
+    //     uint256 canceledLimitOrdersIndex = 0;
+    //     bytes32[] memory canceledLimitOrders = new bytes32[](
+    //         allOrderIds.length
+    //     );
+
+    //     uint256 canceledSandboxLimitOrdersIndex = 0;
+    //     bytes32[] memory canceledSandboxLimitOrders = new bytes32[](
+    //         allOrderIds.length
+    //     );
+
+    //     uint256 orderOffsetSlot = orderOffset + 0x20;
+    //     assembly {
+    //         //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order
+    //         orderOffsetSlot := add(
+    //             add(allOrderIds, 0x20),
+    //             mul(orderOffset, 0x20)
+    //         )
+    //     }
+
+    //     for (uint256 i = 0; i < length; ++i) {
+    //         bytes32 orderId;
+    //         assembly {
+    //             //Get the orderId at the orderOffsetSlot
+    //             orderId := mload(orderOffsetSlot)
+    //             //Update the orderOffsetSlot
+    //             orderOffsetSlot := add(orderOffsetSlot, 0x20)
+    //         }
+
+    //         OrderType orderType = addressToOrderIds[owner][orderId];
+
+    //         if (orderType == OrderType.CanceledLimitOrder) {
+    //             canceledLimitOrders[canceledLimitOrdersIndex] = orderId;
+    //             ++canceledLimitOrdersIndex;
+    //         } else if (orderType == OrderType.CanceledSandboxLimitOrder) {
+    //             canceledSandboxLimitOrders[
+    //                 canceledSandboxLimitOrdersIndex
+    //             ] = orderId;
+    //             ++canceledSandboxLimitOrdersIndex;
+    //         }
+    //     }
+
+    //     //Reassign length of each array
+    //     assembly {
+    //         mstore(canceledLimitOrders, add(canceledLimitOrdersIndex, 1))
+    //         mstore(
+    //             canceledSandboxLimitOrders,
+    //             add(canceledSandboxLimitOrdersIndex, 1)
+    //         )
+    //     }
+
+    //     canceledOrderIds[0] = canceledLimitOrders;
+    //     canceledOrderIds[1] = canceledSandboxLimitOrders;
+
+    //     return canceledOrderIds;
+    // }
 }
