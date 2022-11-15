@@ -35,7 +35,7 @@ contract OrderBookTest is DSTest {
     LimitOrderRouterWrapper orderBook;
 
     event OrderPlaced(bytes32[] orderIds);
-    event OrderCancelled(bytes32[] orderIds);
+    event OrderCanceled(bytes32[] orderIds);
     event OrderUpdated(bytes32[] orderIds);
 
     //----------------State variables for testing--------------------
@@ -386,7 +386,7 @@ contract OrderBookTest is DSTest {
                 address(this),
                 orderId
             );
-            assert(orderType == OrderBook.OrderType.CancelledSandboxLimitOrder);
+            assert(orderType == OrderBook.OrderType.CanceledSandboxLimitOrder);
             assertEq(
                 orderBook.totalOrdersQuantity(
                     keccak256(abi.encode(address(this), swapToken))
