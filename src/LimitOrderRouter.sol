@@ -523,7 +523,7 @@ contract LimitOrderRouter is OrderBook {
 
         ///@notice Assert that the tokenOut balance is greater than or equal to the amountOutRequired
         if (
-            currentTokenOutBalance - initialTokenOutBalance < amountOutRequired
+            currentTokenOutBalance - initialTokenOutBalance != amountOutRequired
         ) {
             revert SandboxAmountOutRequiredNotSatisfied(
                 currentOrder.orderId,
@@ -556,37 +556,44 @@ contract LimitOrderRouter is OrderBook {
         uint256[] memory initialTokenInBalances,
         uint256[] memory initialTokenOutBalances
     ) internal {
-        SandboxLimitOrder memory lastOrder = sandboxLimitOrders[orderIdIndex];
+        ///@notice Cache the first order in the bundle
+        SandboxLimitOrder memory prevOrder = sandboxLimitOrders[orderIdIndex];
 
-        uint256 cumulativeFillAmount = fillAmounts[orderIdIndex];
-        uint256 cumulativeAmountOutRequired = lastOrder.amountOutRemaining;
-
-        ///@notice Cache values for post execution assertions
+        ///@notice Cacluate the amountOut required for the first order in the bundle
         uint128 amountOutRequired = uint128(
             ConveyorMath.mul64U(
                 ConveyorMath.divUU(
-                    lastOrder.amountOutRemaining,
-                    lastOrder.amountInRemaining
+                    prevOrder.amountOutRemaining,
+                    prevOrder.amountInRemaining
                 ),
                 fillAmounts[orderIdIndex]
             )
         );
-        address orderOwner = lastOrder.owner;
-
+        ///@notice Update the cumulative fill amount to include the fill amount for the first order in the bundle
+        uint256 cumulativeFillAmount = fillAmounts[orderIdIndex];
+        ///@notice Update the cumulativeAmountOutRequired to include the amount out required for the first order in the bundle
+        uint256 cumulativeAmountOutRequired = amountOutRequired;
+        ///@notice Set the orderOwner to the first order in the bundle
+        address orderOwner = prevOrder.owner;
+        ///@notice Update the offset for the sandboxLimitOrders array to correspond with the order in the bundle
         uint256 offset = orderIdIndex;
+
         {
+            ///@notice For each order in the bundle
             for (uint256 i = 1; i < bundleLength; ++i) {
+                ///@notice Cache the order
                 SandboxLimitOrder memory currentOrder = sandboxLimitOrders[
                     offset + 1
                 ];
 
-                uint256 currentTokenInBalance = IERC20(lastOrder.tokenIn)
+                ///@notice Cache the tokenIn and tokenOut balance for the current order
+                uint256 currentTokenInBalance = IERC20(prevOrder.tokenIn)
                     .balanceOf(orderOwner);
 
-                uint256 currentTokenOutBalance = IERC20(currentOrder.tokenOut)
+                uint256 currentTokenOutBalance = IERC20(prevOrder.tokenOut)
                     .balanceOf(orderOwner);
 
-                ///@notice Cache values for post execution assertions
+                ///@notice Cache the amountOutRequired for the current order
                 amountOutRequired = uint128(
                     ConveyorMath.mul64U(
                         ConveyorMath.divUU(
@@ -596,18 +603,20 @@ contract LimitOrderRouter is OrderBook {
                         fillAmounts[offset + 1]
                     )
                 );
-                if (currentOrder.tokenIn != lastOrder.tokenIn) {
-                    //TODO: verify cumulative fill amount in
+
+                ///@notice If the current order and previous order tokenIn do not match, assert that the cumulative fill amount can be met
+                if (currentOrder.tokenIn != prevOrder.tokenIn) {
                     ///@notice Assert that the tokenIn balance is decremented by the fill amount exactly
                     if (
-                        initialTokenInBalances[offset] - currentTokenInBalance >
-                        fillAmounts[offset]
+                        initialTokenInBalances[offset] -
+                            currentTokenInBalance !=
+                        cumulativeFillAmount
                     ) {
                         revert SandboxFillAmountNotSatisfied(
-                            lastOrder.orderId,
+                            prevOrder.orderId,
                             initialTokenInBalances[offset] -
                                 currentTokenInBalance,
-                            fillAmounts[offset]
+                            cumulativeFillAmount
                         );
                     }
                     cumulativeFillAmount = fillAmounts[offset + 1];
@@ -615,8 +624,7 @@ contract LimitOrderRouter is OrderBook {
                     cumulativeFillAmount += fillAmounts[offset + 1];
                 }
 
-                if (currentOrder.tokenOut != lastOrder.tokenOut) {
-                    //TODO: verify cumulative fill amount in
+                if (currentOrder.tokenOut != prevOrder.tokenOut) {
                     ///@notice Assert that the tokenOut balance is greater than or equal to the amountOutRequired
                     if (
                         currentTokenOutBalance -
@@ -624,10 +632,10 @@ contract LimitOrderRouter is OrderBook {
                         cumulativeAmountOutRequired
                     ) {
                         revert SandboxAmountOutRequiredNotSatisfied(
-                            lastOrder.orderId,
+                            prevOrder.orderId,
                             currentTokenOutBalance -
                                 initialTokenOutBalances[offset],
-                            amountOutRequired
+                            cumulativeAmountOutRequired
                         );
                     }
                     cumulativeAmountOutRequired = amountOutRequired;
@@ -636,9 +644,9 @@ contract LimitOrderRouter is OrderBook {
                 }
 
                 ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
-                if (lastOrder.amountInRemaining == fillAmounts[offset]) {
+                if (prevOrder.amountInRemaining == fillAmounts[offset]) {
                     _resolveCompletedOrder(
-                        lastOrder.orderId,
+                        prevOrder.orderId,
                         OrderType.PendingSandboxLimitOrder
                     );
                 } else {
@@ -648,16 +656,17 @@ contract LimitOrderRouter is OrderBook {
                         uint128(
                             ConveyorMath.mul64U(
                                 ConveyorMath.divUU(
-                                    lastOrder.amountOutRemaining,
-                                    lastOrder.amountInRemaining
+                                    prevOrder.amountOutRemaining,
+                                    prevOrder.amountInRemaining
                                 ),
                                 fillAmounts[offset]
                             )
                         ),
-                        lastOrder.orderId
+                        prevOrder.orderId
                     );
                 }
-                lastOrder = currentOrder;
+
+                prevOrder = currentOrder;
                 ++offset;
             }
         }

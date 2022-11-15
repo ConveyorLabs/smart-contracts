@@ -554,6 +554,7 @@ contract SandboxRouterTest is DSTest {
 
         OrderBook.SandboxLimitOrder[]
             memory orders = createMockOrdersSameInputToken();
+
         ///@notice Place the Order.
         bytes32[] memory orderIds = placeMultipleMockOrder(orders);
         {
@@ -566,9 +567,11 @@ contract SandboxRouterTest is DSTest {
 
             console.logBytes32(orderIds[0]);
             console.logBytes32(orderIds[1]);
+
             ///@notice Grab the order fee
             orders[0] = limitOrderRouter.getSandboxLimitOrderById(orderIds[0]);
             orders[1] = limitOrderRouter.getSandboxLimitOrderById(orderIds[1]);
+
             console.log(orders[0].owner);
             console.log(orders[1].owner);
 
@@ -591,6 +594,7 @@ contract SandboxRouterTest is DSTest {
                 200000000000000000000,
                 DAI
             );
+
             ///@notice Create a call to compensate the feeAmount
             calls[1] = feeCompensationCall(cumulativeFee);
             bytes32[][]
@@ -635,35 +639,19 @@ contract SandboxRouterTest is DSTest {
                 txOriginBalanceBefore,
                 gasCompensationUpperBound
             );
+
             for (uint256 i = 0; i < orders.length; ++i) {
                 OrderBook.SandboxLimitOrder memory orderPost = limitOrderRouter
                     .getSandboxLimitOrderById(orders[i].orderId);
-                if (orders[i].amountInRemaining == multiCall.fillAmounts[i]) {
-                    console.log("this assertion");
-                    assert(orderPost.orderId == bytes32(0));
-                    OrderBook.OrderType orderType = orderBook.addressToOrderIds(
-                        address(this),
-                        orders[i].orderId
-                    );
-                    assert(
-                        orderType == OrderBook.OrderType.FilledSandboxLimitOrder
-                    );
-                } else {
-                    assertEq(
-                        orderPost.amountInRemaining,
-                        orders[i].amountInRemaining - multiCall.fillAmounts[i]
-                    );
-                    assertEq(
-                        orderPost.amountOutRemaining,
-                        ConveyorMath.mul64U(
-                            ConveyorMath.divUU(
-                                orders[i].amountOutRemaining,
-                                orders[i].amountInRemaining
-                            ),
-                            multiCall.fillAmounts[i]
-                        )
-                    );
-                }
+                console.log("this assertion");
+                assert(orderPost.orderId == bytes32(0));
+                OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                    address(this),
+                    orders[i].orderId
+                );
+                assert(
+                    orderType == OrderBook.OrderType.FilledSandboxLimitOrder
+                );
             }
 
             ///@notice Assert the protocol fees were compensated as expected
