@@ -147,6 +147,8 @@ contract SandboxRouterTest is DSTest {
             limitOrderExecutor.LIMIT_ORDER_ROUTER()
         );
 
+        orderBook = IOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
+
         ///@notice Initialize an instance of the SandboxRouter Interface
         sandboxRouter = ISandboxRouter(
             limitOrderRouter.getSandboxRouterAddress()
@@ -306,6 +308,13 @@ contract SandboxRouterTest is DSTest {
                     .getSandboxLimitOrderById(orders[i].orderId);
                 if (orders[i].amountInRemaining == multiCall.fillAmounts[i]) {
                     assert(orderPost.orderId == bytes32(0));
+                    OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                        address(this),
+                        orders[i].orderId
+                    );
+                    assert(
+                        orderType == OrderBook.OrderType.FilledSandboxLimitOrder
+                    );
                 } else {
                     assertEq(
                         orderPost.amountInRemaining,
@@ -433,6 +442,13 @@ contract SandboxRouterTest is DSTest {
                     .getSandboxLimitOrderById(orders[i].orderId);
                 if (orders[i].amountInRemaining == multiCall.fillAmounts[i]) {
                     assert(orderPost.orderId == bytes32(0));
+                    OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                        address(this),
+                        orders[i].orderId
+                    );
+                    assert(
+                        orderType == OrderBook.OrderType.FilledSandboxLimitOrder
+                    );
                 } else {
                     assertEq(
                         orderPost.amountInRemaining,
@@ -1160,7 +1176,7 @@ contract SandboxRouterTest is DSTest {
             {
                 OrderBook.SandboxLimitOrder
                     memory postExecutionOrder = limitOrderRouterWrapper
-                        .getSandboxLimitOrderById(orders[0].orderId);
+                        ._getSandboxLimitOrderById(orders[0].orderId);
                 if (fillAmounts[0] == orders[0].amountInRemaining) {
                     assert(postExecutionOrder.orderId == bytes32(0));
                 } else {
@@ -1822,6 +1838,14 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
             _sandboxLimitOrderExecutionGasCost
         )
     {}
+
+    function _getSandboxLimitOrderById(bytes32 orderId)
+        public
+        view
+        returns (SandboxLimitOrder memory)
+    {
+        return getSandboxLimitOrderById(orderId);
+    }
 
     function _initializePreSandboxExecutionState(
         bytes32[] calldata orderIds,

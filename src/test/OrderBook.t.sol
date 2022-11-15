@@ -209,7 +209,11 @@ contract OrderBookTest is DSTest {
 
             //check that the orderId is not zero value
             assert((orderId != bytes32(0)));
-
+            OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                address(this),
+                orderId
+            );
+            assert(orderType == OrderBook.OrderType.PendingLimitOrder);
             assertEq(
                 orderBook.totalOrdersQuantity(
                     keccak256(abi.encode(address(this), swapToken))
@@ -257,7 +261,13 @@ contract OrderBookTest is DSTest {
 
                 //check that the orderId is not zero value
                 assert((orderId != bytes32(0)));
-
+                OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                    address(this),
+                    orderId
+                );
+                assert(
+                    orderType == OrderBook.OrderType.PendingSandboxLimitOrder
+                );
                 assertEq(
                     orderBook.totalOrdersQuantity(
                         keccak256(abi.encode(address(this), swapToken))
@@ -372,6 +382,11 @@ contract OrderBookTest is DSTest {
 
             assertEq(orderBook.totalOrdersPerAddress(address(this)), 1);
             orderBook.cancelOrder(orderId);
+            OrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                address(this),
+                orderId
+            );
+            assert(orderType == OrderBook.OrderType.CancelledSandboxLimitOrder);
             assertEq(
                 orderBook.totalOrdersQuantity(
                     keccak256(abi.encode(address(this), swapToken))

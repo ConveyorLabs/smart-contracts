@@ -165,7 +165,7 @@ contract OrderBook is GasOracle {
     mapping(bytes32 => SandboxLimitOrder) internal orderIdToSandboxLimitOrder;
 
     ///@notice Mapping to find the total orders quantity for a specific token, for an individual account
-    ///@notice The key is represented as: keccak256(abi.encode(owner, token));
+    ///@dev The key is represented as: keccak256(abi.encode(owner, token));
     mapping(bytes32 => uint256) public totalOrdersQuantity;
 
     ///@notice Mapping to check if an order exists, as well as get all the orders for an individual account.
@@ -214,7 +214,7 @@ contract OrderBook is GasOracle {
     }
 
     function getLimitOrderById(bytes32 orderId)
-        internal
+        public
         view
         returns (LimitOrder memory)
     {
@@ -223,7 +223,7 @@ contract OrderBook is GasOracle {
     }
 
     function getSandboxLimitOrderById(bytes32 orderId)
-        internal
+        public
         view
         returns (SandboxLimitOrder memory)
     {

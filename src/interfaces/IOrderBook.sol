@@ -29,6 +29,11 @@ interface IOrderBook {
 
     function getGasPrice() external view returns (uint256);
 
+    function addressToOrderIds(address owner, bytes32 orderId)
+        external
+        view
+        returns (OrderBook.OrderType);
+
     function getLimitOrderById(bytes32 orderId)
         external
         view

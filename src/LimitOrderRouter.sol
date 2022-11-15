@@ -259,7 +259,7 @@ contract LimitOrderRouter is OrderBook {
         uint256 executionGasCompensation = calculateExecutionGasCompensation(
             getGasPrice(),
             orderOwners,
-            OrderType.SandboxLimitOrder
+            OrderType.PendingSandboxLimitOrder
         );
 
         ///@notice Transfer the reward to the off-chain executor.
@@ -396,7 +396,7 @@ contract LimitOrderRouter is OrderBook {
             if (currentOrder.amountInRemaining == fillAmount) {
                 _resolveCompletedOrder(
                     currentOrder.orderId,
-                    OrderType.SandboxLimitOrder
+                    OrderType.PendingSandboxLimitOrder
                 );
             } else {
                 ///@notice Update the state of the order to parial filled quantities.
@@ -431,13 +431,13 @@ contract LimitOrderRouter is OrderBook {
             if (orderType == OrderType.None) {
                 continue;
             } else {
-                if (orderType == OrderType.LimitOrder) {
+                if (orderType == OrderType.PendingLimitOrder) {
                     LimitOrder memory order = abi.decode(
                         orderBytes,
                         (LimitOrder)
                     );
                     totalRefreshFees += _refreshLimitOrder(order, gasPrice);
-                } else if (orderType == OrderType.SandboxLimitOrder) {
+                } else if (orderType == OrderType.PendingSandboxLimitOrder) {
                     SandboxLimitOrder memory order = abi.decode(
                         orderBytes,
                         (SandboxLimitOrder)
@@ -604,7 +604,7 @@ contract LimitOrderRouter is OrderBook {
         ///@notice Check if order exists, otherwise revert.
         if (orderType == OrderType.None) {
             revert OrderDoesNotExist(orderId);
-        } else if (orderType == OrderType.LimitOrder) {
+        } else if (orderType == OrderType.PendingLimitOrder) {
             LimitOrder memory limitOrder = abi.decode(orderBytes, (LimitOrder));
 
             ///@notice If the order owner does not have min gas credits, cancel the order
@@ -672,7 +672,7 @@ contract LimitOrderRouter is OrderBook {
         uint256 executorFee = gasPrice * LIMIT_ORDER_EXECUTION_GAS_COST;
 
         ///@notice Remove the order from the limit order system.
-        _removeOrderFromSystem(order.orderId, OrderType.LimitOrder);
+        _removeOrderFromSystem(order.orderId, OrderType.PendingLimitOrder);
 
         uint256 orderOwnerGasCreditBalance = gasCreditBalance[order.owner];
 
@@ -706,7 +706,10 @@ contract LimitOrderRouter is OrderBook {
         uint256 executorFee = gasPrice * SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 
         ///@notice Remove the order from the limit order system.
-        _removeOrderFromSystem(order.orderId, OrderType.SandboxLimitOrder);
+        _removeOrderFromSystem(
+            order.orderId,
+            OrderType.PendingSandboxLimitOrder
+        );
 
         uint256 orderOwnerGasCreditBalance = gasCreditBalance[order.owner];
 
@@ -859,7 +862,7 @@ contract LimitOrderRouter is OrderBook {
         for (uint256 i = 0; i < orderIds.length; ) {
             bytes32 orderId = orderIds[i];
             ///@notice Mark the order as resolved from the system.
-            _resolveCompletedOrder(orderId, OrderType.LimitOrder);
+            _resolveCompletedOrder(orderId, OrderType.PendingLimitOrder);
 
             ///@notice Mark order as fulfilled in addressToFufilledOrderIds mapping
             addressToFufilledOrderIds[orderOwners[i]][orderIds[i]] = true;
@@ -876,7 +879,7 @@ contract LimitOrderRouter is OrderBook {
         uint256 executionGasCompensation = calculateExecutionGasCompensation(
             gasPrice,
             orderOwners,
-            OrderType.LimitOrder
+            OrderType.PendingLimitOrder
         );
 
         ///@notice Transfer the reward to the off-chain executor.
@@ -948,7 +951,7 @@ contract LimitOrderRouter is OrderBook {
             )
         }
 
-        if (orderType == OrderType.LimitOrder) {
+        if (orderType == OrderType.PendingLimitOrder) {
             ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
             uint256 maxExecutionCompensation = LIMIT_ORDER_EXECUTION_GAS_COST *
                 numberOfOrders *
