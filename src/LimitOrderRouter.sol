@@ -597,8 +597,6 @@ contract LimitOrderRouter is OrderBook {
         nonReentrant
         returns (bool success)
     {
-        uint256 gasPrice = getGasPrice();
-
         (OrderType orderType, bytes memory orderBytes) = getOrderById(orderId);
 
         ///@notice Check if order exists, otherwise revert.
@@ -607,17 +605,9 @@ contract LimitOrderRouter is OrderBook {
         } else if (orderType == OrderType.PendingLimitOrder) {
             LimitOrder memory limitOrder = abi.decode(orderBytes, (LimitOrder));
 
-            ///@notice If the order owner does not have min gas credits, cancel the order
             if (
-                !(
-                    _hasMinGasCredits(
-                        gasPrice,
-                        LIMIT_ORDER_EXECUTION_GAS_COST,
-                        limitOrder.owner,
-                        gasCreditBalance[limitOrder.owner],
-                        1 ///@dev Multiplier is set to 1
-                    )
-                )
+                IERC20(limitOrder.tokenIn).balanceOf(limitOrder.owner) <
+                limitOrder.quantity
             ) {
                 ///@notice Remove the order from the limit order system.
                 safeTransferETH(
@@ -634,15 +624,9 @@ contract LimitOrderRouter is OrderBook {
 
             ///@notice If the order owner does not have min gas credits, cancel the order
             if (
-                !(
-                    _hasMinGasCredits(
-                        gasPrice,
-                        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST,
-                        sandboxLimitOrder.owner,
-                        gasCreditBalance[sandboxLimitOrder.owner],
-                        1 ///@dev Multiplier is set to 1
-                    )
-                )
+                IERC20(sandboxLimitOrder.tokenIn).balanceOf(
+                    sandboxLimitOrder.owner
+                ) < sandboxLimitOrder.amountInRemaining
             ) {
                 ///@notice Remove the order from the limit order system.
 
