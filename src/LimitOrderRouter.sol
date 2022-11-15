@@ -311,11 +311,11 @@ contract LimitOrderRouter is OrderBook {
                             orderId
                         ];
 
-                    orderOwners[arrayIndex] = currentOrder.owner;
-
                     if (currentOrder.orderId == bytes32(0)) {
                         revert OrderDoesNotExist(orderId);
                     }
+
+                    orderOwners[arrayIndex] = currentOrder.owner;
 
                     sandboxLimitOrders[arrayIndex] = currentOrder;
 
@@ -340,6 +340,10 @@ contract LimitOrderRouter is OrderBook {
                     initialTokenOutBalances[arrayIndex] = IERC20(
                         currentOrder.tokenOut
                     ).balanceOf(currentOrder.owner);
+                }
+
+                unchecked {
+                    ++arrayIndex;
                 }
             }
 
