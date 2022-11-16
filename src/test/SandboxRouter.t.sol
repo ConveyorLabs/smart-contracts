@@ -1092,166 +1092,174 @@ contract SandboxRouterTest is DSTest {
                                 fillAmounts
                             );
 
-                    assertEq(preSandboxExecutionState.initialTokenInBalances[0], wethQuantity);
-                    assertEq(preSandboxExecutionState.initialTokenOutBalances[0], 0);
+                    assertEq(
+                        preSandboxExecutionState.initialTokenInBalances[0],
+                        wethQuantity
+                    );
+                    assertEq(
+                        preSandboxExecutionState.initialTokenOutBalances[0],
+                        0
+                    );
                 }
             }
         }
     }
 
-    //TODO: uncomment this
-    // function testValidateSandboxExecutionAndFillOrders(
-    //     uint128 wethQuantity,
-    //     uint128 initialBalanceIn,
-    //     uint128 daiQuantity,
-    //     uint128 amountOutRemaining,
-    //     uint128 fillAmountWeth
-    // ) public {
-    //     bool run;
-    //     {
-    //         if (
-    //             wethQuantity < 1000000000000000 ||
-    //             daiQuantity < 1000000000000000 ||
-    //             wethQuantity > 10000000000000000000000 ||
-    //             daiQuantity > 10000000000000000000000
-    //         ) {
-    //             run = false;
-    //         }
-    //     }
-    //     if (run) {
-    //         if (
-    //             fillAmountWeth <= wethQuantity &&
-    //             initialBalanceIn < wethQuantity
-    //         ) {
-    //             initializeTestBalanceState(wethQuantity);
+    function testValidateSandboxExecutionAndFillOrders(
+        uint128 wethQuantity,
+        uint128 initialBalanceIn,
+        uint128 daiQuantity,
+        uint128 amountOutRemaining,
+        uint128 fillAmountWeth
+    ) public {
+        bool run;
+        {
+            if (
+                wethQuantity < 1000000000000000 ||
+                daiQuantity < 1000000000000000 ||
+                wethQuantity > 10000000000000000000000 ||
+                daiQuantity > 10000000000000000000000
+            ) {
+                run = false;
+            }
+        }
+        if (run) {
+            if (
+                fillAmountWeth <= wethQuantity &&
+                initialBalanceIn < wethQuantity
+            ) {
+                initializeTestBalanceState(wethQuantity);
 
-    //             uint256[] memory initialBalancesIn = new uint256[](1);
-    //             uint256[] memory initialBalancesOut = new uint256[](1);
+                uint256[] memory initialBalancesIn = new uint256[](1);
+                uint256[] memory initialBalancesOut = new uint256[](1);
 
-    //             {
-    //                 initialBalancesIn[0] = initialBalanceIn;
-    //                 initialBalancesOut[0] = 0;
-    //             }
-    //             ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
-    //             try
-    //                 swapHelper.swapEthForTokenWithUniV2(daiQuantity, DAI)
-    //             returns (uint256 amountOut) {
-    //                 {}
-    //                 OrderBook.SandboxLimitOrder[]
-    //                     memory orders = new OrderBook.SandboxLimitOrder[](1);
+                {
+                    initialBalancesIn[0] = initialBalanceIn;
+                    initialBalancesOut[0] = 0;
+                }
+                ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
+                try
+                    swapHelper.swapEthForTokenWithUniV2(daiQuantity, DAI)
+                returns (uint256 amountOut) {
+                    {}
+                    OrderBook.SandboxLimitOrder[]
+                        memory orders = new OrderBook.SandboxLimitOrder[](1);
 
-    //                 uint128[] memory fillAmounts = new uint128[](2);
-    //                 bytes32[][] memory orderIdBundles = new bytes32[][](1);
-    //                 {
-    //                     ///@notice Dai/Weth sell limit order
-    //                     ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
-    //                     orders[0] = newMockSandboxOrder(
-    //                         false,
-    //                         wethQuantity,
-    //                         amountOutRemaining,
-    //                         WETH,
-    //                         DAI
-    //                     );
+                    uint128[] memory fillAmounts = new uint128[](2);
+                    bytes32[][] memory orderIdBundles = new bytes32[][](1);
+                    {
+                        ///@notice Dai/Weth sell limit order
+                        ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
+                        orders[0] = newMockSandboxOrder(
+                            false,
+                            wethQuantity,
+                            amountOutRemaining,
+                            WETH,
+                            DAI
+                        );
 
-    //                     bytes32[] memory orderIds = new bytes32[](1);
-    //                     orderIds[0] = placeMockOrderWrapper(orders[0]);
-    //                     fillAmounts[0] = fillAmountWeth;
-    //                     orderIdBundles[0] = orderIds;
-    //                 }
+                        bytes32[] memory orderIds = new bytes32[](1);
+                        orderIds[0] = placeMockOrderWrapper(orders[0]);
+                        fillAmounts[0] = fillAmountWeth;
+                        orderIdBundles[0] = orderIds;
+                    }
 
-    //                 validateSandboxExecutionAndFillOrders(
-    //                     orderIdBundles,
-    //                     initialBalancesIn,
-    //                     initialBalancesOut,
-    //                     wethQuantity,
-    //                     orders,
-    //                     fillAmounts,
-    //                     amountOut
-    //                 );
-    //             } catch {}
-    //         }
-    //     }
-    // }
+                    validateSandboxExecutionAndFillOrders(
+                        orderIdBundles,
+                        initialBalancesIn,
+                        initialBalancesOut,
+                        wethQuantity,
+                        orders,
+                        fillAmounts,
+                        amountOut
+                    );
+                } catch {}
+            }
+        }
+    }
 
-    //TODO: uncomment this
-    // function validateSandboxExecutionAndFillOrders(
-    //     bytes32[][] memory orderIdBundles,
-    //     uint256[] memory initialBalancesIn,
-    //     uint256[] memory initialBalancesOut,
-    //     uint256 wethQuantity,
-    //     OrderBook.SandboxLimitOrder[] memory orders,
-    //     uint128[] memory fillAmounts,
-    //     uint256 amountOut
-    // ) internal {
-    //     if (
-    //         initialBalancesIn[0] - wethQuantity > fillAmounts[0] ||
-    //         amountOut < orders[0].amountOutRemaining
-    //     ) {
-    //         cheatCodes.expectRevert(
-    //             abi.encodeWithSelector(
-    //                 initialBalancesIn[0] - wethQuantity > fillAmounts[0]
-    //                     ? Errors.SandboxFillAmountNotSatisfied.selector
-    //                     : Errors.SandboxAmountOutRequiredNotSatisfied.selector,
-    //                 orders[0].orderId,
-    //                 initialBalancesIn[0] - wethQuantity > fillAmounts[0]
-    //                     ? initialBalancesIn[0] - wethQuantity
-    //                     : amountOut,
-    //                 initialBalancesIn[0] - wethQuantity > fillAmounts[0]
-    //                     ? fillAmounts[0]
-    //                     : ConveyorMath.mul64U(
-    //                         ConveyorMath.divUU(
-    //                             orders[0].amountOutRemaining,
-    //                             orders[0].amountInRemaining
-    //                         ),
-    //                         fillAmounts[0]
-    //                     )
-    //             )
-    //         );
+    function validateSandboxExecutionAndFillOrders(
+        bytes32[][] memory orderIdBundles,
+        uint256[] memory initialBalancesIn,
+        uint256[] memory initialBalancesOut,
+        uint256 wethQuantity,
+        OrderBook.SandboxLimitOrder[] memory orders,
+        uint128[] memory fillAmounts,
+        uint256 amountOut
+    ) internal {
+        LimitOrderRouter.PreSandboxExecutionState
+            memory preSandboxExecutionState = LimitOrderRouter
+                .PreSandboxExecutionState({
+                    sandboxLimitOrders: orders,
+                    orderOwners: new address[](orders.length),
+                    initialTokenInBalances: initialBalancesIn,
+                    initialTokenOutBalances: initialBalancesOut
+                });
+        if (
+            initialBalancesIn[0] - wethQuantity > fillAmounts[0] ||
+            amountOut < orders[0].amountOutRemaining
+        ) {
+            cheatCodes.expectRevert(
+                abi.encodeWithSelector(
+                    initialBalancesIn[0] - wethQuantity > fillAmounts[0]
+                        ? Errors.SandboxFillAmountNotSatisfied.selector
+                        : Errors.SandboxAmountOutRequiredNotSatisfied.selector,
+                    orders[0].orderId,
+                    initialBalancesIn[0] - wethQuantity > fillAmounts[0]
+                        ? initialBalancesIn[0] - wethQuantity
+                        : amountOut,
+                    initialBalancesIn[0] - wethQuantity > fillAmounts[0]
+                        ? fillAmounts[0]
+                        : ConveyorMath.mul64U(
+                            ConveyorMath.divUU(
+                                orders[0].amountOutRemaining,
+                                orders[0].amountInRemaining
+                            ),
+                            fillAmounts[0]
+                        )
+                )
+            );
 
-    //         (bool status, ) = address(limitOrderRouterWrapper).call(
-    //             abi.encodeWithSignature(
-    //                 "_validateSandboxExecutionAndFillOrders(bytes32[][],OrderBook.SandboxLimitOrder[],uint128[],uint256[],uint256[])",
-    //                 orderIdBundles,
-    //                 orders,
-    //                 fillAmounts,
-    //                 initialBalancesIn,
-    //                 initialBalancesOut
-    //             )
-    //         );
-    //         assertTrue(status);
-    //     } else {
-    //         limitOrderRouterWrapper._validateSandboxExecutionAndFillOrders(
-    //             orderIdBundles,
-    //             orders,
-    //             fillAmounts,
-    //             initialBalancesIn,
-    //             initialBalancesOut
-    //         );
-    //         {
-    //             OrderBook.SandboxLimitOrder
-    //                 memory postExecutionOrder = limitOrderRouterWrapper
-    //                     ._getSandboxLimitOrderById(orders[0].orderId);
-    //             if (fillAmounts[0] == orders[0].amountInRemaining) {
-    //                 assert(postExecutionOrder.orderId == bytes32(0));
-    //             } else {
-    //                 assertEq(
-    //                     postExecutionOrder.amountInRemaining,
-    //                     orders[0].amountInRemaining - fillAmounts[0]
-    //                 );
-    //                 assertEq(
-    //                     postExecutionOrder.amountOutRemaining,
-    //                     ConveyorMath.mul64U(
-    //                         ConveyorMath.divUU(
-    //                             orders[0].amountOutRemaining,
-    //                             orders[0].amountInRemaining
-    //                         ),
-    //                         fillAmounts[0]
-    //                     )
-    //                 );
-    //             }
-    //         }
-    //     }
-    // }
+            (bool status, ) = address(limitOrderRouterWrapper).call(
+                abi.encodeWithSignature(
+                    "_validateSandboxExecutionAndFillOrders(bytes32[][],uint128[],LimitOrderRouter.PreSandboxExecutionState)",
+                    orderIdBundles,
+                    fillAmounts,
+                    preSandboxExecutionState
+                )
+            );
+            assertTrue(status);
+        } else {
+            limitOrderRouterWrapper._validateSandboxExecutionAndFillOrders(
+                orderIdBundles,
+                fillAmounts,
+                preSandboxExecutionState
+            );
+            {
+                OrderBook.SandboxLimitOrder
+                    memory postExecutionOrder = limitOrderRouterWrapper
+                        ._getSandboxLimitOrderById(orders[0].orderId);
+                if (fillAmounts[0] == orders[0].amountInRemaining) {
+                    assert(postExecutionOrder.orderId == bytes32(0));
+                } else {
+                    assertEq(
+                        postExecutionOrder.amountInRemaining,
+                        orders[0].amountInRemaining - fillAmounts[0]
+                    );
+                    assertEq(
+                        postExecutionOrder.amountOutRemaining,
+                        ConveyorMath.mul64U(
+                            ConveyorMath.divUU(
+                                orders[0].amountOutRemaining,
+                                orders[0].amountInRemaining
+                            ),
+                            fillAmounts[0]
+                        )
+                    );
+                }
+            }
+        }
+    }
 
     function initializeTestBalanceState(uint128 wethQuantity) internal {
         ///@notice Deal funds to all of the necessary receivers
@@ -2058,22 +2066,17 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
         return initializePreSandboxExecutionState(orderIdBundles, fillAmounts);
     }
 
-    // TODO: uncomment this
-    // function _validateSandboxExecutionAndFillOrders(
-    //     bytes32[][] memory orderIdBundles,
-    //     SandboxLimitOrder[] memory sandboxLimitOrders,
-    //     uint128[] memory fillAmounts,
-    //     uint256[] memory initialTokenInBalances,
-    //     uint256[] memory initialTokenOutBalances
-    // ) public {
-    //     validateSandboxExecutionAndFillOrders(
-    //         orderIdBundles,
-    //         sandboxLimitOrders,
-    //         fillAmounts,
-    //         initialTokenInBalances,
-    //         initialTokenOutBalances
-    //     );
-    // }
+    function _validateSandboxExecutionAndFillOrders(
+        bytes32[][] memory orderIdBundles,
+        uint128[] memory fillAmounts,
+        PreSandboxExecutionState memory preSandboxExecutionState
+    ) public {
+        validateSandboxExecutionAndFillOrders(
+            orderIdBundles,
+            fillAmounts,
+            preSandboxExecutionState
+        );
+    }
 
     function executeSandboxLimitOrders(
         OrderBook.SandboxLimitOrder[] memory orders,
