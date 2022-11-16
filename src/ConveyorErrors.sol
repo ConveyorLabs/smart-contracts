@@ -38,6 +38,7 @@ error MsgSenderIsNotTxOrigin();
 error MsgSenderIsNotLimitOrderRouter();
 error MsgSenderIsNotLimitOrderExecutor();
 error MsgSenderIsNotSandboxRouter();
+error MsgSenderIsNotSandboxValidator();
 error MsgSenderIsNotOwner();
 error MsgSenderIsNotTempOwner();
 error Reentrancy();

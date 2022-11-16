@@ -10,6 +10,7 @@ import "./interfaces/ILimitOrderQuoter.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./interfaces/ILimitOrderRouter.sol";
 import "./interfaces/IConveyorGasOracle.sol";
+import "./interfaces/ISandboxValidator.sol";
 
 //TODO: delete this
 import "./test/utils/Console.sol";
@@ -229,11 +230,13 @@ contract LimitOrderRouter is OrderBook {
 
         ///@notice Initialize arrays to hold pre execution validation state.
 
-        LimitOrderExecutor.PreSandboxExecutionState
-            memory preSandboxExecutionState = initializePreSandboxExecutionState(
-                sandboxMulticall.orderIdBundles,
-                sandboxMulticall.fillAmounts
-            );
+        SandboxValidator.PreSandboxExecutionState
+            memory preSandboxExecutionState = ISandboxValidator(
+                SANDBOX_VALIDATOR
+            ).initializePreSandboxExecutionState(
+                    sandboxMulticall.orderIdBundles,
+                    sandboxMulticall.fillAmounts
+                );
 
         ///@notice Call the limit order executor to transfer all of the order owners tokens to the contract.
         ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeSandboxLimitOrders(
@@ -242,7 +245,7 @@ contract LimitOrderRouter is OrderBook {
         );
 
         ///@notice Post execution, assert that all of the order owners have received >= their exact amount out
-        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
+        ISandboxValidator(SANDBOX_VALIDATOR)
             .validateSandboxExecutionAndFillOrders(
                 sandboxMulticall.orderIdBundles,
                 sandboxMulticall.fillAmounts,
@@ -258,94 +261,6 @@ contract LimitOrderRouter is OrderBook {
 
         ///@notice Transfer the reward to the off-chain executor.
         safeTransferETH(tx.origin, executionGasCompensation);
-    }
-
-    function initializePreSandboxExecutionState(
-        bytes32[][] calldata orderIdBundles,
-        uint128[] calldata fillAmounts
-    )
-        internal
-        view
-        returns (
-            LimitOrderExecutor.PreSandboxExecutionState
-                memory preSandboxExecutionState
-        )
-    {
-        ///@notice Initialize data to hold pre execution validation state.
-        preSandboxExecutionState.sandboxLimitOrders = new SandboxLimitOrder[](
-            fillAmounts.length
-        );
-        preSandboxExecutionState.orderOwners = new address[](
-            fillAmounts.length
-        );
-        preSandboxExecutionState.initialTokenInBalances = new uint256[](
-            fillAmounts.length
-        );
-        preSandboxExecutionState.initialTokenOutBalances = new uint256[](
-            fillAmounts.length
-        );
-
-        uint256 arrayIndex = 0;
-        {
-            for (uint256 i = 0; i < orderIdBundles.length; ++i) {
-                bytes32[] memory orderIdBundle = orderIdBundles[i];
-
-                for (uint256 j = 0; j < orderIdBundle.length; ++j) {
-                    bytes32 orderId = orderIdBundle[j];
-
-                    ///@notice Transfer the tokens from the order owners to the sandbox router contract.
-                    ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
-
-                    ///@notice Get the current order
-                    SandboxLimitOrder
-                        memory currentOrder = orderIdToSandboxLimitOrder[
-                            orderId
-                        ];
-
-                    if (currentOrder.orderId == bytes32(0)) {
-                        revert OrderDoesNotExist(orderId);
-                    }
-
-                    preSandboxExecutionState.orderOwners[
-                        arrayIndex
-                    ] = currentOrder.owner;
-
-                    preSandboxExecutionState.sandboxLimitOrders[
-                        arrayIndex
-                    ] = currentOrder;
-
-                    ///@notice Cache amountSpecifiedToFill for intermediate calculations
-                    uint128 amountSpecifiedToFill = fillAmounts[arrayIndex];
-                    ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
-                    if (
-                        amountSpecifiedToFill > currentOrder.amountInRemaining
-                    ) {
-                        revert FillAmountSpecifiedGreaterThanAmountRemaining(
-                            amountSpecifiedToFill,
-                            currentOrder.amountInRemaining,
-                            currentOrder.orderId
-                        );
-                    }
-
-                    ///@notice Cache the the pre execution state of the order details
-                    preSandboxExecutionState.initialTokenInBalances[
-                        arrayIndex
-                    ] = IERC20(currentOrder.tokenIn).balanceOf(
-                        currentOrder.owner
-                    );
-
-                    preSandboxExecutionState.initialTokenOutBalances[
-                        arrayIndex
-                    ] = IERC20(currentOrder.tokenOut).balanceOf(
-                        currentOrder.owner
-                    );
-
-                    unchecked {
-                        ++arrayIndex;
-                    }
-                }
-            }
-        }
     }
 
     /// @notice Function to refresh an order for another 30 days.
@@ -788,7 +703,7 @@ contract LimitOrderRouter is OrderBook {
         for (uint256 i = 0; i < orderIds.length; ) {
             bytes32 orderId = orderIds[i];
             ///@notice Mark the order as resolved from the system.
-            resolveCompletedOrder(orderId, OrderType.PendingLimitOrder);
+            resolveCompletedLimitOrder(orderId);
 
             unchecked {
                 ++i;

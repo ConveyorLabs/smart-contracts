@@ -8,13 +8,15 @@ import "./interfaces/IOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 import "./test/utils/Console.sol";
+import "./SandboxValidator.sol";
 
 /// @title OrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
 contract OrderBook {
     address immutable LIMIT_ORDER_EXECUTOR;
-    address CONVEYOR_GAS_ORACLE;
+    address immutable CONVEYOR_GAS_ORACLE;
+    address immutable SANDBOX_VALIDATOR;
 
     ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
     ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
@@ -34,9 +36,9 @@ contract OrderBook {
     address immutable USDC;
 
     ///@notice Modifier to restrict smart contracts from calling a function.
-    modifier onlyLimitOrderExecutor() {
-        if (msg.sender != LIMIT_ORDER_EXECUTOR) {
-            revert MsgSenderIsNotLimitOrderExecutor();
+    modifier onlySandboxValidator() {
+        if (msg.sender != SANDBOX_VALIDATOR) {
+            revert MsgSenderIsNotSandboxValidator();
         }
         _;
     }
@@ -55,13 +57,14 @@ contract OrderBook {
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"
         );
+
         WETH = _weth;
         USDC = _usdc;
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
         LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
         SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
-
         CONVEYOR_GAS_ORACLE = _conveyorGasOracle;
+        SANDBOX_VALIDATOR = address(new SandboxValidator(address(this)));
     }
 
     //----------------------Events------------------------------------//
@@ -829,7 +832,7 @@ contract OrderBook {
         uint128 amountInFilled,
         uint128 amountOutFilled,
         bytes32 orderId
-    ) external onlyLimitOrderExecutor {
+    ) external onlySandboxValidator {
         SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
 
         ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
@@ -903,65 +906,65 @@ contract OrderBook {
 
     ///@notice Function to resolve an order as completed.
     ///@param orderId - The orderId that should be resolved from the system.
-    function resolveCompletedOrder(bytes32 orderId, OrderType orderType)
-        public
-        onlyLimitOrderExecutor
-    {
-        if (orderType == OrderType.PendingLimitOrder) {
-            ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
-            LimitOrder memory order = orderIdToLimitOrder[orderId];
+    function resolveCompletedLimitOrder(bytes32 orderId) internal {
+        ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
+        LimitOrder memory order = orderIdToLimitOrder[orderId];
 
-            ///@notice If the order has already been removed from the contract revert.
-            if (order.orderId == bytes32(0)) {
-                revert DuplicateOrderIdsInOrderGroup();
-            }
-            ///@notice Remove the order from the system
-            delete orderIdToLimitOrder[orderId];
-            delete addressToOrderIds[order.owner][orderId];
-
-            ///@notice Decrement from total orders per address
-            --totalOrdersPerAddress[order.owner];
-
-            ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-            decrementTotalOrdersQuantity(
-                order.tokenIn,
-                order.owner,
-                order.quantity
-            );
-
-            ///@notice Update the status of the order to filled
-            addressToOrderIds[order.owner][order.orderId] = OrderType
-                .FilledLimitOrder;
-        } else {
-            ///@dev the None order type can not reach here so we can use `else`
-
-            ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
-            SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[
-                orderId
-            ];
-
-            ///@notice If the order has already been removed from the contract revert.
-            if (order.orderId == bytes32(0)) {
-                revert DuplicateOrderIdsInOrderGroup();
-            }
-            ///@notice Remove the order from the system
-            delete orderIdToSandboxLimitOrder[orderId];
-            delete addressToOrderIds[order.owner][orderId];
-
-            ///@notice Decrement from total orders per address
-            --totalOrdersPerAddress[order.owner];
-
-            ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-            decrementTotalOrdersQuantity(
-                order.tokenIn,
-                order.owner,
-                order.amountInRemaining
-            );
-
-            ///@notice Update the status of the order to filled
-            addressToOrderIds[order.owner][order.orderId] = OrderType
-                .FilledSandboxLimitOrder;
+        ///@notice If the order has already been removed from the contract revert.
+        if (order.orderId == bytes32(0)) {
+            revert DuplicateOrderIdsInOrderGroup();
         }
+        ///@notice Remove the order from the system
+        delete orderIdToLimitOrder[orderId];
+        delete addressToOrderIds[order.owner][orderId];
+
+        ///@notice Decrement from total orders per address
+        --totalOrdersPerAddress[order.owner];
+
+        ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
+        decrementTotalOrdersQuantity(
+            order.tokenIn,
+            order.owner,
+            order.quantity
+        );
+
+        ///@notice Update the status of the order to filled
+        addressToOrderIds[order.owner][order.orderId] = OrderType
+            .FilledLimitOrder;
+    }
+
+    ///@notice Function to resolve an order as completed.
+    ///@param orderId - The orderId that should be resolved from the system.
+    function resolveCompletedSandboxLimitOrder(bytes32 orderId)
+        external
+        onlySandboxValidator
+    {
+        ///@dev the None order type can not reach here so we can use `else`
+
+        ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
+        SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
+
+        ///@notice If the order has already been removed from the contract revert.
+        if (order.orderId == bytes32(0)) {
+            revert DuplicateOrderIdsInOrderGroup();
+        }
+        ///@notice Remove the order from the system
+        delete orderIdToSandboxLimitOrder[orderId];
+        delete addressToOrderIds[order.owner][orderId];
+
+        ///@notice Decrement from total orders per address
+        --totalOrdersPerAddress[order.owner];
+
+        ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
+        decrementTotalOrdersQuantity(
+            order.tokenIn,
+            order.owner,
+            order.amountInRemaining
+        );
+
+        ///@notice Update the status of the order to filled
+        addressToOrderIds[order.owner][order.orderId] = OrderType
+            .FilledSandboxLimitOrder;
     }
 
     /// @notice Helper function to get the total order value on a specific token for the msg.sender.

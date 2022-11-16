@@ -18,11 +18,4 @@ interface ILimitOrderExecutor {
         OrderBook.SandboxLimitOrder[] memory orders,
         SandboxRouter.SandboxMulticall calldata calls
     ) external;
-
-    function validateSandboxExecutionAndFillOrders(
-        bytes32[][] memory orderIdBundles,
-        uint128[] memory fillAmounts,
-        LimitOrderExecutor.PreSandboxExecutionState
-            memory preSandboxExecutionState
-    ) external;
 }
