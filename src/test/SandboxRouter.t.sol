@@ -596,7 +596,7 @@ contract SandboxRouterTest is DSTest {
         {
             address[] memory transferAddress = new address[](2);
             uint128[] memory fillAmounts = new uint128[](2);
-            SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](2);
+            SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](3);
 
             ///NOTE: Token0 = DAI & Token1 = WETH
             address daiWethV3 = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
@@ -625,10 +625,30 @@ contract SandboxRouterTest is DSTest {
             calls[0] = newUniV3Call(
                 daiWethV3,
                 address(sandboxRouter),
-                address(this),
+                address(sandboxRouter),
                 true,
                 200000000000000000000,
                 DAI
+            );
+
+            calls[1] = amountOutRequiredCompensationCall(
+                _calculateExactAmountRequired(
+                    fillAmounts[0],
+                    orders[0].amountInRemaining,
+                    orders[0].amountOutRemaining
+                ),
+                address(this),
+                WETH
+            );
+
+            calls[2] = amountOutRequiredCompensationCall(
+                _calculateExactAmountRequired(
+                    fillAmounts[1],
+                    orders[1].amountInRemaining,
+                    orders[1].amountOutRemaining
+                ),
+                address(this),
+                WETH
             );
 
             ///@notice Create a call to compensate the feeAmount
@@ -706,7 +726,7 @@ contract SandboxRouterTest is DSTest {
         OrderBook.SandboxLimitOrder memory order0 = newMockSandboxOrder(
             false,
             100000000000000000000,
-            1,
+            10000000000000000,
             DAI,
             WETH
         );
@@ -715,7 +735,7 @@ contract SandboxRouterTest is DSTest {
         OrderBook.SandboxLimitOrder memory order1 = newMockSandboxOrder(
             false,
             100000000000000000000,
-            1,
+            10000000000000000,
             DAI,
             WETH
         );
