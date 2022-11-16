@@ -251,8 +251,8 @@ contract LimitOrderRouterTest is DSTest {
     //     //Place a new batch of orders
     //     bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethBatch();
 
-    //     bytes32 cancelledOrderId = tokenToWethOrderBatch[0];
-    //     orderBook.cancelOrder(cancelledOrderId);
+    //     bytes32 canceledOrderId = tokenToWethOrderBatch[0];
+    //     orderBook.cancelOrder(canceledOrderId);
 
     //     bytes32[] memory fufilledOrderIds = new bytes32[](2);
     //     fufilledOrderIds[0] = tokenToWethOrderBatch[1];
@@ -270,7 +270,7 @@ contract LimitOrderRouterTest is DSTest {
     //     );
 
     //     assertEq(allOrderIds[0][0], pendingOrderId);
-    //     assertEq(allOrderIds[2][0], cancelledOrderId);
+    //     assertEq(allOrderIds[2][0], canceledOrderId);
     //     assertEq(allOrderIds[1][0], fufilledOrderIds[0]);
     //     assertEq(allOrderIds[1][1], fufilledOrderIds[1]);
     // }
@@ -283,13 +283,13 @@ contract LimitOrderRouterTest is DSTest {
     //     depositGasCreditsForMockOrders(minimumGasCredits - 1);
     //     bytes32 orderId = placeMockOrder(order);
 
-    //     bool cancelled = limitOrderRouter.validateAndCancelOrder(orderId);
-    //     assertTrue(cancelled);
+    //     bool canceled = limitOrderRouter.validateAndCancelOrder(orderId);
+    //     assertTrue(canceled);
 
-    //     OrderBook.LimitOrder memory cancelledOrder = orderBook
+    //     OrderBook.LimitOrder memory canceledOrder = orderBook
     //         .getLimitOrderById(orderId);
 
-    //     assert(cancelledOrder.orderId == bytes32(0));
+    //     assert(canceledOrder.orderId == bytes32(0));
 
     //     //Gas credit balance should be decremented by minimumBalanceSubMultiplier
     //     assertEq(
@@ -309,10 +309,10 @@ contract LimitOrderRouterTest is DSTest {
 
         depositGasCreditsForMockOrders(sufficientCredits);
 
-        bool cancelled = limitOrderRouter.validateAndCancelOrder(orderId);
+        bool canceled = limitOrderRouter.validateAndCancelOrder(orderId);
 
         //Should fail assertion since the user has sufficient credits
-        assertTrue(cancelled);
+        assertTrue(canceled);
     }
 
     //----------------------------Gas Credit Tests-----------------------------------------
@@ -501,7 +501,7 @@ contract LimitOrderRouterTest is DSTest {
 
         limitOrderRouter.refreshOrder(orderBatch);
 
-        //Ensure the order was not cancelled and lastRefresh timestamp is updated to block.timestamp
+        //Ensure the order was not canceled and lastRefresh timestamp is updated to block.timestamp
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             OrderBook.LimitOrder memory order0 = orderBook.getLimitOrderById(
                 orderBatch[i]
@@ -605,7 +605,7 @@ contract LimitOrderRouterTest is DSTest {
 
     //     limitOrderRouter.refreshOrder(orderBatch);
 
-    //     //Ensure the order was cancelled
+    //     //Ensure the order was canceled
     //     for (uint256 i = 0; i < orderBatch.length; ++i) {
     //         OrderBook.LimitOrder memory order0 = orderBook.getLimitOrderById(
     //             orderBatch[i]
@@ -654,7 +654,7 @@ contract LimitOrderRouterTest is DSTest {
 
         limitOrderRouter.refreshOrder(orderBatch);
 
-        //Ensure order was not refreshed or cancelled
+        //Ensure order was not refreshed or canceled
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             OrderBook.LimitOrder memory order0 = orderBook.getLimitOrderById(
                 orderBatch[i]

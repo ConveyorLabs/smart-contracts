@@ -58,10 +58,10 @@ contract OrderBook is GasOracle {
      */
     event OrderPlaced(bytes32[] orderIds);
 
-    /**@notice Event that is emitted when an order is cancelled. For each order that is cancelled, the corresponding orderId is added
+    /**@notice Event that is emitted when an order is canceled. For each order that is canceled, the corresponding orderId is added
     to the orderIds param. 
      */
-    event OrderCancelled(bytes32[] orderIds);
+    event OrderCanceled(bytes32[] orderIds);
 
     /**@notice Event that is emitted when a new order is update. For each order that is updated, the corresponding orderId is added
     to the orderIds param. 
@@ -152,8 +152,8 @@ contract OrderBook is GasOracle {
         PartialFilledSandboxLimitOrder,
         FilledLimitOrder,
         FilledSandboxLimitOrder,
-        CancelledLimitOrder,
-        CancelledSandboxLimitOrder
+        CanceledLimitOrder,
+        CanceledSandboxLimitOrder
     }
 
     //----------------------State Structures------------------------------------//
@@ -175,12 +175,8 @@ contract OrderBook is GasOracle {
     ///@notice Mapping to store the number of total orders for an individual account
     mapping(address => uint256) public totalOrdersPerAddress;
 
-    ///@notice Mapping to store all of the orderIds for a given address including cancelled, pending and fuilled orders.
+    ///@notice Mapping to store all of the orderIds for a given address including canceled, pending and fuilled orders.
     mapping(address => bytes32[]) public addressToAllOrderIds;
-
-    ///@notice Mapping to store all of the fufilled orderIds for a given address.
-    mapping(address => mapping(bytes32 => bool))
-        public addressToFufilledOrderIds;
 
     ///@notice The orderNonce is a unique value is used to create orderIds and increments every time a new order is placed.
     uint256 orderNonce;
@@ -719,7 +715,7 @@ contract OrderBook is GasOracle {
     }
 
     ///@notice Function to cancel a single Sandbox or Standard Limit Order.
-    ///@param orderId - The orderId of the Order to be cancelled.
+    ///@param orderId - The orderId of the Order to be canceled.
     function cancelOrder(bytes32 orderId) public {
         ///@notice Check if the order exists
         OrderType orderType = addressToOrderIds[msg.sender][orderId];
@@ -737,7 +733,7 @@ contract OrderBook is GasOracle {
     }
 
     ///@notice Remove an order from the system if the order exists.
-    /// @param orderId - The orderId that corresponds to the order that should be cancelled.
+    /// @param orderId - The orderId that corresponds to the order that should be canceled.
     function _cancelLimitOrder(bytes32 orderId) internal {
         ///@notice Get the order details
         LimitOrder memory order = orderIdToLimitOrder[orderId];
@@ -758,18 +754,18 @@ contract OrderBook is GasOracle {
             order.quantity
         );
 
-        ///@notice Update the status of the order to cancelled
+        ///@notice Update the status of the order to canceled
         addressToOrderIds[order.owner][order.orderId] = OrderType
-            .CancelledLimitOrder;
+            .CanceledLimitOrder;
 
-        ///@notice Emit an event to notify the off-chain executors that the order has been cancelled.
+        ///@notice Emit an event to notify the off-chain executors that the order has been canceled.
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = order.orderId;
-        emit OrderCancelled(orderIds);
+        emit OrderCanceled(orderIds);
     }
 
     ///@notice Remove an order from the system if the order exists.
-    /// @param orderId - The orderId that corresponds to the order that should be cancelled.
+    /// @param orderId - The orderId that corresponds to the order that should be canceled.
     function _cancelSandboxLimitOrder(bytes32 orderId) internal {
         ///@notice Get the order details
         SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
@@ -790,14 +786,14 @@ contract OrderBook is GasOracle {
             order.amountInRemaining
         );
 
-        ///@notice Update the status of the order to cancelled
+        ///@notice Update the status of the order to canceled
         addressToOrderIds[order.owner][order.orderId] = OrderType
-            .CancelledSandboxLimitOrder;
+            .CanceledSandboxLimitOrder;
 
-        ///@notice Emit an event to notify the off-chain executors that the order has been cancelled.
+        ///@notice Emit an event to notify the off-chain executors that the order has been canceled.
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = order.orderId;
-        emit OrderCancelled(orderIds);
+        emit OrderCanceled(orderIds);
     }
 
     /// @notice cancel all orders relevant in ActiveOrders mapping to the msg.sender i.e the function caller
@@ -1047,66 +1043,54 @@ contract OrderBook is GasOracle {
         return addressToAllOrderIds[owner].length;
     }
 
-    ///@notice Get all of the order Ids for a given address
+    ///@notice Get all of the order Ids matching the targetOrderType for a given address
     ///@param owner - Target address to get all order Ids for.
-    /**@return - Nested array of order Ids organized by status. 
-    The first array represents pending orders.
-    The second array represents fufilled orders.
-    The third array represents cancelled orders.
-    **/
+    ///@param targetOrderType - Target orderType to retrieve from all orderIds.
+    ///@param orderOffset - The first order to start from when checking orderstatus. For example, if order offset is 2, the function will start checking orderId status from the second order.
+    ///@param length - The amount of orders to check order status for.
+    ///@return - Array of orderIds matching the targetOrderType
     function getOrderIds(
         address owner,
+        OrderType targetOrderType,
         uint256 orderOffset,
         uint256 length
-    ) public view returns (bytes32[][] memory) {
-        //     bytes32[] memory allOrderIds = addressToAllOrderIds[owner];
-        //     bytes32[][] memory orderIdsStatus = new bytes32[][](3);
-        //     bytes32[] memory fufilledOrderIds = new bytes32[](allOrderIds.length);
-        //     uint256 fufilledOrderIdsIndex = 0;
-        //     bytes32[] memory pendingOrderIds = new bytes32[](allOrderIds.length);
-        //     uint256 pendingOrderIdsIndex = 0;
-        //     bytes32[] memory cancelledOrderIds = new bytes32[](allOrderIds.length);
-        //     uint256 cancelledOrderIdsIndex = 0;
-        //     uint256 orderOffsetSlot = orderOffset + 0x20;
-        //     assembly {
-        //         //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order
-        //         orderOffsetSlot := add(
-        //             add(allOrderIds, 0x20),
-        //             mul(orderOffset, 0x20)
-        //         )
-        //     }
-        //     for (uint256 i = 0; i < length; ++i) {
-        //         bytes32 orderId;
-        //         assembly {
-        //             //Get the orderId at the orderOffsetSlot
-        //             orderId := mload(orderOffsetSlot)
-        //             //Update the orderOffsetSlot
-        //             orderOffsetSlot := add(orderOffsetSlot, 0x20)
-        //         }
-        //         //If it is fufilled
-        //         if (addressToFufilledOrderIds[owner][orderId]) {
-        //             fufilledOrderIds[fufilledOrderIdsIndex] = orderId;
-        //             ++fufilledOrderIdsIndex;
-        //         } else if (addressToOrderIds[owner][orderId]) {
-        //             //Else if the order is pending
-        //             pendingOrderIds[pendingOrderIdsIndex] = orderId;
-        //             ++pendingOrderIdsIndex;
-        //         } else {
-        //             //Else if the order has been cancelled
-        //             cancelledOrderIds[cancelledOrderIdsIndex] = orderId;
-        //             ++cancelledOrderIdsIndex;
-        //         }
-        //     }
-        //     //Reassign length of each array
-        //     assembly {
-        //         mstore(pendingOrderIds, add(pendingOrderIdsIndex, 1))
-        //         mstore(fufilledOrderIds, add(fufilledOrderIdsIndex, 1))
-        //         mstore(cancelledOrderIds, add(cancelledOrderIdsIndex, 1))
-        //     }
-        //     orderIdsStatus[0] = pendingOrderIds;
-        //     orderIdsStatus[1] = fufilledOrderIds;
-        //     orderIdsStatus[2] = cancelledOrderIds;
-        //     return orderIdsStatus;
-        // }
+    ) public view returns (bytes32[] memory) {
+        bytes32[] memory allOrderIds = addressToAllOrderIds[owner];
+
+        uint256 orderIdIndex = 0;
+        bytes32[] memory orderIds = new bytes32[](allOrderIds.length);
+
+        uint256 orderOffsetSlot;
+        assembly {
+            //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order
+            orderOffsetSlot := add(
+                add(allOrderIds, 0x20),
+                mul(orderOffset, 0x20)
+            )
+        }
+
+        for (uint256 i = 0; i < length; ++i) {
+            bytes32 orderId;
+            assembly {
+                //Get the orderId at the orderOffsetSlot
+                orderId := mload(orderOffsetSlot)
+                //Update the orderOffsetSlot
+                orderOffsetSlot := add(orderOffsetSlot, 0x20)
+            }
+
+            OrderType orderType = addressToOrderIds[owner][orderId];
+
+            if (orderType == targetOrderType) {
+                orderIds[orderIdIndex] = orderId;
+                ++orderIdIndex;
+            }
+        }
+
+        //Reassign length of each array
+        assembly {
+            mstore(orderIds, orderIdIndex)
+        }
+
+        return orderIds;
     }
 }

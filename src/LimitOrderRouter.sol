@@ -791,14 +791,12 @@ contract LimitOrderRouter is OrderBook {
 
     /// @notice Function for off-chain executors to cancel an Order that does not have the minimum gas credit balance for order execution.
     /// @param orderId - Order Id of the order to cancel.
-    /// @return success - Boolean to indicate if the order was successfully cancelled and compensation was sent to the off-chain executor.
+    /// @return success - Boolean to indicate if the order was successfully canceled and compensation was sent to the off-chain executor.
     function validateAndCancelOrder(bytes32 orderId)
         external
         nonReentrant
         returns (bool success)
     {
-        uint256 gasPrice = getGasPrice();
-
         (OrderType orderType, bytes memory orderBytes) = getOrderById(orderId);
 
         ///@notice Check if order exists, otherwise revert.
@@ -807,17 +805,9 @@ contract LimitOrderRouter is OrderBook {
         } else if (orderType == OrderType.PendingLimitOrder) {
             LimitOrder memory limitOrder = abi.decode(orderBytes, (LimitOrder));
 
-            ///@notice If the order owner does not have min gas credits, cancel the order
             if (
-                !(
-                    _hasMinGasCredits(
-                        gasPrice,
-                        LIMIT_ORDER_EXECUTION_GAS_COST,
-                        limitOrder.owner,
-                        gasCreditBalance[limitOrder.owner],
-                        1 ///@dev Multiplier is set to 1
-                    )
-                )
+                IERC20(limitOrder.tokenIn).balanceOf(limitOrder.owner) <
+                limitOrder.quantity
             ) {
                 ///@notice Remove the order from the limit order system.
                 safeTransferETH(
@@ -834,15 +824,9 @@ contract LimitOrderRouter is OrderBook {
 
             ///@notice If the order owner does not have min gas credits, cancel the order
             if (
-                !(
-                    _hasMinGasCredits(
-                        gasPrice,
-                        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST,
-                        sandboxLimitOrder.owner,
-                        gasCreditBalance[sandboxLimitOrder.owner],
-                        1 ///@dev Multiplier is set to 1
-                    )
-                )
+                IERC20(sandboxLimitOrder.tokenIn).balanceOf(
+                    sandboxLimitOrder.owner
+                ) < sandboxLimitOrder.amountInRemaining
             ) {
                 ///@notice Remove the order from the limit order system.
 
@@ -860,7 +844,7 @@ contract LimitOrderRouter is OrderBook {
 
     /// @notice Internal helper function to cancel an order. This function is only called after cancel order validation.
     /// @param order - The order to cancel.
-    /// @return success - Boolean to indicate if the order was successfully cancelled.
+    /// @return success - Boolean to indicate if the order was successfully canceled.
     function _cancelLimitOrderViaExecutor(LimitOrder memory order)
         internal
         returns (uint256)
@@ -886,10 +870,10 @@ contract LimitOrderRouter is OrderBook {
             executorFee = orderOwnerGasCreditBalance;
         }
 
-        ///@notice Emit an order cancelled event to notify the off-chain exectors.
+        ///@notice Emit an order canceled event to notify the off-chain exectors.
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = order.orderId;
-        emit OrderCancelled(orderIds);
+        emit OrderCanceled(orderIds);
 
         return executorFee;
     }
@@ -923,10 +907,10 @@ contract LimitOrderRouter is OrderBook {
             executorFee = orderOwnerGasCreditBalance;
         }
 
-        ///@notice Emit an order cancelled event to notify the off-chain exectors.
+        ///@notice Emit an order canceled event to notify the off-chain exectors.
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = order.orderId;
-        emit OrderCancelled(orderIds);
+        emit OrderCanceled(orderIds);
 
         return executorFee;
     }
@@ -1063,9 +1047,6 @@ contract LimitOrderRouter is OrderBook {
             bytes32 orderId = orderIds[i];
             ///@notice Mark the order as resolved from the system.
             _resolveCompletedOrder(orderId, OrderType.PendingLimitOrder);
-
-            ///@notice Mark order as fulfilled in addressToFufilledOrderIds mapping
-            addressToFufilledOrderIds[orderOwners[i]][orderIds[i]] = true;
 
             unchecked {
                 ++i;
