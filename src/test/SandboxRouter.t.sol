@@ -226,11 +226,11 @@ contract SandboxRouterTest is DSTest {
         IERC20(DAI).approve(address(limitOrderExecutor), type(uint256).max);
 
         ///@notice Dai/Weth sell limit order
-        ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
+        ///@dev amountInRemaining 10000 DAI amountOutRemaining 1 WETH
         OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(
             false,
-            10000000000000000000,
-            1,
+            100000000000000000000,
+            10000000000000000, //Exact amountOutRequired.
             DAI,
             WETH
         );
@@ -243,9 +243,10 @@ contract SandboxRouterTest is DSTest {
         ///@notice Create a new SandboxMulticall
         SandboxRouter.SandboxMulticall memory multiCall;
 
-        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](2);
+        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](3);
         OrderBook.SandboxLimitOrder[]
             memory orders = new OrderBook.SandboxLimitOrder[](1);
+
         {
             address[] memory transferAddress = new address[](1);
             uint128[] memory fillAmounts = new uint128[](1);
@@ -258,12 +259,26 @@ contract SandboxRouterTest is DSTest {
             uint256 cumulativeFee = orders[0].fee;
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
             transferAddress[0] = daiWethV2;
-            ///@notice Set the fill amount to the total amountIn on the order i.e. 1000 DAI.
+            ///@notice Set the fill amount to the total amountIn on the order i.e. 10000 DAI.
             fillAmounts[0] = order.amountInRemaining;
-            ///@notice Create a single v2 swap call for the multicall.
-            calls[0] = newUniV2Call(daiWethV2, 0, 100, address(this));
+            ///@notice Create a single v2 swap call for the multicall. Set amountOutMin to 1 WETH. And set the sandboxRouter as the receiver address.
+            calls[0] = newUniV2Call(
+                daiWethV2,
+                0,
+                10000000000000000, //Set amountOutMin to amountOutRemaining of the order
+                address(sandboxRouter)
+            );
+            calls[1] = amountOutRequiredCompensationCall(
+                _calculateExactAmountRequired(
+                    fillAmounts[0],
+                    order.amountInRemaining,
+                    order.amountOutRemaining
+                ),
+                address(this),
+                WETH
+            );
             ///@notice Create a call to compensate the feeAmount
-            calls[1] = feeCompensationCall(cumulativeFee);
+            calls[2] = feeCompensationCall(cumulativeFee);
             bytes32[][] memory orderIdBundles = new bytes32[][](1);
             orderIdBundles[0] = orderIds;
             multiCall = newMockMulticall(
@@ -330,6 +345,18 @@ contract SandboxRouterTest is DSTest {
             }
             validatePostExecutionProtocolFees(wethBalanceBefore, orders);
         }
+    }
+
+    ///@notice Helper function to calculate the amountRequired from a swap.
+    function _calculateExactAmountRequired(
+        uint256 amountFilled,
+        uint256 amountInRemaining,
+        uint256 amountOutRemaining
+    ) internal pure returns (uint256 amountOutRequired) {
+        amountOutRequired = ConveyorMath.mul64U(
+            ConveyorMath.divUU(amountOutRemaining, amountInRemaining),
+            amountFilled
+        );
     }
 
     ///@notice ExecuteMulticallOrder Sandbox Router test
@@ -1570,6 +1597,20 @@ contract SandboxRouterTest is DSTest {
             cumulativeFee
         );
         return SandboxRouter.Call({target: WETH, callData: callData});
+    }
+
+    ///@notice Helper function to create call to compensate the amountOutRequired during execution
+    function amountOutRequiredCompensationCall(
+        uint256 amountOutRequired,
+        address receiver,
+        address tokenOut
+    ) public pure returns (SandboxRouter.Call memory) {
+        bytes memory callData = abi.encodeWithSignature(
+            "transfer(address,uint256)",
+            address(receiver),
+            amountOutRequired
+        );
+        return SandboxRouter.Call({target: tokenOut, callData: callData});
     }
 
     ///@notice Helper function to create a single mock call for a v2 swap.
