@@ -67,6 +67,8 @@ error SandboxAmountOutRequiredNotSatisfied(
     uint256 amountOutRequired
 );
 
+error AmountOutRequiredIsZero(bytes32 orderId);
+
 error FillAmountSpecifiedGreaterThanAmountRemaining(
     uint256 fillAmountSpecified,
     uint256 amountInRemaining,

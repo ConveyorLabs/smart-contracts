@@ -10,6 +10,9 @@ import "./interfaces/ILimitOrderQuoter.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./interfaces/ILimitOrderRouter.sol";
 
+//TODO: delete this
+import "./test/utils/Console.sol";
+
 /// @title LimitOrderRouter
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
@@ -231,40 +234,42 @@ contract LimitOrderRouter is OrderBook {
         }
 
         ///@notice Initialize arrays to hold pre execution validation state.
-        (
-            SandboxLimitOrder[] memory sandboxLimitOrders,
-            address[] memory orderOwners,
-            uint256[] memory initialTokenInBalances,
-            uint256[] memory initialTokenOutBalances
-        ) = initializePreSandboxExecutionState(
+
+        PreSandboxExecutionState
+            memory preSandboxExecutionState = initializePreSandboxExecutionState(
                 sandboxMulticall.orderIdBundles,
                 sandboxMulticall.fillAmounts
             );
 
         ///@notice Call the limit order executor to transfer all of the order owners tokens to the contract.
         ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeSandboxLimitOrders(
-            sandboxLimitOrders,
+            preSandboxExecutionState.sandboxLimitOrders,
             sandboxMulticall
         );
 
         ///@notice Post execution, assert that all of the order owners have received >= their exact amount out
         validateSandboxExecutionAndFillOrders(
             sandboxMulticall.orderIdBundles,
-            sandboxLimitOrders,
             sandboxMulticall.fillAmounts,
-            initialTokenInBalances,
-            initialTokenOutBalances
+            preSandboxExecutionState
         );
 
         ///@notice Decrement gas credit balances for each order owner
         uint256 executionGasCompensation = calculateExecutionGasCompensation(
             getGasPrice(),
-            orderOwners,
+            preSandboxExecutionState.orderOwners,
             OrderType.PendingSandboxLimitOrder
         );
 
         ///@notice Transfer the reward to the off-chain executor.
         safeTransferETH(tx.origin, executionGasCompensation);
+    }
+
+    struct PreSandboxExecutionState {
+        SandboxLimitOrder[] sandboxLimitOrders;
+        address[] orderOwners;
+        uint256[] initialTokenInBalances;
+        uint256[] initialTokenOutBalances;
     }
 
     function initializePreSandboxExecutionState(
@@ -273,24 +278,19 @@ contract LimitOrderRouter is OrderBook {
     )
         internal
         view
-        returns (
-            SandboxLimitOrder[] memory,
-            address[] memory,
-            uint256[] memory,
-            uint256[] memory
-        )
+        returns (PreSandboxExecutionState memory preSandboxExecutionState)
     {
-        ///@notice Initialize arrays to hold post execution validation state.
-        SandboxLimitOrder[] memory sandboxLimitOrders = new SandboxLimitOrder[](
+        ///@notice Initialize data to hold pre execution validation state.
+        preSandboxExecutionState.sandboxLimitOrders = new SandboxLimitOrder[](
             fillAmounts.length
         );
-
-        address[] memory orderOwners = new address[](fillAmounts.length);
-
-        uint256[] memory initialTokenInBalances = new uint256[](
+        preSandboxExecutionState.orderOwners = new address[](
             fillAmounts.length
         );
-        uint256[] memory initialTokenOutBalances = new uint256[](
+        preSandboxExecutionState.initialTokenInBalances = new uint256[](
+            fillAmounts.length
+        );
+        preSandboxExecutionState.initialTokenOutBalances = new uint256[](
             fillAmounts.length
         );
 
@@ -315,9 +315,13 @@ contract LimitOrderRouter is OrderBook {
                         revert OrderDoesNotExist(orderId);
                     }
 
-                    orderOwners[arrayIndex] = currentOrder.owner;
+                    preSandboxExecutionState.orderOwners[
+                        arrayIndex
+                    ] = currentOrder.owner;
 
-                    sandboxLimitOrders[arrayIndex] = currentOrder;
+                    preSandboxExecutionState.sandboxLimitOrders[
+                        arrayIndex
+                    ] = currentOrder;
 
                     ///@notice Cache amountSpecifiedToFill for intermediate calculations
                     uint128 amountSpecifiedToFill = fillAmounts[arrayIndex];
@@ -333,37 +337,30 @@ contract LimitOrderRouter is OrderBook {
                     }
 
                     ///@notice Cache the the pre execution state of the order details
-                    initialTokenInBalances[arrayIndex] = IERC20(
-                        currentOrder.tokenIn
-                    ).balanceOf(currentOrder.owner);
+                    preSandboxExecutionState.initialTokenInBalances[
+                        arrayIndex
+                    ] = IERC20(currentOrder.tokenIn).balanceOf(
+                        currentOrder.owner
+                    );
 
-                    initialTokenOutBalances[arrayIndex] = IERC20(
-                        currentOrder.tokenOut
-                    ).balanceOf(currentOrder.owner);
+                    preSandboxExecutionState.initialTokenOutBalances[
+                        arrayIndex
+                    ] = IERC20(currentOrder.tokenOut).balanceOf(
+                        currentOrder.owner
+                    );
 
                     unchecked {
                         ++arrayIndex;
                     }
                 }
             }
-            console.log(sandboxLimitOrders[0].owner);
-            console.log(sandboxLimitOrders[1].owner);
-
-            return (
-                sandboxLimitOrders,
-                orderOwners,
-                initialTokenInBalances,
-                initialTokenOutBalances
-            );
         }
     }
 
     function validateSandboxExecutionAndFillOrders(
         bytes32[][] memory orderIdBundles,
-        SandboxLimitOrder[] memory sandboxLimitOrders,
         uint128[] memory fillAmounts,
-        uint256[] memory initialTokenInBalances,
-        uint256[] memory initialTokenOutBalances
+        PreSandboxExecutionState memory preSandboxExecutionState
     ) internal {
         uint256 orderIdIndex = 0;
 
@@ -374,118 +371,27 @@ contract LimitOrderRouter is OrderBook {
                 _validateMultiOrderBundle(
                     orderIdIndex,
                     orderIdBundle.length,
-                    sandboxLimitOrders,
                     fillAmounts,
-                    initialTokenInBalances,
-                    initialTokenOutBalances
+                    preSandboxExecutionState
                 );
 
                 orderIdIndex += orderIdBundle.length - 1;
             } else {
                 _validateSingleOrderBundle(
-                    sandboxLimitOrders[orderIdIndex],
+                    preSandboxExecutionState.sandboxLimitOrders[orderIdIndex],
                     fillAmounts[orderIdIndex],
-                    initialTokenInBalances[orderIdIndex],
-                    initialTokenOutBalances[orderIdIndex]
+                    preSandboxExecutionState.initialTokenInBalances[
+                        orderIdIndex
+                    ],
+                    preSandboxExecutionState.initialTokenOutBalances[
+                        orderIdIndex
+                    ]
                 );
 
                 ++orderIdIndex;
             }
         }
     }
-
-    // function validateSandboxExecutionAndFillOrders(
-    //     bytes32[][] memory orderIdBundles,
-    //     SandboxLimitOrder[] memory sandboxLimitOrders,
-    //     uint128[] memory fillAmounts,
-    //     uint256[] memory initialTokenInBalances,
-    //     uint256[] memory initialTokenOutBalances
-    // ) internal {
-    //     uint256 orderIdIndex = 0;
-
-    //     for (uint256 i = 0; i < orderIdBundles.length; ++i) {
-    //         bytes32[] memory orderIdBundle = orderIdBundles[i];
-
-    //         if (orderIdBundle.length > 1){
-
-    //         } else{
-    //             _validateSingleOrderBundle(orderIdBundle)
-    //         }
-
-    //         uint256 cumulativeFillAmount = 0;
-    //         uint256 cumulativeAmountOutRequired = 0;
-
-    //         address lastTokenIn;
-    //         address lastTokenOut;
-
-    //         for (uint256 j = 0; j < orderIdBundle.length; ++i) {
-    //             SandboxLimitOrder memory currentOrder = sandboxLimitOrders[
-    //                 orderIdIndex
-    //             ];
-
-    //             ///@notice Cache values for post execution assertions
-    //             uint128 amountOutRequired = uint128(
-    //                 ConveyorMath.mul64U(
-    //                     ConveyorMath.divUU(
-    //                         currentOrder.amountOutRemaining,
-    //                         currentOrder.amountInRemaining
-    //                     ),
-    //                     fillAmounts[i]
-    //                 )
-    //             );
-
-    //             uint256 initialTokenInBalance = initialTokenInBalances[i];
-    //             uint256 initialTokenOutBalance = initialTokenOutBalances[i];
-
-    //             uint256 currentTokenInBalance = IERC20(currentOrder.tokenIn)
-    //                 .balanceOf(currentOrder.owner);
-
-    //             uint256 currentTokenOutBalance = IERC20(currentOrder.tokenOut)
-    //                 .balanceOf(currentOrder.owner);
-
-    //             ///@notice Assert that the tokenIn balance is decremented by the fill amount exactly
-    //             uint256 fillAmount = fillAmounts[i];
-    //             if (
-    //                 initialTokenInBalance - currentTokenInBalance > fillAmount
-    //             ) {
-    //                 revert SandboxFillAmountNotSatisfied(
-    //                     currentOrder.orderId,
-    //                     initialTokenInBalance - currentTokenInBalance,
-    //                     fillAmounts[i]
-    //                 );
-    //             }
-
-    //             ///@notice Assert that the tokenOut balance is greater than or equal to the amountOutRequired
-    //             if (
-    //                 currentTokenOutBalance - initialTokenOutBalance !=
-    //                 amountOutRequired
-    //             ) {
-    //                 revert SandboxAmountOutRequiredNotSatisfied(
-    //                     currentOrder.orderId,
-    //                     currentTokenOutBalance - initialTokenOutBalance,
-    //                     amountOutRequired
-    //                 );
-    //             }
-
-    //             ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
-    //             if (currentOrder.amountInRemaining == fillAmount) {
-    //                 _resolveCompletedOrder(
-    //                     currentOrder.orderId,
-    //                     OrderType.PendingSandboxLimitOrder
-    //                 );
-    //             } else {
-    //                 ///@notice Update the state of the order to parial filled quantities.
-    //                 _partialFillSandboxLimitOrder(
-    //                     uint128(initialTokenInBalance - currentTokenInBalance),
-    //                     uint128(
-    //                         currentTokenOutBalance - initialTokenOutBalance
-    //                     ),
-    //                     currentOrder.orderId
-    //                 );
-    //             }
-    //         }
-    //     }
-    // }
 
     function _validateSingleOrderBundle(
         SandboxLimitOrder memory currentOrder,
@@ -503,6 +409,10 @@ contract LimitOrderRouter is OrderBook {
                 fillAmount
             )
         );
+
+        if (amountOutRequired == 0) {
+            revert AmountOutRequiredIsZero(currentOrder.orderId);
+        }
 
         uint256 currentTokenInBalance = IERC20(currentOrder.tokenIn).balanceOf(
             currentOrder.owner
@@ -550,13 +460,12 @@ contract LimitOrderRouter is OrderBook {
     function _validateMultiOrderBundle(
         uint256 orderIdIndex,
         uint256 bundleLength,
-        SandboxLimitOrder[] memory sandboxLimitOrders,
         uint128[] memory fillAmounts,
-        uint256[] memory initialTokenInBalances,
-        uint256[] memory initialTokenOutBalances
+        PreSandboxExecutionState memory preSandboxExecutionState
     ) internal {
         ///@notice Cache the first order in the bundle
-        SandboxLimitOrder memory prevOrder = sandboxLimitOrders[orderIdIndex];
+        SandboxLimitOrder memory prevOrder = preSandboxExecutionState
+            .sandboxLimitOrders[orderIdIndex];
 
         ///@notice Cacluate the amountOut required for the first order in the bundle
         uint128 amountOutRequired = uint128(
@@ -568,6 +477,7 @@ contract LimitOrderRouter is OrderBook {
                 fillAmounts[orderIdIndex]
             )
         );
+
         ///@notice Update the cumulative fill amount to include the fill amount for the first order in the bundle
         uint256 cumulativeFillAmount = fillAmounts[orderIdIndex];
         ///@notice Update the cumulativeAmountOutRequired to include the amount out required for the first order in the bundle
@@ -581,9 +491,8 @@ contract LimitOrderRouter is OrderBook {
             ///@notice For each order in the bundle
             for (uint256 i = 1; i < bundleLength; ++i) {
                 ///@notice Cache the order
-                SandboxLimitOrder memory currentOrder = sandboxLimitOrders[
-                    offset + 1
-                ];
+                SandboxLimitOrder memory currentOrder = preSandboxExecutionState
+                    .sandboxLimitOrders[offset + 1];
 
                 ///@notice Cache the tokenIn and tokenOut balance for the current order
                 uint256 currentTokenInBalance = IERC20(prevOrder.tokenIn)
@@ -607,14 +516,17 @@ contract LimitOrderRouter is OrderBook {
                 if (currentOrder.tokenIn != prevOrder.tokenIn) {
                     ///@notice Assert that the tokenIn balance is decremented by the fill amount exactly
                     if (
-                        initialTokenInBalances[offset] -
-                            currentTokenInBalance !=
+                        preSandboxExecutionState.initialTokenInBalances[
+                            offset
+                        ] -
+                            currentTokenInBalance >
                         cumulativeFillAmount
                     ) {
                         revert SandboxFillAmountNotSatisfied(
                             prevOrder.orderId,
-                            initialTokenInBalances[offset] -
-                                currentTokenInBalance,
+                            preSandboxExecutionState.initialTokenInBalances[
+                                offset
+                            ] - currentTokenInBalance,
                             cumulativeFillAmount
                         );
                     }
@@ -627,13 +539,16 @@ contract LimitOrderRouter is OrderBook {
                     ///@notice Assert that the tokenOut balance is greater than or equal to the amountOutRequired
                     if (
                         currentTokenOutBalance -
-                            initialTokenOutBalances[offset] !=
+                            preSandboxExecutionState.initialTokenOutBalances[
+                                offset
+                            ] !=
                         cumulativeAmountOutRequired
                     ) {
                         revert SandboxAmountOutRequiredNotSatisfied(
                             prevOrder.orderId,
                             currentTokenOutBalance -
-                                initialTokenOutBalances[offset],
+                                preSandboxExecutionState
+                                    .initialTokenOutBalances[offset],
                             cumulativeAmountOutRequired
                         );
                     }
