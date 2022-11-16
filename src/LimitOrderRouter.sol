@@ -478,6 +478,10 @@ contract LimitOrderRouter is OrderBook {
             )
         );
 
+        if (amountOutRequired == 0) {
+            revert AmountOutRequiredIsZero(prevOrder.orderId);
+        }
+
         ///@notice Update the cumulative fill amount to include the fill amount for the first order in the bundle
         uint256 cumulativeFillAmount = fillAmounts[orderIdIndex];
         ///@notice Update the cumulativeAmountOutRequired to include the amount out required for the first order in the bundle
@@ -511,6 +515,10 @@ contract LimitOrderRouter is OrderBook {
                         fillAmounts[offset + 1]
                     )
                 );
+
+                if (amountOutRequired == 0) {
+                    revert AmountOutRequiredIsZero(currentOrder.orderId);
+                }
 
                 ///@notice If the current order and previous order tokenIn do not match, assert that the cumulative fill amount can be met
                 if (currentOrder.tokenIn != prevOrder.tokenIn) {
