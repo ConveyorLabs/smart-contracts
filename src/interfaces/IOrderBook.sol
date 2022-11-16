@@ -43,4 +43,15 @@ interface IOrderBook {
         external
         view
         returns (OrderBook.SandboxLimitOrder memory);
+
+    function resolveCompletedOrder(
+        bytes32 orderId,
+        OrderBook.OrderType orderType
+    ) external;
+
+    function partialFillSandboxLimitOrder(
+        uint128 amountInFilled,
+        uint128 amountOutFilled,
+        bytes32 orderId
+    ) external;
 }

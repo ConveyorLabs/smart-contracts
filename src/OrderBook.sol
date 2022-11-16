@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
-import "./GasOracle.sol";
+import "./interfaces/IConveyorGasOracle.sol";
 import "./ConveyorErrors.sol";
 import "./interfaces/IOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
@@ -12,12 +12,14 @@ import "./test/utils/Console.sol";
 /// @title OrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
-contract OrderBook is GasOracle {
+contract OrderBook {
     address immutable LIMIT_ORDER_EXECUTOR;
+    address CONVEYOR_GAS_ORACLE;
 
     ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
     ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
     uint256 constant GAS_CREDIT_BUFFER = 150;
+    uint256 constant ONE_HUNDRED = 100;
 
     ///@notice The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut
     uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
@@ -31,16 +33,24 @@ contract OrderBook is GasOracle {
     address immutable WETH;
     address immutable USDC;
 
+    ///@notice Modifier to restrict smart contracts from calling a function.
+    modifier onlyLimitOrderExecutor() {
+        if (msg.sender != LIMIT_ORDER_EXECUTOR) {
+            revert MsgSenderIsNotLimitOrderExecutor();
+        }
+        _;
+    }
+
     //----------------------Constructor------------------------------------//
 
     constructor(
-        address _gasOracle,
+        address _conveyorGasOracle,
         address _limitOrderExecutor,
         address _weth,
         address _usdc,
         uint256 _limitOrderExecutionGasCost,
         uint256 _sandboxLimitOrderExecutionGasCost
-    ) GasOracle(_gasOracle) {
+    ) {
         require(
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"
@@ -50,6 +60,8 @@ contract OrderBook is GasOracle {
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
         LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
         SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
+
+        CONVEYOR_GAS_ORACLE = _conveyorGasOracle;
     }
 
     //----------------------Events------------------------------------//
@@ -540,7 +552,8 @@ contract OrderBook is GasOracle {
         internal
     {
         ///@notice Cache the gasPrice and the userGasCreditBalance
-        uint256 gasPrice = getGasPrice();
+        uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
+            .getGasPrice();
         uint256 userGasCreditBalance = gasCreditBalance[msg.sender];
 
         ///@notice Get the total amount of active orders for the userAddress
@@ -812,11 +825,11 @@ contract OrderBook is GasOracle {
     ///@param amountInFilled - The amount in that was filled for the order.
     ///@param amountOutFilled - The amount out that was filled for the order.
     ///@param orderId - The orderId of the order that was filled.
-    function _partialFillSandboxLimitOrder(
+    function partialFillSandboxLimitOrder(
         uint128 amountInFilled,
         uint128 amountOutFilled,
         bytes32 orderId
-    ) internal {
+    ) external onlyLimitOrderExecutor {
         SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
 
         ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
@@ -890,8 +903,9 @@ contract OrderBook is GasOracle {
 
     ///@notice Function to resolve an order as completed.
     ///@param orderId - The orderId that should be resolved from the system.
-    function _resolveCompletedOrder(bytes32 orderId, OrderType orderType)
-        internal
+    function resolveCompletedOrder(bytes32 orderId, OrderType orderType)
+        public
+        onlyLimitOrderExecutor
     {
         if (orderType == OrderType.PendingLimitOrder) {
             ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
