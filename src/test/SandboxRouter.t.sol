@@ -642,12 +642,13 @@ contract SandboxRouterTest is DSTest {
 
             for (uint256 i = 0; i < orders.length; ++i) {
                 OrderBook.SandboxLimitOrder memory orderPost = limitOrderRouter
-                    .getSandboxLimitOrderById(orders[i].orderId);
+                    .getSandboxLimitOrderById(orderIds[i]);
+
                 console.log("this assertion");
                 assert(orderPost.orderId == bytes32(0));
                 OrderBook.OrderType orderType = orderBook.addressToOrderIds(
                     address(this),
-                    orders[i].orderId
+                    orderIds[i]
                 );
                 assert(
                     orderType == OrderBook.OrderType.FilledSandboxLimitOrder

@@ -9,7 +9,6 @@ import "./SwapRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./interfaces/ILimitOrderRouter.sol";
-import "./test/utils/Console.sol";
 
 /// @title LimitOrderRouter
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
@@ -374,7 +373,7 @@ contract LimitOrderRouter is OrderBook {
             if (orderIdBundle.length > 1) {
                 _validateMultiOrderBundle(
                     orderIdIndex,
-                    orderIdBundles.length,
+                    orderIdBundle.length,
                     sandboxLimitOrders,
                     fillAmounts,
                     initialTokenInBalances,
@@ -668,6 +667,29 @@ contract LimitOrderRouter is OrderBook {
 
                 prevOrder = currentOrder;
                 ++offset;
+            }
+
+            ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
+            if (prevOrder.amountInRemaining == fillAmounts[offset - 1]) {
+                _resolveCompletedOrder(
+                    prevOrder.orderId,
+                    OrderType.PendingSandboxLimitOrder
+                );
+            } else {
+                ///@notice Update the state of the order to parial filled quantities.
+                _partialFillSandboxLimitOrder(
+                    uint128(fillAmounts[offset - 1]),
+                    uint128(
+                        ConveyorMath.mul64U(
+                            ConveyorMath.divUU(
+                                prevOrder.amountOutRemaining,
+                                prevOrder.amountInRemaining
+                            ),
+                            fillAmounts[offset]
+                        )
+                    ),
+                    prevOrder.orderId
+                );
             }
         }
     }
