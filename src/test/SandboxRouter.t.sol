@@ -377,7 +377,7 @@ contract SandboxRouterTest is DSTest {
         OrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(
             false,
             100000000000000000000,
-            1,
+            10000000000000000,
             DAI,
             WETH
         );
@@ -389,7 +389,7 @@ contract SandboxRouterTest is DSTest {
         {
             address[] memory transferAddress = new address[](1);
             uint128[] memory fillAmounts = new uint128[](1);
-            SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](2);
+            SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](3);
 
             ///NOTE: Token0 = DAI & Token1 = WETH
             address daiWethV3 = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
@@ -409,13 +409,22 @@ contract SandboxRouterTest is DSTest {
             calls[0] = newUniV3Call(
                 daiWethV3,
                 address(sandboxRouter),
-                address(this),
+                address(sandboxRouter),
                 true,
                 100000000000000000000,
                 DAI
             );
+            calls[1] = amountOutRequiredCompensationCall(
+                _calculateExactAmountRequired(
+                    fillAmounts[0],
+                    order.amountInRemaining,
+                    order.amountOutRemaining
+                ),
+                address(this),
+                WETH
+            );
             ///@notice Create a call to compensate the feeAmount
-            calls[1] = feeCompensationCall(cumulativeFee);
+            calls[2] = feeCompensationCall(cumulativeFee);
 
             bytes32[][] memory orderIdBundles = new bytes32[][](1);
             orderIdBundles[0] = orderIds;
