@@ -87,12 +87,12 @@ contract LimitOrderRouter is OrderBook {
 
     // ========================================= Constructor =============================================
 
-    ///@param _conveyorGasOracle - Address of the ChainLink fast gas oracle.
+    ///@param _chainlinkGasOracle - Address of the ChainLink fast gas oracle.
     ///@param _weth - Address of the wrapped native token for the chain.
     ///@param _usdc - Address of the USD pegged token for the chain.
     ///@param _limitOrderExecutor - Address of the limit order executor contract
     constructor(
-        address _conveyorGasOracle,
+        address _chainlinkGasOracle,
         address _weth,
         address _usdc,
         address _limitOrderExecutor,
@@ -100,7 +100,7 @@ contract LimitOrderRouter is OrderBook {
         uint256 _sandboxLimitOrderExecutionGasCost
     )
         OrderBook(
-            _conveyorGasOracle,
+            _chainlinkGasOracle,
             _limitOrderExecutor,
             _weth,
             _usdc,
@@ -170,8 +170,7 @@ contract LimitOrderRouter is OrderBook {
         }
 
         ///@notice Get the current gas price from the v3 Aggregator.
-        uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
-            .getGasPrice();
+        uint256 gasPrice = getGasPrice();
 
         ///@notice Require that account has enough gas for order execution after the gas credit withdrawal.
         if (
@@ -254,7 +253,7 @@ contract LimitOrderRouter is OrderBook {
 
         ///@notice Decrement gas credit balances for each order owner
         uint256 executionGasCompensation = calculateExecutionGasCompensation(
-            IConveyorGasOracle(CONVEYOR_GAS_ORACLE).getGasPrice(),
+            getGasPrice(),
             preSandboxExecutionState.orderOwners,
             OrderType.PendingSandboxLimitOrder
         );
@@ -267,8 +266,7 @@ contract LimitOrderRouter is OrderBook {
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
     function refreshOrder(bytes32[] memory orderIds) external nonReentrant {
         ///@notice Get the current gas price from the v3 Aggregator.
-        uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
-            .getGasPrice();
+        uint256 gasPrice = getGasPrice();
 
         ///@notice Initialize totalRefreshFees;
         uint256 totalRefreshFees;
@@ -505,8 +503,7 @@ contract LimitOrderRouter is OrderBook {
         returns (uint256)
     {
         ///@notice Get the current gas price from the v3 Aggregator.
-        uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
-            .getGasPrice();
+        uint256 gasPrice = getGasPrice();
 
         ///@notice Get the minimum gas credits needed for a single order
         uint256 executorFee = gasPrice * LIMIT_ORDER_EXECUTION_GAS_COST;
@@ -540,8 +537,7 @@ contract LimitOrderRouter is OrderBook {
         returns (uint256)
     {
         ///@notice Get the current gas price from the v3 Aggregator.
-        uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
-            .getGasPrice();
+        uint256 gasPrice = getGasPrice();
         ///@notice Get the minimum gas credits needed for a single order
         uint256 executorFee = gasPrice * SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 
@@ -639,8 +635,7 @@ contract LimitOrderRouter is OrderBook {
         external
         nonReentrant
     {
-        uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
-            .getGasPrice();
+        uint256 gasPrice = getGasPrice();
 
         //Update the initial gas balance.
         assembly {

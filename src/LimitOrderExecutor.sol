@@ -115,13 +115,9 @@ contract LimitOrderExecutor is SwapRouter {
         WETH = _weth;
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
 
-        address conveyorGasOracle = address(
-            new ConveyorGasOracle(_chainlinkGasOracle)
-        );
-
         address limitOrderRouter = address(
             new LimitOrderRouter(
-                conveyorGasOracle,
+                _chainlinkGasOracle,
                 _weth,
                 _usdc,
                 address(this),

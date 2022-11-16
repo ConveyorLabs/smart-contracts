@@ -2,26 +2,24 @@
 pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
-import "./interfaces/IConveyorGasOracle.sol";
 import "./ConveyorErrors.sol";
 import "./interfaces/IOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 import "./test/utils/Console.sol";
 import "./SandboxValidator.sol";
+import "./ConveyorGasOracle.sol";
 
 /// @title OrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
-contract OrderBook {
+contract OrderBook is ConveyorGasOracle {
     address immutable LIMIT_ORDER_EXECUTOR;
-    address immutable CONVEYOR_GAS_ORACLE;
     address immutable SANDBOX_VALIDATOR;
 
     ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
     ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
     uint256 constant GAS_CREDIT_BUFFER = 150;
-    uint256 constant ONE_HUNDRED = 100;
 
     ///@notice The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut
     uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
@@ -46,13 +44,13 @@ contract OrderBook {
     //----------------------Constructor------------------------------------//
 
     constructor(
-        address _conveyorGasOracle,
+        address _chainlinkGasOracle,
         address _limitOrderExecutor,
         address _weth,
         address _usdc,
         uint256 _limitOrderExecutionGasCost,
         uint256 _sandboxLimitOrderExecutionGasCost
-    ) {
+    ) ConveyorGasOracle(_chainlinkGasOracle) {
         require(
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"
@@ -63,7 +61,6 @@ contract OrderBook {
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
         LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
         SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
-        CONVEYOR_GAS_ORACLE = _conveyorGasOracle;
         SANDBOX_VALIDATOR = address(new SandboxValidator(address(this)));
     }
 
@@ -555,8 +552,7 @@ contract OrderBook {
         internal
     {
         ///@notice Cache the gasPrice and the userGasCreditBalance
-        uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
-            .getGasPrice();
+        uint256 gasPrice = getGasPrice();
         uint256 userGasCreditBalance = gasCreditBalance[msg.sender];
 
         ///@notice Get the total amount of active orders for the userAddress
