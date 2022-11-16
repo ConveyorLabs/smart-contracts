@@ -1545,7 +1545,7 @@ contract SandboxRouterTest is DSTest {
             fillAmounts[9] = 100000000000000000000;
         }
 
-        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](3);
+        SandboxRouter.Call[] memory calls = new SandboxRouter.Call[](13);
         bytes32[][]
             memory orderIdBundles = initialize10DimensionalOrderIdBundles();
         {
@@ -1566,24 +1566,121 @@ contract SandboxRouterTest is DSTest {
             calls[0] = newUniV3Call(
                 daiWethV3,
                 address(sandboxRouter),
-                address(this),
+                address(sandboxRouter),
                 true,
                 110000000000000000000,
                 DAI
             );
-            calls[1] = newUniV2Call(usdcWethV2, 0, 3000000, address(this));
-            calls[2] = feeCompensationCall(cumulativeFee);
+            calls[1] = newUniV2Call(
+                usdcWethV2,
+                0,
+                30000000000000000, //Sum of the amountOutRemaining on all the usdc/weth orders. Should always be satisfiable even with the partial fill on order 1
+                address(sandboxRouter)
+            );
+            calls[2] = amountOutRequiredCompensationCall(
+                _calculateExactAmountRequired(
+                    fillAmounts[0],
+                    orders[0].amountInRemaining,
+                    orders[0].amountOutRemaining
+                ),
+                address(mockOwner1),
+                WETH
+            );
+            calls[3] = amountOutRequiredCompensationCall(
+                _calculateExactAmountRequired(
+                    fillAmounts[1],
+                    orders[1].amountInRemaining,
+                    orders[1].amountOutRemaining
+                ),
+                address(mockOwner2),
+                WETH
+            );
+            calls[4] = amountOutRequiredCompensationCall(
+                _calculateExactAmountRequired(
+                    fillAmounts[2],
+                    orders[2].amountInRemaining,
+                    orders[2].amountOutRemaining
+                ),
+                address(mockOwner3),
+                WETH
+            );
+            calls[5] = amountOutRequiredCompensationCall(
+                _calculateExactAmountRequired(
+                    fillAmounts[3],
+                    orders[3].amountInRemaining,
+                    orders[3].amountOutRemaining
+                ),
+                address(mockOwner4),
+                WETH
+            );
+            calls[6] = amountOutRequiredCompensationCall(
+                _calculateExactAmountRequired(
+                    fillAmounts[4],
+                    orders[4].amountInRemaining,
+                    orders[4].amountOutRemaining
+                ),
+                address(mockOwner5),
+                WETH
+            );
+            calls[7] = amountOutRequiredCompensationCall(
+                _calculateExactAmountRequired(
+                    fillAmounts[5],
+                    orders[5].amountInRemaining,
+                    orders[5].amountOutRemaining
+                ),
+                address(mockOwner6),
+                WETH
+            );
+            calls[8] = amountOutRequiredCompensationCall(
+                _calculateExactAmountRequired(
+                    fillAmounts[6],
+                    orders[6].amountInRemaining,
+                    orders[6].amountOutRemaining
+                ),
+                address(mockOwner7),
+                WETH
+            );
+            calls[9] = amountOutRequiredCompensationCall(
+                _calculateExactAmountRequired(
+                    fillAmounts[7],
+                    orders[7].amountInRemaining,
+                    orders[7].amountOutRemaining
+                ),
+                address(mockOwner8),
+                WETH
+            );
+
+            calls[10] = amountOutRequiredCompensationCall(
+                _calculateExactAmountRequired(
+                    fillAmounts[8],
+                    orders[8].amountInRemaining,
+                    orders[8].amountOutRemaining
+                ),
+                address(mockOwner9),
+                DAI
+            );
+            calls[11] = amountOutRequiredCompensationCall(
+                _calculateExactAmountRequired(
+                    fillAmounts[9],
+                    orders[9].amountInRemaining,
+                    orders[9].amountOutRemaining
+                ),
+                address(mockOwner10),
+                DAI
+            );
+
+            calls[12] = feeCompensationCall(cumulativeFee);
             address[] memory transferAddresses = new address[](10);
-            transferAddresses[0] = address(mockOwner10); //Synthetically fill with WETH/DAI Order 10
-            transferAddresses[1] = address(mockOwner9); //Synthetically fill with WETH/DAI Order 9
+            transferAddresses[0] = address(sandboxRouter); //Synthetically fill with WETH/DAI Order 10
+            transferAddresses[1] = address(sandboxRouter); //Synthetically fill with WETH/DAI Order 9
             transferAddresses[2] = address(sandboxRouter);
             transferAddresses[3] = address(sandboxRouter);
             transferAddresses[4] = address(sandboxRouter);
             transferAddresses[5] = usdcWethV2;
             transferAddresses[6] = usdcWethV2;
             transferAddresses[7] = usdcWethV2;
-            transferAddresses[8] = address(mockOwner1); //Synthetically fill with DAI/WETH Order 1
-            transferAddresses[9] = address(mockOwner2); //Synthetically fill with DAI/WETH Order 2
+            transferAddresses[8] = address(sandboxRouter); //Synthetically fill with DAI/WETH Order 1
+            transferAddresses[9] = address(sandboxRouter); //Synthetically fill with DAI/WETH Order 2
             SandboxRouter.SandboxMulticall memory multiCall = newMockMulticall(
                 orderIdBundles,
                 fillAmounts,
@@ -1824,7 +1921,7 @@ contract SandboxRouterTest is DSTest {
         OrderBook.SandboxLimitOrder memory order3 = newMockSandboxOrder(
             false,
             100000000000000000000,
-            1,
+            10000000000000000,
             DAI,
             WETH
         );
@@ -1837,7 +1934,7 @@ contract SandboxRouterTest is DSTest {
         OrderBook.SandboxLimitOrder memory order4 = newMockSandboxOrder(
             false,
             100000000000000000000,
-            1,
+            10000000000000000,
             DAI,
             WETH
         );
@@ -1850,7 +1947,7 @@ contract SandboxRouterTest is DSTest {
         OrderBook.SandboxLimitOrder memory order5 = newMockSandboxOrder(
             false,
             100000000000000000000,
-            1,
+            10000000000000000,
             DAI,
             WETH
         );
@@ -1864,7 +1961,7 @@ contract SandboxRouterTest is DSTest {
         OrderBook.SandboxLimitOrder memory order6 = newMockSandboxOrder(
             false,
             10000000000,
-            1,
+            10000000000000000,
             USDC,
             WETH
         );
@@ -1877,7 +1974,7 @@ contract SandboxRouterTest is DSTest {
         OrderBook.SandboxLimitOrder memory order7 = newMockSandboxOrder(
             false,
             10000000000,
-            1,
+            10000000000000000,
             USDC,
             WETH
         );
@@ -1892,7 +1989,7 @@ contract SandboxRouterTest is DSTest {
         OrderBook.SandboxLimitOrder memory order8 = newMockSandboxOrder(
             false,
             10000000000,
-            1,
+            10000000000000000,
             USDC,
             WETH
         );
