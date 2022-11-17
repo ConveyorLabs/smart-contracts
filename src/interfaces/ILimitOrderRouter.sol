@@ -30,10 +30,6 @@ interface ILimitOrderRouter {
 
     function executeLimitOrders(bytes32[] calldata orderIds) external;
 
-    function executeOrdersViaSandboxMulticall(
-        SandboxRouter.SandboxMulticall calldata sandboxMulticall
-    ) external;
-
     function confirmTransferOwnership() external;
 
     function transferOwnership(address newOwner) external;
