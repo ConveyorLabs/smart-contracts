@@ -645,15 +645,6 @@ contract LimitOrderRouter is LimitOrderBook {
                         (LimitOrder)
                     );
                     totalRefreshFees += _refreshLimitOrder(order, gasPrice);
-                } else if (orderType == OrderType.PendingSandboxLimitOrder) {
-                    SandboxLimitOrder memory order = abi.decode(
-                        orderBytes,
-                        (SandboxLimitOrder)
-                    );
-                    totalRefreshFees += _refreshSandboxLimitOrder(
-                        order,
-                        gasPrice
-                    );
                 }
             }
 
@@ -664,63 +655,6 @@ contract LimitOrderRouter is LimitOrderBook {
 
         ///@notice Transfer the refresh fee to off-chain executor who called the function.
         safeTransferETH(msg.sender, totalRefreshFees);
-    }
-
-    ///@notice Internal helper function to refresh a Sandbox Limit Order.
-    ///@param order - The Sandbox Limit Order to be refreshed.
-    ///@param gasPrice - The current gasPrice from the Gas oracle.
-    ///@return uint256 - The refresh fee to be compensated to the off-chain executor.
-    function _refreshSandboxLimitOrder(
-        SandboxLimitOrder memory order,
-        uint256 gasPrice
-    ) internal returns (uint256) {
-        ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
-        if (block.timestamp > order.expirationTimestamp) {
-            return _cancelSandboxLimitOrderViaExecutor(order);
-        }
-
-        ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
-        if (gasCreditBalance[order.owner] < REFRESH_FEE) {
-            return _cancelSandboxLimitOrderViaExecutor(order);
-        }
-
-        ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
-        if (block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL) {
-            return 0;
-        }
-
-        ///@notice Require that account has enough gas for order execution after the refresh, otherwise, cancel the order and continue the loop.
-        if (
-            !(
-                _hasMinGasCredits(
-                    gasPrice,
-                    LIMIT_ORDER_EXECUTION_GAS_COST,
-                    order.owner,
-                    gasCreditBalance[order.owner] - REFRESH_FEE,
-                    1 ///@dev Multiplier is set to 1 for refresh order
-                )
-            )
-        ) {
-            return _cancelSandboxLimitOrderViaExecutor(order);
-        }
-
-        ///@notice Decrement the order.owner's gas credit balance
-        gasCreditBalance[order.owner] -= REFRESH_FEE;
-
-        ///@notice update the order's last refresh timestamp
-        ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
-        orderIdToLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
-            block.timestamp % (2**32 - 1)
-        );
-
-        ///@notice Emit an event to notify the off-chain executors that the order has been refreshed.
-        emit OrderRefreshed(
-            order.orderId,
-            order.lastRefreshTimestamp,
-            order.expirationTimestamp
-        );
-
-        return REFRESH_FEE;
     }
 
     ///@notice Internal helper function to refresh a Limit Order.
