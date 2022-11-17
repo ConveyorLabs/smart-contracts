@@ -261,7 +261,7 @@ contract LimitOrderRouter is LimitOrderBook {
         ///@notice Remove the order from the limit order system.
         _removeOrderFromSystem(order.orderId, OrderType.PendingLimitOrder);
 
-        uint256 orderOwnerGasCreditBalance = gasCreditBalance[order.owner];
+        uint256 orderOwnerGasCreditBalance = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).gasCreditBalance(order.owner);
 
         ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
         if (orderOwnerGasCreditBalance > executorFee) {
@@ -436,7 +436,7 @@ contract LimitOrderRouter is LimitOrderBook {
         );
         ///TODO: Transfer this from the executor gas credit balance
         ///@notice Transfer the reward to the off-chain executor.
-        safeTransferETH(msg.sender, executionGasCompensation);
+        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(msg.sender, executionGasCompensation);
     }
 
     ///@notice Function to return an array of limit order owners.
