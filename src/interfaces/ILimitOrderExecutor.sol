@@ -22,4 +22,6 @@ interface ILimitOrderExecutor {
     function gasCreditBalance(address user) external view returns (uint256);
 
     function updateGasCreditBalance(address owner, uint256 newBalance) external;
+
+    function transferGasCreditFees(address owner, uint256 value) external;
 }
