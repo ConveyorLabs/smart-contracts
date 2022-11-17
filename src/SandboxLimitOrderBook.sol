@@ -174,27 +174,8 @@ contract SandboxLimitOrderBook {
 
     //----------------------Functions------------------------------------//
 
-    ///@notice This function gets an order by the orderId. If the order does not exist, the return value will be bytes(0)
-    function getOrderById(bytes32 orderId)
-        public
-        view
-        returns (OrderType, bytes memory)
-    {
-        ///@notice Check if the order exists
-        OrderType orderType = addressToOrderIds[msg.sender][orderId];
-
-        if (orderType == OrderType.None) {
-            return (OrderType.None, new bytes(0));
-        }
-
-        if (orderType == OrderType.PendingSandboxLimitOrder) {
-            SandboxLimitOrder
-                memory sandboxLimitOrder = orderIdToSandboxLimitOrder[orderId];
-            return (
-                OrderType.PendingSandboxLimitOrder,
-                abi.encode(sandboxLimitOrder)
-            );
-        }
+    function getSandboxLimitOrderRouterAddress() public view returns (address) {
+        return SANDBOX_LIMIT_ORDER_ROUTER;
     }
 
     function getSandboxLimitOrderById(bytes32 orderId)
@@ -312,10 +293,10 @@ contract SandboxLimitOrderBook {
             ) {
                 ///@notice Remove the order from the limit order system.
 
-                safeTransferETH(
-                    msg.sender,
-                    _cancelSandboxLimitOrderViaExecutor(sandboxLimitOrder)
-                );
+                ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+                        msg.sender,
+                        _cancelSandboxLimitOrderViaExecutor(sandboxLimitOrder)
+                    );
 
                 return true;
             }
@@ -342,15 +323,23 @@ contract SandboxLimitOrderBook {
             OrderType.PendingSandboxLimitOrder
         );
 
-        uint256 orderOwnerGasCreditBalance = gasCreditBalance[order.owner];
+        uint256 orderOwnerGasCreditBalance = ILimitOrderExecutor(
+            LIMIT_ORDER_EXECUTOR
+        ).gasCreditBalance(order.owner);
 
         ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
         if (orderOwnerGasCreditBalance > executorFee) {
             ///@notice Decrement from the order owner's gas credit balance.
-            gasCreditBalance[order.owner] -= executorFee;
+            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+                order.owner,
+                gasCreditBalance[order.owner] - executorFee
+            );
         } else {
             ///@notice Otherwise, decrement the entire gas credit balance.
-            gasCreditBalance[order.owner] -= orderOwnerGasCreditBalance;
+            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+                order.owner,
+                0
+            );
             executorFee = orderOwnerGasCreditBalance;
         }
 
@@ -1164,6 +1153,10 @@ contract SandboxLimitOrderBook {
         ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
         if (gasCreditBalance[order.owner] < REFRESH_FEE) {
             return _cancelSandboxLimitOrderViaExecutor(order);
+        }
+
+        if (IERC20(order.tokenIn).balanceOf(order.owner) < order.quantity) {
+            return _cancelLimitOrderViaExecutor(order);
         }
 
         ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
