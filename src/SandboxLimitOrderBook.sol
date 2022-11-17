@@ -285,6 +285,83 @@ contract SandboxLimitOrderBook {
         }
     }
 
+    /// @notice Function for off-chain executors to cancel an Order that does not have the minimum gas credit balance for order execution.
+    /// @param orderId - Order Id of the order to cancel.
+    /// @return success - Boolean to indicate if the order was successfully canceled and compensation was sent to the off-chain executor.
+    function validateAndCancelOrder(bytes32 orderId)
+        external
+        nonReentrant
+        returns (bool success)
+    {
+        (OrderType orderType, bytes memory orderBytes) = getOrderById(orderId);
+
+        ///@notice Check if order exists, otherwise revert.
+        if (orderType == OrderType.None) {
+            revert OrderDoesNotExist(orderId);
+        } else if (orderType == OrderType.PendingSandboxLimitOrder) {
+            SandboxLimitOrder memory sandboxLimitOrder = abi.decode(
+                orderBytes,
+                (SandboxLimitOrder)
+            );
+
+            ///@notice If the order owner does not have min gas credits, cancel the order
+            if (
+                IERC20(sandboxLimitOrder.tokenIn).balanceOf(
+                    sandboxLimitOrder.owner
+                ) < sandboxLimitOrder.amountInRemaining
+            ) {
+                ///@notice Remove the order from the limit order system.
+
+                safeTransferETH(
+                    msg.sender,
+                    _cancelSandboxLimitOrderViaExecutor(sandboxLimitOrder)
+                );
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    ///@notice Remove an order from the system if the order exists.
+    ///@dev This function is only called after cancel order validation and compensates the off chain executor.
+    function _cancelSandboxLimitOrderViaExecutor(SandboxLimitOrder memory order)
+        internal
+        returns (uint256)
+    {
+        ///@notice Get the current gas price from the v3 Aggregator.
+        uint256 gasPrice = getGasPrice();
+
+        ///@notice Get the minimum gas credits needed for a single order
+        uint256 executorFee = gasPrice * SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
+
+        ///@notice Remove the order from the limit order system.
+        _removeOrderFromSystem(
+            order.orderId,
+            OrderType.PendingSandboxLimitOrder
+        );
+
+        uint256 orderOwnerGasCreditBalance = gasCreditBalance[order.owner];
+
+        ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
+        if (orderOwnerGasCreditBalance > executorFee) {
+            ///@notice Decrement from the order owner's gas credit balance.
+            gasCreditBalance[order.owner] -= executorFee;
+        } else {
+            ///@notice Otherwise, decrement the entire gas credit balance.
+            gasCreditBalance[order.owner] -= orderOwnerGasCreditBalance;
+            executorFee = orderOwnerGasCreditBalance;
+        }
+
+        ///@notice Emit an order canceled event to notify the off-chain exectors.
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = order.orderId;
+        emit OrderCanceled(orderIds);
+
+        return executorFee;
+    }
+
     ///@notice Function to adjust order owner's gas credit balance and calaculate the compensation to be paid to the executor.
     ///@param orderOwners - The order owners in the batch.
     ///@return gasExecutionCompensation - The amount to be paid to the off-chain executor for execution gas.
@@ -308,15 +385,22 @@ contract SandboxLimitOrderBook {
         unchecked {
             for (uint256 i = 0; i < orderOwnersLength; ) {
                 ///@notice Adjust the order owner's gas credit balance
-                uint256 ownerGasCreditBalance = gasCreditBalance[
-                    orderOwners[i]
-                ];
+                uint256 ownerGasCreditBalance = ILimitOrderExecutoir(
+                    LIMIT_ORDER_EXECUTOR
+                ).gasCreditBalance(orderOwners[i]);
 
                 if (ownerGasCreditBalance >= gasDecrementValue) {
-                    gasCreditBalance[orderOwners[i]] -= gasDecrementValue;
+                    ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
+                        .updateGasCreditBalance(
+                            orderOwners[i],
+                            ownerGasCreditBalance - gasDecrementValue
+                        );
+
                     gasExecutionCompensation += gasDecrementValue;
                 } else {
-                    gasCreditBalance[orderOwners[i]] -= ownerGasCreditBalance;
+                    ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
+                        .updateGasCreditBalance(orderOwners[i], 0);
+
                     gasExecutionCompensation += ownerGasCreditBalance;
                 }
 
@@ -911,9 +995,12 @@ contract SandboxLimitOrderBook {
         }
 
         if (msg.value != 0) {
-            ///TODO: Figure out what to do here
             ///@notice Update the account gas credit balance
-            gasCreditBalance[msg.sender] = userGasCreditBalance + msg.value;
+
+            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+                msg.sender,
+                userGasCreditBalance + msg.value
+            );
             emit GasCreditEvent(msg.sender, userGasCreditBalance + msg.value);
         }
     }

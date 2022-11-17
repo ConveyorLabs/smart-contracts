@@ -7,6 +7,8 @@ import "./lib/ConveyorFeeMath.sol";
 import "./LimitOrderRouter.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./interfaces/ISandboxRouter.sol";
+import "./interfaces/ISandboxLimitOrderBook.sol";
+import "./interfaces/IOrderBook.sol";
 
 /// @title LimitOrderExecutor
 /// @author 0xOsiris, 0xKitsune
@@ -18,6 +20,7 @@ contract LimitOrderExecutor is SwapRouter {
     address immutable USDC;
     address immutable LIMIT_ORDER_QUOTER;
     address public immutable LIMIT_ORDER_ROUTER;
+    address public immutable SANDBOX_LIMIT_ORDER_BOOK;
     address immutable SANDBOX_ROUTER;
 
     ///====================================Constants==============================================//
@@ -45,6 +48,17 @@ contract LimitOrderExecutor is SwapRouter {
     modifier onlyLimitOrderRouter() {
         if (msg.sender != LIMIT_ORDER_ROUTER) {
             revert MsgSenderIsNotLimitOrderRouter();
+        }
+        _;
+    }
+
+    ///@notice Modifier to restrict smart contracts from calling a function.
+    modifier onlyOrderBook() {
+        if (
+            msg.sender != LIMIT_ORDER_ROUTER ||
+            msg.sender != SANDBOX_LIMIT_ORDER_BOOK
+        ) {
+            revert MsgSenderIsNotOrderBook();
         }
         _;
     }
@@ -124,6 +138,12 @@ contract LimitOrderExecutor is SwapRouter {
             )
         );
 
+        address sandboxLimitOrderBook = address(
+            new SandboxLimitOrderBook(_weth, _usdc, limitOrderRouter)
+        );
+
+        SANDBOX_LIMIT_ORDER_BOOK = sandboxLimitOrderBook;
+
         LIMIT_ORDER_ROUTER = limitOrderRouter;
 
         address sandboxRouter;
@@ -160,6 +180,13 @@ contract LimitOrderExecutor is SwapRouter {
 
         ///@notice assign the owner address
         owner = msg.sender;
+    }
+
+    function updateGasCreditBalance(address owner, uint256 newBalance)
+        external
+        onlyOrderBook
+    {
+        gasCreditBalance[owner] = newBalance;
     }
 
     //------------Gas Credit Functions------------------------
@@ -256,18 +283,32 @@ contract LimitOrderExecutor is SwapRouter {
     /// @return minGasCredits - Total ETH required to cover the minimum gas credits for order execution.
     function _calculateMinGasCredits(
         uint256 gasPrice,
-        uint256 executionCost,
         address userAddress,
         uint256 multiplier
     ) internal view returns (uint256 minGasCredits) {
         ///@notice Get the total amount of active orders for the userAddress
-        uint256 totalOrderCount = totalOrdersPerAddress[userAddress];
+        uint256 totalLimitOrdersCount = IOrderBook(LIMIT_ORDER_ROUTER)
+            .totalOrdersPerAddress(userAddress);
+        uint256 totalSandboxLimitOrdersCound = ISandsboxLimitOrderBook(
+            SANDBOX_LIMIT_ORDER_BOOK
+        ).totalOrdersPerAddress(userAddress);
 
         ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
-        uint256 minimumGasCredits = totalOrderCount * gasPrice * executionCost;
+        uint256 minimumLimitGasCredits = totalLimitOrdersCount *
+            gasPrice *
+            LIMIT_ORDER_EXECUTION_GAS_COST;
+        uint256 minimumSandboxLimitGasCredits = totalSandboxLimitOrdersCound *
+            gasPrice *
+            SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
+
+        uint256 minimumGasCredits;
 
         if (multiplier != 1) {
-            minimumGasCredits = (minimumGasCredits * multiplier) / ONE_HUNDRED;
+            minimumGasCredits =
+                (minimumLimitGasCredits *
+                    minimumSandboxLimitGasCredits *
+                    multiplier) /
+                ONE_HUNDRED;
         }
 
         ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.

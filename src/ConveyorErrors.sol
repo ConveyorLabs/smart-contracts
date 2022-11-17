@@ -39,6 +39,7 @@ error MsgSenderIsNotLimitOrderRouter();
 error MsgSenderIsNotLimitOrderExecutor();
 error MsgSenderIsNotSandboxRouter();
 error MsgSenderIsNotOwner();
+error MsgSenderIsNotOrderBook();
 error MsgSenderIsNotTempOwner();
 error Reentrancy();
 error ETHTransferFailed();

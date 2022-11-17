@@ -333,9 +333,12 @@ contract OrderBook {
         }
 
         if (msg.value != 0) {
-            ///TODO: Figure out what to do here
             ///@notice Update the account gas credit balance
-            gasCreditBalance[msg.sender] = userGasCreditBalance + msg.value;
+
+            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+                msg.sender,
+                userGasCreditBalance + msg.value
+            );
             emit GasCreditEvent(msg.sender, userGasCreditBalance + msg.value);
         }
     }
