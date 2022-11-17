@@ -275,13 +275,12 @@ contract LimitOrderExecutor is SwapRouter {
         return true;
     }
 
-    function transferGasCreditFees(address owner, uint256 value)
+    function transferGasCreditFees(address receiver, uint256 value)
         external
         onlyOrderbook
     {
-        gasCreditBalance[owner] = gasCreditBalance[owner] - value;
         ///@notice Transfer the withdraw amount to the account.
-        safeTransferETH(msg.sender, value);
+        safeTransferETH(receiver, value);
     }
 
     /// @notice Internal helper function to approximate the minimum gas credits needed for order execution.

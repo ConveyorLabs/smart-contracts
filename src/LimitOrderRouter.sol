@@ -266,10 +266,16 @@ contract LimitOrderRouter is LimitOrderBook {
         ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
         if (orderOwnerGasCreditBalance > executorFee) {
             ///@notice Decrement from the order owner's gas credit balance.
-            gasCreditBalance[order.owner] -= executorFee;
+            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+                order.owner,
+                gasCreditBalance[order.owner]-executorFee
+            );
         } else {
             ///@notice Otherwise, decrement the entire gas credit balance.
-            gasCreditBalance[order.owner] -= orderOwnerGasCreditBalance;
+            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+                order.owner,
+                0
+            );
             executorFee = orderOwnerGasCreditBalance;
         }
 
