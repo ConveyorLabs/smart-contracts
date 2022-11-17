@@ -2,11 +2,11 @@
 pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
-import "./interfaces/IConveyorGasOracle.sol";
 import "./ConveyorErrors.sol";
 import "./interfaces/IOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
+import "./interfaces/ILimitOrderExecutor.sol";
 import "./test/utils/Console.sol";
 import "./SandboxLimitOrderRouter.sol";
 
@@ -220,7 +220,6 @@ contract SandboxLimitOrderBook {
         }
 
         ///@notice Initialize arrays to hold pre execution validation state.
-
         PreSandboxExecutionState
             memory preSandboxExecutionState = initializePreSandboxExecutionState(
                 sandboxMulticall.orderIdBundles,
@@ -241,6 +240,7 @@ contract SandboxLimitOrderBook {
         );
 
         ///@notice Decrement gas credit balances for each order owner
+        ///TODO: This function should be in the limit order executor
         uint256 executionGasCompensation = calculateExecutionGasCompensation(
             getGasPrice(),
             preSandboxExecutionState.orderOwners,
@@ -783,7 +783,8 @@ contract SandboxLimitOrderBook {
         ///@notice Cache the gasPrice and the userGasCreditBalance
         uint256 gasPrice = getGasPrice();
 
-        uint256 userGasCreditBalance = gasCreditBalance[msg.sender];
+        uint256 userGasCreditBalance = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
+            .gasCreditBalance(msg.sender);
 
         ///@notice Get the total amount of active orders for the userAddress
         uint256 totalOrderCount = totalOrdersPerAddress[msg.sender];

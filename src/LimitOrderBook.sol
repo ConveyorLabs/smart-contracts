@@ -468,45 +468,6 @@ contract OrderBook {
         }
     }
 
-    ///@notice Internal function to partially fill a sandbox limit order and update the remaining quantity.
-    ///@param amountInFilled - The amount in that was filled for the order.
-    ///@param amountOutFilled - The amount out that was filled for the order.
-    ///@param orderId - The orderId of the order that was filled.
-    function _partialFillSandboxLimitOrder(
-        uint128 amountInFilled,
-        uint128 amountOutFilled,
-        bytes32 orderId
-    ) internal {
-        SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
-
-        ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-        decrementTotalOrdersQuantity(
-            order.tokenIn,
-            order.owner,
-            amountInFilled
-        );
-        ///@notice Cache the Orders amountInRemaining.
-        uint128 amountInRemaining = orderIdToSandboxLimitOrder[orderId]
-            .amountInRemaining;
-        ///@notice Update the orders fillPercent to amountInFilled/amountInRemaining as 16.16 fixed point
-        orderIdToSandboxLimitOrder[orderId].fillPercent += ConveyorMath
-            .fromX64ToX16(
-                ConveyorMath.divUU(amountInFilled, amountInRemaining)
-            );
-
-        orderIdToSandboxLimitOrder[orderId].amountInRemaining =
-            order.amountInRemaining -
-            amountInFilled;
-
-        orderIdToSandboxLimitOrder[orderId].amountOutRemaining =
-            order.amountOutRemaining -
-            amountOutFilled;
-
-        ///@notice Update the status of the order to PartialFilled
-        addressToOrderIds[order.owner][order.orderId] = OrderType
-            .PartialFilledSandboxLimitOrder;
-    }
-
     ///@notice Function to remove an order from the system.
     ///@param orderId - The orderId that should be removed from the system.
     function _removeOrderFromSystem(bytes32 orderId) internal {

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import "../OrderBook.sol";
+import "../LimitOrderBook.sol";
+import "../SandboxLimitOrderBook.sol";
 import "../SandboxRouter.sol";
 
 interface ILimitOrderExecutor {
@@ -14,7 +15,9 @@ interface ILimitOrderExecutor {
         returns (uint256, uint256);
 
     function executeSandboxLimitOrders(
-        OrderBook.SandboxLimitOrder[] memory orders,
-        SandboxRouter.SandboxMulticall calldata calls
+        SandboxLimitOrderBook.SandboxLimitOrder[] memory orders,
+        SandboxLimitOrderBook.SandboxMulticall calldata calls
     ) external;
+
+    function gasCreditBalance(address user) external view returns (uint256);
 }
