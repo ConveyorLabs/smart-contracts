@@ -77,9 +77,6 @@ contract OrderBook {
         uint32 indexed expirationTimestamp
     );
 
-    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
-    event GasCreditEvent(address indexed sender, uint256 indexed balance);
-
     //----------------------Structs------------------------------------//
 
     ///@notice Struct containing Order details for any limit order
@@ -142,29 +139,12 @@ contract OrderBook {
     mapping(address => bytes32[]) public addressToAllOrderIds;
 
     ///@notice The orderNonce is a unique value is used to create orderIds and increments every time a new order is placed.
-    uint256 orderNonce;
+    ///@dev The orderNonce is set to 1 intially, and is always incremented by 2, so that the nonce is always odd, ensuring that there are not collisions with the orderIds from the SandboxLimitOrderBook
+    uint256 orderNonce = 1;
 
     //----------------------Functions------------------------------------//
 
-    ///@notice This function gets an order by the orderId. If the order does not exist, the return value will be bytes(0)
-    function getOrderById(bytes32 orderId)
-        public
-        view
-        returns (OrderType, bytes memory)
-    {
-        ///@notice Check if the order exists
-        OrderType orderType = addressToOrderIds[msg.sender][orderId];
-
-        if (orderType == OrderType.None) {
-            return (OrderType.None, new bytes(0));
-        }
-
-        if (orderType == OrderType.PendingLimitOrder) {
-            LimitOrder memory limitOrder = orderIdToLimitOrder[orderId];
-            return (OrderType.PendingLimitOrder, abi.encode(limitOrder));
-        }
-    }
-
+    ///@notice Gets an active order by the orderId. If the order does not exist, the return value will be bytes(0)
     function getLimitOrderById(bytes32 orderId)
         public
         view
@@ -217,10 +197,7 @@ contract OrderBook {
 
             ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
             if (newOrder.tokenOut == newOrder.tokenIn) {
-                revert IncongruentInputTokenInOrderGroup(
-                    newOrder.tokenIn,
-                    newOrder.tokenOut
-                );
+                revert TokenInIsTokenOut();
             }
 
             ///@notice If the msg.sender does not have a sufficent balance to cover the order, revert.
@@ -242,7 +219,7 @@ contract OrderBook {
             orderNonce overflows, it will still produce unique orderIds because the timestamp will be different.
             */
             unchecked {
-                ++orderNonce;
+                orderNonce += 2;
             }
 
             ///@notice Set the new order's owner to the msg.sender
@@ -306,7 +283,7 @@ contract OrderBook {
 
     ///@notice Function to check if an order owner has sufficient gas credits for all active orders at order placement time.
     ///@param numberOfOrders - The owners current number of active orders.
-    function checkSufficientGasCreditsForOrderPlacement(uint256 numberOfOrders)
+    function _checkSufficientGasCreditsForOrderPlacement(uint256 numberOfOrders)
         internal
     {
         ///@notice Cache the gasPrice and the userGasCreditBalance
@@ -364,12 +341,6 @@ contract OrderBook {
 
         if (orderType == OrderType.PendingLimitOrder) {
             _updateLimitOrder(orderId, price, quantity);
-        } else {
-            _updateSandboxLimitOrder(
-                orderId,
-                quantity,
-                uint128(ConveyorMath.mul64U(price, quantity))
-            );
         }
     }
 
@@ -434,6 +405,14 @@ contract OrderBook {
     function cancelOrder(bytes32 orderId) public {
         ///@notice Get the order details
         LimitOrder memory order = orderIdToLimitOrder[orderId];
+
+        if (order.orderId == bytes32(0)) {
+            revert OrderDoesNotExist(orderId);
+        }
+
+        if (order.owner != msg.sender) {
+            revert MsgSenderIsNotOrderOwner();
+        }
 
         ///@notice Delete the order from orderIdToOrder mapping
         delete orderIdToLimitOrder[orderId];
@@ -504,6 +483,7 @@ contract OrderBook {
         if (order.orderId == bytes32(0)) {
             revert DuplicateOrderIdsInOrderGroup();
         }
+
         ///@notice Remove the order from the system
         delete orderIdToLimitOrder[orderId];
         delete addressToOrderIds[order.owner][orderId];
@@ -539,7 +519,7 @@ contract OrderBook {
     ///@param token - Token address to decrement the total order value on.
     ///@param owner - Account address to decrement the total order value from.
     ///@param quantity - Amount to decrement the total order value by.
-    function decrementTotalOrdersQuantity(
+    function _decrementTotalOrdersQuantity(
         address token,
         address owner,
         uint256 quantity
@@ -559,57 +539,6 @@ contract OrderBook {
     ) internal {
         bytes32 totalOrdersValueKey = keccak256(abi.encode(owner, token));
         totalOrdersQuantity[totalOrdersValueKey] = newQuantity;
-    }
-
-    /// @notice Internal helper function to approximate the minimum gas credits needed for order execution.
-    /// @param gasPrice - The Current gas price in gwei
-    /// @param executionCost - The total execution cost for each order.
-    /// @param userAddress - The account address that will be checked for minimum gas credits.
-    /** @param multiplier - Multiplier value represented in e^3 to adjust the minimum gas requirement to 
-        fulfill an order, accounting for potential fluctuations in gas price. For example, a multiplier of `1.5` 
-        will be represented as `150` in the contract. **/
-    /// @return minGasCredits - Total ETH required to cover the minimum gas credits for order execution.
-    function _calculateMinGasCredits(
-        uint256 gasPrice,
-        uint256 executionCost,
-        address userAddress,
-        uint256 multiplier
-    ) internal view returns (uint256 minGasCredits) {
-        ///@notice Get the total amount of active orders for the userAddress
-        uint256 totalOrderCount = totalOrdersPerAddress[userAddress];
-
-        ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
-        uint256 minimumGasCredits = totalOrderCount * gasPrice * executionCost;
-
-        if (multiplier != 1) {
-            minimumGasCredits = (minimumGasCredits * multiplier) / ONE_HUNDRED;
-        }
-
-        ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
-        return minimumGasCredits;
-    }
-
-    /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders.
-    /// @param gasPrice - The current gas price in gwei.
-    /// @param executionCost - The cost of gas to exececute an order.
-    /// @param userAddress - The account address that will be checked for minimum gas credits.
-    /// @param userGasCreditBalance - The current gas credit balance of the userAddress.
-    /// @return bool - Indicates whether the user has the minimum gas credit requirements.
-    function _hasMinGasCredits(
-        uint256 gasPrice,
-        uint256 executionCost,
-        address userAddress,
-        uint256 userGasCreditBalance,
-        uint256 multipler
-    ) internal view returns (bool) {
-        return
-            userGasCreditBalance >=
-            _calculateMinGasCredits(
-                gasPrice,
-                executionCost,
-                userAddress,
-                multipler
-            );
     }
 
     function getAllOrderIdsLength(address owner) public view returns (uint256) {

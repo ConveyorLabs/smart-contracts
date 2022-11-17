@@ -903,7 +903,7 @@ contract SandboxLimitOrderBook {
             orderNonce overflows, it will still produce unique orderIds because the timestamp will be different.
             */
             unchecked {
-                ++orderNonce;
+                orderNonce += 2;
             }
 
             ///@notice Set the new order's owner to the msg.sender
@@ -1071,6 +1071,14 @@ contract SandboxLimitOrderBook {
         ///@notice Get the order details
         SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
 
+        if (order.orderId == bytes32(0)) {
+            revert OrderDoesNotExist(orderId);
+        }
+
+        if (order.owner != msg.sender) {
+            revert MsgSenderIsNotOrderOwner();
+        }
+
         ///@notice Delete the order from orderIdToOrder mapping
         delete orderIdToSandboxLimitOrder[orderId];
 
@@ -1144,7 +1152,7 @@ contract SandboxLimitOrderBook {
     ///@param order - The Sandbox Limit Order to be refreshed.
     ///@param gasPrice - The current gasPrice from the Gas oracle.
     ///@return uint256 - The refresh fee to be compensated to the off-chain executor.
-    function refreshSandboxLimitOrder(
+    function _refreshSandboxLimitOrder(
         SandboxLimitOrder memory order,
         uint256 gasPrice
     ) internal returns (uint256) {
@@ -1161,21 +1169,6 @@ contract SandboxLimitOrderBook {
         ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
         if (block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL) {
             return 0;
-        }
-
-        ///@notice Require that account has enough gas for order execution after the refresh, otherwise, cancel the order and continue the loop.
-        if (
-            !(
-                _hasMinGasCredits(
-                    gasPrice,
-                    LIMIT_ORDER_EXECUTION_GAS_COST,
-                    order.owner,
-                    gasCreditBalance[order.owner] - REFRESH_FEE,
-                    1 ///@dev Multiplier is set to 1 for refresh order
-                )
-            )
-        ) {
-            return _cancelSandboxLimitOrderViaExecutor(order);
         }
 
         ///@notice Decrement the order.owner's gas credit balance
@@ -1337,61 +1330,6 @@ contract SandboxLimitOrderBook {
     ) internal {
         bytes32 totalOrdersValueKey = keccak256(abi.encode(owner, token));
         totalOrdersQuantity[totalOrdersValueKey] = newQuantity;
-    }
-
-    /// @notice Internal helper function to approximate the minimum gas credits needed for order execution.
-    /// @param gasPrice - The Current gas price in gwei
-    /// @param executionCost - The total execution cost for each order.
-    /// @param userAddress - The account address that will be checked for minimum gas credits.
-    /** @param multiplier - Multiplier value represented in e^3 to adjust the minimum gas requirement to 
-        fulfill an order, accounting for potential fluctuations in gas price. For example, a multiplier of `1.5` 
-        will be represented as `150` in the contract. **/
-    /// @return minGasCredits - Total ETH required to cover the minimum gas credits for order execution.
-    function _calculateMinGasCredits(
-        uint256 gasPrice,
-        uint256 executionCost,
-        address userAddress,
-        uint256 multiplier
-    ) internal view returns (uint256 minGasCredits) {
-        ///@notice Get the total amount of active orders for the userAddress
-        uint256 totalOrderCount = totalOrdersPerAddress[userAddress];
-
-        ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
-        uint256 minimumGasCredits = totalOrderCount * gasPrice * executionCost;
-
-        if (multiplier != 1) {
-            minimumGasCredits = (minimumGasCredits * multiplier) / ONE_HUNDRED;
-        }
-
-        ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
-        return minimumGasCredits;
-    }
-
-    /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders.
-    /// @param gasPrice - The current gas price in gwei.
-    /// @param executionCost - The cost of gas to exececute an order.
-    /// @param userAddress - The account address that will be checked for minimum gas credits.
-    /// @param userGasCreditBalance - The current gas credit balance of the userAddress.
-    /// @return bool - Indicates whether the user has the minimum gas credit requirements.
-    function _hasMinGasCredits(
-        uint256 gasPrice,
-        uint256 executionCost,
-        address userAddress,
-        uint256 userGasCreditBalance,
-        uint256 multipler
-    ) internal view returns (bool) {
-        return
-            userGasCreditBalance >=
-            _calculateMinGasCredits(
-                gasPrice,
-                executionCost,
-                userAddress,
-                multipler
-            );
-    }
-
-    function getAllOrderIdsLength(address owner) public view returns (uint256) {
-        return addressToAllOrderIds[owner].length;
     }
 
     ///@notice Get all of the order Ids matching the targetOrderType for a given address

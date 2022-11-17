@@ -56,14 +56,6 @@ contract LimitOrderRouter is LimitOrderBook {
         _;
     }
 
-    ///@notice Modifier to restrict smart contracts from calling a function.
-    modifier onlySandboxRouter() {
-        if (msg.sender != SANDBOX_ROUTER) {
-            revert MsgSenderIsNotSandboxRouter();
-        }
-        _;
-    }
-
     // ========================================= Constants  =============================================
 
     ///@notice Interval that determines when an order is eligible for refresh. The interval is set to 30 days represented in Unix time.
@@ -72,9 +64,6 @@ contract LimitOrderRouter is LimitOrderBook {
     ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
     ///@notice The refresh fee is 0.02 ETH
     uint256 constant REFRESH_FEE = 20000000000000000;
-
-    // ========================================= Immutables  =============================================
-    address public immutable SANDBOX_ROUTER;
 
     // ========================================= State Variables =============================================
 
@@ -121,18 +110,8 @@ contract LimitOrderRouter is LimitOrderBook {
             "Invalid LimitOrderExecutor address"
         );
 
-        ///@notice Deploy the SandboxRouter and set the SANDBOX_ROUTER address
-        SANDBOX_ROUTER = address(
-            new SandboxRouter(address(_limitOrderExecutor), address(this))
-        );
-
         ///@notice Set the owner of the contract
         owner = msg.sender;
-    }
-
-    // ========================================= FUNCTIONS =============================================
-    function getSandboxRouterAddress() external view returns (address) {
-        return SANDBOX_ROUTER;
     }
 
     /// @notice Function to refresh an order for another 30 days.
@@ -149,22 +128,12 @@ contract LimitOrderRouter is LimitOrderBook {
             ///@notice Get the current orderId.
             bytes32 orderId = orderIds[i];
 
-            ///@notice Cache the order in memory.
-            (OrderType orderType, bytes memory orderBytes) = getOrderById(
-                orderId
-            );
-
-            if (orderType == OrderType.None) {
-                continue;
-            } else {
-                if (orderType == OrderType.PendingLimitOrder) {
-                    LimitOrder memory order = abi.decode(
-                        orderBytes,
-                        (LimitOrder)
-                    );
-                    totalRefreshFees += _refreshLimitOrder(order, gasPrice);
-                }
+            LimitOrder memory order = getLimitOrderById(orderId);
+            if (order.orderId == bytes32(0)) {
+                revert OrderDoesNotExist(orderId);
             }
+
+            totalRefreshFees += _refreshLimitOrder(order, gasPrice);
 
             unchecked {
                 ++i;
@@ -172,9 +141,13 @@ contract LimitOrderRouter is LimitOrderBook {
         }
 
         ///@notice Transfer the refresh fee to off-chain executor who called the function.
-        safeTransferETH(msg.sender, totalRefreshFees);
+        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+            msg.sender,
+            totalRefreshFees
+        );
     }
 
+    ///@leyton pick up from here
     ///@notice Internal helper function to refresh a Limit Order.
     ///@param order - The Limit Order to be refreshed.
     ///@param gasPrice - The current gasPrice from the Gas oracle.
@@ -193,24 +166,13 @@ contract LimitOrderRouter is LimitOrderBook {
             return _cancelLimitOrderViaExecutor(order);
         }
 
+        if (IERC20(order.tokenIn).balanceOf(order.owner) < order.quantity) {
+            return _cancelLimitOrderViaExecutor(order);
+        }
+
         ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
         if (block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL) {
             return 0;
-        }
-
-        ///@notice Require that account has enough gas for order execution after the refresh, otherwise, cancel the order and continue the loop.
-        if (
-            !(
-                _hasMinGasCredits(
-                    gasPrice,
-                    LIMIT_ORDER_EXECUTION_GAS_COST,
-                    order.owner,
-                    gasCreditBalance[order.owner] - REFRESH_FEE,
-                    1 ///@dev Multiplier is set to 1 for refresh order
-                )
-            )
-        ) {
-            return _cancelLimitOrderViaExecutor(order);
         }
 
         ///@notice Decrement the order.owner's gas credit balance

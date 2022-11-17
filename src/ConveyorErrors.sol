@@ -13,6 +13,7 @@ error InsufficientWalletBalance(
 );
 error OrderDoesNotExist(bytes32 orderId);
 error IncongruentInputTokenInOrderGroup(address token, address expectedToken);
+error TokenInIsTokenOut();
 error IncongruentOutputTokenInOrderGroup(address token, address expectedToken);
 error InsufficientOutputAmount(uint256 amountOut, uint256 expectedAmountOut);
 error InsufficientInputAmount(uint256 amountIn, uint256 expectedAmountIn);
@@ -39,7 +40,9 @@ error MsgSenderIsNotLimitOrderRouter();
 error MsgSenderIsNotLimitOrderExecutor();
 error MsgSenderIsNotSandboxRouter();
 error MsgSenderIsNotOwner();
+error MsgSenderIsNotOrderOwner();
 error MsgSenderIsNotOrderBook();
+error MsgSenderIsNotLimitOrderBook();
 error MsgSenderIsNotTempOwner();
 error Reentrancy();
 error ETHTransferFailed();

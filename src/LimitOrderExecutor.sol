@@ -21,7 +21,7 @@ contract LimitOrderExecutor is SwapRouter {
     address immutable LIMIT_ORDER_QUOTER;
     address public immutable LIMIT_ORDER_ROUTER;
     address public immutable SANDBOX_LIMIT_ORDER_BOOK;
-    address immutable SANDBOX_ROUTER;
+    address immutable SANDBOX_LIMIT_ORDER_ROUTER;
 
     ///====================================Constants==============================================//
     ///@notice The Maximum Reward a beacon can receive from stoploss execution.
@@ -42,6 +42,9 @@ contract LimitOrderExecutor is SwapRouter {
     ///@notice Mapping to hold gas credit balances for accounts.
     mapping(address => uint256) public gasCreditBalance;
 
+    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
+    event GasCreditEvent(address indexed sender, uint256 indexed balance);
+
     //----------------------Modifiers------------------------------------//
 
     ///@notice Modifier to restrict smart contracts from calling a function.
@@ -59,6 +62,14 @@ contract LimitOrderExecutor is SwapRouter {
             msg.sender != SANDBOX_LIMIT_ORDER_BOOK
         ) {
             revert MsgSenderIsNotOrderBook();
+        }
+        _;
+    }
+
+    ///@notice Modifier to restrict smart contracts from calling a function.
+    modifier onlySandboxLimitOrderBook() {
+        if (msg.sender != SANDBOX_LIMIT_ORDER_BOOK) {
+            revert MsgSenderIsNotLimitOrderBook();
         }
         _;
     }
@@ -127,7 +138,7 @@ contract LimitOrderExecutor is SwapRouter {
         WETH = _weth;
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
 
-        address limitOrderRouter = address(
+        LIMIT_ORDER_ROUTER = address(
             new LimitOrderRouter(
                 _gasOracle,
                 _weth,
@@ -141,24 +152,17 @@ contract LimitOrderExecutor is SwapRouter {
         address sandboxLimitOrderBook = address(
             new SandboxLimitOrderBook(_weth, _usdc, limitOrderRouter)
         );
-
         SANDBOX_LIMIT_ORDER_BOOK = sandboxLimitOrderBook;
 
-        LIMIT_ORDER_ROUTER = limitOrderRouter;
-
-        address sandboxRouter;
+        address sandboxLimitOrderRouter;
         bool success;
-
         assembly {
-            //store the function sig for  "SANDBOX_ROUTER()"
-            mstore(
-                0x00,
-                0x0d89c48200000000000000000000000000000000000000000000000000000000
-            )
+            //store the function sig for  "SANDBOX_LIMIT_ORDER_ROUTER()"
+            mstore(0x00, shl(0x8bd36434, 224))
 
             success := call(
                 gas(), // gas remaining
-                limitOrderRouter, // destination address
+                sandboxLimitOrderBook, // destination address
                 0, // no ether
                 0x00, // input buffer (starts after the first 32 bytes in the `data` array)
                 0x04, // input length (loaded from the first 32 bytes in the `data` array)
@@ -166,8 +170,8 @@ contract LimitOrderExecutor is SwapRouter {
                 0x20 // output length
             )
 
-            //Assign the sandboxRouter address
-            sandboxRouter := mload(0x00)
+            //Assign the sandboxLimitOrderRouter address
+            sandboxLimitOrderRouter := mload(0x00)
         }
 
         require(
@@ -175,12 +179,14 @@ contract LimitOrderExecutor is SwapRouter {
             "Error when getting Sandbox Router address from the limitOrderRouter"
         );
 
-        ///@notice Assign the SANDBOX_ROUTER address
-        SANDBOX_ROUTER = sandboxRouter;
+        ///@notice Assign the SANDBOX_LIMIT_ORDER_ROUTER address
+        SANDBOX_LIMIT_ORDER_ROUTER = sandboxLimitOrderRouter;
 
         ///@notice assign the owner address
         owner = msg.sender;
     }
+
+    //------------Gas Credit Functions------------------------
 
     function updateGasCreditBalance(address owner, uint256 newBalance)
         external
@@ -188,8 +194,6 @@ contract LimitOrderExecutor is SwapRouter {
     {
         gasCreditBalance[owner] = newBalance;
     }
-
-    //------------Gas Credit Functions------------------------
 
     /// @notice Function to deposit gas credits.
     /// @return success - Boolean that indicates if the deposit completed successfully.
@@ -237,7 +241,6 @@ contract LimitOrderExecutor is SwapRouter {
             !(
                 _hasMinGasCredits(
                     gasPrice,
-                    LIMIT_ORDER_EXECUTION_GAS_COST,
                     msg.sender,
                     userGasCreditBalance - value,
                     GAS_CREDIT_BUFFER
@@ -246,7 +249,6 @@ contract LimitOrderExecutor is SwapRouter {
         ) {
             uint256 minGasCredits = _calculateMinGasCredits(
                 gasPrice,
-                LIMIT_ORDER_EXECUTION_GAS_COST,
                 msg.sender,
                 GAS_CREDIT_BUFFER
             );
@@ -273,9 +275,16 @@ contract LimitOrderExecutor is SwapRouter {
         return true;
     }
 
+    function transferGasCreditFees(address owner, uint256 value)
+        external
+        onlyOrderbook
+    {
+        ///@notice Transfer the withdraw amount to the account.
+        safeTransferETH(msg.sender, value);
+    }
+
     /// @notice Internal helper function to approximate the minimum gas credits needed for order execution.
     /// @param gasPrice - The Current gas price in gwei
-    /// @param executionCost - The total execution cost for each order.
     /// @param userAddress - The account address that will be checked for minimum gas credits.
     /** @param multiplier - Multiplier value represented in e^3 to adjust the minimum gas requirement to 
         fulfill an order, accounting for potential fluctuations in gas price. For example, a multiplier of `1.5` 
@@ -289,6 +298,7 @@ contract LimitOrderExecutor is SwapRouter {
         ///@notice Get the total amount of active orders for the userAddress
         uint256 totalLimitOrdersCount = IOrderBook(LIMIT_ORDER_ROUTER)
             .totalOrdersPerAddress(userAddress);
+
         uint256 totalSandboxLimitOrdersCound = ISandsboxLimitOrderBook(
             SANDBOX_LIMIT_ORDER_BOOK
         ).totalOrdersPerAddress(userAddress);
@@ -301,15 +311,9 @@ contract LimitOrderExecutor is SwapRouter {
             gasPrice *
             SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 
-        uint256 minimumGasCredits;
-
-        if (multiplier != 1) {
-            minimumGasCredits =
-                (minimumLimitGasCredits *
-                    minimumSandboxLimitGasCredits *
-                    multiplier) /
-                ONE_HUNDRED;
-        }
+        uint256 minimumGasCredits = (minimumLimitGasCredits *
+            minimumSandboxLimitGasCredits *
+            multiplier) / ONE_HUNDRED;
 
         ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
         return minimumGasCredits;
@@ -323,19 +327,13 @@ contract LimitOrderExecutor is SwapRouter {
     /// @return bool - Indicates whether the user has the minimum gas credit requirements.
     function _hasMinGasCredits(
         uint256 gasPrice,
-        uint256 executionCost,
         address userAddress,
         uint256 userGasCreditBalance,
         uint256 multipler
     ) internal view returns (bool) {
         return
             userGasCreditBalance >=
-            _calculateMinGasCredits(
-                gasPrice,
-                executionCost,
-                userAddress,
-                multipler
-            );
+            _calculateMinGasCredits(gasPrice, userAddress, multipler);
     }
 
     ///@notice Function to execute a batch of Token to Weth Orders.
@@ -683,7 +681,7 @@ contract LimitOrderExecutor is SwapRouter {
     function executeSandboxLimitOrders(
         OrderBook.SandboxLimitOrder[] memory orders,
         SandboxRouter.SandboxMulticall calldata sandboxMulticall
-    ) external onlyLimitOrderRouter nonReentrant {
+    ) external onlySandboxLimitOrderBook nonReentrant {
         uint256 expectedAccumulatedFees = 0;
 
         if (sandboxMulticall.transferAddresses.length > 0) {
@@ -721,7 +719,9 @@ contract LimitOrderExecutor is SwapRouter {
         );
 
         ///@notice acll the SandboxRouter callback to execute the calldata from the sandboxMulticall
-        ISandboxRouter(SANDBOX_ROUTER).sandboxRouterCallback(sandboxMulticall);
+        ISandboxRouter(SANDBOX_LIMIT_ORDER_ROUTER).sandboxRouterCallback(
+            sandboxMulticall
+        );
 
         _requireConveyorFeeIsPaid(
             contractBalancePreExecution,
@@ -775,6 +775,7 @@ contract LimitOrderExecutor is SwapRouter {
         if (msg.sender != tempOwner) {
             revert UnauthorizedCaller();
         }
+
         ///@notice Cleanup tempOwner storage.
         tempOwner = address(0);
         owner = msg.sender;
@@ -785,6 +786,7 @@ contract LimitOrderExecutor is SwapRouter {
         if (newOwner == address(0)) {
             revert InvalidAddress();
         }
+
         tempOwner = newOwner;
     }
 }
