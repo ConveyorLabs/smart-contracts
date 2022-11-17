@@ -10,10 +10,10 @@ import "./test/utils/Console.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./GasOracle.sol";
 
-/// @title OrderBook
+/// @title LimitOrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
-contract OrderBook is GasOracle {
+contract LimitOrderBook is GasOracle {
     address immutable LIMIT_ORDER_EXECUTOR;
 
     ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.

@@ -11,7 +11,7 @@ import "./test/utils/Console.sol";
 import "./SandboxLimitOrderRouter.sol";
 import "./GasOracle.sol";
 
-/// @title OrderBook
+/// @title SandboxLimitOrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
 

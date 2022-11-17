@@ -6,7 +6,7 @@ import "./interfaces/ILimitOrderQuoter.sol";
 import "./lib/ConveyorFeeMath.sol";
 import "./LimitOrderRouter.sol";
 import "./interfaces/ISwapRouter.sol";
-import "./interfaces/ISandboxRouter.sol";
+import "./interfaces/ISandboxLimitOrderRouter.sol";
 import "./interfaces/ISandboxLimitOrderBook.sol";
 import "./interfaces/IOrderBook.sol";
 
@@ -329,7 +329,7 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Function to execute a batch of Token to Weth Orders.
     ///@param orders The orders to be executed.
-    function executeTokenToWethOrders(OrderBook.LimitOrder[] memory orders)
+    function executeTokenToWethOrders(LimitOrderBook.LimitOrder[] memory orders)
         external
         onlyLimitOrderRouter
         returns (uint256, uint256)
@@ -403,7 +403,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@param order - The order to be executed.
     ///@param executionPrice - The best priced TokenToWethExecutionPrice to execute the order on.
     function _executeTokenToWethOrder(
-        OrderBook.LimitOrder memory order,
+        LimitOrderBook.LimitOrder memory order,
         SwapRouter.TokenToWethExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
         ///@notice Swap the batch amountIn on the batch lp address and send the weth back to the contract.
@@ -428,7 +428,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@return amountOutWeth - The amountOut in Weth after the swap.
     function _executeSwapTokenToWethOrder(
         address lpAddressAToWeth,
-        OrderBook.LimitOrder memory order
+        LimitOrderBook.LimitOrder memory order
     )
         internal
         returns (
@@ -489,7 +489,7 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
-    function executeTokenToTokenOrders(OrderBook.LimitOrder[] memory orders)
+    function executeTokenToTokenOrders(LimitOrderBook.LimitOrder[] memory orders)
         external
         onlyLimitOrderRouter
         returns (uint256, uint256)
@@ -575,7 +575,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@param order - The order to be executed.
     ///@param executionPrice - The best priced TokenToTokenExecution price to execute the order on.
     function _executeTokenToTokenOrder(
-        OrderBook.LimitOrder memory order,
+        LimitOrderBook.LimitOrder memory order,
         TokenToTokenExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
         ///@notice Initialize variables to prevent stack too deep.
@@ -652,7 +652,7 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Transfer the order quantity to the contract.
     ///@param order - The orders tokens to be transferred.
-    function transferTokensToContract(OrderBook.LimitOrder memory order)
+    function transferTokensToContract(LimitOrderBook.LimitOrder memory order)
         internal
     {
         IERC20(order.tokenIn).safeTransferFrom(
@@ -710,9 +710,8 @@ contract LimitOrderExecutor is SwapRouter {
         );
 
         ///@notice acll the SandboxRouter callback to execute the calldata from the sandboxMulticall
-        ISandboxRouter(SANDBOX_LIMIT_ORDER_ROUTER).sandboxRouterCallback(
-            sandboxMulticall
-        );
+        ISandboxLimitOrderRouter(SANDBOX_LIMIT_ORDER_ROUTER)
+            .sandboxRouterCallback(sandboxMulticall);
 
         _requireConveyorFeeIsPaid(
             contractBalancePreExecution,

@@ -15,8 +15,8 @@ import "./test/utils/Console.sol";
 
 /// @title LimitOrderRouter
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
-/// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
-contract LimitOrderRouter is OrderBook {
+/// @notice Limit Order contract to execute existing limit orders within the LimitOrderBook contract.
+contract LimitOrderRouter is LimitOrderBook {
     using SafeERC20 for IERC20;
     // ========================================= Modifiers =============================================
 
@@ -94,7 +94,7 @@ contract LimitOrderRouter is OrderBook {
         uint256 _limitOrderExecutionGasCost,
         uint256 _sandboxLimitOrderExecutionGasCost
     )
-        OrderBook(
+        LimitOrderBook(
             _gasOracle,
             _limitOrderExecutor,
             _weth,

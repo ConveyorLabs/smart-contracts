@@ -35,7 +35,7 @@ contract LimitOrderQuoterTest is DSTest {
 
     SwapRouter orderRouter;
     //Initialize OrderBook
-    OrderBook orderBook;
+    LimitOrderBook orderBook;
     IQuoter iQuoter;
     ScriptRunner scriptRunner;
 
