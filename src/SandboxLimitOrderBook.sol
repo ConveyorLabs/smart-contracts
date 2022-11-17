@@ -24,6 +24,7 @@ contract SandboxLimitOrderBook is GasOracle {
     ///@notice The execution cost of fufilling a SandboxLimitOrder with a standard ERC20 swap from tokenIn to tokenOut
     uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 
+    //TODO: Move this to the limit order executor and keep it in one place
     ///@notice Mapping to hold gas credit balances for accounts.
     mapping(address => uint256) public gasCreditBalance;
 
@@ -356,6 +357,7 @@ contract SandboxLimitOrderBook is GasOracle {
     {
         ///@notice Cache the gasPrice and the userGasCreditBalance
         uint256 gasPrice = getGasPrice();
+
         uint256 userGasCreditBalance = gasCreditBalance[msg.sender];
 
         ///@notice Get the total amount of active orders for the userAddress
@@ -364,7 +366,7 @@ contract SandboxLimitOrderBook is GasOracle {
         ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
         uint256 minimumGasCredits = (totalOrderCount + numberOfOrders) *
             gasPrice *
-            LIMIT_ORDER_EXECUTION_GAS_COST *
+            SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST *
             GAS_CREDIT_BUFFER;
 
         ///@notice If the gasCreditBalance + msg value does not cover the min gas credits, then revert
@@ -411,62 +413,6 @@ contract SandboxLimitOrderBook is GasOracle {
                 uint128(ConveyorMath.mul64U(price, quantity))
             );
         }
-    }
-
-    ///@notice Function to update the price or quantity of an active Limit Order.
-    ///@param orderId - The orderId of the Limit Order.
-    ///@param price - The new price of the Limit Order.
-    ///@param quantity - The new quantity of the Limit Order.
-    function _updateLimitOrder(
-        bytes32 orderId,
-        uint128 price,
-        uint128 quantity
-    ) internal {
-        ///@notice Get the existing order that will be replaced with the new order
-        LimitOrder memory order = orderIdToLimitOrder[orderId];
-
-        ///@notice Get the total orders value for the msg.sender on the tokenIn
-        uint256 totalOrdersValue = _getTotalOrdersValue(order.tokenIn);
-
-        ///@notice Update the total orders value
-        totalOrdersValue += quantity;
-        totalOrdersValue -= order.quantity;
-
-        ///@notice If the wallet does not have a sufficient balance for the updated total orders value, revert.
-        if (IERC20(order.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
-            revert InsufficientWalletBalance(
-                msg.sender,
-                IERC20(order.tokenIn).balanceOf(msg.sender),
-                totalOrdersValue
-            );
-        }
-
-        ///@notice Update the total orders quantity
-        updateTotalOrdersQuantity(order.tokenIn, msg.sender, totalOrdersValue);
-
-        ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
-        uint256 totalApprovedQuantity = IERC20(order.tokenIn).allowance(
-            msg.sender,
-            address(LIMIT_ORDER_EXECUTOR)
-        );
-
-        ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
-        if (totalApprovedQuantity < quantity) {
-            revert InsufficientAllowanceForOrderUpdate(
-                order.tokenIn,
-                totalApprovedQuantity,
-                quantity
-            );
-        }
-
-        ///@notice Update the order details stored in the system.
-        orderIdToLimitOrder[order.orderId].price = price;
-        orderIdToLimitOrder[order.orderId].quantity = quantity;
-
-        ///@notice Emit an updated order event with the orderId that was updated
-        bytes32[] memory orderIds = new bytes32[](1);
-        orderIds[0] = orderId;
-        emit OrderUpdated(orderIds);
     }
 
     ///@notice Function to update a sandbox Limit Order.
@@ -529,59 +475,9 @@ contract SandboxLimitOrderBook is GasOracle {
         emit OrderUpdated(orderIds);
     }
 
-    ///@notice Function to cancel a single Sandbox or Standard Limit Order.
-    ///@param orderId - The orderId of the Order to be canceled.
+    ///@notice Remove an order from the system if the order exists.
+    /// @param orderId - The orderId that corresponds to the order that should be canceled.
     function cancelOrder(bytes32 orderId) public {
-        ///@notice Check if the order exists
-        OrderType orderType = addressToOrderIds[msg.sender][orderId];
-
-        if (orderType == OrderType.None) {
-            ///@notice If the order does not exist, revert.
-            revert OrderDoesNotExist(orderId);
-        }
-
-        if (orderType == OrderType.PendingLimitOrder) {
-            _cancelLimitOrder(orderId);
-        } else {
-            _cancelSandboxLimitOrder(orderId);
-        }
-    }
-
-    ///@notice Remove an order from the system if the order exists.
-    /// @param orderId - The orderId that corresponds to the order that should be canceled.
-    function _cancelLimitOrder(bytes32 orderId) internal {
-        ///@notice Get the order details
-        LimitOrder memory order = orderIdToLimitOrder[orderId];
-
-        ///@notice Delete the order from orderIdToOrder mapping
-        delete orderIdToLimitOrder[orderId];
-
-        ///@notice Delete the orderId from addressToOrderIds mapping
-        delete addressToOrderIds[msg.sender][orderId];
-
-        ///@notice Decrement the total orders for the msg.sender
-        --totalOrdersPerAddress[msg.sender];
-
-        ///@notice Decrement the order quantity from the total orders quantity
-        decrementTotalOrdersQuantity(
-            order.tokenIn,
-            order.owner,
-            order.quantity
-        );
-
-        ///@notice Update the status of the order to canceled
-        addressToOrderIds[order.owner][order.orderId] = OrderType
-            .CanceledLimitOrder;
-
-        ///@notice Emit an event to notify the off-chain executors that the order has been canceled.
-        bytes32[] memory orderIds = new bytes32[](1);
-        orderIds[0] = order.orderId;
-        emit OrderCanceled(orderIds);
-    }
-
-    ///@notice Remove an order from the system if the order exists.
-    /// @param orderId - The orderId that corresponds to the order that should be canceled.
-    function _cancelSandboxLimitOrder(bytes32 orderId) internal {
         ///@notice Get the order details
         SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
 
@@ -664,43 +560,22 @@ contract SandboxLimitOrderBook is GasOracle {
 
     ///@notice Function to remove an order from the system.
     ///@param orderId - The orderId that should be removed from the system.
-    function _removeOrderFromSystem(bytes32 orderId, OrderType orderType)
-        internal
-    {
-        if (orderType == OrderType.PendingLimitOrder) {
-            LimitOrder memory order = orderIdToLimitOrder[orderId];
+    function _removeOrderFromSystem(bytes32 orderId) internal {
+        ///@dev the None order type can not reach here so we can use `else`
+        SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
 
-            ///@notice Remove the order from the system
-            delete orderIdToLimitOrder[orderId];
+        ///@notice Remove the order from the system
+        delete orderIdToSandboxLimitOrder[order.orderId];
 
-            ///@notice Decrement from total orders per address
-            --totalOrdersPerAddress[order.owner];
+        ///@notice Decrement from total orders per address
+        --totalOrdersPerAddress[order.owner];
 
-            ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-            decrementTotalOrdersQuantity(
-                order.tokenIn,
-                order.owner,
-                order.quantity
-            );
-        } else {
-            ///@dev the None order type can not reach here so we can use `else`
-            SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[
-                orderId
-            ];
-
-            ///@notice Remove the order from the system
-            delete orderIdToSandboxLimitOrder[order.orderId];
-
-            ///@notice Decrement from total orders per address
-            --totalOrdersPerAddress[order.owner];
-
-            ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-            decrementTotalOrdersQuantity(
-                order.tokenIn,
-                order.owner,
-                order.amountInRemaining
-            );
-        }
+        ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
+        decrementTotalOrdersQuantity(
+            order.tokenIn,
+            order.owner,
+            order.amountInRemaining
+        );
     }
 
     ///@notice Function to resolve an order as completed.
@@ -708,61 +583,32 @@ contract SandboxLimitOrderBook is GasOracle {
     function _resolveCompletedOrder(bytes32 orderId, OrderType orderType)
         internal
     {
-        if (orderType == OrderType.PendingLimitOrder) {
-            ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
-            LimitOrder memory order = orderIdToLimitOrder[orderId];
+        ///@dev the None order type can not reach here so we can use `else`
 
-            ///@notice If the order has already been removed from the contract revert.
-            if (order.orderId == bytes32(0)) {
-                revert DuplicateOrderIdsInOrderGroup();
-            }
-            ///@notice Remove the order from the system
-            delete orderIdToLimitOrder[orderId];
-            delete addressToOrderIds[order.owner][orderId];
+        ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
+        SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
 
-            ///@notice Decrement from total orders per address
-            --totalOrdersPerAddress[order.owner];
-
-            ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-            decrementTotalOrdersQuantity(
-                order.tokenIn,
-                order.owner,
-                order.quantity
-            );
-
-            ///@notice Update the status of the order to filled
-            addressToOrderIds[order.owner][order.orderId] = OrderType
-                .FilledLimitOrder;
-        } else {
-            ///@dev the None order type can not reach here so we can use `else`
-
-            ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
-            SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[
-                orderId
-            ];
-
-            ///@notice If the order has already been removed from the contract revert.
-            if (order.orderId == bytes32(0)) {
-                revert DuplicateOrderIdsInOrderGroup();
-            }
-            ///@notice Remove the order from the system
-            delete orderIdToSandboxLimitOrder[orderId];
-            delete addressToOrderIds[order.owner][orderId];
-
-            ///@notice Decrement from total orders per address
-            --totalOrdersPerAddress[order.owner];
-
-            ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-            decrementTotalOrdersQuantity(
-                order.tokenIn,
-                order.owner,
-                order.amountInRemaining
-            );
-
-            ///@notice Update the status of the order to filled
-            addressToOrderIds[order.owner][order.orderId] = OrderType
-                .FilledSandboxLimitOrder;
+        ///@notice If the order has already been removed from the contract revert.
+        if (order.orderId == bytes32(0)) {
+            revert DuplicateOrderIdsInOrderGroup();
         }
+        ///@notice Remove the order from the system
+        delete orderIdToSandboxLimitOrder[orderId];
+        delete addressToOrderIds[order.owner][orderId];
+
+        ///@notice Decrement from total orders per address
+        --totalOrdersPerAddress[order.owner];
+
+        ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
+        decrementTotalOrdersQuantity(
+            order.tokenIn,
+            order.owner,
+            order.amountInRemaining
+        );
+
+        ///@notice Update the status of the order to filled
+        addressToOrderIds[order.owner][order.orderId] = OrderType
+            .FilledSandboxLimitOrder;
     }
 
     /// @notice Helper function to get the total order value on a specific token for the msg.sender.
