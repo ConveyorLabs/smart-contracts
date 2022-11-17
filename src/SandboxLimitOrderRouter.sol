@@ -13,7 +13,7 @@ contract SandboxLimitOrderRouter is SandboxLimitOrderBook {
     using SafeERC20 for IERC20;
     ///@notice LimitOrderExecutor & LimitOrderRouter Addresses.
     address immutable LIMIT_ORDER_EXECUTOR;
-    address immutable LIMIT_ORDER_ROUTER;
+    address immutable SANDBOX_LIMIT_ORDER_BOOK;
 
     ///@notice Modifier to restrict addresses other than the LimitOrderExecutor from calling the contract
     modifier onlyLimitOrderExecutor() {
@@ -47,10 +47,10 @@ contract SandboxLimitOrderRouter is SandboxLimitOrderBook {
 
     ///@notice Constructor for the sandbox router contract.
     ///@param _limitOrderExecutor - The LimitOrderExecutor contract address.
-    ///@param _limitOrderRouter - The LimitOrderRouter contract address.
-    constructor(address _limitOrderExecutor, address _limitOrderRouter) {
+    ///@param _sandboxLimitOrderBook - The SandboxLimitOrderBook contract address.
+    constructor(address _limitOrderExecutor, address _sandboxLimitOrderBook) {
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
-        LIMIT_ORDER_ROUTER = _limitOrderRouter;
+        SANDBOX_LIMIT_ORDER_BOOK = _sandboxLimitOrderBook;
     }
 
     ///@notice Function to execute multiple OrderGroups
@@ -58,9 +58,8 @@ contract SandboxLimitOrderRouter is SandboxLimitOrderBook {
     function executeSandboxMulticall(SandboxMulticall calldata sandboxMultiCall)
         external
     {
-        ILimitOrderRouter(LIMIT_ORDER_ROUTER).executeOrdersViaSandboxMulticall(
-            sandboxMultiCall
-        );
+        ILimitOrderRouter(SANDBOX_LIMIT_ORDER_BOOK)
+            .executeOrdersViaSandboxMulticall(sandboxMultiCall);
     }
 
     ///@notice Callback function that executes a sandbox multicall and is only accessible by the limitOrderExecutor.

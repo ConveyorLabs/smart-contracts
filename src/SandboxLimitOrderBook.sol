@@ -8,6 +8,7 @@ import "./interfaces/IOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 import "./test/utils/Console.sol";
+import "./SandboxLimitOrderRouter.sol";
 
 /// @title OrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
@@ -16,6 +17,7 @@ import "./test/utils/Console.sol";
 //TODO: need to separate gas oracle
 contract SandboxLimitOrderBook {
     address immutable LIMIT_ORDER_EXECUTOR;
+    address immutable SANDBOX_LIMIT_ORDER_ROUTER;
 
     ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
     ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
@@ -31,6 +33,24 @@ contract SandboxLimitOrderBook {
 
     address immutable WETH;
     address immutable USDC;
+
+    ///@notice Modifier to restrict addresses other than the SandboxLimitOrderRouter from calling the contract
+    modifier onlySandboxLimitOrderRouter() {
+        if (msg.sender != SANDBOX_LIMIT_ORDER_ROUTER) {
+            revert MsgSenderIsNotSandboxRouter();
+        }
+        _;
+    }
+
+    ///@notice Modifier to restrict reentrancy into a function.
+    modifier nonReentrant() {
+        if (reentrancyStatus) {
+            revert Reentrancy();
+        }
+        reentrancyStatus = true;
+        _;
+        reentrancyStatus = false;
+    }
 
     //----------------------Constructor------------------------------------//
 
@@ -50,6 +70,10 @@ contract SandboxLimitOrderBook {
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
         SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
         CONVEYOR_GAS_ORACLE = _conveyorGasOracle;
+
+        SANDBOX_LIMIT_ORDER_ROUTER = address(
+            new SandboxLimitOrderRouter(_limitOrderExecutor, address(this))
+        );
     }
 
     //----------------------Events------------------------------------//
@@ -189,7 +213,7 @@ contract SandboxLimitOrderBook {
     ///@param sandboxMulticall -
     function executeOrdersViaSandboxMulticall(
         SandboxRouter.SandboxMulticall calldata sandboxMulticall
-    ) external onlySandboxRouter nonReentrant {
+    ) external onlySandboxLimitOrderRouter nonReentrant {
         //Update the initial gas balance.
         assembly {
             sstore(initialTxGas.slot, gas())
@@ -224,6 +248,7 @@ contract SandboxLimitOrderBook {
         );
 
         ///@notice Transfer the reward to the off-chain executor.
+        ///TODO: This should be transferred from the limit order executor contract.
         safeTransferETH(tx.origin, executionGasCompensation);
     }
 

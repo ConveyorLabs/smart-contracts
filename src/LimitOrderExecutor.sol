@@ -36,6 +36,9 @@ contract LimitOrderExecutor is SwapRouter {
     */
     uint128 constant STOP_LOSS_MAX_BEACON_REWARD = 50000000000000000;
 
+    ///@notice Mapping to hold gas credit balances for accounts.
+    mapping(address => uint256) public gasCreditBalance;
+
     //----------------------Modifiers------------------------------------//
 
     ///@notice Modifier to restrict smart contracts from calling a function.
@@ -157,6 +160,141 @@ contract LimitOrderExecutor is SwapRouter {
 
         ///@notice assign the owner address
         owner = msg.sender;
+    }
+
+    //------------Gas Credit Functions------------------------
+
+    /// @notice Function to deposit gas credits.
+    /// @return success - Boolean that indicates if the deposit completed successfully.
+    function depositGasCredits() public payable returns (bool success) {
+        if (msg.value == 0) {
+            revert InsufficientMsgValue();
+        }
+        ///@notice Increment the gas credit balance for the user by the msg.value
+        uint256 newBalance = gasCreditBalance[msg.sender] + msg.value;
+
+        ///@notice Set the gas credit balance of the sender to the new balance.
+        gasCreditBalance[msg.sender] = newBalance;
+
+        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
+        emit GasCreditEvent(msg.sender, newBalance);
+
+        return true;
+    }
+
+    /**@notice Function to withdraw gas credits from an account's balance. If the withdraw results in the account's gas credit
+    balance required to execute existing orders, those orders must be canceled before the gas credits can be withdrawn.
+    */
+    /// @param value - The amount to withdraw from the gas credit balance.
+    /// @return success - Boolean that indicates if the withdraw completed successfully.
+    function withdrawGasCredits(uint256 value)
+        public
+        nonReentrant
+        returns (bool success)
+    {
+        uint256 userGasCreditBalance = gasCreditBalance[msg.sender];
+        ///@notice Require that account's credit balance is larger than withdraw amount
+        if (userGasCreditBalance < value) {
+            revert InsufficientGasCreditBalance(
+                msg.sender,
+                userGasCreditBalance,
+                value
+            );
+        }
+
+        ///@notice Get the current gas price from the v3 Aggregator.
+        uint256 gasPrice = getGasPrice();
+
+        ///@notice Require that account has enough gas for order execution after the gas credit withdrawal.
+        if (
+            !(
+                _hasMinGasCredits(
+                    gasPrice,
+                    LIMIT_ORDER_EXECUTION_GAS_COST,
+                    msg.sender,
+                    userGasCreditBalance - value,
+                    GAS_CREDIT_BUFFER
+                )
+            )
+        ) {
+            uint256 minGasCredits = _calculateMinGasCredits(
+                gasPrice,
+                LIMIT_ORDER_EXECUTION_GAS_COST,
+                msg.sender,
+                GAS_CREDIT_BUFFER
+            );
+
+            revert InsufficientGasCreditBalance(
+                msg.sender,
+                userGasCreditBalance,
+                minGasCredits
+            );
+        }
+
+        ///@notice Decrease the account's gas credit balance
+        uint256 newBalance = gasCreditBalance[msg.sender] - value;
+
+        ///@notice Set the senders new gas credit balance.
+        gasCreditBalance[msg.sender] = newBalance;
+
+        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
+        emit GasCreditEvent(msg.sender, newBalance);
+
+        ///@notice Transfer the withdraw amount to the account.
+        safeTransferETH(msg.sender, value);
+
+        return true;
+    }
+
+    /// @notice Internal helper function to approximate the minimum gas credits needed for order execution.
+    /// @param gasPrice - The Current gas price in gwei
+    /// @param executionCost - The total execution cost for each order.
+    /// @param userAddress - The account address that will be checked for minimum gas credits.
+    /** @param multiplier - Multiplier value represented in e^3 to adjust the minimum gas requirement to 
+        fulfill an order, accounting for potential fluctuations in gas price. For example, a multiplier of `1.5` 
+        will be represented as `150` in the contract. **/
+    /// @return minGasCredits - Total ETH required to cover the minimum gas credits for order execution.
+    function _calculateMinGasCredits(
+        uint256 gasPrice,
+        uint256 executionCost,
+        address userAddress,
+        uint256 multiplier
+    ) internal view returns (uint256 minGasCredits) {
+        ///@notice Get the total amount of active orders for the userAddress
+        uint256 totalOrderCount = totalOrdersPerAddress[userAddress];
+
+        ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
+        uint256 minimumGasCredits = totalOrderCount * gasPrice * executionCost;
+
+        if (multiplier != 1) {
+            minimumGasCredits = (minimumGasCredits * multiplier) / ONE_HUNDRED;
+        }
+
+        ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
+        return minimumGasCredits;
+    }
+
+    /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders.
+    /// @param gasPrice - The current gas price in gwei.
+    /// @param executionCost - The cost of gas to exececute an order.
+    /// @param userAddress - The account address that will be checked for minimum gas credits.
+    /// @param userGasCreditBalance - The current gas credit balance of the userAddress.
+    /// @return bool - Indicates whether the user has the minimum gas credit requirements.
+    function _hasMinGasCredits(
+        uint256 gasPrice,
+        uint256 executionCost,
+        address userAddress,
+        uint256 userGasCreditBalance,
+        uint256 multipler
+    ) internal view returns (bool) {
+        return
+            userGasCreditBalance >=
+            _calculateMinGasCredits(
+                gasPrice,
+                executionCost,
+                userAddress,
+                multipler
+            );
     }
 
     ///@notice Function to execute a batch of Token to Weth Orders.
