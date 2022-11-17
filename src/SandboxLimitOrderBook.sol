@@ -252,6 +252,112 @@ contract SandboxLimitOrderBook {
         safeTransferETH(tx.origin, executionGasCompensation);
     }
 
+    ///@notice Function to calculate the execution gas consumed during executeLimitOrders
+    ///@return executionGasConsumed - The amount of gas consumed.
+    function calculateExecutionGasConsumed(
+        uint256 gasPrice,
+        uint256 numberOfOrders,
+        OrderType orderType
+    ) internal view returns (uint256 executionGasConsumed) {
+        assembly {
+            executionGasConsumed := mul(
+                gasPrice,
+                sub(sload(initialTxGas.slot), gas())
+            )
+        }
+
+        if (orderType == OrderType.PendingLimitOrder) {
+            ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
+            uint256 maxExecutionCompensation = LIMIT_ORDER_EXECUTION_GAS_COST *
+                numberOfOrders *
+                gasPrice;
+            if (executionGasConsumed > maxExecutionCompensation) {
+                executionGasConsumed = maxExecutionCompensation;
+            }
+        } else {
+            ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
+            uint256 maxExecutionCompensation = SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST *
+                    numberOfOrders *
+                    gasPrice;
+            if (executionGasConsumed > maxExecutionCompensation) {
+                executionGasConsumed = maxExecutionCompensation;
+            }
+        }
+    }
+
+    ///@notice Function to adjust order owner's gas credit balance and calaculate the compensation to be paid to the executor.
+    ///@param orderOwners - The order owners in the batch.
+    ///@return gasExecutionCompensation - The amount to be paid to the off-chain executor for execution gas.
+    function calculateExecutionGasCompensation(
+        uint256 gasPrice,
+        address[] memory orderOwners,
+        OrderType orderType
+    ) internal returns (uint256 gasExecutionCompensation) {
+        uint256 orderOwnersLength = orderOwners.length;
+
+        ///@notice Decrement gas credit balances for each order owner
+        uint256 executionGasConsumed = calculateExecutionGasConsumed(
+            gasPrice,
+            orderOwners.length,
+            orderType
+        );
+
+        uint256 gasDecrementValue = executionGasConsumed / orderOwnersLength;
+
+        ///@notice Unchecked for gas efficiency
+        unchecked {
+            for (uint256 i = 0; i < orderOwnersLength; ) {
+                ///@notice Adjust the order owner's gas credit balance
+                uint256 ownerGasCreditBalance = gasCreditBalance[
+                    orderOwners[i]
+                ];
+
+                if (ownerGasCreditBalance >= gasDecrementValue) {
+                    gasCreditBalance[orderOwners[i]] -= gasDecrementValue;
+                    gasExecutionCompensation += gasDecrementValue;
+                } else {
+                    gasCreditBalance[orderOwners[i]] -= ownerGasCreditBalance;
+                    gasExecutionCompensation += ownerGasCreditBalance;
+                }
+
+                ++i;
+            }
+        }
+    }
+
+    ///@notice Function to calculate the execution gas consumed during executeLimitOrders
+    ///@return executionGasConsumed - The amount of gas consumed.
+    function calculateExecutionGasConsumed(
+        uint256 gasPrice,
+        uint256 numberOfOrders,
+        OrderType orderType
+    ) internal view returns (uint256 executionGasConsumed) {
+        assembly {
+            executionGasConsumed := mul(
+                gasPrice,
+                sub(sload(initialTxGas.slot), gas())
+            )
+        }
+
+        if (orderType == OrderType.PendingLimitOrder) {
+            ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
+            uint256 maxExecutionCompensation = LIMIT_ORDER_EXECUTION_GAS_COST *
+                numberOfOrders *
+                gasPrice;
+            if (executionGasConsumed > maxExecutionCompensation) {
+                executionGasConsumed = maxExecutionCompensation;
+            }
+        } else {
+            ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
+            uint256 maxExecutionCompensation = SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST *
+                    numberOfOrders *
+                    gasPrice;
+            if (executionGasConsumed > maxExecutionCompensation) {
+                executionGasConsumed = maxExecutionCompensation;
+            }
+        }
+    }
+
     function initializePreSandboxExecutionState(
         bytes32[][] calldata orderIdBundles,
         uint128[] calldata fillAmounts
@@ -805,6 +911,7 @@ contract SandboxLimitOrderBook {
         }
 
         if (msg.value != 0) {
+            ///TODO: Figure out what to do here
             ///@notice Update the account gas credit balance
             gasCreditBalance[msg.sender] = userGasCreditBalance + msg.value;
             emit GasCreditEvent(msg.sender, userGasCreditBalance + msg.value);

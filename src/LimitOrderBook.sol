@@ -2,12 +2,12 @@
 pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
-import "./interfaces/IConveyorGasOracle.sol";
 import "./ConveyorErrors.sol";
 import "./interfaces/IOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 import "./test/utils/Console.sol";
+import "./interfaces/ILimitOrderExecutor.sol";
 
 /// @title OrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
@@ -311,7 +311,8 @@ contract OrderBook {
     {
         ///@notice Cache the gasPrice and the userGasCreditBalance
         uint256 gasPrice = getGasPrice();
-        uint256 userGasCreditBalance = gasCreditBalance[msg.sender];
+        uint256 userGasCreditBalance = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
+            .gasCreditBalance(msg.sender);
 
         ///@notice Get the total amount of active orders for the userAddress
         uint256 totalOrderCount = totalOrdersPerAddress[msg.sender];
@@ -332,6 +333,7 @@ contract OrderBook {
         }
 
         if (msg.value != 0) {
+            ///TODO: Figure out what to do here
             ///@notice Update the account gas credit balance
             gasCreditBalance[msg.sender] = userGasCreditBalance + msg.value;
             emit GasCreditEvent(msg.sender, userGasCreditBalance + msg.value);
