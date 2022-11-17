@@ -65,7 +65,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlyOrderBook() {
         if (
-            msg.sender != LIMIT_ORDER_ROUTER ||
+            msg.sender != LIMIT_ORDER_ROUTER &&
             msg.sender != SANDBOX_LIMIT_ORDER_BOOK
         ) {
             revert MsgSenderIsNotOrderBook();
@@ -169,33 +169,10 @@ contract LimitOrderExecutor is SwapRouter {
         );
         SANDBOX_LIMIT_ORDER_BOOK = sandboxLimitOrderBook;
 
-        address sandboxLimitOrderRouter;
-        bool success;
-        assembly {
-            //store the function sig for  "SANDBOX_LIMIT_ORDER_ROUTER()"
-            mstore(0x00, shl(0x8bd36434, 224))
-
-            success := call(
-                gas(), // gas remaining
-                sandboxLimitOrderBook, // destination address
-                0, // no ether
-                0x00, // input buffer (starts after the first 32 bytes in the `data` array)
-                0x04, // input length (loaded from the first 32 bytes in the `data` array)
-                0x00, // output buffer
-                0x20 // output length
-            )
-
-            //Assign the sandboxLimitOrderRouter address
-            sandboxLimitOrderRouter := mload(0x00)
-        }
-
-        require(
-            success,
-            "Error when getting Sandbox Router address from the limitOrderRouter"
-        );
-
         ///@notice Assign the SANDBOX_LIMIT_ORDER_ROUTER address
-        SANDBOX_LIMIT_ORDER_ROUTER = sandboxLimitOrderRouter;
+        SANDBOX_LIMIT_ORDER_ROUTER = ISandboxLimitOrderBook(
+            SANDBOX_LIMIT_ORDER_BOOK
+        ).getSandboxLimitOrderRouterAddress();
 
         ///@notice assign the owner address
         owner = msg.sender;

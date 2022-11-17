@@ -18,7 +18,7 @@ import "./GasOracle.sol";
 //TODO: need to separate gas oracle
 contract SandboxLimitOrderBook is GasOracle {
     address immutable LIMIT_ORDER_EXECUTOR;
-    address immutable SANDBOX_LIMIT_ORDER_ROUTER;
+    address public immutable SANDBOX_LIMIT_ORDER_ROUTER;
 
     ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
     ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,

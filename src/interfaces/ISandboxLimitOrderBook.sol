@@ -11,4 +11,9 @@ interface ISandboxLimitOrderBook {
     function executeOrdersViaSandboxMulticall(
         SandboxLimitOrderRouter.SandboxMulticall calldata sandboxMulticall
     ) external;
+
+    function getSandboxLimitOrderRouterAddress()
+        external
+        view
+        returns (address);
 }
