@@ -160,14 +160,7 @@ contract OrderBook is GasOracle {
         if (orderType == OrderType.PendingLimitOrder) {
             LimitOrder memory limitOrder = orderIdToLimitOrder[orderId];
             return (OrderType.PendingLimitOrder, abi.encode(limitOrder));
-        } else {
-            SandboxLimitOrder
-                memory sandboxLimitOrder = orderIdToSandboxLimitOrder[orderId];
-            return (
-                OrderType.PendingSandboxLimitOrder,
-                abi.encode(sandboxLimitOrder)
-            );
-        }
+        } 
     }
 
     function getLimitOrderById(bytes32 orderId)
@@ -177,14 +170,6 @@ contract OrderBook is GasOracle {
     {
         LimitOrder memory order = orderIdToLimitOrder[orderId];
         return order;
-    }
-
-    function getSandboxLimitOrderById(bytes32 orderId)
-        public
-        view
-        returns (SandboxLimitOrder memory)
-    {
-        return orderIdToSandboxLimitOrder[orderId];
     }
 
     ///@notice Places a new order (or group of orders) into the system.
@@ -274,184 +259,6 @@ contract OrderBook is GasOracle {
             ///@notice Add the orderId to the addressToOrderIds mapping
             addressToOrderIds[msg.sender][orderId] = OrderType
                 .PendingLimitOrder;
-
-            ///@notice Increment the total orders per address for the msg.sender
-            ++totalOrdersPerAddress[msg.sender];
-
-            ///@notice Add the orderId to the orderIds array for the PlaceOrder event emission and increment the orderIdIndex
-            orderIds[i] = orderId;
-
-            ///@notice Add the orderId to the addressToAllOrderIds structure
-            addressToAllOrderIds[msg.sender].push(orderId);
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        ///@notice Update the total orders value on the orderToken for the msg.sender.
-        updateTotalOrdersQuantity(
-            orderToken,
-            msg.sender,
-            updatedTotalOrdersValue
-        );
-
-        ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
-        uint256 totalApprovedQuantity = IERC20(orderToken).allowance(
-            msg.sender,
-            address(LIMIT_ORDER_EXECUTOR)
-        );
-
-        ///@notice If the total approved quantity is less than the updatedTotalOrdersValue, revert.
-        if (totalApprovedQuantity < updatedTotalOrdersValue) {
-            revert InsufficientAllowanceForOrderPlacement(
-                orderToken,
-                totalApprovedQuantity,
-                updatedTotalOrdersValue
-            );
-        }
-
-        ///@notice Emit an OrderPlaced event to notify the off-chain executors that a new order has been placed.
-        emit OrderPlaced(orderIds);
-
-        return orderIds;
-    }
-
-    ///@notice Places a new order of multicall type (or group of orders) into the system.
-    ///@param orderGroup - List of newly created orders to be placed.
-    /// @return orderIds - Returns a list of orderIds corresponding to the newly placed orders.
-    function placeSandboxLimitOrder(SandboxLimitOrder[] calldata orderGroup)
-        public
-        payable
-        returns (bytes32[] memory)
-    {
-        checkSufficientGasCreditsForOrderPlacement(orderGroup.length);
-
-        ///@notice Initialize a new list of bytes32 to store the newly created orderIds.
-        bytes32[] memory orderIds = new bytes32[](orderGroup.length);
-
-        ///@notice Initialize the orderToken for the newly placed orders.
-        /**@dev When placing a new group of orders, the tokenIn and tokenOut must be the same on each order. New orders are placed
-        this way to securely validate if the msg.sender has the tokens required when placing a new order as well as enough gas credits
-        to cover order execution cost.*/
-        address orderToken = orderGroup[0].tokenIn;
-
-        ///@notice Get the value of all orders on the orderToken that are currently placed for the msg.sender.
-        uint256 updatedTotalOrdersValue = _getTotalOrdersValue(orderToken);
-
-        ///@notice Get the current balance of the orderToken that the msg.sender has in their account.
-        uint256 tokenBalance = IERC20(orderToken).balanceOf(msg.sender);
-
-        ///@notice For each order within the list of orders passed into the function.
-        for (uint256 i = 0; i < orderGroup.length; ) {
-            ///@notice Get the order details from the orderGroup.
-            SandboxLimitOrder memory newOrder = orderGroup[i];
-
-            ///@notice Increment the total value of orders by the quantity of the new order
-            updatedTotalOrdersValue += newOrder.amountInRemaining;
-            uint256 relativeWethValue;
-            {
-                ///@notice Boolean indicating if user wants to cover the fee from the fee credit balance, or by calling placeOrder with payment.
-                if (!(newOrder.tokenIn == WETH)) {
-                    ///@notice Calculate the spot price of the input token to WETH on Uni v2.
-                    (SwapRouter.SpotReserve[] memory spRes, ) = IOrderRouter(
-                        LIMIT_ORDER_EXECUTOR
-                    )._getAllPrices(newOrder.tokenIn, WETH, 500);
-                    uint256 tokenAWethSpotPrice;
-                    for (uint256 k = 0; k < spRes.length; ) {
-                        if (spRes[k].spotPrice != 0) {
-                            tokenAWethSpotPrice = spRes[k].spotPrice;
-                            break;
-                            ///TODO: Revisit this
-                        }
-
-                        unchecked {
-                            ++k;
-                        }
-                    }
-                    if (tokenAWethSpotPrice == 0) {
-                        revert InvalidInputTokenForOrderPlacement();
-                    }
-
-                    if (!(tokenAWethSpotPrice == 0)) {
-                        ///@notice Get the tokenIn decimals to normalize the relativeWethValue.
-                        uint8 tokenInDecimals = IERC20(newOrder.tokenIn)
-                            .decimals();
-                        ///@notice Multiply the amountIn*spotPrice to get the value of the input amount in weth.
-                        relativeWethValue = tokenInDecimals <= 18
-                            ? ConveyorMath.mul128U(
-                                tokenAWethSpotPrice,
-                                newOrder.amountInRemaining
-                            ) * 10**(18 - tokenInDecimals)
-                            : ConveyorMath.mul128U(
-                                tokenAWethSpotPrice,
-                                newOrder.amountInRemaining
-                            ) / 10**(tokenInDecimals - 18);
-                    }
-                } else {
-                    relativeWethValue = newOrder.amountInRemaining;
-                }
-                ///@notice Set the minimum fee to the fee*wethValue*subsidy.
-                uint128 minFeeReceived = uint128(
-                    ConveyorMath.mul64U(
-                        IOrderRouter(LIMIT_ORDER_EXECUTOR)._calculateFee(
-                            uint128(relativeWethValue),
-                            USDC,
-                            WETH
-                        ),
-                        relativeWethValue
-                    )
-                );
-                ///@notice Set the Orders min fee to be received during execution.
-                newOrder.fee = minFeeReceived;
-            }
-
-            ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
-            if ((orderToken != newOrder.tokenIn)) {
-                revert IncongruentInputTokenInOrderGroup(
-                    newOrder.tokenIn,
-                    orderToken
-                );
-            }
-
-            ///@notice If the msg.sender does not have a sufficent balance to cover the order, revert.
-            if (tokenBalance < updatedTotalOrdersValue) {
-                revert InsufficientWalletBalance(
-                    msg.sender,
-                    tokenBalance,
-                    updatedTotalOrdersValue
-                );
-            }
-
-            ///@notice Create a new orderId from the orderNonce and current block timestamp
-            bytes32 orderId = keccak256(
-                abi.encode(orderNonce, block.timestamp)
-            );
-
-            ///@notice increment the orderNonce
-            /**@dev This is unchecked because the orderNonce and block.timestamp will never be the same, so even if the 
-            orderNonce overflows, it will still produce unique orderIds because the timestamp will be different.
-            */
-            unchecked {
-                ++orderNonce;
-            }
-
-            ///@notice Set the new order's owner to the msg.sender
-            newOrder.owner = msg.sender;
-
-            ///@notice update the newOrder's Id to the orderId generated from the orderNonce
-            newOrder.orderId = orderId;
-
-            ///@notice update the newOrder's last refresh timestamp
-            ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
-            newOrder.lastRefreshTimestamp = uint32(block.timestamp);
-
-            ///@notice Add the newly created order to the orderIdToOrder mapping
-            orderIdToSandboxLimitOrder[orderId] = newOrder;
-
-            ///@notice Add the orderId to the addressToOrderIds mapping
-            addressToOrderIds[msg.sender][orderId] = OrderType
-                .PendingSandboxLimitOrder;
 
             ///@notice Increment the total orders per address for the msg.sender
             ++totalOrdersPerAddress[msg.sender];
