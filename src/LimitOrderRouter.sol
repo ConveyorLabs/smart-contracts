@@ -193,22 +193,6 @@ contract LimitOrderRouter is OrderBook {
         return REFRESH_FEE;
     }
 
-    ///@notice Transfer ETH to a specific address and require that the call was successful.
-    ///@param to - The address that should be sent Ether.
-    ///@param amount - The amount of Ether that should be sent.
-    function safeTransferETH(address to, uint256 amount) internal {
-        bool success;
-
-        assembly {
-            // Transfer the ETH and store if it succeeded or not.
-            success := call(gas(), to, amount, 0, 0, 0, 0)
-        }
-
-        if (!success) {
-            revert ETHTransferFailed();
-        }
-    }
-
     /// @notice Function for off-chain executors to cancel an Order that does not have the minimum gas credit balance for order execution.
     /// @param orderId - Order Id of the order to cancel.
     /// @return success - Boolean to indicate if the order was successfully canceled and compensation was sent to the off-chain executor.
