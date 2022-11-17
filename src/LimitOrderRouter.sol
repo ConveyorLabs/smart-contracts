@@ -232,10 +232,12 @@ contract LimitOrderRouter is LimitOrderBook {
                 limitOrder.quantity
             ) {
                 ///@notice Remove the order from the limit order system.
-                safeTransferETH(
+                ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
                     msg.sender,
                     _cancelLimitOrderViaExecutor(limitOrder)
                 );
+
+               
                 return true;
             }
         }

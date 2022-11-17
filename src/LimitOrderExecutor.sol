@@ -279,6 +279,7 @@ contract LimitOrderExecutor is SwapRouter {
         external
         onlyOrderbook
     {
+        gasCreditBalance[owner] = gasCreditBalance[owner] - value;
         ///@notice Transfer the withdraw amount to the account.
         safeTransferETH(msg.sender, value);
     }
