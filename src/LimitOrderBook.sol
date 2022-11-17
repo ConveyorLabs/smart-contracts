@@ -8,17 +8,17 @@ import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 import "./test/utils/Console.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
+import "./GasOracle.sol";
 
 /// @title OrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
-contract OrderBook {
+contract OrderBook is GasOracle {
     address immutable LIMIT_ORDER_EXECUTOR;
 
     ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
     ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
     uint256 constant GAS_CREDIT_BUFFER = 150;
-    address immutable CONVEYOR_GAS_ORACLE;
 
     ///@notice The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut
     uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
@@ -37,7 +37,7 @@ contract OrderBook {
         address _weth,
         address _usdc,
         uint256 _limitOrderExecutionGasCost
-    ) {
+    ) GasOracle(_gasOracle) {
         require(
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"
@@ -46,7 +46,6 @@ contract OrderBook {
         USDC = _usdc;
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
         LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
-        CONVEYOR_GAS_ORACLE = _conveyorGasOracle;
     }
 
     //----------------------Events------------------------------------//
@@ -162,7 +161,7 @@ contract OrderBook {
         payable
         returns (bytes32[] memory)
     {
-        checkSufficientGasCreditsForOrderPlacement(orderGroup.length);
+        _checkSufficientGasCreditsForOrderPlacement(orderGroup.length);
 
         ///@notice Initialize a new list of bytes32 to store the newly created orderIds.
         bytes32[] memory orderIds = new bytes32[](orderGroup.length);
@@ -316,7 +315,6 @@ contract OrderBook {
                 msg.sender,
                 userGasCreditBalance + msg.value
             );
-            emit GasCreditEvent(msg.sender, userGasCreditBalance + msg.value);
         }
     }
 
@@ -424,7 +422,7 @@ contract OrderBook {
         --totalOrdersPerAddress[msg.sender];
 
         ///@notice Decrement the order quantity from the total orders quantity
-        decrementTotalOrdersQuantity(
+        _decrementTotalOrdersQuantity(
             order.tokenIn,
             order.owner,
             order.quantity
@@ -464,7 +462,7 @@ contract OrderBook {
         --totalOrdersPerAddress[order.owner];
 
         ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-        decrementTotalOrdersQuantity(
+        _decrementTotalOrdersQuantity(
             order.tokenIn,
             order.owner,
             order.quantity
@@ -492,7 +490,7 @@ contract OrderBook {
         --totalOrdersPerAddress[order.owner];
 
         ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-        decrementTotalOrdersQuantity(
+        _decrementTotalOrdersQuantity(
             order.tokenIn,
             order.owner,
             order.quantity

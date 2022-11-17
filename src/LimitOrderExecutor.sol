@@ -22,6 +22,8 @@ contract LimitOrderExecutor is SwapRouter {
     address public immutable LIMIT_ORDER_ROUTER;
     address public immutable SANDBOX_LIMIT_ORDER_BOOK;
     address immutable SANDBOX_LIMIT_ORDER_ROUTER;
+    uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
+    uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 
     ///====================================Constants==============================================//
     ///@notice The Maximum Reward a beacon can receive from stoploss execution.
@@ -38,6 +40,11 @@ contract LimitOrderExecutor is SwapRouter {
         as OrderQuantity -> infinity for all non stoploss orders. 
     */
     uint128 constant STOP_LOSS_MAX_BEACON_REWARD = 50000000000000000;
+
+    ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
+    ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
+    uint256 constant GAS_CREDIT_BUFFER = 150;
+    uint256 constant ONE_HUNDRED = 100;
 
     ///@notice Mapping to hold gas credit balances for accounts.
     mapping(address => uint256) public gasCreditBalance;
@@ -137,6 +144,8 @@ contract LimitOrderExecutor is SwapRouter {
         USDC = _usdc;
         WETH = _weth;
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
+        LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
+        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
 
         LIMIT_ORDER_ROUTER = address(
             new LimitOrderRouter(
@@ -150,7 +159,13 @@ contract LimitOrderExecutor is SwapRouter {
         );
 
         address sandboxLimitOrderBook = address(
-            new SandboxLimitOrderBook(_weth, _usdc, limitOrderRouter)
+            new SandboxLimitOrderBook(
+                _gasOracle,
+                address(this),
+                _weth,
+                _usdc,
+                _sandboxLimitOrderExecutionGasCost
+            )
         );
         SANDBOX_LIMIT_ORDER_BOOK = sandboxLimitOrderBook;
 
@@ -188,11 +203,11 @@ contract LimitOrderExecutor is SwapRouter {
 
     //------------Gas Credit Functions------------------------
 
-    function updateGasCreditBalance(address owner, uint256 newBalance)
+    function updateGasCreditBalance(address orderOwner, uint256 newBalance)
         external
         onlyOrderBook
     {
-        gasCreditBalance[owner] = newBalance;
+        gasCreditBalance[orderOwner] = newBalance;
     }
 
     /// @notice Function to deposit gas credits.
@@ -234,7 +249,7 @@ contract LimitOrderExecutor is SwapRouter {
         }
 
         ///@notice Get the current gas price from the v3 Aggregator.
-        uint256 gasPrice = getGasPrice();
+        uint256 gasPrice = IOrderBook(LIMIT_ORDER_ROUTER).getGasPrice();
 
         ///@notice Require that account has enough gas for order execution after the gas credit withdrawal.
         if (
@@ -277,7 +292,7 @@ contract LimitOrderExecutor is SwapRouter {
 
     function transferGasCreditFees(address receiver, uint256 value)
         external
-        onlyOrderbook
+        onlyOrderBook
     {
         ///@notice Transfer the withdraw amount to the account.
         safeTransferETH(receiver, value);
@@ -299,7 +314,7 @@ contract LimitOrderExecutor is SwapRouter {
         uint256 totalLimitOrdersCount = IOrderBook(LIMIT_ORDER_ROUTER)
             .totalOrdersPerAddress(userAddress);
 
-        uint256 totalSandboxLimitOrdersCound = ISandsboxLimitOrderBook(
+        uint256 totalSandboxLimitOrdersCound = ISandboxLimitOrderBook(
             SANDBOX_LIMIT_ORDER_BOOK
         ).totalOrdersPerAddress(userAddress);
 
@@ -321,7 +336,6 @@ contract LimitOrderExecutor is SwapRouter {
 
     /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders.
     /// @param gasPrice - The current gas price in gwei.
-    /// @param executionCost - The cost of gas to exececute an order.
     /// @param userAddress - The account address that will be checked for minimum gas credits.
     /// @param userGasCreditBalance - The current gas credit balance of the userAddress.
     /// @return bool - Indicates whether the user has the minimum gas credit requirements.
@@ -679,8 +693,8 @@ contract LimitOrderExecutor is SwapRouter {
     Since the function is onlyLimitOrderRouter, the sandBoxRouter address will never change*/
 
     function executeSandboxLimitOrders(
-        OrderBook.SandboxLimitOrder[] memory orders,
-        SandboxRouter.SandboxMulticall calldata sandboxMulticall
+        SandboxLimitOrderBook.SandboxLimitOrder[] memory orders,
+        SandboxLimitOrderRouter.SandboxMulticall calldata sandboxMulticall
     ) external onlySandboxLimitOrderBook nonReentrant {
         uint256 expectedAccumulatedFees = 0;
 
@@ -705,7 +719,7 @@ contract LimitOrderExecutor is SwapRouter {
             for (uint256 i = 0; i < orders.length; ++i) {
                 IERC20(orders[i].tokenIn).safeTransferFrom(
                     orders[i].owner,
-                    SANDBOX_ROUTER,
+                    SANDBOX_LIMIT_ORDER_ROUTER,
                     sandboxMulticall.fillAmounts[i]
                 );
 

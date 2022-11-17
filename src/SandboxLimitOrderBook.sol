@@ -9,13 +9,14 @@ import "./lib/ConveyorMath.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./test/utils/Console.sol";
 import "./SandboxLimitOrderRouter.sol";
+import "./GasOracle.sol";
 
 /// @title OrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
 
 //TODO: need to separate gas oracle
-contract SandboxLimitOrderBook {
+contract SandboxLimitOrderBook is GasOracle {
     address immutable LIMIT_ORDER_EXECUTOR;
     address immutable SANDBOX_LIMIT_ORDER_ROUTER;
 
@@ -34,6 +35,16 @@ contract SandboxLimitOrderBook {
     address immutable WETH;
     address immutable USDC;
 
+    ///@notice Interval that determines when an order is eligible for refresh. The interval is set to 30 days represented in Unix time.
+    uint256 constant REFRESH_INTERVAL = 2592000;
+
+    ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
+    ///@notice The refresh fee is 0.02 ETH
+    uint256 constant REFRESH_FEE = 20000000000000000;
+
+    ///@notice State variable to track the amount of gas initally alloted during executeLimitOrders.
+    uint256 initialTxGas;
+
     ///@notice Modifier to restrict addresses other than the SandboxLimitOrderRouter from calling the contract
     modifier onlySandboxLimitOrderRouter() {
         if (msg.sender != SANDBOX_LIMIT_ORDER_ROUTER) {
@@ -41,6 +52,7 @@ contract SandboxLimitOrderBook {
         }
         _;
     }
+    bool reentrancyStatus = false;
 
     ///@notice Modifier to restrict reentrancy into a function.
     modifier nonReentrant() {
@@ -60,7 +72,7 @@ contract SandboxLimitOrderBook {
         address _weth,
         address _usdc,
         uint256 _sandboxLimitOrderExecutionGasCost
-    ) {
+    ) GasOracle(_conveyorGasOracle) {
         require(
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"
@@ -193,7 +205,7 @@ contract SandboxLimitOrderBook {
 
     ///@param sandboxMulticall -
     function executeOrdersViaSandboxMulticall(
-        SandboxRouter.SandboxMulticall calldata sandboxMulticall
+        SandboxLimitOrderRouter.SandboxMulticall calldata sandboxMulticall
     ) external onlySandboxLimitOrderRouter nonReentrant {
         //Update the initial gas balance.
         assembly {
@@ -230,7 +242,10 @@ contract SandboxLimitOrderBook {
 
         ///@notice Transfer the reward to the off-chain executor.
         ///TODO: This should be transferred from the limit order executor contract.
-        safeTransferETH(tx.origin, executionGasCompensation);
+        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+            msg.sender,
+            executionGasCompensation
+        );
     }
 
     ///@notice Function to calculate the execution gas consumed during executeLimitOrders
@@ -247,15 +262,7 @@ contract SandboxLimitOrderBook {
             )
         }
 
-        if (orderType == OrderType.PendingLimitOrder) {
-            ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
-            uint256 maxExecutionCompensation = LIMIT_ORDER_EXECUTION_GAS_COST *
-                numberOfOrders *
-                gasPrice;
-            if (executionGasConsumed > maxExecutionCompensation) {
-                executionGasConsumed = maxExecutionCompensation;
-            }
-        } else {
+        if (orderType == OrderType.PendingSandboxLimitOrder) {
             ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
             uint256 maxExecutionCompensation = SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST *
                     numberOfOrders *
@@ -274,32 +281,24 @@ contract SandboxLimitOrderBook {
         nonReentrant
         returns (bool success)
     {
-        (OrderType orderType, bytes memory orderBytes) = getOrderById(orderId);
-
-        ///@notice Check if order exists, otherwise revert.
-        if (orderType == OrderType.None) {
+        SandboxLimitOrder memory order = getSandboxLimitOrderById(orderId);
+        if (order.orderId == bytes32(0)) {
             revert OrderDoesNotExist(orderId);
-        } else if (orderType == OrderType.PendingSandboxLimitOrder) {
-            SandboxLimitOrder memory sandboxLimitOrder = abi.decode(
-                orderBytes,
-                (SandboxLimitOrder)
+        }
+
+        ///@notice If the order owner does not have min gas credits, cancel the order
+        if (
+            IERC20(order.tokenIn).balanceOf(order.owner) <
+            order.amountInRemaining
+        ) {
+            ///@notice Remove the order from the limit order system.
+
+            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+                msg.sender,
+                _cancelSandboxLimitOrderViaExecutor(order)
             );
 
-            ///@notice If the order owner does not have min gas credits, cancel the order
-            if (
-                IERC20(sandboxLimitOrder.tokenIn).balanceOf(
-                    sandboxLimitOrder.owner
-                ) < sandboxLimitOrder.amountInRemaining
-            ) {
-                ///@notice Remove the order from the limit order system.
-
-                ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
-                        msg.sender,
-                        _cancelSandboxLimitOrderViaExecutor(sandboxLimitOrder)
-                    );
-
-                return true;
-            }
+            return true;
         }
 
         return false;
@@ -318,10 +317,7 @@ contract SandboxLimitOrderBook {
         uint256 executorFee = gasPrice * SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 
         ///@notice Remove the order from the limit order system.
-        _removeOrderFromSystem(
-            order.orderId,
-            OrderType.PendingSandboxLimitOrder
-        );
+        _removeOrderFromSystem(order.orderId);
 
         uint256 orderOwnerGasCreditBalance = ILimitOrderExecutor(
             LIMIT_ORDER_EXECUTOR
@@ -374,7 +370,7 @@ contract SandboxLimitOrderBook {
         unchecked {
             for (uint256 i = 0; i < orderOwnersLength; ) {
                 ///@notice Adjust the order owner's gas credit balance
-                uint256 ownerGasCreditBalance = ILimitOrderExecutoir(
+                uint256 ownerGasCreditBalance = ILimitOrderExecutor(
                     LIMIT_ORDER_EXECUTOR
                 ).gasCreditBalance(orderOwners[i]);
 
@@ -394,39 +390,6 @@ contract SandboxLimitOrderBook {
                 }
 
                 ++i;
-            }
-        }
-    }
-
-    ///@notice Function to calculate the execution gas consumed during executeLimitOrders
-    ///@return executionGasConsumed - The amount of gas consumed.
-    function calculateExecutionGasConsumed(
-        uint256 gasPrice,
-        uint256 numberOfOrders,
-        OrderType orderType
-    ) internal view returns (uint256 executionGasConsumed) {
-        assembly {
-            executionGasConsumed := mul(
-                gasPrice,
-                sub(sload(initialTxGas.slot), gas())
-            )
-        }
-
-        if (orderType == OrderType.PendingLimitOrder) {
-            ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
-            uint256 maxExecutionCompensation = LIMIT_ORDER_EXECUTION_GAS_COST *
-                numberOfOrders *
-                gasPrice;
-            if (executionGasConsumed > maxExecutionCompensation) {
-                executionGasConsumed = maxExecutionCompensation;
-            }
-        } else {
-            ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
-            uint256 maxExecutionCompensation = SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST *
-                    numberOfOrders *
-                    gasPrice;
-            if (executionGasConsumed > maxExecutionCompensation) {
-                executionGasConsumed = maxExecutionCompensation;
             }
         }
     }
@@ -1097,9 +1060,6 @@ contract SandboxLimitOrderBook {
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
     function refreshOrder(bytes32[] memory orderIds) external nonReentrant {
-        ///@notice Get the current gas price from the v3 Aggregator.
-        uint256 gasPrice = getGasPrice();
-
         ///@notice Initialize totalRefreshFees;
         uint256 totalRefreshFees;
 
@@ -1109,24 +1069,13 @@ contract SandboxLimitOrderBook {
             bytes32 orderId = orderIds[i];
 
             ///@notice Cache the order in memory.
-            (OrderType orderType, bytes memory orderBytes) = getOrderById(
-                orderId
-            );
+            SandboxLimitOrder memory order = getSandboxLimitOrderById(orderId);
 
-            if (orderType == OrderType.None) {
-                continue;
-            } else {
-                if (orderType == OrderType.PendingSandboxLimitOrder) {
-                    SandboxLimitOrder memory order = abi.decode(
-                        orderBytes,
-                        (SandboxLimitOrder)
-                    );
-                    totalRefreshFees += _refreshSandboxLimitOrder(
-                        order,
-                        gasPrice
-                    );
-                }
+            if (order.orderId == bytes32(0)) {
+                revert OrderDoesNotExist(orderId);
             }
+
+            totalRefreshFees += _refreshSandboxLimitOrder(order);
 
             unchecked {
                 ++i;
@@ -1134,17 +1083,19 @@ contract SandboxLimitOrderBook {
         }
 
         ///@notice Transfer the refresh fee to off-chain executor who called the function.
-        safeTransferETH(msg.sender, totalRefreshFees);
+        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+            msg.sender,
+            totalRefreshFees
+        );
     }
 
     ///@notice Internal helper function to refresh a Sandbox Limit Order.
     ///@param order - The Sandbox Limit Order to be refreshed.
-    ///@param gasPrice - The current gasPrice from the Gas oracle.
     ///@return uint256 - The refresh fee to be compensated to the off-chain executor.
-    function _refreshSandboxLimitOrder(
-        SandboxLimitOrder memory order,
-        uint256 gasPrice
-    ) internal returns (uint256) {
+    function _refreshSandboxLimitOrder(SandboxLimitOrder memory order)
+        internal
+        returns (uint256)
+    {
         ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
         if (block.timestamp > order.expirationTimestamp) {
             return _cancelSandboxLimitOrderViaExecutor(order);
@@ -1155,8 +1106,11 @@ contract SandboxLimitOrderBook {
             return _cancelSandboxLimitOrderViaExecutor(order);
         }
 
-        if (IERC20(order.tokenIn).balanceOf(order.owner) < order.quantity) {
-            return _cancelLimitOrderViaExecutor(order);
+        if (
+            IERC20(order.tokenIn).balanceOf(order.owner) <
+            order.amountInRemaining
+        ) {
+            return _cancelSandboxLimitOrderViaExecutor(order);
         }
 
         ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
@@ -1164,12 +1118,18 @@ contract SandboxLimitOrderBook {
             return 0;
         }
 
+        uint256 currentCreditBalance = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
+            .gasCreditBalance(order.owner);
+
         ///@notice Decrement the order.owner's gas credit balance
-        gasCreditBalance[order.owner] -= REFRESH_FEE;
+        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+            order.owner,
+            currentCreditBalance - REFRESH_FEE
+        );
 
         ///@notice update the order's last refresh timestamp
         ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
-        orderIdToLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
+        orderIdToSandboxLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
             block.timestamp % (2**32 - 1)
         );
 

@@ -16,7 +16,7 @@ import "./test/utils/Console.sol";
 /// @title LimitOrderRouter
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
-contract LimitOrderRouter is LimitOrderBook {
+contract LimitOrderRouter is OrderBook {
     using SafeERC20 for IERC20;
     // ========================================= Modifiers =============================================
 
@@ -99,8 +99,7 @@ contract LimitOrderRouter is LimitOrderBook {
             _limitOrderExecutor,
             _weth,
             _usdc,
-            _limitOrderExecutionGasCost,
-            _sandboxLimitOrderExecutionGasCost
+            _limitOrderExecutionGasCost
         )
     {
         ///@notice Require that deployment addresses are not zero
@@ -147,7 +146,6 @@ contract LimitOrderRouter is LimitOrderBook {
         );
     }
 
-    ///@leyton pick up from here
     ///@notice Internal helper function to refresh a Limit Order.
     ///@param order - The Limit Order to be refreshed.
     ///@param gasPrice - The current gasPrice from the Gas oracle.
@@ -219,27 +217,19 @@ contract LimitOrderRouter is LimitOrderBook {
         nonReentrant
         returns (bool success)
     {
-        (OrderType orderType, bytes memory orderBytes) = getOrderById(orderId);
-
-        ///@notice Check if order exists, otherwise revert.
-        if (orderType == OrderType.None) {
+        LimitOrder memory order = getLimitOrderById(orderId);
+        if (order.orderId == bytes32(0)) {
             revert OrderDoesNotExist(orderId);
-        } else if (orderType == OrderType.PendingLimitOrder) {
-            LimitOrder memory limitOrder = abi.decode(orderBytes, (LimitOrder));
+        }
 
-            if (
-                IERC20(limitOrder.tokenIn).balanceOf(limitOrder.owner) <
-                limitOrder.quantity
-            ) {
-                ///@notice Remove the order from the limit order system.
-                ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
-                    msg.sender,
-                    _cancelLimitOrderViaExecutor(limitOrder)
-                );
+        if (IERC20(order.tokenIn).balanceOf(order.owner) < order.quantity) {
+            ///@notice Remove the order from the limit order system.
+            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+                msg.sender,
+                _cancelLimitOrderViaExecutor(order)
+            );
 
-               
-                return true;
-            }
+            return true;
         }
 
         return false;
@@ -259,16 +249,18 @@ contract LimitOrderRouter is LimitOrderBook {
         uint256 executorFee = gasPrice * LIMIT_ORDER_EXECUTION_GAS_COST;
 
         ///@notice Remove the order from the limit order system.
-        _removeOrderFromSystem(order.orderId, OrderType.PendingLimitOrder);
+        _removeOrderFromSystem(order.orderId);
 
-        uint256 orderOwnerGasCreditBalance = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).gasCreditBalance(order.owner);
+        uint256 orderOwnerGasCreditBalance = ILimitOrderExecutor(
+            LIMIT_ORDER_EXECUTOR
+        ).gasCreditBalance(order.owner);
 
         ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
         if (orderOwnerGasCreditBalance > executorFee) {
             ///@notice Decrement from the order owner's gas credit balance.
             ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
                 order.owner,
-                gasCreditBalance[order.owner]-executorFee
+                gasCreditBalance[order.owner] - executorFee
             );
         } else {
             ///@notice Otherwise, decrement the entire gas credit balance.
@@ -436,30 +428,16 @@ contract LimitOrderRouter is LimitOrderBook {
         );
         ///TODO: Transfer this from the executor gas credit balance
         ///@notice Transfer the reward to the off-chain executor.
-        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(msg.sender, executionGasCompensation);
+        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+            msg.sender,
+            executionGasCompensation
+        );
     }
 
     ///@notice Function to return an array of limit order owners.
     ///@param orders - Array of LimitOrders.
     ///@return orderOwners - An array of order owners in the orders array.
     function getLimitOrderOwners(LimitOrder[] memory orders)
-        internal
-        pure
-        returns (address[] memory orderOwners)
-    {
-        orderOwners = new address[](orders.length);
-        for (uint256 i = 0; i < orders.length; ) {
-            orderOwners[i] = orders[i].owner;
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    ///@notice Function to return an array of sandbox limit order owners.
-    ///@param orders - Array of SandboxLimitOrders.
-    ///@return orderOwners - An array of order owners in the orders array.
-    function getSandboxLimitOrderOwners(SandboxLimitOrder[] memory orders)
         internal
         pure
         returns (address[] memory orderOwners)
@@ -512,14 +490,6 @@ contract LimitOrderRouter is LimitOrderBook {
             if (executionGasConsumed > maxExecutionCompensation) {
                 executionGasConsumed = maxExecutionCompensation;
             }
-        } else {
-            ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
-            uint256 maxExecutionCompensation = SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST *
-                    numberOfOrders *
-                    gasPrice;
-            if (executionGasConsumed > maxExecutionCompensation) {
-                executionGasConsumed = maxExecutionCompensation;
-            }
         }
     }
 
@@ -546,7 +516,7 @@ contract LimitOrderRouter is LimitOrderBook {
         unchecked {
             for (uint256 i = 0; i < orderOwnersLength; ) {
                 ///@notice Adjust the order owner's gas credit balance
-                uint256 ownerGasCreditBalance = ILimitOrderExecutoir(
+                uint256 ownerGasCreditBalance = ILimitOrderExecutor(
                     LIMIT_ORDER_EXECUTOR
                 ).gasCreditBalance(orderOwners[i]);
 

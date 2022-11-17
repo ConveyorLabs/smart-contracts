@@ -3,6 +3,7 @@ pragma solidity 0.8.16;
 
 import "../LimitOrderBook.sol";
 import "../SandboxLimitOrderBook.sol";
+import "../SandboxLimitOrderRouter.sol";
 
 interface ILimitOrderExecutor {
     function executeTokenToWethOrders(OrderBook.LimitOrder[] memory orders)
@@ -15,7 +16,7 @@ interface ILimitOrderExecutor {
 
     function executeSandboxLimitOrders(
         SandboxLimitOrderBook.SandboxLimitOrder[] memory orders,
-        SandboxLimitOrderBook.SandboxMulticall calldata calls
+        SandboxLimitOrderRouter.SandboxMulticall calldata calls
     ) external;
 
     function gasCreditBalance(address user) external view returns (uint256);

@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
-import "./interfaces/ILimitOrderRouter.sol";
+import "./interfaces/ISandboxLimitOrderBook.sol";
 import "../lib/libraries/token/SafeERC20.sol";
 
 /// @title SandboxRouter
@@ -58,7 +58,7 @@ contract SandboxLimitOrderRouter {
     function executeSandboxMulticall(SandboxMulticall calldata sandboxMultiCall)
         external
     {
-        ILimitOrderRouter(SANDBOX_LIMIT_ORDER_BOOK)
+        ISandboxLimitOrderBook(SANDBOX_LIMIT_ORDER_BOOK)
             .executeOrdersViaSandboxMulticall(sandboxMultiCall);
     }
 
