@@ -21,9 +21,6 @@ contract SandboxLimitOrderBook is GasOracle {
     ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
     uint256 constant GAS_CREDIT_BUFFER = 150;
 
-    ///@notice The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut
-    uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
-
     ///@notice The execution cost of fufilling a SandboxLimitOrder with a standard ERC20 swap from tokenIn to tokenOut
     uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 
@@ -40,7 +37,6 @@ contract SandboxLimitOrderBook is GasOracle {
         address _limitOrderExecutor,
         address _weth,
         address _usdc,
-        uint256 _limitOrderExecutionGasCost,
         uint256 _sandboxLimitOrderExecutionGasCost
     ) GasOracle(_gasOracle) {
         require(
@@ -50,7 +46,6 @@ contract SandboxLimitOrderBook is GasOracle {
         WETH = _weth;
         USDC = _usdc;
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
-        LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
         SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
     }
 
@@ -86,40 +81,6 @@ contract SandboxLimitOrderBook is GasOracle {
     event GasCreditEvent(address indexed sender, uint256 indexed balance);
 
     //----------------------Structs------------------------------------//
-
-    ///@notice Struct containing Order details for any limit order
-    ///@param buy - Indicates if the order is a buy or sell
-    ///@param taxed - Indicates if the tokenIn or tokenOut is taxed. This will be set to true if one or both tokens are taxed.
-    ///@param lastRefreshTimestamp - Unix timestamp representing the last time the order was refreshed.
-    ///@param expirationTimestamp - Unix timestamp representing when the order should expire.
-    ///@param feeIn - The Univ3 liquidity pool fee for the tokenIn/Weth pairing.
-    ///@param feeOut - The Univ3 liquidity pool fee for the tokenOut/Weth pairing.
-    ///@param taxIn - The token transfer tax on tokenIn.
-    ///@param price - The execution price representing the spot price of tokenIn/tokenOut that the order should be filled at. This is represented as a 64x64 fixed point number.
-    ///@param amountOutMin - The minimum amount out that the order owner is willing to accept. This value is represented in tokenOut.
-    ///@param quantity - The amount of tokenIn that the order use as the amountIn value for the swap (represented in amount * 10**tokenInDecimals).
-    ///@param owner - The owner of the order. This is set to the msg.sender at order placement.
-    ///@param tokenIn - The tokenIn for the order.
-    ///@param tokenOut - The tokenOut for the order.
-    ///@param orderId - Unique identifier for the order.
-    struct LimitOrder {
-        bool buy;
-        bool taxed;
-        bool stoploss;
-        uint32 lastRefreshTimestamp;
-        uint32 expirationTimestamp;
-        uint24 feeIn;
-        uint24 feeOut;
-        uint16 taxIn;
-        uint128 price;
-        uint128 amountOutMin;
-        uint128 quantity;
-        address owner;
-        address tokenIn;
-        address tokenOut;
-        bytes32 orderId;
-    }
-
     ///@notice Struct containing Order details for any limit order
     ///@param buy - Indicates if the order is a buy or sell
     ///@param lastRefreshTimestamp - Unix timestamp representing the last time the order was refreshed.
@@ -149,19 +110,13 @@ contract SandboxLimitOrderBook is GasOracle {
 
     enum OrderType {
         None,
-        PendingLimitOrder,
         PendingSandboxLimitOrder,
         PartialFilledSandboxLimitOrder,
-        FilledLimitOrder,
         FilledSandboxLimitOrder,
-        CanceledLimitOrder,
         CanceledSandboxLimitOrder
     }
 
     //----------------------State Structures------------------------------------//
-
-    ///@notice Mapping from an orderId to its order.
-    mapping(bytes32 => LimitOrder) internal orderIdToLimitOrder;
 
     ///@notice Mapping from an orderId to its ordorderIdToSandboxLimitOrderer.
     mapping(bytes32 => SandboxLimitOrder) internal orderIdToSandboxLimitOrder;

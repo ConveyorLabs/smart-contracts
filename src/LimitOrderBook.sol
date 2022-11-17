@@ -22,9 +22,6 @@ contract OrderBook is GasOracle {
     ///@notice The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut
     uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
 
-    ///@notice The execution cost of fufilling a SandboxLimitOrder with a standard ERC20 swap from tokenIn to tokenOut
-    uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
-
     ///@notice Mapping to hold gas credit balances for accounts.
     mapping(address => uint256) public gasCreditBalance;
 
@@ -39,7 +36,6 @@ contract OrderBook is GasOracle {
         address _weth,
         address _usdc,
         uint256 _limitOrderExecutionGasCost,
-        uint256 _sandboxLimitOrderExecutionGasCost
     ) GasOracle(_gasOracle) {
         require(
             _limitOrderExecutor != address(0),
@@ -49,7 +45,6 @@ contract OrderBook is GasOracle {
         USDC = _usdc;
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
         LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
-        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
     }
 
     //----------------------Events------------------------------------//
@@ -118,51 +113,17 @@ contract OrderBook is GasOracle {
         bytes32 orderId;
     }
 
-    ///@notice Struct containing Order details for any limit order
-    ///@param buy - Indicates if the order is a buy or sell
-    ///@param lastRefreshTimestamp - Unix timestamp representing the last time the order was refreshed.
-    ///@param expirationTimestamp - Unix timestamp representing when the order should expire.
-    ///@param fillPercent - The percentage filled on the initial amountInRemaining represented as 16.16 fixed point.
-    ///@param price - The execution price representing the spot price of tokenIn/tokenOut that the order should be filled at. This is simply amountOutRemaining/amountInRemaining.
-    ///@param executionFee - The fee paid in WETH for Order execution.
-    ///@param amountOutRemaining - The exact amountOut out that the order owner is willing to accept. This value is represented in tokenOut.
-    ///@param amountInRemaining - The exact amountIn of tokenIn that the order will be supplying to the contract for the limit order.
-    ///@param owner - The owner of the order. This is set to the msg.sender at order placement.
-    ///@param tokenIn - The tokenIn for the order.
-    ///@param tokenOut - The tokenOut for the order.
-    ///@param orderId - Unique identifier for the order.
-    struct SandboxLimitOrder {
-        bool buy;
-        uint32 lastRefreshTimestamp;
-        uint32 expirationTimestamp;
-        uint32 fillPercent;
-        uint128 fee;
-        uint128 amountInRemaining;
-        uint128 amountOutRemaining;
-        address owner;
-        address tokenIn;
-        address tokenOut;
-        bytes32 orderId;
-    }
-
     enum OrderType {
         None,
         PendingLimitOrder,
-        PendingSandboxLimitOrder,
-        PartialFilledSandboxLimitOrder,
         FilledLimitOrder,
-        FilledSandboxLimitOrder,
-        CanceledLimitOrder,
-        CanceledSandboxLimitOrder
+        CanceledLimitOrder
     }
 
     //----------------------State Structures------------------------------------//
 
     ///@notice Mapping from an orderId to its order.
     mapping(bytes32 => LimitOrder) internal orderIdToLimitOrder;
-
-    ///@notice Mapping from an orderId to its ordorderIdToSandboxLimitOrderer.
-    mapping(bytes32 => SandboxLimitOrder) internal orderIdToSandboxLimitOrder;
 
     ///@notice Mapping to find the total orders quantity for a specific token, for an individual account
     ///@dev The key is represented as: keccak256(abi.encode(owner, token));
