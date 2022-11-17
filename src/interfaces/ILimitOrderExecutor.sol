@@ -6,11 +6,11 @@ import "../SandboxLimitOrderBook.sol";
 import "../SandboxLimitOrderRouter.sol";
 
 interface ILimitOrderExecutor {
-    function executeTokenToWethOrders(OrderBook.LimitOrder[] memory orders)
+    function executeTokenToWethOrders(LimitOrderBook.LimitOrder[] memory orders)
         external
         returns (uint256, uint256);
 
-    function executeTokenToTokenOrders(OrderBook.LimitOrder[] memory orders)
+    function executeTokenToTokenOrders(LimitOrderBook.LimitOrder[] memory orders)
         external
         returns (uint256, uint256);
 

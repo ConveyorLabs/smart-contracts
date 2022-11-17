@@ -15,7 +15,7 @@ import "../LimitOrderQuoter.sol";
 import "../LimitOrderExecutor.sol";
 import "../interfaces/ILimitOrderRouter.sol";
 import "../interfaces/IOrderBook.sol";
-import "../interfaces/ISandboxRouter.sol";
+import "../interfaces/ISandboxLimitOrderRouter.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -62,7 +62,7 @@ contract SandboxRouterTest is DSTest {
     ISandboxLimitOrderBook orderBook;
     LimitOrderExecutorWrapper limitOrderExecutor;
     LimitOrderQuoter limitOrderQuoter;
-    ISandboxRouter sandboxRouter;
+    ISandboxLimitOrderRouter sandboxRouter;
     ScriptRunner scriptRunner;
     SandboxLimitOrderBookWrapper sandboxLimitOrderBookWrapper;
 
@@ -142,7 +142,7 @@ contract SandboxRouterTest is DSTest {
             250000
         );
 
-        sandboxRouter = ISandboxRouter(
+        sandboxRouter = ISandboxLimitOrderRouter(
             limitOrderExecutor.SANDBOX_LIMIT_ORDER_ROUTER()
         );
 

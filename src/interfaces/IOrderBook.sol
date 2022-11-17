@@ -9,7 +9,7 @@ interface IOrderBook {
         view
         returns (uint256);
 
-    function placeLimitOrder(OrderBook.LimitOrder[] calldata orderGroup)
+    function placeLimitOrder(LimitOrderBook.LimitOrder[] calldata orderGroup)
         external
         returns (bytes32[] memory);
 
@@ -33,10 +33,10 @@ interface IOrderBook {
     function addressToOrderIds(address owner, bytes32 orderId)
         external
         view
-        returns (OrderBook.OrderType);
+        returns (LimitOrderBook.OrderType);
 
     function getLimitOrderById(bytes32 orderId)
         external
         view
-        returns (OrderBook.LimitOrder memory);
+        returns (LimitOrderBook.LimitOrder memory);
 }
