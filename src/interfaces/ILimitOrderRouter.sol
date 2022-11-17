@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import "../SandboxRouter.sol";
-import "../OrderBook.sol";
+import "../LimitOrderBook.sol";
 
 interface ILimitOrderRouter {
     function placeSandboxLimitOrder(

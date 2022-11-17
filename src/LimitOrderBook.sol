@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
-import "./GasOracle.sol";
+import "./interfaces/IConveyorGasOracle.sol";
 import "./ConveyorErrors.sol";
 import "./interfaces/IOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
@@ -12,12 +12,13 @@ import "./test/utils/Console.sol";
 /// @title OrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
-contract OrderBook is GasOracle {
+contract OrderBook {
     address immutable LIMIT_ORDER_EXECUTOR;
 
     ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
     ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
     uint256 constant GAS_CREDIT_BUFFER = 150;
+    address immutable CONVEYOR_GAS_ORACLE;
 
     ///@notice The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut
     uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
@@ -35,8 +36,8 @@ contract OrderBook is GasOracle {
         address _limitOrderExecutor,
         address _weth,
         address _usdc,
-        uint256 _limitOrderExecutionGasCost,
-    ) GasOracle(_gasOracle) {
+        uint256 _limitOrderExecutionGasCost
+    ) {
         require(
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"
@@ -45,6 +46,7 @@ contract OrderBook is GasOracle {
         USDC = _usdc;
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
         LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
+        CONVEYOR_GAS_ORACLE = _conveyorGasOracle;
     }
 
     //----------------------Events------------------------------------//
@@ -160,7 +162,7 @@ contract OrderBook is GasOracle {
         if (orderType == OrderType.PendingLimitOrder) {
             LimitOrder memory limitOrder = orderIdToLimitOrder[orderId];
             return (OrderType.PendingLimitOrder, abi.encode(limitOrder));
-        } 
+        }
     }
 
     function getLimitOrderById(bytes32 orderId)
@@ -454,7 +456,6 @@ contract OrderBook is GasOracle {
         emit OrderCanceled(orderIds);
     }
 
-
     /// @notice cancel all orders relevant in ActiveOrders mapping to the msg.sender i.e the function caller
     function cancelOrders(bytes32[] memory orderIds) public {
         //check that there is one or more orders
@@ -508,57 +509,52 @@ contract OrderBook is GasOracle {
 
     ///@notice Function to remove an order from the system.
     ///@param orderId - The orderId that should be removed from the system.
-    function _removeOrderFromSystem(bytes32 orderId)
-        internal
-    {
-            LimitOrder memory order = orderIdToLimitOrder[orderId];
+    function _removeOrderFromSystem(bytes32 orderId) internal {
+        LimitOrder memory order = orderIdToLimitOrder[orderId];
 
-            ///@notice Remove the order from the system
-            delete orderIdToLimitOrder[orderId];
+        ///@notice Remove the order from the system
+        delete orderIdToLimitOrder[orderId];
 
-            ///@notice Decrement from total orders per address
-            --totalOrdersPerAddress[order.owner];
+        ///@notice Decrement from total orders per address
+        --totalOrdersPerAddress[order.owner];
 
-            ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-            decrementTotalOrdersQuantity(
-                order.tokenIn,
-                order.owner,
-                order.quantity
-            );
-      
+        ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
+        decrementTotalOrdersQuantity(
+            order.tokenIn,
+            order.owner,
+            order.quantity
+        );
     }
-
 
     ///@notice Function to resolve an order as completed.
     ///@param orderId - The orderId that should be resolved from the system.
     function _resolveCompletedOrder(bytes32 orderId, OrderType orderType)
         internal
     {
-            ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
-            LimitOrder memory order = orderIdToLimitOrder[orderId];
+        ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
+        LimitOrder memory order = orderIdToLimitOrder[orderId];
 
-            ///@notice If the order has already been removed from the contract revert.
-            if (order.orderId == bytes32(0)) {
-                revert DuplicateOrderIdsInOrderGroup();
-            }
-            ///@notice Remove the order from the system
-            delete orderIdToLimitOrder[orderId];
-            delete addressToOrderIds[order.owner][orderId];
+        ///@notice If the order has already been removed from the contract revert.
+        if (order.orderId == bytes32(0)) {
+            revert DuplicateOrderIdsInOrderGroup();
+        }
+        ///@notice Remove the order from the system
+        delete orderIdToLimitOrder[orderId];
+        delete addressToOrderIds[order.owner][orderId];
 
-            ///@notice Decrement from total orders per address
-            --totalOrdersPerAddress[order.owner];
+        ///@notice Decrement from total orders per address
+        --totalOrdersPerAddress[order.owner];
 
-            ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-            decrementTotalOrdersQuantity(
-                order.tokenIn,
-                order.owner,
-                order.quantity
-            );
+        ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
+        decrementTotalOrdersQuantity(
+            order.tokenIn,
+            order.owner,
+            order.quantity
+        );
 
-            ///@notice Update the status of the order to filled
-            addressToOrderIds[order.owner][order.orderId] = OrderType
-                .FilledLimitOrder;
-        
+        ///@notice Update the status of the order to filled
+        addressToOrderIds[order.owner][order.orderId] = OrderType
+            .FilledLimitOrder;
     }
 
     /// @notice Helper function to get the total order value on a specific token for the msg.sender.

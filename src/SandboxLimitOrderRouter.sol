@@ -9,7 +9,7 @@ import "../lib/libraries/token/SafeERC20.sol";
 /// @title SandboxRouter
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice SandboxRouter uses a multiCall architecture to execute limit orders.
-contract SandboxLimitOrderRouter {
+contract SandboxLimitOrderRouter is SandboxLimitOrderBook {
     using SafeERC20 for IERC20;
     ///@notice LimitOrderExecutor & LimitOrderRouter Addresses.
     address immutable LIMIT_ORDER_EXECUTOR;

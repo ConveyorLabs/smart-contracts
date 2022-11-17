@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
-import "./OrderBook.sol";
+import "./LimitOrderBook.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "./SwapRouter.sol";
@@ -16,7 +16,7 @@ import "./test/utils/Console.sol";
 /// @title LimitOrderRouter
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
-contract LimitOrderRouter is OrderBook {
+contract LimitOrderRouter is LimitOrderBook {
     using SafeERC20 for IERC20;
     // ========================================= Modifiers =============================================
 

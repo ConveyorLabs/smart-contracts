@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
-import "./GasOracle.sol";
+import "./interfaces/IConveyorGasOracle.sol";
 import "./ConveyorErrors.sol";
 import "./interfaces/IOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
@@ -14,12 +14,13 @@ import "./test/utils/Console.sol";
 /// @notice Contract to maintain active orders in limit order system.
 
 //TODO: need to separate gas oracle
-contract SandboxLimitOrderBook is GasOracle {
+contract SandboxLimitOrderBook {
     address immutable LIMIT_ORDER_EXECUTOR;
 
     ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
     ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
     uint256 constant GAS_CREDIT_BUFFER = 150;
+    address immutable CONVEYOR_GAS_ORACLE;
 
     ///@notice The execution cost of fufilling a SandboxLimitOrder with a standard ERC20 swap from tokenIn to tokenOut
     uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
@@ -34,12 +35,12 @@ contract SandboxLimitOrderBook is GasOracle {
     //----------------------Constructor------------------------------------//
 
     constructor(
-        address _gasOracle,
+        address _conveyorGasOracle,
         address _limitOrderExecutor,
         address _weth,
         address _usdc,
         uint256 _sandboxLimitOrderExecutionGasCost
-    ) GasOracle(_gasOracle) {
+    ) {
         require(
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"
@@ -48,6 +49,7 @@ contract SandboxLimitOrderBook is GasOracle {
         USDC = _usdc;
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
         SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
+        CONVEYOR_GAS_ORACLE = _conveyorGasOracle;
     }
 
     //----------------------Events------------------------------------//
