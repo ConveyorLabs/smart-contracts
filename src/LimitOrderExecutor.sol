@@ -21,7 +21,7 @@ contract LimitOrderExecutor is SwapRouter {
     address immutable LIMIT_ORDER_QUOTER;
     address public immutable LIMIT_ORDER_ROUTER;
     address public immutable SANDBOX_LIMIT_ORDER_BOOK;
-    address immutable SANDBOX_LIMIT_ORDER_ROUTER;
+    address public immutable SANDBOX_LIMIT_ORDER_ROUTER;
     uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
     uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 

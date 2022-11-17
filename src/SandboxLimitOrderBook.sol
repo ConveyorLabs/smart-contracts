@@ -243,7 +243,7 @@ contract SandboxLimitOrderBook is GasOracle {
         ///@notice Transfer the reward to the off-chain executor.
         ///TODO: This should be transferred from the limit order executor contract.
         ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
-            msg.sender,
+            tx.origin,
             executionGasCompensation
         );
     }
