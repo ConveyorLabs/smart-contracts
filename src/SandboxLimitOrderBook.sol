@@ -387,45 +387,15 @@ contract SandboxLimitOrderBook {
         }
     }
 
-    /**@notice Updates an existing order. If the order exists and all order criteria is met, the order at the specified orderId will
-    be updated to the newOrder's parameters. */
-    /**@param orderId - OrderId of order to update.
-    ///@param price - Price to update the execution price of the order to. The price will stay the same if this field is set to 0.
-    ///@param quantity - Quantity to update the existing order quantity to. The quantity will stay the same if this field is set to 0.
-    The newOrder should have the orderId that corresponds to the existing order that it should replace. */
-    function updateOrder(
-        bytes32 orderId,
-        uint128 price,
-        uint128 quantity
-    ) public {
-        ///@notice Check if the order exists
-        OrderType orderType = addressToOrderIds[msg.sender][orderId];
-
-        if (orderType == OrderType.None) {
-            ///@notice If the order does not exist, revert.
-            revert OrderDoesNotExist(orderId);
-        }
-
-        if (orderType == OrderType.PendingLimitOrder) {
-            _updateLimitOrder(orderId, price, quantity);
-        } else {
-            _updateSandboxLimitOrder(
-                orderId,
-                quantity,
-                uint128(ConveyorMath.mul64U(price, quantity))
-            );
-        }
-    }
-
     ///@notice Function to update a sandbox Limit Order.
     ///@param orderId - The orderId of the Sandbox Limit Order.
     ///@param amountInRemaining - The new amountInRemaining.
     ///@param amountOutRemaining - The new amountOutRemaining.
-    function _updateSandboxLimitOrder(
+    function updateSandboxLimitOrder(
         bytes32 orderId,
         uint128 amountInRemaining,
         uint128 amountOutRemaining
-    ) internal {
+    ) external {
         ///@notice Get the existing order that will be replaced with the new order
         SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
         if (order.orderId == bytes32(0)) {
@@ -507,6 +477,106 @@ contract SandboxLimitOrderBook {
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = order.orderId;
         emit OrderCanceled(orderIds);
+    }
+
+    /// @notice Function to refresh an order for another 30 days.
+    /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
+    function refreshOrder(bytes32[] memory orderIds) external nonReentrant {
+        ///@notice Get the current gas price from the v3 Aggregator.
+        uint256 gasPrice = getGasPrice();
+
+        ///@notice Initialize totalRefreshFees;
+        uint256 totalRefreshFees;
+
+        ///@notice For each order in the orderIds array.
+        for (uint256 i = 0; i < orderIds.length; ) {
+            ///@notice Get the current orderId.
+            bytes32 orderId = orderIds[i];
+
+            ///@notice Cache the order in memory.
+            (OrderType orderType, bytes memory orderBytes) = getOrderById(
+                orderId
+            );
+
+            if (orderType == OrderType.None) {
+                continue;
+            } else {
+                if (orderType == OrderType.PendingSandboxLimitOrder) {
+                    SandboxLimitOrder memory order = abi.decode(
+                        orderBytes,
+                        (SandboxLimitOrder)
+                    );
+                    totalRefreshFees += _refreshSandboxLimitOrder(
+                        order,
+                        gasPrice
+                    );
+                }
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        ///@notice Transfer the refresh fee to off-chain executor who called the function.
+        safeTransferETH(msg.sender, totalRefreshFees);
+    }
+
+    ///@notice Internal helper function to refresh a Sandbox Limit Order.
+    ///@param order - The Sandbox Limit Order to be refreshed.
+    ///@param gasPrice - The current gasPrice from the Gas oracle.
+    ///@return uint256 - The refresh fee to be compensated to the off-chain executor.
+    function refreshSandboxLimitOrder(
+        SandboxLimitOrder memory order,
+        uint256 gasPrice
+    ) internal returns (uint256) {
+        ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
+        if (block.timestamp > order.expirationTimestamp) {
+            return _cancelSandboxLimitOrderViaExecutor(order);
+        }
+
+        ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
+        if (gasCreditBalance[order.owner] < REFRESH_FEE) {
+            return _cancelSandboxLimitOrderViaExecutor(order);
+        }
+
+        ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
+        if (block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL) {
+            return 0;
+        }
+
+        ///@notice Require that account has enough gas for order execution after the refresh, otherwise, cancel the order and continue the loop.
+        if (
+            !(
+                _hasMinGasCredits(
+                    gasPrice,
+                    LIMIT_ORDER_EXECUTION_GAS_COST,
+                    order.owner,
+                    gasCreditBalance[order.owner] - REFRESH_FEE,
+                    1 ///@dev Multiplier is set to 1 for refresh order
+                )
+            )
+        ) {
+            return _cancelSandboxLimitOrderViaExecutor(order);
+        }
+
+        ///@notice Decrement the order.owner's gas credit balance
+        gasCreditBalance[order.owner] -= REFRESH_FEE;
+
+        ///@notice update the order's last refresh timestamp
+        ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
+        orderIdToLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
+            block.timestamp % (2**32 - 1)
+        );
+
+        ///@notice Emit an event to notify the off-chain executors that the order has been refreshed.
+        emit OrderRefreshed(
+            order.orderId,
+            order.lastRefreshTimestamp,
+            order.expirationTimestamp
+        );
+
+        return REFRESH_FEE;
     }
 
     /// @notice cancel all orders relevant in ActiveOrders mapping to the msg.sender i.e the function caller
