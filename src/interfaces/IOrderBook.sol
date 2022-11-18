@@ -39,4 +39,18 @@ interface IOrderBook {
         external
         view
         returns (LimitOrderBook.LimitOrder memory);
+
+    function totalOrdersQuantity(bytes32 owner) external view returns (uint256);
+
+    function getAllOrderIdsLength(address owner)
+        external
+        view
+        returns (uint256);
+
+    function getOrderIds(
+        address owner,
+        LimitOrderBook.OrderType targetOrderType,
+        uint256 orderOffset,
+        uint256 length
+    ) external view returns (bytes32[] memory);
 }

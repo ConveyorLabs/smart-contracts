@@ -18,10 +18,18 @@ interface ISandboxLimitOrderBook {
         view
         returns (address);
 
+    function cancelOrder(bytes32 orderId) external;
+
     function getSandboxLimitOrderById(bytes32 orderId)
         external
         view
         returns (SandboxLimitOrderBook.SandboxLimitOrder memory);
+
+    function updateSandboxLimitOrder(
+        bytes32 orderId,
+        uint128 amountInRemaining,
+        uint128 amountOutRemaining
+    ) external;
 
     function addressToOrderIds(address owner, bytes32 orderId)
         external
@@ -31,4 +39,6 @@ interface ISandboxLimitOrderBook {
     function placeSandboxLimitOrder(
         SandboxLimitOrderBook.SandboxLimitOrder[] calldata orderGroup
     ) external payable returns (bytes32[] memory);
+
+    function totalOrdersQuantity(bytes32 owner) external view returns (uint256);
 }
