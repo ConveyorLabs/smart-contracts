@@ -4,7 +4,6 @@ pragma solidity 0.8.16;
 import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Utils.sol";
-import "../LimitOrderBook.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
@@ -12,6 +11,7 @@ import "./utils/Swap.sol";
 import "../LimitOrderQuoter.sol";
 import "../LimitOrderExecutor.sol";
 import "../SwapRouter.sol";
+import "../SandboxLimitOrderBook.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -26,14 +26,13 @@ interface CheatCodes {
     ) external;
 }
 
-contract OrderBookTest is DSTest {
+contract SandboxLimitOrderBookTest is DSTest {
     CheatCodes cheatCodes;
     LimitOrderExecutor limitOrderExecutor;
     LimitOrderQuoter limitOrderQuoter;
     Swap swapHelper;
     IOrderBook limitOrderBook;
     ISandboxLimitOrderBook sandboxLimitOrderBook;
-    LimitOrderRouterWrapper orderBook;
 
     event OrderPlaced(bytes32[] orderIds);
     event OrderCanceled(bytes32[] orderIds);
@@ -90,20 +89,10 @@ contract OrderBookTest is DSTest {
             250000
         );
 
-        //Wrapper contract to test internal functions
-        orderBook = new LimitOrderRouterWrapper(
-            aggregatorV3Address,
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
-            address(limitOrderExecutor),
-            300000,
-            250000
-        );
-
         sandboxLimitOrderBook = ISandboxLimitOrderBook(
             limitOrderExecutor.SANDBOX_LIMIT_ORDER_BOOK()
         );
-        limitOrderBook = IOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
+
         cheatCodes.deal(address(this), type(uint128).max);
         depositGasCreditsForMockOrders(type(uint64).max);
     }
@@ -1149,38 +1138,5 @@ contract OrderBookTest is DSTest {
         }(abi.encodeWithSignature("depositGasCredits()"));
 
         require(depositSuccess, "error when depositing gas credits");
-    }
-}
-
-///@notice wrapper around the LimitOrderBook contract to expose internal functions for testing
-contract LimitOrderRouterWrapper is LimitOrderRouter {
-    constructor(
-        address _gasOracle,
-        address _limitOrderExecutor,
-        address _weth,
-        address _usdc,
-        uint256 _limitOrderExecutionGasCost,
-        uint256 _sandboxLimitOrderExecutionGasCost
-    )
-        LimitOrderRouter(
-            _gasOracle,
-            _limitOrderExecutor,
-            _weth,
-            _usdc,
-            _limitOrderExecutionGasCost,
-            _sandboxLimitOrderExecutionGasCost
-        )
-    {}
-
-    function _getLimitOrderById(bytes32 orderId)
-        public
-        view
-        returns (LimitOrderBook.LimitOrder memory)
-    {
-        return getLimitOrderById(orderId);
-    }
-
-    function getTotalOrdersValue(address token) public view returns (uint256) {
-        return _getTotalOrdersValue(token);
     }
 }
