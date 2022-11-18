@@ -348,18 +348,6 @@ contract SandboxRouterTest is DSTest {
         }
     }
 
-    ///@notice Helper function to calculate the amountRequired from a swap.
-    function _calculateExactAmountRequired(
-        uint256 amountFilled,
-        uint256 amountInRemaining,
-        uint256 amountOutRemaining
-    ) internal pure returns (uint256 amountOutRequired) {
-        amountOutRequired = ConveyorMath.mul64U(
-            ConveyorMath.divUU(amountOutRemaining, amountInRemaining),
-            amountFilled
-        );
-    }
-
     ///@notice ExecuteMulticallOrder Sandbox Router test
     function testExecuteMulticallOrderSingleV3() public {
         ///@notice Deal funds to all of the necessary receivers
@@ -1303,22 +1291,6 @@ contract SandboxRouterTest is DSTest {
         }
     }
 
-    function initializeTestBalanceState(uint128 wethQuantity) internal {
-        ///@notice Deal funds to all of the necessary receivers
-        cheatCodes.deal(address(this), type(uint128).max);
-        cheatCodes.deal(address(swapHelper), type(uint128).max);
-        ///@notice Deposit Gas Credits to cover order execution.
-        depositGasCreditsForMockOrdersWrapper(type(uint128).max);
-        cheatCodes.deal(address(this), wethQuantity);
-
-        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
-        (bool depositSuccess, ) = address(WETH).call{value: wethQuantity}(
-            abi.encodeWithSignature("deposit()")
-        );
-        require(depositSuccess, "Fudge");
-        IERC20(WETH).approve(address(limitOrderExecutor), wethQuantity);
-    }
-
     //================================================================
     //====== Sandbox Execution Unit Tests ~ LimitOrderExecutor =======
     //================================================================
@@ -1446,6 +1418,34 @@ contract SandboxRouterTest is DSTest {
     //================================================================
     //====================== Misc Helpers ============================
     //================================================================
+    function initializeTestBalanceState(uint128 wethQuantity) internal {
+        ///@notice Deal funds to all of the necessary receivers
+        cheatCodes.deal(address(this), type(uint128).max);
+        cheatCodes.deal(address(swapHelper), type(uint128).max);
+        ///@notice Deposit Gas Credits to cover order execution.
+        depositGasCreditsForMockOrdersWrapper(type(uint128).max);
+        cheatCodes.deal(address(this), wethQuantity);
+
+        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
+        (bool depositSuccess, ) = address(WETH).call{value: wethQuantity}(
+            abi.encodeWithSignature("deposit()")
+        );
+        require(depositSuccess, "Fudge");
+        IERC20(WETH).approve(address(limitOrderExecutor), wethQuantity);
+    }
+
+    ///@notice Helper function to calculate the amountRequired from a swap.
+    function _calculateExactAmountRequired(
+        uint256 amountFilled,
+        uint256 amountInRemaining,
+        uint256 amountOutRemaining
+    ) internal pure returns (uint256 amountOutRequired) {
+        amountOutRequired = ConveyorMath.mul64U(
+            ConveyorMath.divUU(amountOutRemaining, amountInRemaining),
+            amountFilled
+        );
+    }
+
     function initialize10DimensionalOrderIdBundles()
         internal
         pure
