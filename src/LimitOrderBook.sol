@@ -30,18 +30,18 @@ contract LimitOrderBook is GasOracle {
     address immutable USDC;
 
     //----------------------Constructor------------------------------------//
-    ///@param _gasOracle The address of the Chainlink gas oracle.
+    ///@param _conveyorGasOracle The address of the Chainlink gas oracle.
     ///@param _limitOrderExecutor The address of the LimitOrderExecutor contract.
     ///@param _weth The address of the WETH contract.
     ///@param _usdc The address of the USDC contract.
     ///@param _limitOrderExecutionGasCost The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut.
     constructor(
-        address _gasOracle,
+        address _conveyorGasOracle,
         address _limitOrderExecutor,
         address _weth,
         address _usdc,
         uint256 _limitOrderExecutionGasCost
-    ) GasOracle(_gasOracle) {
+    ) GasOracle(_conveyorGasOracle) {
         require(
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"
@@ -570,7 +570,7 @@ contract LimitOrderBook is GasOracle {
 
         uint256 orderOffsetSlot;
         assembly {
-            //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order
+            //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order.
             orderOffsetSlot := add(
                 add(allOrderIds, 0x20),
                 mul(orderOffset, 0x20)
@@ -580,9 +580,9 @@ contract LimitOrderBook is GasOracle {
         for (uint256 i = 0; i < length; ++i) {
             bytes32 orderId;
             assembly {
-                //Get the orderId at the orderOffsetSlot
+                //Get the orderId at the orderOffsetSlot.
                 orderId := mload(orderOffsetSlot)
-                //Update the orderOffsetSlot
+                //Update the orderOffsetSlot.
                 orderOffsetSlot := add(orderOffsetSlot, 0x20)
             }
 
@@ -594,7 +594,7 @@ contract LimitOrderBook is GasOracle {
             }
         }
 
-        //Reassign length of each array
+        //Reassign length of each array.
         assembly {
             mstore(orderIds, orderIdIndex)
         }
