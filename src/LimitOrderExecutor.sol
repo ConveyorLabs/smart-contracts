@@ -6,7 +6,9 @@ import "./interfaces/ILimitOrderQuoter.sol";
 import "./lib/ConveyorFeeMath.sol";
 import "./LimitOrderRouter.sol";
 import "./interfaces/ISwapRouter.sol";
-import "./interfaces/ISandboxRouter.sol";
+import "./interfaces/ISandboxLimitOrderRouter.sol";
+import "./interfaces/ISandboxLimitOrderBook.sol";
+import "./interfaces/IOrderBook.sol";
 
 /// @title LimitOrderExecutor
 /// @author 0xOsiris, 0xKitsune
@@ -18,7 +20,10 @@ contract LimitOrderExecutor is SwapRouter {
     address immutable USDC;
     address immutable LIMIT_ORDER_QUOTER;
     address public immutable LIMIT_ORDER_ROUTER;
-    address immutable SANDBOX_ROUTER;
+    address public immutable SANDBOX_LIMIT_ORDER_BOOK;
+    address public immutable SANDBOX_LIMIT_ORDER_ROUTER;
+    uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
+    uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 
     ///====================================Constants==============================================//
     ///@notice The Maximum Reward a beacon can receive from stoploss execution.
@@ -36,12 +41,42 @@ contract LimitOrderExecutor is SwapRouter {
     */
     uint128 constant STOP_LOSS_MAX_BEACON_REWARD = 50000000000000000;
 
+    ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
+    ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
+    uint256 constant GAS_CREDIT_BUFFER = 150;
+    uint256 constant ONE_HUNDRED = 100;
+
+    ///@notice Mapping to hold gas credit balances for accounts.
+    mapping(address => uint256) public gasCreditBalance;
+
+    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
+    event GasCreditEvent(address indexed sender, uint256 indexed balance);
+
     //----------------------Modifiers------------------------------------//
 
     ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlyLimitOrderRouter() {
         if (msg.sender != LIMIT_ORDER_ROUTER) {
             revert MsgSenderIsNotLimitOrderRouter();
+        }
+        _;
+    }
+
+    ///@notice Modifier to restrict smart contracts from calling a function.
+    modifier onlyOrderBook() {
+        if (
+            msg.sender != LIMIT_ORDER_ROUTER &&
+            msg.sender != SANDBOX_LIMIT_ORDER_BOOK
+        ) {
+            revert MsgSenderIsNotOrderBook();
+        }
+        _;
+    }
+
+    ///@notice Modifier to restrict smart contracts from calling a function.
+    modifier onlySandboxLimitOrderBook() {
+        if (msg.sender != SANDBOX_LIMIT_ORDER_BOOK) {
+            revert MsgSenderIsNotLimitOrderBook();
         }
         _;
     }
@@ -109,8 +144,10 @@ contract LimitOrderExecutor is SwapRouter {
         USDC = _usdc;
         WETH = _weth;
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
+        LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
+        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
 
-        address limitOrderRouter = address(
+        LIMIT_ORDER_ROUTER = address(
             new LimitOrderRouter(
                 _gasOracle,
                 _weth,
@@ -121,47 +158,178 @@ contract LimitOrderExecutor is SwapRouter {
             )
         );
 
-        LIMIT_ORDER_ROUTER = limitOrderRouter;
-
-        address sandboxRouter;
-        bool success;
-
-        assembly {
-            //store the function sig for  "SANDBOX_ROUTER()"
-            mstore(
-                0x00,
-                0x0d89c48200000000000000000000000000000000000000000000000000000000
+        address sandboxLimitOrderBook = address(
+            new SandboxLimitOrderBook(
+                _gasOracle,
+                address(this),
+                _weth,
+                _usdc,
+                _sandboxLimitOrderExecutionGasCost
             )
-
-            success := call(
-                gas(), // gas remaining
-                limitOrderRouter, // destination address
-                0, // no ether
-                0x00, // input buffer (starts after the first 32 bytes in the `data` array)
-                0x04, // input length (loaded from the first 32 bytes in the `data` array)
-                0x00, // output buffer
-                0x20 // output length
-            )
-
-            //Assign the sandboxRouter address
-            sandboxRouter := mload(0x00)
-        }
-
-        require(
-            success,
-            "Error when getting Sandbox Router address from the limitOrderRouter"
         );
+        SANDBOX_LIMIT_ORDER_BOOK = sandboxLimitOrderBook;
 
-        ///@notice Assign the SANDBOX_ROUTER address
-        SANDBOX_ROUTER = sandboxRouter;
+        ///@notice Assign the SANDBOX_LIMIT_ORDER_ROUTER address
+        SANDBOX_LIMIT_ORDER_ROUTER = ISandboxLimitOrderBook(
+            SANDBOX_LIMIT_ORDER_BOOK
+        ).getSandboxLimitOrderRouterAddress();
 
         ///@notice assign the owner address
         owner = msg.sender;
     }
 
+    //------------Gas Credit Functions------------------------
+
+    function updateGasCreditBalance(address orderOwner, uint256 newBalance)
+        external
+        onlyOrderBook
+    {
+        gasCreditBalance[orderOwner] = newBalance;
+    }
+
+    /// @notice Function to deposit gas credits.
+    /// @return success - Boolean that indicates if the deposit completed successfully.
+    function depositGasCredits() public payable returns (bool success) {
+        if (msg.value == 0) {
+            revert InsufficientMsgValue();
+        }
+        ///@notice Increment the gas credit balance for the user by the msg.value
+        uint256 newBalance = gasCreditBalance[msg.sender] + msg.value;
+
+        ///@notice Set the gas credit balance of the sender to the new balance.
+        gasCreditBalance[msg.sender] = newBalance;
+
+        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
+        emit GasCreditEvent(msg.sender, newBalance);
+
+        return true;
+    }
+
+    /**@notice Function to withdraw gas credits from an account's balance. If the withdraw results in the account's gas credit
+    balance required to execute existing orders, those orders must be canceled before the gas credits can be withdrawn.
+    */
+    /// @param value - The amount to withdraw from the gas credit balance.
+    /// @return success - Boolean that indicates if the withdraw completed successfully.
+    function withdrawGasCredits(uint256 value)
+        public
+        nonReentrant
+        returns (bool success)
+    {
+        uint256 userGasCreditBalance = gasCreditBalance[msg.sender];
+        ///@notice Require that account's credit balance is larger than withdraw amount
+        if (userGasCreditBalance < value) {
+            revert InsufficientGasCreditBalance(
+                msg.sender,
+                userGasCreditBalance,
+                value
+            );
+        }
+
+        ///@notice Get the current gas price from the v3 Aggregator.
+        uint256 gasPrice = IOrderBook(LIMIT_ORDER_ROUTER).getGasPrice();
+
+        ///@notice Require that account has enough gas for order execution after the gas credit withdrawal.
+        if (
+            !(
+                _hasMinGasCredits(
+                    gasPrice,
+                    msg.sender,
+                    userGasCreditBalance - value,
+                    GAS_CREDIT_BUFFER
+                )
+            )
+        ) {
+            uint256 minGasCredits = _calculateMinGasCredits(
+                gasPrice,
+                msg.sender,
+                GAS_CREDIT_BUFFER
+            );
+
+            revert InsufficientGasCreditBalance(
+                msg.sender,
+                userGasCreditBalance,
+                minGasCredits
+            );
+        }
+
+        ///@notice Decrease the account's gas credit balance
+        uint256 newBalance = gasCreditBalance[msg.sender] - value;
+
+        ///@notice Set the senders new gas credit balance.
+        gasCreditBalance[msg.sender] = newBalance;
+
+        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
+        emit GasCreditEvent(msg.sender, newBalance);
+
+        ///@notice Transfer the withdraw amount to the account.
+        safeTransferETH(msg.sender, value);
+
+        return true;
+    }
+
+    function transferGasCreditFees(address receiver, uint256 value)
+        external
+        onlyOrderBook
+    {
+        ///@notice Transfer the withdraw amount to the account.
+        safeTransferETH(receiver, value);
+    }
+
+    /// @notice Internal helper function to approximate the minimum gas credits needed for order execution.
+    /// @param gasPrice - The Current gas price in gwei
+    /// @param userAddress - The account address that will be checked for minimum gas credits.
+    /** @param multiplier - Multiplier value represented in e^3 to adjust the minimum gas requirement to 
+        fulfill an order, accounting for potential fluctuations in gas price. For example, a multiplier of `1.5` 
+        will be represented as `150` in the contract. **/
+    /// @return minGasCredits - Total ETH required to cover the minimum gas credits for order execution.
+    function _calculateMinGasCredits(
+        uint256 gasPrice,
+        address userAddress,
+        uint256 multiplier
+    ) internal view returns (uint256 minGasCredits) {
+        ///@notice Get the total amount of active orders for the userAddress
+        uint256 totalLimitOrdersCount = IOrderBook(LIMIT_ORDER_ROUTER)
+            .totalOrdersPerAddress(userAddress);
+
+        uint256 totalSandboxLimitOrdersCound = ISandboxLimitOrderBook(
+            SANDBOX_LIMIT_ORDER_BOOK
+        ).totalOrdersPerAddress(userAddress);
+
+        ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
+        uint256 minimumLimitGasCredits = totalLimitOrdersCount *
+            gasPrice *
+            LIMIT_ORDER_EXECUTION_GAS_COST;
+        uint256 minimumSandboxLimitGasCredits = totalSandboxLimitOrdersCound *
+            gasPrice *
+            SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
+
+        uint256 minimumGasCredits = (minimumLimitGasCredits *
+            minimumSandboxLimitGasCredits *
+            multiplier) / ONE_HUNDRED;
+
+        ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
+        return minimumGasCredits;
+    }
+
+    /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders.
+    /// @param gasPrice - The current gas price in gwei.
+    /// @param userAddress - The account address that will be checked for minimum gas credits.
+    /// @param userGasCreditBalance - The current gas credit balance of the userAddress.
+    /// @return bool - Indicates whether the user has the minimum gas credit requirements.
+    function _hasMinGasCredits(
+        uint256 gasPrice,
+        address userAddress,
+        uint256 userGasCreditBalance,
+        uint256 multipler
+    ) internal view returns (bool) {
+        return
+            userGasCreditBalance >=
+            _calculateMinGasCredits(gasPrice, userAddress, multipler);
+    }
+
     ///@notice Function to execute a batch of Token to Weth Orders.
     ///@param orders The orders to be executed.
-    function executeTokenToWethOrders(OrderBook.LimitOrder[] memory orders)
+    function executeTokenToWethOrders(LimitOrderBook.LimitOrder[] memory orders)
         external
         onlyLimitOrderRouter
         returns (uint256, uint256)
@@ -235,7 +403,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@param order - The order to be executed.
     ///@param executionPrice - The best priced TokenToWethExecutionPrice to execute the order on.
     function _executeTokenToWethOrder(
-        OrderBook.LimitOrder memory order,
+        LimitOrderBook.LimitOrder memory order,
         SwapRouter.TokenToWethExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
         ///@notice Swap the batch amountIn on the batch lp address and send the weth back to the contract.
@@ -260,7 +428,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@return amountOutWeth - The amountOut in Weth after the swap.
     function _executeSwapTokenToWethOrder(
         address lpAddressAToWeth,
-        OrderBook.LimitOrder memory order
+        LimitOrderBook.LimitOrder memory order
     )
         internal
         returns (
@@ -321,7 +489,7 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
-    function executeTokenToTokenOrders(OrderBook.LimitOrder[] memory orders)
+    function executeTokenToTokenOrders(LimitOrderBook.LimitOrder[] memory orders)
         external
         onlyLimitOrderRouter
         returns (uint256, uint256)
@@ -407,7 +575,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@param order - The order to be executed.
     ///@param executionPrice - The best priced TokenToTokenExecution price to execute the order on.
     function _executeTokenToTokenOrder(
-        OrderBook.LimitOrder memory order,
+        LimitOrderBook.LimitOrder memory order,
         TokenToTokenExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
         ///@notice Initialize variables to prevent stack too deep.
@@ -484,7 +652,7 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Transfer the order quantity to the contract.
     ///@param order - The orders tokens to be transferred.
-    function transferTokensToContract(OrderBook.LimitOrder memory order)
+    function transferTokensToContract(LimitOrderBook.LimitOrder memory order)
         internal
     {
         IERC20(order.tokenIn).safeTransferFrom(
@@ -502,9 +670,9 @@ contract LimitOrderExecutor is SwapRouter {
     Since the function is onlyLimitOrderRouter, the sandBoxRouter address will never change*/
 
     function executeSandboxLimitOrders(
-        OrderBook.SandboxLimitOrder[] memory orders,
-        SandboxRouter.SandboxMulticall calldata sandboxMulticall
-    ) external onlyLimitOrderRouter nonReentrant {
+        SandboxLimitOrderBook.SandboxLimitOrder[] memory orders,
+        SandboxLimitOrderRouter.SandboxMulticall calldata sandboxMulticall
+    ) external onlySandboxLimitOrderBook nonReentrant {
         uint256 expectedAccumulatedFees = 0;
 
         if (sandboxMulticall.transferAddresses.length > 0) {
@@ -528,7 +696,7 @@ contract LimitOrderExecutor is SwapRouter {
             for (uint256 i = 0; i < orders.length; ++i) {
                 IERC20(orders[i].tokenIn).safeTransferFrom(
                     orders[i].owner,
-                    SANDBOX_ROUTER,
+                    SANDBOX_LIMIT_ORDER_ROUTER,
                     sandboxMulticall.fillAmounts[i]
                 );
 
@@ -542,7 +710,8 @@ contract LimitOrderExecutor is SwapRouter {
         );
 
         ///@notice acll the SandboxRouter callback to execute the calldata from the sandboxMulticall
-        ISandboxRouter(SANDBOX_ROUTER).sandboxRouterCallback(sandboxMulticall);
+        ISandboxLimitOrderRouter(SANDBOX_LIMIT_ORDER_ROUTER)
+            .sandboxRouterCallback(sandboxMulticall);
 
         _requireConveyorFeeIsPaid(
             contractBalancePreExecution,
@@ -596,6 +765,7 @@ contract LimitOrderExecutor is SwapRouter {
         if (msg.sender != tempOwner) {
             revert UnauthorizedCaller();
         }
+
         ///@notice Cleanup tempOwner storage.
         tempOwner = address(0);
         owner = msg.sender;
@@ -606,6 +776,7 @@ contract LimitOrderExecutor is SwapRouter {
         if (newOwner == address(0)) {
             revert InvalidAddress();
         }
+
         tempOwner = newOwner;
     }
 }

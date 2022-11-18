@@ -10,7 +10,7 @@ import "../../lib/interfaces/token/IERC20.sol";
 import "./utils/Swap.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "./utils/ScriptRunner.sol";
-import "../OrderBook.sol";
+import "../LimitOrderBook.sol";
 import "../LimitOrderRouter.sol";
 import "../LimitOrderQuoter.sol";
 import "../../lib/interfaces/uniswap-v3/IQuoter.sol";
@@ -35,7 +35,7 @@ contract LimitOrderQuoterTest is DSTest {
 
     SwapRouter orderRouter;
     //Initialize OrderBook
-    OrderBook orderBook;
+    LimitOrderBook orderBook;
     IQuoter iQuoter;
     ScriptRunner scriptRunner;
 

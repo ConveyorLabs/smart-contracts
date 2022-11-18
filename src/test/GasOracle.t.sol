@@ -16,6 +16,4 @@ contract GasOracleTest is DSTest {
     function testGetPrice() public {
         gasOracle.getGasPrice();
     }
-
-
 }

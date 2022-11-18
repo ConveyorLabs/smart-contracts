@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import "../OrderBook.sol";
+import "../LimitOrderBook.sol";
 
 interface IOrderBook {
-    function placeLimitOrder(OrderBook.LimitOrder[] calldata orderGroup)
+    function totalOrdersPerAddress(address owner)
+        external
+        view
+        returns (uint256);
+
+    function placeLimitOrder(LimitOrderBook.LimitOrder[] calldata orderGroup)
         external
         returns (bytes32[] memory);
-
-    function placeSandboxLimitOrder(
-        OrderBook.SandboxLimitOrder[] calldata orderGroup
-    ) external returns (bytes32[] memory);
 
     function updateOrder(
         bytes32 orderId,
@@ -32,15 +33,24 @@ interface IOrderBook {
     function addressToOrderIds(address owner, bytes32 orderId)
         external
         view
-        returns (OrderBook.OrderType);
+        returns (LimitOrderBook.OrderType);
 
     function getLimitOrderById(bytes32 orderId)
         external
         view
-        returns (OrderBook.LimitOrder memory);
+        returns (LimitOrderBook.LimitOrder memory);
 
-    function getSandBoxOrderById(bytes32 orderId)
+    function totalOrdersQuantity(bytes32 owner) external view returns (uint256);
+
+    function getAllOrderIdsLength(address owner)
         external
         view
-        returns (OrderBook.SandboxLimitOrder memory);
+        returns (uint256);
+
+    function getOrderIds(
+        address owner,
+        LimitOrderBook.OrderType targetOrderType,
+        uint256 orderOffset,
+        uint256 length
+    ) external view returns (bytes32[] memory);
 }

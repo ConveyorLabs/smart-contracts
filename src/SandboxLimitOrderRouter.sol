@@ -3,17 +3,17 @@ pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
-import "./interfaces/ILimitOrderRouter.sol";
+import "./interfaces/ISandboxLimitOrderBook.sol";
 import "../lib/libraries/token/SafeERC20.sol";
 
 /// @title SandboxRouter
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice SandboxRouter uses a multiCall architecture to execute limit orders.
-contract SandboxRouter {
+contract SandboxLimitOrderRouter {
     using SafeERC20 for IERC20;
     ///@notice LimitOrderExecutor & LimitOrderRouter Addresses.
     address immutable LIMIT_ORDER_EXECUTOR;
-    address immutable LIMIT_ORDER_ROUTER;
+    address immutable SANDBOX_LIMIT_ORDER_BOOK;
 
     ///@notice Modifier to restrict addresses other than the LimitOrderExecutor from calling the contract
     modifier onlyLimitOrderExecutor() {
@@ -24,12 +24,15 @@ contract SandboxRouter {
     }
 
     ///@notice Multicall Order Struct for multicall optimistic Order execution.
-    ///@param orderIds - Array of orderIds that will be executed.
+
+    //TODO: update the natspec
+    ///@param orderIdBundles - Array of orderIds that will be executed.
+
     ///@param fillAmounts - Array of quantities representing the quantity to be filled.
     ///@param transferAddresses - Array of addresses specifying where to transfer each order quantity at the corresponding index in the array.
     ///@param calls - Array of Call, specifying the address to call and the calldata to execute within the targetAddress context.
     struct SandboxMulticall {
-        bytes32[] orderIds;
+        bytes32[][] orderIdBundles;
         uint128[] fillAmounts;
         address[] transferAddresses;
         Call[] calls;
@@ -44,10 +47,10 @@ contract SandboxRouter {
 
     ///@notice Constructor for the sandbox router contract.
     ///@param _limitOrderExecutor - The LimitOrderExecutor contract address.
-    ///@param _limitOrderRouter - The LimitOrderRouter contract address.
-    constructor(address _limitOrderExecutor, address _limitOrderRouter) {
+    ///@param _sandboxLimitOrderBook - The SandboxLimitOrderBook contract address.
+    constructor(address _limitOrderExecutor, address _sandboxLimitOrderBook) {
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
-        LIMIT_ORDER_ROUTER = _limitOrderRouter;
+        SANDBOX_LIMIT_ORDER_BOOK = _sandboxLimitOrderBook;
     }
 
     ///@notice Function to execute multiple OrderGroups
@@ -55,9 +58,8 @@ contract SandboxRouter {
     function executeSandboxMulticall(SandboxMulticall calldata sandboxMultiCall)
         external
     {
-        ILimitOrderRouter(LIMIT_ORDER_ROUTER).executeOrdersViaSandboxMulticall(
-            sandboxMultiCall
-        );
+        ISandboxLimitOrderBook(SANDBOX_LIMIT_ORDER_BOOK)
+            .executeOrdersViaSandboxMulticall(sandboxMultiCall);
     }
 
     ///@notice Callback function that executes a sandbox multicall and is only accessible by the limitOrderExecutor.
@@ -82,6 +84,7 @@ contract SandboxRouter {
         }
     }
 
+    //TODO: need to check the pool address @leyton
     ///@notice Uniswap V3 callback function called during a swap on a v3 liqudity pool.
     ///@param amount0Delta - The change in token0 reserves from the swap.
     ///@param amount1Delta - The change in token1 reserves from the swap.

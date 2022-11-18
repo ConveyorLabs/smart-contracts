@@ -14,7 +14,7 @@ import "../SwapRouter.sol";
 import "./utils/ScriptRunner.sol";
 import "../../lib/libraries/Uniswap/LowGasSafeMath.sol";
 import "../../lib/libraries/Uniswap/FullMath.sol";
-import "../OrderBook.sol";
+import "../LimitOrderBook.sol";
 import "../LimitOrderQuoter.sol";
 import "../LimitOrderExecutor.sol";
 
@@ -439,9 +439,9 @@ contract SwapRouterTest is DSTest {
         uint16 feeOut,
         uint32 lastRefreshTimestamp,
         uint32 expirationTimestamp
-    ) internal view returns (OrderBook.LimitOrder memory order) {
+    ) internal view returns (LimitOrderBook.LimitOrder memory order) {
         //Initialize mock order
-        order = OrderBook.LimitOrder({
+        order = LimitOrderBook.LimitOrder({
             stoploss: false,
             buy: buy,
             taxed: taxed,
