@@ -23,9 +23,6 @@ contract LimitOrderBook {
     ///@notice The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut
     uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
 
-    ///@notice Mapping to hold gas credit balances for accounts.
-    mapping(address => uint256) public gasCreditBalance;
-
     address immutable WETH;
     address immutable USDC;
 

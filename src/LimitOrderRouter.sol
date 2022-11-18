@@ -10,9 +10,6 @@ import "./interfaces/ILimitOrderQuoter.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./interfaces/ILimitOrderRouter.sol";
 
-//TODO: delete this
-import "./test/utils/Console.sol";
-
 /// @title LimitOrderRouter
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the LimitOrderBook contract.
@@ -241,7 +238,7 @@ contract LimitOrderRouter is LimitOrderBook {
             ///@notice Decrement from the order owner's gas credit balance.
             ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
                 order.owner,
-                gasCreditBalance[order.owner] - executorFee
+                orderOwnerGasCreditBalance - executorFee
             );
         } else {
             ///@notice Otherwise, decrement the entire gas credit balance.

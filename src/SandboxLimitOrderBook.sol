@@ -27,10 +27,6 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
     ///@notice The execution cost of fufilling a SandboxLimitOrder with a standard ERC20 swap from tokenIn to tokenOut
     uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 
-    //TODO: Move this to the limit order executor and keep it in one place
-    ///@notice Mapping to hold gas credit balances for accounts.
-    mapping(address => uint256) public gasCreditBalance;
-
     address immutable WETH;
     address immutable USDC;
 
@@ -237,7 +233,6 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         );
 
         ///@notice Decrement gas credit balances for each order owner
-        ///TODO: This function should be in the limit order executor
         uint256 executionGasCompensation = calculateExecutionGasCompensation(
             getGasPrice(),
             preSandboxExecutionState.orderOwners,
@@ -329,7 +324,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
             ///@notice Decrement from the order owner's gas credit balance.
             ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
                 order.owner,
-                gasCreditBalance[order.owner] - executorFee
+                orderOwnerGasCreditBalance - executorFee
             );
         } else {
             ///@notice Otherwise, decrement the entire gas credit balance.
@@ -1099,7 +1094,11 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         }
 
         ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
-        if (gasCreditBalance[order.owner] < REFRESH_FEE) {
+        if (
+            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).gasCreditBalance(
+                order.owner
+            ) < REFRESH_FEE
+        ) {
             return _cancelSandboxLimitOrderViaExecutor(order);
         }
 
