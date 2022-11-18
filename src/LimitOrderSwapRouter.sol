@@ -18,12 +18,12 @@ import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/token/SafeERC20.sol";
 import "./ConveyorErrors.sol";
-import "./interfaces/ISwapRouter.sol";
+import "./interfaces/ILimitOrderSwapRouter.sol";
 
-/// @title SwapRouter
+/// @title LimitOrderSwapRouter
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Dex aggregator that executes standalone swaps, and fulfills limit orders during execution.
-contract SwapRouter is ConveyorTickMath {
+contract LimitOrderSwapRouter is ConveyorTickMath {
     using SafeERC20 for IERC20;
     //----------------------Structs------------------------------------//
 
@@ -773,6 +773,24 @@ contract SwapRouter is ConveyorTickMath {
             SpotReserve[] memory _spotPrices = new SpotReserve[](dexes.length);
             address[] memory _lps = new address[](dexes.length);
             return (_spotPrices, _lps);
+        }
+    }
+
+    function sandboxSwap(
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        bytes calldata data
+    ) public {
+        uint256 tokenOutBalance = IERC20(tokenOut).balanceOf(msg.sender);
+        uint256 tokenOutAmountRequired = tokenOutBalance + amountOutMin;
+
+        if (IERC20(tokenOut).balanceOf(msg.sender) < tokenOutAmountRequired) {
+            revert InsufficientOutputAmount(
+                tokenOutAmountRequired - IERC20(tokenOut).balanceOf(msg.sender),
+                amountOutMin
+            );
         }
     }
 }

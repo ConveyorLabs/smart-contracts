@@ -2021,7 +2021,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
     }
 }
 
-//wrapper around SwapRouter to expose internal functions for testing
+//wrapper around LimitOrderSwapRouter to expose internal functions for testing
 contract LimitOrderExecutorWrapper is LimitOrderExecutor {
     constructor(
         address _weth,

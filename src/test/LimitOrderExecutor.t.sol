@@ -253,7 +253,7 @@ contract LimitOrderExecutorTest is DSTest {
             IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
 
             ///@notice Get the spot price of DAI/WETH
-            (SwapRouter.SpotReserve memory spRes, ) = limitOrderExecutor
+            (LimitOrderSwapRouter.SpotReserve memory spRes, ) = limitOrderExecutor
                 .calculateV3SpotPrice(
                     DAI,
                     WETH,
@@ -429,7 +429,7 @@ contract LimitOrderExecutorTest is DSTest {
             swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
             IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
             ///@notice Get the spot price of DAI/WETH
-            (SwapRouter.SpotReserve memory spRes, ) = limitOrderExecutor
+            (LimitOrderSwapRouter.SpotReserve memory spRes, ) = limitOrderExecutor
                 .calculateV3SpotPrice(
                     DAI,
                     UNI,
@@ -605,7 +605,7 @@ contract LimitOrderExecutorTest is DSTest {
             IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
 
             ///@notice Get the spot price of DAI/WETH
-            (SwapRouter.SpotReserve memory spRes, ) = limitOrderExecutor
+            (LimitOrderSwapRouter.SpotReserve memory spRes, ) = limitOrderExecutor
                 .calculateV2SpotPrice(
                     WETH,
                     TAXED_TOKEN,
@@ -2973,7 +2973,7 @@ contract LimitOrderExecutorTest is DSTest {
     }
 }
 
-//wrapper around SwapRouter to expose internal functions for testing
+//wrapper around LimitOrderSwapRouter to expose internal functions for testing
 contract LimitOrderExecutorWrapper is LimitOrderExecutor {
     constructor(
         address _weth,

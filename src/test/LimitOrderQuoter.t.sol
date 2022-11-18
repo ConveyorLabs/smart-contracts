@@ -33,7 +33,7 @@ contract LimitOrderQuoterTest is DSTest {
     LimitOrderRouter limitOrderRouter;
     ExecutionWrapper limitOrderQuoter;
 
-    SwapRouter orderRouter;
+    LimitOrderSwapRouter orderRouter;
     //Initialize OrderBook
     LimitOrderBook orderBook;
     IQuoter iQuoter;
@@ -118,8 +118,8 @@ contract LimitOrderQuoterTest is DSTest {
         decimals[0] = 18;
         decimals[1] = 18;
 
-        SwapRouter.TokenToTokenExecutionPrice
-            memory tokenToTokenExecutionPrice = SwapRouter
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice = LimitOrderSwapRouter
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
@@ -130,8 +130,8 @@ contract LimitOrderQuoterTest is DSTest {
                     lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
                 });
 
-        SwapRouter.TokenToTokenExecutionPrice
-            memory tokenToTokenExecutionPrice1 = SwapRouter
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice1 = LimitOrderSwapRouter
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
@@ -142,8 +142,8 @@ contract LimitOrderQuoterTest is DSTest {
                     lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
                 });
 
-        SwapRouter.TokenToTokenExecutionPrice[]
-            memory executionPrices = new SwapRouter.TokenToTokenExecutionPrice[](
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice[]
+            memory executionPrices = new LimitOrderSwapRouter.TokenToTokenExecutionPrice[](
                 2
             );
         executionPrices[0] = tokenToTokenExecutionPrice;
@@ -325,8 +325,8 @@ contract LimitOrderQuoterTest is DSTest {
         decimals[0] = 18;
         decimals[1] = 18;
         //Weth/Uni
-        SwapRouter.TokenToTokenExecutionPrice
-            memory tokenToTokenExecutionPrice = SwapRouter
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice = LimitOrderSwapRouter
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
@@ -352,8 +352,8 @@ contract LimitOrderQuoterTest is DSTest {
         decimals[0] = 18;
         decimals[1] = 18;
         //Weth/Uni
-        SwapRouter.TokenToTokenExecutionPrice
-            memory tokenToTokenExecutionPrice = SwapRouter
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice = LimitOrderSwapRouter
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
@@ -437,7 +437,7 @@ contract ExecutionWrapper is LimitOrderQuoter {
 
     function simulateAToWethPriceChange(
         uint128 alphaX,
-        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice memory executionPrice
     )
         public
         returns (
@@ -452,7 +452,7 @@ contract ExecutionWrapper is LimitOrderQuoter {
 
     function simulateWethToBPriceChange(
         uint128 alphaX,
-        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice memory executionPrice
     )
         public
         returns (

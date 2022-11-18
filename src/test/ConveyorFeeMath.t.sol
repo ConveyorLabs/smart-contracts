@@ -10,7 +10,7 @@ import "../../lib/interfaces/uniswap-v3/ISwapRouter.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
-import "../SwapRouter.sol";
+import "../LimitOrderSwapRouter.sol";
 import "./utils/ScriptRunner.sol";
 import "../../lib/libraries/Uniswap/LowGasSafeMath.sol";
 import "../../lib/libraries/Uniswap/FullMath.sol";
@@ -175,13 +175,13 @@ contract ConveyorFeeMathTest is DSTest {
     }
 }
 
-//wrapper around SwapRouter to expose internal functions for testing
-contract LimitOrderExecutorWrapper is SwapRouter {
+//wrapper around LimitOrderSwapRouter to expose internal functions for testing
+contract LimitOrderExecutorWrapper is LimitOrderSwapRouter {
     constructor(
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2
-    ) SwapRouter(_initBytecodes, _dexFactories, _isUniV2) {}
+    ) LimitOrderSwapRouter(_initBytecodes, _dexFactories, _isUniV2) {}
 
     function getV3PoolFee(address pairAddress)
         public

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import "./SwapRouter.sol";
+import "./LimitOrderSwapRouter.sol";
 import "./lib/ConveyorTickMath.sol";
 
 /// @title LimitOrderExecutor
@@ -49,7 +49,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
     ///@return bestPriceIndex - Index of the best price in the executionPrices array.
     function _findBestTokenToWethExecutionPrice(
-        SwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
+        LimitOrderSwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex) {
         ///@notice If the order is a buy order, set the initial best price at 0.
@@ -94,7 +94,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
     ///@return bestPriceIndex - Index of the best price in the executionPrices array.
     function _findBestTokenToTokenExecutionPrice(
-        SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex) {
         ///@notice If the order is a buy order, set the initial best price at type(uint256).max.
@@ -132,12 +132,12 @@ contract LimitOrderQuoter is ConveyorTickMath {
 
     ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
     function _initializeTokenToWethExecutionPrices(
-        SwapRouter.SpotReserve[] memory spotReserveAToWeth,
+        LimitOrderSwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth
-    ) external pure returns (SwapRouter.TokenToWethExecutionPrice[] memory) {
+    ) external pure returns (LimitOrderSwapRouter.TokenToWethExecutionPrice[] memory) {
         ///@notice Initialize a new TokenToWethExecutionPrice array to store prices.
-        SwapRouter.TokenToWethExecutionPrice[]
-            memory executionPrices = new SwapRouter.TokenToWethExecutionPrice[](
+        LimitOrderSwapRouter.TokenToWethExecutionPrice[]
+            memory executionPrices = new LimitOrderSwapRouter.TokenToWethExecutionPrice[](
                 spotReserveAToWeth.length
             );
 
@@ -145,7 +145,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
         {
             ///@notice For each spot reserve, initialize a token to weth execution price.
             for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
-                executionPrices[i] = SwapRouter.TokenToWethExecutionPrice(
+                executionPrices[i] = LimitOrderSwapRouter.TokenToWethExecutionPrice(
                     spotReserveAToWeth[i].res0,
                     spotReserveAToWeth[i].res1,
                     spotReserveAToWeth[i].spotPrice,
@@ -160,14 +160,14 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
     function _initializeTokenToTokenExecutionPrices(
         address tokenIn,
-        SwapRouter.SpotReserve[] memory spotReserveAToWeth,
+        LimitOrderSwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth,
-        SwapRouter.SpotReserve[] memory spotReserveWethToB,
+        LimitOrderSwapRouter.SpotReserve[] memory spotReserveWethToB,
         address[] memory lpAddressWethToB
-    ) external view returns (SwapRouter.TokenToTokenExecutionPrice[] memory) {
+    ) external view returns (LimitOrderSwapRouter.TokenToTokenExecutionPrice[] memory) {
         ///@notice Initialize a new TokenToTokenExecutionPrice array to store prices.
-        SwapRouter.TokenToTokenExecutionPrice[]
-            memory executionPrices = new SwapRouter.TokenToTokenExecutionPrice[](
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice[]
+            memory executionPrices = new LimitOrderSwapRouter.TokenToTokenExecutionPrice[](
                 spotReserveAToWeth.length * spotReserveWethToB.length
             );
 
@@ -176,7 +176,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
             ///@notice Iterate through each SpotReserve on Weth to TokenB
             for (uint256 i = 0; i < spotReserveWethToB.length; ++i) {
                 ///@notice Then set res0, and res1 for tokenInToWeth to 0 and lpAddressAToWeth to the 0 address
-                executionPrices[i] = SwapRouter.TokenToTokenExecutionPrice(
+                executionPrices[i] = LimitOrderSwapRouter.TokenToTokenExecutionPrice(
                     0,
                     0,
                     spotReserveWethToB[i].res0,
@@ -202,7 +202,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
                     ) << 64;
 
                     ///@notice Set the executionPrices at index to TokenToTokenExecutionPrice
-                    executionPrices[index] = SwapRouter
+                    executionPrices[index] = LimitOrderSwapRouter
                         .TokenToTokenExecutionPrice(
                             spotReserveAToWeth[i].res0,
                             spotReserveAToWeth[i].res1,
@@ -238,8 +238,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
     function simulateTokenToTokenPriceChange(
         uint128 alphaX,
-        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
-    ) external returns (SwapRouter.TokenToTokenExecutionPrice memory) {
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice memory executionPrice
+    ) external returns (LimitOrderSwapRouter.TokenToTokenExecutionPrice memory) {
         ///@notice Check if the reserves are set to 0. This indicates if the tokenPair is Weth to TokenOut if true.
         if (
             executionPrice.aToWethReserve0 != 0 &&
@@ -295,8 +295,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
     function _simulateTokenToTokenPriceChange(
         uint128 alphaX,
-        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
-    ) internal returns (SwapRouter.TokenToTokenExecutionPrice memory) {
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice memory executionPrice
+    ) internal returns (LimitOrderSwapRouter.TokenToTokenExecutionPrice memory) {
         ///@notice Retrive the new simulated spot price, reserve values, and amount out on the TokenIn To Weth pool
         (
             uint256 newSpotPriceA,
@@ -337,7 +337,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
     function _simulateAToWethPriceChange(
         uint128 alphaX,
-        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice memory executionPrice
     )
         internal
         returns (
@@ -372,8 +372,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
     function _simulateWethToTokenPriceChange(
         uint128 alphaX,
-        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
-    ) internal returns (SwapRouter.TokenToTokenExecutionPrice memory) {
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice memory executionPrice
+    ) internal returns (LimitOrderSwapRouter.TokenToTokenExecutionPrice memory) {
         ///@notice Cache the Weth and TokenOut reserves
         uint128 reserveBWeth = executionPrice.wethToBReserve0;
         uint128 reserveBToken = executionPrice.wethToBReserve1;
@@ -410,7 +410,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
     function _simulateWethToBPriceChange(
         uint128 alphaX,
-        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice memory executionPrice
     )
         internal
         returns (
@@ -542,8 +542,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param executionPrice The TokenToWethExecutionPrice to simulate the price change on.
     function simulateTokenToWethPriceChange(
         uint128 alphaX,
-        SwapRouter.TokenToWethExecutionPrice memory executionPrice
-    ) external returns (SwapRouter.TokenToWethExecutionPrice memory) {
+        LimitOrderSwapRouter.TokenToWethExecutionPrice memory executionPrice
+    ) external returns (LimitOrderSwapRouter.TokenToWethExecutionPrice memory) {
         ///@notice Cache the liquidity pool address
         address pool = executionPrice.lpAddressAToWeth;
 
