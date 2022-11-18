@@ -5,6 +5,7 @@ import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Utils.sol";
 import "../LimitOrderBook.sol";
+import "../interfaces/ILimitOrderBook.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
@@ -32,7 +33,7 @@ contract LimitOrderBookTest is DSTest {
     LimitOrderQuoter limitOrderQuoter;
     Swap swapHelper;
 
-    LimitOrderRouterWrapper orderBook;
+    ILimitOrderBook orderBook;
 
     event OrderPlaced(bytes32[] orderIds);
     event OrderCanceled(bytes32[] orderIds);
@@ -41,7 +42,7 @@ contract LimitOrderBookTest is DSTest {
     //----------------State variables for testing--------------------
     ///@notice initialize swap helper
     address uniV2Addr = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    address wnato = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     address swapToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
     address swapToken1 = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
@@ -70,7 +71,7 @@ contract LimitOrderBookTest is DSTest {
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
 
-        swapHelper = new Swap(_sushiSwapRouterAddress, wnato);
+        swapHelper = new Swap(_sushiSwapRouterAddress, WETH);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         limitOrderQuoter = new LimitOrderQuoter(
@@ -90,20 +91,14 @@ contract LimitOrderBookTest is DSTest {
         );
 
         //Wrapper contract to test internal functions
-        orderBook = new LimitOrderRouterWrapper(
-            aggregatorV3Address,
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
-            address(limitOrderExecutor),
-            300000,
-            250000
-        );
+        orderBook = ILimitOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
+
         cheatCodes.deal(address(this), type(uint128).max);
         depositGasCreditsForMockOrders(type(uint64).max);
     }
 
     ///@notice Test get order by id
-    function testgetLimitOrderById() public {
+    function testGetLimitOrderById() public {
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
         swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
@@ -111,7 +106,7 @@ contract LimitOrderBookTest is DSTest {
         //create a new order
         LimitOrderBook.LimitOrder memory order = newOrder(
             swapToken,
-            wnato,
+            WETH,
             245000000000000000000,
             5,
             5
@@ -120,7 +115,7 @@ contract LimitOrderBookTest is DSTest {
         bytes32 orderId = placeMockOrder(order);
 
         LimitOrderBook.LimitOrder memory returnedOrder = orderBook
-            ._getLimitOrderById(orderId);
+            .getLimitOrderById(orderId);
         (orderId);
 
         // assert that the two orders are the same
@@ -132,21 +127,8 @@ contract LimitOrderBookTest is DSTest {
     }
 
     ///@notice Test fail get order by id order does not exist
-    function testFailgetLimitOrderById_OrderDoesNotExist() public {
-        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
-
-        //create a new order
-        LimitOrderBook.LimitOrder memory order = newOrder(
-            swapToken,
-            wnato,
-            245000000000000000000,
-            5,
-            5
-        );
-        //place a mock order
-        placeMockOrder(order);
-
-        orderBook._getLimitOrderById(bytes32(0));
+    function testFailGetLimitOrderById_OrderDoesNotExist() public view {
+        orderBook.getLimitOrderById(bytes32(0));
     }
 
     ///@notice Test palce order fuzz test
@@ -160,7 +142,7 @@ contract LimitOrderBookTest is DSTest {
         ) {
             LimitOrderBook.LimitOrder memory order = newOrder(
                 swapToken,
-                wnato,
+                WETH,
                 uint128(executionPrice),
                 uint112(amountOut),
                 uint112(amountOut)
@@ -202,11 +184,11 @@ contract LimitOrderBookTest is DSTest {
 
         ///@notice Place orders
         bytes32 orderId1 = placeMockOrder(
-            newOrder(swapToken, wnato, uint128(1), uint112(1), uint112(1))
+            newOrder(swapToken, WETH, uint128(1), uint112(1), uint112(1))
         );
 
         bytes32 orderId2 = placeMockOrder(
-            newOrder(swapToken, wnato, uint128(1), uint112(1), uint112(1))
+            newOrder(swapToken, WETH, uint128(1), uint112(1), uint112(1))
         );
 
         orderBook.cancelOrder(orderId2);
@@ -247,7 +229,7 @@ contract LimitOrderBookTest is DSTest {
         ) {
             LimitOrderBook.LimitOrder memory order = newOrder(
                 swapToken,
-                wnato,
+                WETH,
                 uint128(executionPrice),
                 uint128(amountOut),
                 uint128(amountOut)
@@ -285,7 +267,7 @@ contract LimitOrderBookTest is DSTest {
 
         LimitOrderBook.LimitOrder memory order = newOrder(
             swapToken,
-            wnato,
+            WETH,
             245000000000000000000,
             5,
             5
@@ -318,7 +300,7 @@ contract LimitOrderBookTest is DSTest {
         ) {
             LimitOrderBook.LimitOrder memory order1 = newOrder(
                 swapToken,
-                wnato,
+                WETH,
                 uint128(executionPrice),
                 uint128(amountOut),
                 uint128(amountOut)
@@ -329,7 +311,7 @@ contract LimitOrderBookTest is DSTest {
             returns (uint256 amountOut1) {
                 LimitOrderBook.LimitOrder memory order2 = newOrder(
                     swapToken1,
-                    wnato,
+                    WETH,
                     uint128(executionPrice1),
                     uint112(amountOut1),
                     uint112(amountOut1)
@@ -376,7 +358,7 @@ contract LimitOrderBookTest is DSTest {
             //create a new order
             LimitOrderBook.LimitOrder memory order = newOrder(
                 swapToken,
-                wnato,
+                WETH,
                 price,
                 quantity,
                 amountOutMin
@@ -389,7 +371,7 @@ contract LimitOrderBookTest is DSTest {
             orderBook.updateOrder(orderId, newPrice, newQuantity);
 
             LimitOrderBook.LimitOrder memory updatedOrder = orderBook
-                ._getLimitOrderById(orderId);
+                .getLimitOrderById(orderId);
 
             //Cache the total orders value after the update
             uint256 totalOrdersValueAfter = orderBook.getTotalOrdersValue(
@@ -419,7 +401,7 @@ contract LimitOrderBookTest is DSTest {
         //create a new order
         LimitOrderBook.LimitOrder memory order = newOrder(
             swapToken,
-            wnato,
+            WETH,
             price,
             quantity,
             amountOutMin
@@ -446,7 +428,7 @@ contract LimitOrderBookTest is DSTest {
             //create a new order
             LimitOrderBook.LimitOrder memory order = newOrder(
                 swapToken,
-                wnato,
+                WETH,
                 uint128(amountOut),
                 uint128(executionPrice),
                 uint128(executionPrice)
@@ -472,7 +454,7 @@ contract LimitOrderBookTest is DSTest {
         //create a new order
         LimitOrderBook.LimitOrder memory order = newOrder(
             swapToken,
-            wnato,
+            WETH,
             uint128(amountOut),
             uint128(1),
             uint128(1)
@@ -501,7 +483,7 @@ contract LimitOrderBookTest is DSTest {
         //Create a new order
         LimitOrderBook.LimitOrder memory order1 = newOrder(
             swapToken,
-            wnato,
+            WETH,
             uint128(amountOut / 2),
             uint128(1),
             uint128(1)
@@ -509,7 +491,7 @@ contract LimitOrderBookTest is DSTest {
         //Create a second order
         LimitOrderBook.LimitOrder memory order2 = newOrder(
             swapToken,
-            wnato,
+            WETH,
             uint128((amountOut / 2) - 1),
             uint128(1),
             uint128(1)
@@ -551,7 +533,7 @@ contract LimitOrderBookTest is DSTest {
         //create a new order
         LimitOrderBook.LimitOrder memory order = newOrder(
             swapToken,
-            wnato,
+            WETH,
             245000000000000000000,
             5,
             5
@@ -616,38 +598,5 @@ contract LimitOrderBookTest is DSTest {
         }(abi.encodeWithSignature("depositGasCredits()"));
 
         require(depositSuccess, "error when depositing gas credits");
-    }
-}
-
-///@notice wrapper around the LimitOrderBook contract to expose internal functions for testing
-contract LimitOrderRouterWrapper is LimitOrderRouter {
-    constructor(
-        address _gasOracle,
-        address _limitOrderExecutor,
-        address _weth,
-        address _usdc,
-        uint256 _limitOrderExecutionGasCost,
-        uint256 _sandboxLimitOrderExecutionGasCost
-    )
-        LimitOrderRouter(
-            _gasOracle,
-            _limitOrderExecutor,
-            _weth,
-            _usdc,
-            _limitOrderExecutionGasCost,
-            _sandboxLimitOrderExecutionGasCost
-        )
-    {}
-
-    function _getLimitOrderById(bytes32 orderId)
-        public
-        view
-        returns (LimitOrderBook.LimitOrder memory)
-    {
-        return getLimitOrderById(orderId);
-    }
-
-    function getTotalOrdersValue(address token) public view returns (uint256) {
-        return _getTotalOrdersValue(token);
     }
 }

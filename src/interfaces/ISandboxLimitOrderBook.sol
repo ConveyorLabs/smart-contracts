@@ -31,6 +31,20 @@ interface ISandboxLimitOrderBook {
         uint128 amountOutRemaining
     ) external;
 
+    function validateAndCancelOrder(bytes32 orderId) external returns (bool);
+
+    function getAllOrderIdsLength(address owner)
+        external
+        view
+        returns (uint256);
+
+    function getOrderIds(
+        address owner,
+        SandboxLimitOrderBook.OrderType targetOrderType,
+        uint256 orderOffset,
+        uint256 length
+    ) external view returns (bytes32[] memory);
+
     function addressToOrderIds(address owner, bytes32 orderId)
         external
         view

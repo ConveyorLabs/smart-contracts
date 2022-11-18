@@ -3,20 +3,19 @@ pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
-import "./interfaces/IOrderBook.sol";
+import "./interfaces/ILimitOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./test/utils/Console.sol";
 import "./SandboxLimitOrderRouter.sol";
-import "./GasOracle.sol";
+import "./ConveyorGasOracle.sol";
 
 /// @title SandboxLimitOrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
 
-//TODO: need to separate gas oracle
-contract SandboxLimitOrderBook is GasOracle {
+contract SandboxLimitOrderBook is ConveyorGasOracle {
     address immutable LIMIT_ORDER_EXECUTOR;
     address public immutable SANDBOX_LIMIT_ORDER_ROUTER;
 
@@ -28,15 +27,13 @@ contract SandboxLimitOrderBook is GasOracle {
     ///@notice The execution cost of fufilling a SandboxLimitOrder with a standard ERC20 swap from tokenIn to tokenOut
     uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 
-    //TODO: Move this to the limit order executor and keep it in one place
-    ///@notice Mapping to hold gas credit balances for accounts.
-    mapping(address => uint256) public gasCreditBalance;
-
     address immutable WETH;
     address immutable USDC;
 
     ///@notice Interval that determines when an order is eligible for refresh. The interval is set to 30 days represented in Unix time.
     uint256 constant REFRESH_INTERVAL = 2592000;
+
+    uint256 constant MIN_ORDER_VALUE_IN_WETH = 10e15;
 
     ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
     ///@notice The refresh fee is 0.02 ETH
@@ -72,7 +69,7 @@ contract SandboxLimitOrderBook is GasOracle {
         address _weth,
         address _usdc,
         uint256 _sandboxLimitOrderExecutionGasCost
-    ) GasOracle(_conveyorGasOracle) {
+    ) ConveyorGasOracle(_conveyorGasOracle) {
         require(
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"
@@ -205,7 +202,12 @@ contract SandboxLimitOrderBook is GasOracle {
         view
         returns (SandboxLimitOrder memory)
     {
-        return orderIdToSandboxLimitOrder[orderId];
+        SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
+        if (order.orderId == bytes32(0)) {
+            revert OrderDoesNotExist(orderId);
+        }
+
+        return order;
     }
 
     ///@notice
@@ -243,7 +245,6 @@ contract SandboxLimitOrderBook is GasOracle {
         );
 
         ///@notice Decrement gas credit balances for each order owner
-        ///TODO: This function should be in the limit order executor
         uint256 executionGasCompensation = calculateExecutionGasCompensation(
             getGasPrice(),
             preSandboxExecutionState.orderOwners,
@@ -251,7 +252,6 @@ contract SandboxLimitOrderBook is GasOracle {
         );
 
         ///@notice Transfer the reward to the off-chain executor.
-        ///TODO: This should be transferred from the limit order executor contract.
         ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
             tx.origin,
             executionGasCompensation
@@ -292,9 +292,6 @@ contract SandboxLimitOrderBook is GasOracle {
         returns (bool success)
     {
         SandboxLimitOrder memory order = getSandboxLimitOrderById(orderId);
-        if (order.orderId == bytes32(0)) {
-            revert OrderDoesNotExist(orderId);
-        }
 
         ///@notice If the order owner does not have min gas credits, cancel the order
         if (
@@ -330,6 +327,9 @@ contract SandboxLimitOrderBook is GasOracle {
         ///@notice Remove the order from the limit order system.
         _removeOrderFromSystem(order.orderId);
 
+        addressToOrderIds[msg.sender][order.orderId] = OrderType
+            .CanceledSandboxLimitOrder;
+
         uint256 orderOwnerGasCreditBalance = ILimitOrderExecutor(
             LIMIT_ORDER_EXECUTOR
         ).gasCreditBalance(order.owner);
@@ -339,7 +339,7 @@ contract SandboxLimitOrderBook is GasOracle {
             ///@notice Decrement from the order owner's gas credit balance.
             ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
                 order.owner,
-                gasCreditBalance[order.owner] - executorFee
+                orderOwnerGasCreditBalance - executorFee
             );
         } else {
             ///@notice Otherwise, decrement the entire gas credit balance.
@@ -849,6 +849,11 @@ contract SandboxLimitOrderBook is GasOracle {
                 } else {
                     relativeWethValue = newOrder.amountInRemaining;
                 }
+
+                if (relativeWethValue < MIN_ORDER_VALUE_IN_WETH) {
+                    revert InsufficientOrderInputValue();
+                }
+
                 ///@notice Set the minimum fee to the fee*wethValue*subsidy.
                 uint128 minFeeReceived = uint128(
                     ConveyorMath.mul64U(
@@ -1107,10 +1112,6 @@ contract SandboxLimitOrderBook is GasOracle {
             ///@notice Cache the order in memory.
             SandboxLimitOrder memory order = getSandboxLimitOrderById(orderId);
 
-            if (order.orderId == bytes32(0)) {
-                revert OrderDoesNotExist(orderId);
-            }
-
             totalRefreshFees += _refreshSandboxLimitOrder(order);
 
             unchecked {
@@ -1138,7 +1139,11 @@ contract SandboxLimitOrderBook is GasOracle {
         }
 
         ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
-        if (gasCreditBalance[order.owner] < REFRESH_FEE) {
+        if (
+            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).gasCreditBalance(
+                order.owner
+            ) < REFRESH_FEE
+        ) {
             return _cancelSandboxLimitOrderViaExecutor(order);
         }
 
@@ -1319,6 +1324,10 @@ contract SandboxLimitOrderBook is GasOracle {
     ) internal {
         bytes32 totalOrdersValueKey = keccak256(abi.encode(owner, token));
         totalOrdersQuantity[totalOrdersValueKey] = newQuantity;
+    }
+
+    function getAllOrderIdsLength(address owner) public view returns (uint256) {
+        return addressToAllOrderIds[owner].length;
     }
 
     ///@notice Get all of the order Ids matching the targetOrderType for a given address
