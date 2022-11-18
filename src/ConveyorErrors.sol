@@ -12,6 +12,8 @@ error InsufficientWalletBalance(
     uint256 balanceNeeded
 );
 error OrderDoesNotExist(bytes32 orderId);
+error OrderQuantityIsZero();
+error InsufficientOrderInputValue();
 error IncongruentInputTokenInOrderGroup(address token, address expectedToken);
 error TokenInIsTokenOut();
 error IncongruentOutputTokenInOrderGroup(address token, address expectedToken);

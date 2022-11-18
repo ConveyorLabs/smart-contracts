@@ -8,7 +8,7 @@ import "./LimitOrderRouter.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./interfaces/ISandboxLimitOrderRouter.sol";
 import "./interfaces/ISandboxLimitOrderBook.sol";
-import "./interfaces/IOrderBook.sol";
+import "./interfaces/ILimitOrderBook.sol";
 
 /// @title LimitOrderExecutor
 /// @author 0xOsiris, 0xKitsune
@@ -121,7 +121,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@param _deploymentByteCodes The deployment bytecodes of all dex factory contracts.
     ///@param _dexFactories The Dex factory addresses.
     ///@param _isUniV2 Array of booleans indication whether the Dex is V2 architecture.
-    ///@param _gasOracle Address for the chainlink fast gas oracle.
+    ///@param _chainLinkGasOracle Address for the chainlink fast gas oracle.
     constructor(
         address _weth,
         address _usdc,
@@ -129,11 +129,14 @@ contract LimitOrderExecutor is SwapRouter {
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
-        address _gasOracle,
+        address _chainLinkGasOracle,
         uint256 _limitOrderExecutionGasCost,
         uint256 _sandboxLimitOrderExecutionGasCost
     ) SwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
-        require(_gasOracle != address(0), "Invalid gas oracle address");
+        require(
+            _chainLinkGasOracle != address(0),
+            "Invalid gas oracle address"
+        );
         require(_weth != address(0), "Invalid weth address");
         require(_usdc != address(0), "Invalid usdc address");
         require(
@@ -147,9 +150,24 @@ contract LimitOrderExecutor is SwapRouter {
         LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
         SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
 
+        SANDBOX_LIMIT_ORDER_BOOK = address(
+            new SandboxLimitOrderBook(
+                _chainLinkGasOracle,
+                address(this),
+                _weth,
+                _usdc,
+                _sandboxLimitOrderExecutionGasCost
+            )
+        );
+
+        ///@notice Assign the SANDBOX_LIMIT_ORDER_ROUTER address
+        SANDBOX_LIMIT_ORDER_ROUTER = ISandboxLimitOrderBook(
+            SANDBOX_LIMIT_ORDER_BOOK
+        ).getSandboxLimitOrderRouterAddress();
+
         LIMIT_ORDER_ROUTER = address(
             new LimitOrderRouter(
-                _gasOracle,
+                SANDBOX_LIMIT_ORDER_BOOK, ///@notice The SandboxLimitOrderBook inherits the conveyor gas oracle.
                 _weth,
                 _usdc,
                 address(this),
@@ -157,22 +175,6 @@ contract LimitOrderExecutor is SwapRouter {
                 _sandboxLimitOrderExecutionGasCost
             )
         );
-
-        address sandboxLimitOrderBook = address(
-            new SandboxLimitOrderBook(
-                _gasOracle,
-                address(this),
-                _weth,
-                _usdc,
-                _sandboxLimitOrderExecutionGasCost
-            )
-        );
-        SANDBOX_LIMIT_ORDER_BOOK = sandboxLimitOrderBook;
-
-        ///@notice Assign the SANDBOX_LIMIT_ORDER_ROUTER address
-        SANDBOX_LIMIT_ORDER_ROUTER = ISandboxLimitOrderBook(
-            SANDBOX_LIMIT_ORDER_BOOK
-        ).getSandboxLimitOrderRouterAddress();
 
         ///@notice assign the owner address
         owner = msg.sender;
@@ -226,7 +228,8 @@ contract LimitOrderExecutor is SwapRouter {
         }
 
         ///@notice Get the current gas price from the v3 Aggregator.
-        uint256 gasPrice = IOrderBook(LIMIT_ORDER_ROUTER).getGasPrice();
+        uint256 gasPrice = ILimitOrderBook(SANDBOX_LIMIT_ORDER_BOOK)
+            .getGasPrice();
 
         ///@notice Require that account has enough gas for order execution after the gas credit withdrawal.
         if (
@@ -288,7 +291,7 @@ contract LimitOrderExecutor is SwapRouter {
         uint256 multiplier
     ) internal view returns (uint256 minGasCredits) {
         ///@notice Get the total amount of active orders for the userAddress
-        uint256 totalLimitOrdersCount = IOrderBook(LIMIT_ORDER_ROUTER)
+        uint256 totalLimitOrdersCount = ILimitOrderBook(LIMIT_ORDER_ROUTER)
             .totalOrdersPerAddress(userAddress);
 
         uint256 totalSandboxLimitOrdersCound = ISandboxLimitOrderBook(
@@ -489,11 +492,9 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
-    function executeTokenToTokenOrders(LimitOrderBook.LimitOrder[] memory orders)
-        external
-        onlyLimitOrderRouter
-        returns (uint256, uint256)
-    {
+    function executeTokenToTokenOrders(
+        LimitOrderBook.LimitOrder[] memory orders
+    ) external onlyLimitOrderRouter returns (uint256, uint256) {
         TokenToTokenExecutionPrice[] memory executionPrices;
         address tokenIn = orders[0].tokenIn;
 
