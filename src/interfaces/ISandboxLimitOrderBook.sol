@@ -31,6 +31,8 @@ interface ISandboxLimitOrderBook {
         uint128 amountOutRemaining
     ) external;
 
+    function validateAndCancelOrder(bytes32 orderId) external returns (bool);
+
     function getAllOrderIdsLength(address owner)
         external
         view

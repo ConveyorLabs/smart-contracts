@@ -316,6 +316,9 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         ///@notice Remove the order from the limit order system.
         _removeOrderFromSystem(order.orderId);
 
+        addressToOrderIds[msg.sender][order.orderId] = OrderType
+            .CanceledSandboxLimitOrder;
+
         uint256 orderOwnerGasCreditBalance = ILimitOrderExecutor(
             LIMIT_ORDER_EXECUTOR
         ).gasCreditBalance(order.owner);
