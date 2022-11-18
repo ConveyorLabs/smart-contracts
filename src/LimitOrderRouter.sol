@@ -399,7 +399,7 @@ contract LimitOrderRouter is LimitOrderBook {
         for (uint256 i = 0; i < orderIds.length; ) {
             bytes32 orderId = orderIds[i];
             ///@notice Mark the order as resolved from the system.
-            _resolveCompletedOrder(orderId, OrderType.PendingLimitOrder);
+            _resolveCompletedOrder(orderId);
 
             unchecked {
                 ++i;

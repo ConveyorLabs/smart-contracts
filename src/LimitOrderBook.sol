@@ -30,7 +30,11 @@ contract LimitOrderBook is GasOracle {
     address immutable USDC;
 
     //----------------------Constructor------------------------------------//
-
+    ///@param _gasOracle The address of the Chainlink gas oracle.
+    ///@param _limitOrderExecutor The address of the LimitOrderExecutor contract.
+    ///@param _weth The address of the WETH contract.
+    ///@param _usdc The address of the USDC contract.
+    ///@param _limitOrderExecutionGasCost The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut.
     constructor(
         address _gasOracle,
         address _limitOrderExecutor,
@@ -111,6 +115,11 @@ contract LimitOrderBook is GasOracle {
         bytes32 orderId;
     }
 
+    ///@notice Enum containing Order details for any limit order.
+    ///@param None - Indicates that the order is not in the orderbook.
+    ///@param PendingLimitOrder - Indicates that the order is in the orderbook and is a pending limit order.
+    ///@param FilledLimitOrder - Indicates that the order is in the orderbook and is a filled limit order.
+    ///@param CanceledLimitOrder - Indicates that the order is in the orderbook and is a canceled limit order.
     enum OrderType {
         None,
         PendingLimitOrder,
@@ -143,7 +152,8 @@ contract LimitOrderBook is GasOracle {
 
     //----------------------Functions------------------------------------//
 
-    ///@notice Gets an active order by the orderId. If the order does not exist, the return value will be bytes(0)
+    ///@notice Gets an active order by the orderId. If the order does not exist, the return value will be bytes(0).
+    ///@param orderId The orderId of the order to get.
     function getLimitOrderById(bytes32 orderId)
         public
         view
@@ -471,9 +481,7 @@ contract LimitOrderBook is GasOracle {
 
     ///@notice Function to resolve an order as completed.
     ///@param orderId - The orderId that should be resolved from the system.
-    function _resolveCompletedOrder(bytes32 orderId, OrderType orderType)
-        internal
-    {
+    function _resolveCompletedOrder(bytes32 orderId) internal {
         ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
         LimitOrder memory order = orderIdToLimitOrder[orderId];
 
