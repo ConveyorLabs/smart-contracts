@@ -84,7 +84,6 @@ contract SandboxLimitOrderRouter {
         }
     }
 
-    //TODO: need to check the pool address @leyton
     ///@notice Uniswap V3 callback function called during a swap on a v3 liqudity pool.
     ///@param amount0Delta - The change in token0 reserves from the swap.
     ///@param amount1Delta - The change in token1 reserves from the swap.

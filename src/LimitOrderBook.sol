@@ -3,28 +3,25 @@ pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
-import "./interfaces/IOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 import "./test/utils/Console.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
-import "./GasOracle.sol";
+import "./interfaces/IConveyorGasOracle.sol";
 
 /// @title LimitOrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
-contract LimitOrderBook is GasOracle {
+contract LimitOrderBook {
     address immutable LIMIT_ORDER_EXECUTOR;
 
     ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
     ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
     uint256 constant GAS_CREDIT_BUFFER = 150;
+    address immutable CONVEYOR_GAS_ORACLE;
 
     ///@notice The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut
     uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
-
-    ///@notice Mapping to hold gas credit balances for accounts.
-    mapping(address => uint256) public gasCreditBalance;
 
     address immutable WETH;
     address immutable USDC;
@@ -32,20 +29,22 @@ contract LimitOrderBook is GasOracle {
     //----------------------Constructor------------------------------------//
 
     constructor(
-        address _gasOracle,
+        address _conveyorGasOracle,
         address _limitOrderExecutor,
         address _weth,
         address _usdc,
         uint256 _limitOrderExecutionGasCost
-    ) GasOracle(_gasOracle) {
+    ) {
         require(
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"
         );
+
         WETH = _weth;
         USDC = _usdc;
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
         LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
+        CONVEYOR_GAS_ORACLE = _conveyorGasOracle;
     }
 
     //----------------------Events------------------------------------//
@@ -150,6 +149,11 @@ contract LimitOrderBook is GasOracle {
         returns (LimitOrder memory)
     {
         LimitOrder memory order = orderIdToLimitOrder[orderId];
+
+        if (order.orderId == bytes32(0)) {
+            revert OrderDoesNotExist(orderId);
+        }
+
         return order;
     }
 
@@ -173,7 +177,7 @@ contract LimitOrderBook is GasOracle {
         address orderToken = orderGroup[0].tokenIn;
 
         ///@notice Get the value of all orders on the orderToken that are currently placed for the msg.sender.
-        uint256 updatedTotalOrdersValue = _getTotalOrdersValue(orderToken);
+        uint256 updatedTotalOrdersValue = getTotalOrdersValue(orderToken);
 
         ///@notice Get the current balance of the orderToken that the msg.sender has in their account.
         uint256 tokenBalance = IERC20(orderToken).balanceOf(msg.sender);
@@ -182,6 +186,10 @@ contract LimitOrderBook is GasOracle {
         for (uint256 i = 0; i < orderGroup.length; ) {
             ///@notice Get the order details from the orderGroup.
             LimitOrder memory newOrder = orderGroup[i];
+
+            if (newOrder.quantity == 0) {
+                revert OrderQuantityIsZero();
+            }
 
             ///@notice Increment the total value of orders by the quantity of the new order
             updatedTotalOrdersValue += newOrder.quantity;
@@ -286,7 +294,9 @@ contract LimitOrderBook is GasOracle {
         internal
     {
         ///@notice Cache the gasPrice and the userGasCreditBalance
-        uint256 gasPrice = getGasPrice();
+        uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
+            .getGasPrice();
+
         uint256 userGasCreditBalance = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
             .gasCreditBalance(msg.sender);
 
@@ -355,7 +365,7 @@ contract LimitOrderBook is GasOracle {
         LimitOrder memory order = orderIdToLimitOrder[orderId];
 
         ///@notice Get the total orders value for the msg.sender on the tokenIn
-        uint256 totalOrdersValue = _getTotalOrdersValue(order.tokenIn);
+        uint256 totalOrdersValue = getTotalOrdersValue(order.tokenIn);
 
         ///@notice Update the total orders value
         totalOrdersValue += quantity;
@@ -504,8 +514,8 @@ contract LimitOrderBook is GasOracle {
     /// @notice Helper function to get the total order value on a specific token for the msg.sender.
     /// @param token - Token address to get total order value on.
     /// @return totalOrderValue - The total value of orders that exist for the msg.sender on the specified token.
-    function _getTotalOrdersValue(address token)
-        internal
+    function getTotalOrdersValue(address token)
+        public
         view
         returns (uint256 totalOrderValue)
     {
