@@ -125,8 +125,7 @@ contract SandboxLimitOrderBookTest is DSTest {
     }
 
     ///@notice Test fail get order by id order does not exist
-    function testFailGetSandboxLimitOrderById_OrderDoesNotExist() public {
-        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+    function testFailGetSandboxLimitOrderById_OrderDoesNotExist() public view {
         sandboxLimitOrderBook.getSandboxLimitOrderById(bytes32(0));
     }
 
@@ -136,68 +135,41 @@ contract SandboxLimitOrderBookTest is DSTest {
     //     //if the fuzzed amount is enough to complete the swap
     //     swapHelper.swapEthForTokenWithUniV2(10000, swapToken);
 
-    //     ///@notice Place orders
-    //     bytes32 orderId1 = placeMockOrder(
-    //         newOrder(swapToken, wnato, uint128(1), uint112(1), uint112(1))
-    //     );
-
-    //     bytes32 orderId2 = placeMockOrder(
-    //         newOrder(swapToken, wnato, uint128(1), uint112(1), uint112(1))
-    //     );
-
-    //     bytes32 orderId4 = placeMockSandboxLimitOrder(
+    //     bytes32 orderId1 = placeMockSandboxLimitOrder(
     //         newSandboxLimitOrder(swapToken, wnato, uint112(1), uint112(1))
     //     );
 
-    //     bytes32 orderId5 = placeMockSandboxLimitOrder(
+    //     bytes32 orderId2 = placeMockSandboxLimitOrder(
     //         newSandboxLimitOrder(swapToken, wnato, uint112(1), uint112(1))
     //     );
 
-    //     limitOrderBook.cancelOrder(orderId2);
-    //     limitOrderBook.cancelOrder(orderId5);
+    //     sandboxLimitOrderBook.cancelOrder(orderId2);
 
-    //     uint256 orderIdsLength = limitOrderBook.getAllOrderIdsLength(
+    //     uint256 orderIdsLength = sandboxLimitOrderBook.getAllOrderIdsLength(
     //         address(this)
     //     );
 
-    //     bytes32[] memory pendingLimitOrders = limitOrderBook.getOrderIds(
-    //         address(this),
-    //         LimitOrderBook.OrderType.PendingLimitOrder,
-    //         0,
-    //         orderIdsLength
-    //     );
-
-    //     bytes32[] memory pendingSandboxLimitOrders = limitOrderBook.getOrderIds(
-    //         address(this),
-    //         LimitOrderBook.OrderType.PendingSandboxLimitOrder,
-    //         0,
-    //         orderIdsLength
-    //     );
-
-    //     bytes32[] memory canceledLimitOrders = limitOrderBook.getOrderIds(
-    //         address(this),
-    //         LimitOrderBook.OrderType.CanceledLimitOrder,
-    //         0,
-    //         orderIdsLength
-    //     );
-
-    //     bytes32[] memory canceledSandboxLimitOrders = limitOrderBook
+    //     bytes32[] memory pendingSandboxLimitOrders = sandboxLimitOrderBook
     //         .getOrderIds(
     //             address(this),
-    //             LimitOrderBook.OrderType.CanceledSandboxLimitOrder,
+    //             SandboxLimitOrderBook.OrderType.PendingSandboxLimitOrder,
     //             0,
     //             orderIdsLength
     //         );
 
-    //     assertEq(pendingLimitOrders.length, 1);
+    //     bytes32[] memory canceledSandboxLimitOrders = sandboxLimitOrderBook
+    //         .getOrderIds(
+    //             address(this),
+    //             SandboxLimitOrderBook.OrderType.CanceledSandboxLimitOrder,
+    //             0,
+    //             orderIdsLength
+    //         );
+
     //     assertEq(pendingSandboxLimitOrders.length, 1);
-    //     assertEq(canceledLimitOrders.length, 1);
     //     assertEq(canceledSandboxLimitOrders.length, 1);
 
-    //     assertEq(pendingLimitOrders[0], orderId1);
-    //     assertEq(pendingSandboxLimitOrders[0], orderId4);
-    //     assertEq(canceledLimitOrders[0], orderId2);
-    //     assertEq(canceledSandboxLimitOrders[0], orderId5);
+    //     assertEq(pendingSandboxLimitOrders[0], orderId1);
+    //     assertEq(canceledSandboxLimitOrders[0], orderId2);
     // }
 
     ///@notice Test palce order fuzz test

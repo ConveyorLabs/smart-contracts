@@ -8,7 +8,7 @@ import "./LimitOrderRouter.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./interfaces/ISandboxLimitOrderRouter.sol";
 import "./interfaces/ISandboxLimitOrderBook.sol";
-import "./interfaces/IOrderBook.sol";
+import "./interfaces/ILimitOrderBook.sol";
 
 /// @title LimitOrderExecutor
 /// @author 0xOsiris, 0xKitsune
@@ -226,7 +226,7 @@ contract LimitOrderExecutor is SwapRouter {
         }
 
         ///@notice Get the current gas price from the v3 Aggregator.
-        uint256 gasPrice = IOrderBook(LIMIT_ORDER_ROUTER).getGasPrice();
+        uint256 gasPrice = ILimitOrderBook(LIMIT_ORDER_ROUTER).getGasPrice();
 
         ///@notice Require that account has enough gas for order execution after the gas credit withdrawal.
         if (
@@ -288,7 +288,7 @@ contract LimitOrderExecutor is SwapRouter {
         uint256 multiplier
     ) internal view returns (uint256 minGasCredits) {
         ///@notice Get the total amount of active orders for the userAddress
-        uint256 totalLimitOrdersCount = IOrderBook(LIMIT_ORDER_ROUTER)
+        uint256 totalLimitOrdersCount = ILimitOrderBook(LIMIT_ORDER_ROUTER)
             .totalOrdersPerAddress(userAddress);
 
         uint256 totalSandboxLimitOrdersCound = ISandboxLimitOrderBook(

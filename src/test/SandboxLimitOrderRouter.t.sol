@@ -14,7 +14,7 @@ import "../LimitOrderRouter.sol";
 import "../LimitOrderQuoter.sol";
 import "../LimitOrderExecutor.sol";
 import "../interfaces/ILimitOrderRouter.sol";
-import "../interfaces/IOrderBook.sol";
+import "../interfaces/ILimitOrderBook.sol";
 import "../interfaces/ISandboxLimitOrderRouter.sol";
 
 interface CheatCodes {
@@ -56,7 +56,7 @@ interface Errors {
     );
 }
 
-contract SandboxRouterTest is DSTest {
+contract SandboxLimitOrderRouterTest is DSTest {
     //Initialize All contract and Interface instances
     ILimitOrderRouter limitOrderRouter;
     ISandboxLimitOrderBook orderBook;
@@ -313,12 +313,7 @@ contract SandboxRouterTest is DSTest {
                 gasCompensationUpperBound
             );
             for (uint256 i = 0; i < orders.length; ++i) {
-                SandboxLimitOrderBook.SandboxLimitOrder
-                    memory orderPost = orderBook.getSandboxLimitOrderById(
-                        orders[i].orderId
-                    );
                 if (orders[i].amountInRemaining == multiCall.fillAmounts[i]) {
-                    assert(orderPost.orderId == bytes32(0));
                     SandboxLimitOrderBook.OrderType orderType = orderBook
                         .addressToOrderIds(address(this), orders[i].orderId);
                     assert(
@@ -326,21 +321,6 @@ contract SandboxRouterTest is DSTest {
                             SandboxLimitOrderBook
                                 .OrderType
                                 .FilledSandboxLimitOrder
-                    );
-                } else {
-                    assertEq(
-                        orderPost.amountInRemaining,
-                        orders[i].amountInRemaining - multiCall.fillAmounts[i]
-                    );
-                    assertEq(
-                        orderPost.amountOutRemaining,
-                        ConveyorMath.mul64U(
-                            ConveyorMath.divUU(
-                                orders[i].amountOutRemaining,
-                                orders[i].amountInRemaining
-                            ),
-                            multiCall.fillAmounts[i]
-                        )
                     );
                 }
             }
@@ -401,6 +381,7 @@ contract SandboxRouterTest is DSTest {
 
             ///@notice Grab the order fee
             orders[0] = orderBook.getSandboxLimitOrderById(orderIds[0]);
+
             uint256 cumulativeFee = orders[0].fee;
 
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
@@ -467,12 +448,7 @@ contract SandboxRouterTest is DSTest {
                 gasCompensationUpperBound
             );
             for (uint256 i = 0; i < orders.length; ++i) {
-                SandboxLimitOrderBook.SandboxLimitOrder
-                    memory orderPost = orderBook.getSandboxLimitOrderById(
-                        orders[i].orderId
-                    );
                 if (orders[i].amountInRemaining == multiCall.fillAmounts[i]) {
-                    assert(orderPost.orderId == bytes32(0));
                     SandboxLimitOrderBook.OrderType orderType = orderBook
                         .addressToOrderIds(address(this), orders[i].orderId);
                     assert(
@@ -480,21 +456,6 @@ contract SandboxRouterTest is DSTest {
                             SandboxLimitOrderBook
                                 .OrderType
                                 .FilledSandboxLimitOrder
-                    );
-                } else {
-                    assertEq(
-                        orderPost.amountInRemaining,
-                        orders[i].amountInRemaining - multiCall.fillAmounts[i]
-                    );
-                    assertEq(
-                        orderPost.amountOutRemaining,
-                        ConveyorMath.mul64U(
-                            ConveyorMath.divUU(
-                                orders[i].amountOutRemaining,
-                                orders[i].amountInRemaining
-                            ),
-                            multiCall.fillAmounts[i]
-                        )
                     );
                 }
             }
@@ -548,11 +509,22 @@ contract SandboxRouterTest is DSTest {
             );
 
             for (uint256 i = 0; i < orders.length; ++i) {
-                SandboxLimitOrderBook.SandboxLimitOrder memory order = orderBook
-                    .getSandboxLimitOrderById(orders[i].orderId);
                 if (orders[i].amountInRemaining == multiCall.fillAmounts[i]) {
-                    assert(order.orderId == bytes32(0));
+                    SandboxLimitOrderBook.OrderType orderType = orderBook
+                        .addressToOrderIds(orders[i].owner, orders[i].orderId);
+
+                    assert(
+                        orderType ==
+                            SandboxLimitOrderBook
+                                .OrderType
+                                .FilledSandboxLimitOrder
+                    );
                 } else {
+                    SandboxLimitOrderBook.SandboxLimitOrder
+                        memory order = orderBook.getSandboxLimitOrderById(
+                            orders[i].orderId
+                        );
+
                     assertEq(
                         order.amountInRemaining,
                         orders[i].amountInRemaining - multiCall.fillAmounts[i]
@@ -704,13 +676,6 @@ contract SandboxRouterTest is DSTest {
             );
 
             for (uint256 i = 0; i < orders.length; ++i) {
-                SandboxLimitOrderBook.SandboxLimitOrder
-                    memory orderPost = orderBook.getSandboxLimitOrderById(
-                        orderIds[i]
-                    );
-
-                console.log("this assertion");
-                assert(orderPost.orderId == bytes32(0));
                 SandboxLimitOrderBook.OrderType orderType = orderBook
                     .addressToOrderIds(address(this), orderIds[i]);
                 assert(

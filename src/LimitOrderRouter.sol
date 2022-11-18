@@ -128,9 +128,6 @@ contract LimitOrderRouter is LimitOrderBook {
             bytes32 orderId = orderIds[i];
 
             LimitOrder memory order = getLimitOrderById(orderId);
-            if (order.orderId == bytes32(0)) {
-                revert OrderDoesNotExist(orderId);
-            }
 
             totalRefreshFees += _refreshLimitOrder(order);
 
@@ -207,9 +204,6 @@ contract LimitOrderRouter is LimitOrderBook {
         returns (bool success)
     {
         LimitOrder memory order = getLimitOrderById(orderId);
-        if (order.orderId == bytes32(0)) {
-            revert OrderDoesNotExist(orderId);
-        }
 
         if (IERC20(order.tokenIn).balanceOf(order.owner) < order.quantity) {
             ///@notice Remove the order from the limit order system.
@@ -353,10 +347,6 @@ contract LimitOrderRouter is LimitOrderBook {
 
         for (uint256 i = 0; i < orderIds.length; ) {
             orders[i] = getLimitOrderById(orderIds[i]);
-            ///@notice Revert if the order does not exist in the contract.
-            if (orders[i].orderId == bytes32(0)) {
-                revert OrderDoesNotExist(orderIds[i]);
-            }
             unchecked {
                 ++i;
             }

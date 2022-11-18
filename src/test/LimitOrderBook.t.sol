@@ -5,6 +5,7 @@ import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Utils.sol";
 import "../LimitOrderBook.sol";
+import "../interfaces/ILimitOrderBook.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
@@ -32,7 +33,7 @@ contract LimitOrderBookTest is DSTest {
     LimitOrderQuoter limitOrderQuoter;
     Swap swapHelper;
 
-    LimitOrderRouterWrapper orderBook;
+    ILimitOrderBook orderBook;
 
     event OrderPlaced(bytes32[] orderIds);
     event OrderCanceled(bytes32[] orderIds);
@@ -90,14 +91,8 @@ contract LimitOrderBookTest is DSTest {
         );
 
         //Wrapper contract to test internal functions
-        orderBook = new LimitOrderRouterWrapper(
-            aggregatorV3Address,
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
-            address(limitOrderExecutor),
-            300000,
-            250000
-        );
+        orderBook = ILimitOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
+
         cheatCodes.deal(address(this), type(uint128).max);
         depositGasCreditsForMockOrders(type(uint64).max);
     }
@@ -120,7 +115,7 @@ contract LimitOrderBookTest is DSTest {
         bytes32 orderId = placeMockOrder(order);
 
         LimitOrderBook.LimitOrder memory returnedOrder = orderBook
-            ._getLimitOrderById(orderId);
+            .getLimitOrderById(orderId);
         (orderId);
 
         // assert that the two orders are the same
@@ -132,21 +127,8 @@ contract LimitOrderBookTest is DSTest {
     }
 
     ///@notice Test fail get order by id order does not exist
-    function testFailGetLimitOrderById_OrderDoesNotExist() public {
-        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
-
-        //create a new order
-        LimitOrderBook.LimitOrder memory order = newOrder(
-            swapToken,
-            wnato,
-            245000000000000000000,
-            5,
-            5
-        );
-        //place a mock order
-        placeMockOrder(order);
-
-        orderBook._getLimitOrderById(bytes32(0));
+    function testFailGetLimitOrderById_OrderDoesNotExist() public view {
+        orderBook.getLimitOrderById(bytes32(0));
     }
 
     ///@notice Test palce order fuzz test
@@ -389,7 +371,7 @@ contract LimitOrderBookTest is DSTest {
             orderBook.updateOrder(orderId, newPrice, newQuantity);
 
             LimitOrderBook.LimitOrder memory updatedOrder = orderBook
-                ._getLimitOrderById(orderId);
+                .getLimitOrderById(orderId);
 
             //Cache the total orders value after the update
             uint256 totalOrdersValueAfter = orderBook.getTotalOrdersValue(
@@ -616,38 +598,5 @@ contract LimitOrderBookTest is DSTest {
         }(abi.encodeWithSignature("depositGasCredits()"));
 
         require(depositSuccess, "error when depositing gas credits");
-    }
-}
-
-///@notice wrapper around the LimitOrderBook contract to expose internal functions for testing
-contract LimitOrderRouterWrapper is LimitOrderRouter {
-    constructor(
-        address _gasOracle,
-        address _limitOrderExecutor,
-        address _weth,
-        address _usdc,
-        uint256 _limitOrderExecutionGasCost,
-        uint256 _sandboxLimitOrderExecutionGasCost
-    )
-        LimitOrderRouter(
-            _gasOracle,
-            _limitOrderExecutor,
-            _weth,
-            _usdc,
-            _limitOrderExecutionGasCost,
-            _sandboxLimitOrderExecutionGasCost
-        )
-    {}
-
-    function _getLimitOrderById(bytes32 orderId)
-        public
-        view
-        returns (LimitOrderBook.LimitOrder memory)
-    {
-        return getLimitOrderById(orderId);
-    }
-
-    function getTotalOrdersValue(address token) public view returns (uint256) {
-        return _getTotalOrdersValue(token);
     }
 }

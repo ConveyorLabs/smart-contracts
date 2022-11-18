@@ -3,7 +3,6 @@ pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
-import "./interfaces/IOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 import "./test/utils/Console.sol";
@@ -150,6 +149,11 @@ contract LimitOrderBook is GasOracle {
         returns (LimitOrder memory)
     {
         LimitOrder memory order = orderIdToLimitOrder[orderId];
+
+        if (order.orderId == bytes32(0)) {
+            revert OrderDoesNotExist(orderId);
+        }
+
         return order;
     }
 
@@ -173,7 +177,7 @@ contract LimitOrderBook is GasOracle {
         address orderToken = orderGroup[0].tokenIn;
 
         ///@notice Get the value of all orders on the orderToken that are currently placed for the msg.sender.
-        uint256 updatedTotalOrdersValue = _getTotalOrdersValue(orderToken);
+        uint256 updatedTotalOrdersValue = getTotalOrdersValue(orderToken);
 
         ///@notice Get the current balance of the orderToken that the msg.sender has in their account.
         uint256 tokenBalance = IERC20(orderToken).balanceOf(msg.sender);
@@ -355,7 +359,7 @@ contract LimitOrderBook is GasOracle {
         LimitOrder memory order = orderIdToLimitOrder[orderId];
 
         ///@notice Get the total orders value for the msg.sender on the tokenIn
-        uint256 totalOrdersValue = _getTotalOrdersValue(order.tokenIn);
+        uint256 totalOrdersValue = getTotalOrdersValue(order.tokenIn);
 
         ///@notice Update the total orders value
         totalOrdersValue += quantity;
@@ -504,8 +508,8 @@ contract LimitOrderBook is GasOracle {
     /// @notice Helper function to get the total order value on a specific token for the msg.sender.
     /// @param token - Token address to get total order value on.
     /// @return totalOrderValue - The total value of orders that exist for the msg.sender on the specified token.
-    function _getTotalOrdersValue(address token)
-        internal
+    function getTotalOrdersValue(address token)
+        public
         view
         returns (uint256 totalOrderValue)
     {

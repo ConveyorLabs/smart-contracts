@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import "../LimitOrderBook.sol";
 
-interface IOrderBook {
+interface ILimitOrderBook {
     function totalOrdersPerAddress(address owner)
         external
         view
@@ -53,4 +53,6 @@ interface IOrderBook {
         uint256 orderOffset,
         uint256 length
     ) external view returns (bytes32[] memory);
+
+    function getTotalOrdersValue(address token) external view returns (uint256);
 }

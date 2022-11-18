@@ -14,7 +14,7 @@ import "../LimitOrderRouter.sol";
 import "../LimitOrderQuoter.sol";
 import "../LimitOrderExecutor.sol";
 import "../interfaces/ILimitOrderRouter.sol";
-import "../interfaces/IOrderBook.sol";
+import "../interfaces/ILimitOrderBook.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -33,7 +33,7 @@ contract LimitOrderRouterTest is DSTest {
     //Initialize limit-v0 contract for testing
     LimitOrderRouterWrapper limitOrderRouterWrapper;
     ILimitOrderRouter limitOrderRouter;
-    IOrderBook orderBook;
+    ILimitOrderBook orderBook;
     LimitOrderExecutor limitOrderExecutor;
     LimitOrderQuoter limitOrderQuoter;
 
@@ -111,7 +111,7 @@ contract LimitOrderRouterTest is DSTest {
             limitOrderExecutor.LIMIT_ORDER_ROUTER()
         );
 
-        orderBook = IOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
+        orderBook = ILimitOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
 
         //Wrapper contract to test internal functions
         limitOrderRouterWrapper = new LimitOrderRouterWrapper(

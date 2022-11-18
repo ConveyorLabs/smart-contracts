@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
-import "./interfaces/IOrderBook.sol";
+import "./interfaces/ILimitOrderBook.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
@@ -195,7 +195,12 @@ contract SandboxLimitOrderBook is GasOracle {
         view
         returns (SandboxLimitOrder memory)
     {
-        return orderIdToSandboxLimitOrder[orderId];
+        SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
+        if (order.orderId == bytes32(0)) {
+            revert OrderDoesNotExist(orderId);
+        }
+
+        return order;
     }
 
     ///@notice
@@ -282,9 +287,6 @@ contract SandboxLimitOrderBook is GasOracle {
         returns (bool success)
     {
         SandboxLimitOrder memory order = getSandboxLimitOrderById(orderId);
-        if (order.orderId == bytes32(0)) {
-            revert OrderDoesNotExist(orderId);
-        }
 
         ///@notice If the order owner does not have min gas credits, cancel the order
         if (
@@ -1071,10 +1073,6 @@ contract SandboxLimitOrderBook is GasOracle {
             ///@notice Cache the order in memory.
             SandboxLimitOrder memory order = getSandboxLimitOrderById(orderId);
 
-            if (order.orderId == bytes32(0)) {
-                revert OrderDoesNotExist(orderId);
-            }
-
             totalRefreshFees += _refreshSandboxLimitOrder(order);
 
             unchecked {
@@ -1283,6 +1281,10 @@ contract SandboxLimitOrderBook is GasOracle {
     ) internal {
         bytes32 totalOrdersValueKey = keccak256(abi.encode(owner, token));
         totalOrdersQuantity[totalOrdersValueKey] = newQuantity;
+    }
+
+    function getAllOrderIdsLength(address owner) public view returns (uint256) {
+        return addressToAllOrderIds[owner].length;
     }
 
     ///@notice Get all of the order Ids matching the targetOrderType for a given address
