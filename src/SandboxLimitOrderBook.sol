@@ -146,7 +146,11 @@ contract SandboxLimitOrderBook is GasOracle {
         address tokenOut;
         bytes32 orderId;
     }
-
+    ///@notice Struct containing SandboxExecutionState details.
+    ///@param sandboxLimitOrders - Array of SandboxLimitOrders to be executed.
+    ///@param orderOwners - Array of order owners.
+    ///@param initialTokenInBalances - Array of initial tokenIn balances for each order owner.
+    ///@param initialTokenOutBalances - Array of initial tokenOut balances for each order owner.
     struct PreSandboxExecutionState {
         SandboxLimitOrder[] sandboxLimitOrders;
         address[] orderOwners;
@@ -154,6 +158,12 @@ contract SandboxLimitOrderBook is GasOracle {
         uint256[] initialTokenOutBalances;
     }
 
+    ///@notice Enum to represent the status of an order.
+    ///@param None - The order is not in the system.
+    ///@param PendingSandboxLimitOrder - The order is in the system and is pending execution.
+    ///@param PartialFilledSandboxLimitOrder - The order is in the system and has been partially filled.
+    ///@param FilledSandboxLimitOrder - The order is in the system and has been filled.
+    ///@param CanceledSandboxLimitOrder - The order is in the system and has been canceled.
     enum OrderType {
         None,
         PendingSandboxLimitOrder,
@@ -306,6 +316,7 @@ contract SandboxLimitOrderBook is GasOracle {
 
     ///@notice Remove an order from the system if the order exists.
     ///@dev This function is only called after cancel order validation and compensates the off chain executor.
+    ///@param order - The order to cancel.
     function _cancelSandboxLimitOrderViaExecutor(SandboxLimitOrder memory order)
         internal
         returns (uint256)
@@ -394,6 +405,10 @@ contract SandboxLimitOrderBook is GasOracle {
         }
     }
 
+    ///@notice Function to initialize the PreSandboxExecution state prior to sandbox execution.
+    ///@param orderIdBundles - The order ids to execute.
+    ///@param fillAmounts - The fill amounts for each order.
+    ///@return preSandboxExecution - The PreSandboxExecution state.
     function initializePreSandboxExecutionState(
         bytes32[][] calldata orderIdBundles,
         uint128[] calldata fillAmounts
@@ -479,16 +494,22 @@ contract SandboxLimitOrderBook is GasOracle {
         }
     }
 
+    ///@notice Function to validate the execution state of the orders and fill the orders
+    ///@param orderIdBundles - The order ids being executed.
+    ///@param fillAmounts - The fill amounts for each order.
+    ///@param preSandboxExecutionState - The pre execution state of the orders.
     function validateSandboxExecutionAndFillOrders(
         bytes32[][] memory orderIdBundles,
         uint128[] memory fillAmounts,
         PreSandboxExecutionState memory preSandboxExecutionState
     ) internal {
+        ///@notice Initialize the orderIdIndex to 0.
+        ///@dev orderIdIndex is used to track the current index of the sandboxLimitOrders array in the preSandboxExecutionState.
         uint256 orderIdIndex = 0;
-
+        ///@notice Iterate through each bundle in the order id bundles.
         for (uint256 i = 0; i < orderIdBundles.length; ++i) {
             bytes32[] memory orderIdBundle = orderIdBundles[i];
-
+            ///@notice If the bundle length is greater than 1, then the validate a multi-order bundle.
             if (orderIdBundle.length > 1) {
                 _validateMultiOrderBundle(
                     orderIdIndex,
@@ -496,8 +517,9 @@ contract SandboxLimitOrderBook is GasOracle {
                     fillAmounts,
                     preSandboxExecutionState
                 );
-
+                ///@notice Increment the orderIdIndex by the length of the bundle.
                 orderIdIndex += orderIdBundle.length - 1;
+                ///@notice Else validate a single order bundle.
             } else {
                 _validateSingleOrderBundle(
                     preSandboxExecutionState.sandboxLimitOrders[orderIdIndex],
@@ -509,12 +531,17 @@ contract SandboxLimitOrderBook is GasOracle {
                         orderIdIndex
                     ]
                 );
-
+                ///@notice Increment the orderIdIndex by 1.
                 ++orderIdIndex;
             }
         }
     }
 
+    ///@notice Function to validate a single order bundle.
+    ///@param currentOrder - The current order to be validated.
+    ///@param fillAmount - The fill amount for the current order.
+    ///@param initialTokenInBalance - The initial token in balance of the order owner.
+    ///@param initialTokenOutBalance - The initial token out balance of the order owner.
     function _validateSingleOrderBundle(
         SandboxLimitOrder memory currentOrder,
         uint128 fillAmount,
@@ -531,11 +558,11 @@ contract SandboxLimitOrderBook is GasOracle {
                 fillAmount
             )
         );
-
+        ///@notice If amountOutRemaining/amountInRemaining rounds to 0 revert the tx.
         if (amountOutRequired == 0) {
             revert AmountOutRequiredIsZero(currentOrder.orderId);
         }
-
+        ///@notice Get the current tokenIn/Out balances of the order owner.
         uint256 currentTokenInBalance = IERC20(currentOrder.tokenIn).balanceOf(
             currentOrder.owner
         );
@@ -579,6 +606,11 @@ contract SandboxLimitOrderBook is GasOracle {
         }
     }
 
+    ///@notice Function to validate a multi order bundle.
+    ///@param orderIdIndex - The index of the current order in the preSandboxExecutionState.
+    ///@param bundleLength - The length of the bundle.
+    ///@param fillAmounts - The fill amounts for each order in the bundle.
+    ///@param preSandboxExecutionState - The pre execution state of the orders.
     function _validateMultiOrderBundle(
         uint256 orderIdIndex,
         uint256 bundleLength,
@@ -642,9 +674,9 @@ contract SandboxLimitOrderBook is GasOracle {
                     revert AmountOutRequiredIsZero(currentOrder.orderId);
                 }
 
-                ///@notice If the current order and previous order tokenIn do not match, assert that the cumulative fill amount can be met
+                ///@notice If the current order and previous order tokenIn do not match, assert that the cumulative fill amount can be met.
                 if (currentOrder.tokenIn != prevOrder.tokenIn) {
-                    ///@notice Assert that the tokenIn balance is decremented by the fill amount exactly
+                    ///@notice Assert that the tokenIn balance is decremented by the fill amount exactly.
                     if (
                         preSandboxExecutionState.initialTokenInBalances[
                             offset
@@ -660,13 +692,15 @@ contract SandboxLimitOrderBook is GasOracle {
                             cumulativeFillAmount
                         );
                     }
+                    ///@notice Reset the cumulative fill amount to the fill amount for the current order.
                     cumulativeFillAmount = fillAmounts[offset + 1];
                 } else {
+                    ///@notice Update the cumulative fill amount to include the fill amount for the current order.
                     cumulativeFillAmount += fillAmounts[offset + 1];
                 }
 
                 if (currentOrder.tokenOut != prevOrder.tokenOut) {
-                    ///@notice Assert that the tokenOut balance is greater than or equal to the amountOutRequired
+                    ///@notice Assert that the tokenOut balance is greater than or equal to the amountOutRequired.
                     if (
                         currentTokenOutBalance -
                             preSandboxExecutionState.initialTokenOutBalances[
@@ -682,8 +716,10 @@ contract SandboxLimitOrderBook is GasOracle {
                             cumulativeAmountOutRequired
                         );
                     }
+                    ///@notice Reset the cumulativeAmountOutRequired to the amountOutRequired for the current order.
                     cumulativeAmountOutRequired = amountOutRequired;
                 } else {
+                    ///@notice Update the cumulativeAmountOutRequired to include the amountOutRequired for the current order.
                     cumulativeAmountOutRequired += amountOutRequired;
                 }
 
@@ -709,7 +745,7 @@ contract SandboxLimitOrderBook is GasOracle {
                         prevOrder.orderId
                     );
                 }
-
+                ///@notice Set prevOrder to the currentOrder and increment the offset.
                 prevOrder = currentOrder;
                 ++offset;
             }
