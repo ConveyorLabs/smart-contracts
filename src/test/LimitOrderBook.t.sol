@@ -103,7 +103,7 @@ contract LimitOrderBookTest is DSTest {
     }
 
     ///@notice Test get order by id
-    function testgetLimitOrderById() public {
+    function testGetLimitOrderById() public {
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
         swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
@@ -132,7 +132,7 @@ contract LimitOrderBookTest is DSTest {
     }
 
     ///@notice Test fail get order by id order does not exist
-    function testFailgetLimitOrderById_OrderDoesNotExist() public {
+    function testFailGetLimitOrderById_OrderDoesNotExist() public {
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
         //create a new order
