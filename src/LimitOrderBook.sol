@@ -187,6 +187,10 @@ contract LimitOrderBook {
             ///@notice Get the order details from the orderGroup.
             LimitOrder memory newOrder = orderGroup[i];
 
+            if (newOrder.quantity == 0) {
+                revert OrderQuantityIsZero();
+            }
+
             ///@notice Increment the total value of orders by the quantity of the new order
             updatedTotalOrdersValue += newOrder.quantity;
 

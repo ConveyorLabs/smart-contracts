@@ -33,6 +33,8 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
     ///@notice Interval that determines when an order is eligible for refresh. The interval is set to 30 days represented in Unix time.
     uint256 constant REFRESH_INTERVAL = 2592000;
 
+    uint256 constant MIN_ORDER_VALUE_IN_WETH = 10e15;
+
     ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
     ///@notice The refresh fee is 0.02 ETH
     uint256 constant REFRESH_FEE = 20000000000000000;
@@ -240,7 +242,6 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         );
 
         ///@notice Transfer the reward to the off-chain executor.
-        ///TODO: This should be transferred from the limit order executor contract.
         ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
             tx.origin,
             executionGasCompensation
@@ -809,6 +810,11 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
                 } else {
                     relativeWethValue = newOrder.amountInRemaining;
                 }
+
+                if (relativeWethValue < MIN_ORDER_VALUE_IN_WETH) {
+                    revert InsufficientOrderInputValue();
+                }
+
                 ///@notice Set the minimum fee to the fee*wethValue*subsidy.
                 uint128 minFeeReceived = uint128(
                     ConveyorMath.mul64U(

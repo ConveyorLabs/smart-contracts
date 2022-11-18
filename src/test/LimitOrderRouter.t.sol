@@ -124,9 +124,6 @@ contract LimitOrderRouterTest is DSTest {
         );
     }
 
-    ///TODO: Write a test to make sure all validation logic is solid
-    function testExecuteOrdersViaSandboxMulticall() public {}
-
     function testOnlyEOA() public {
         cheatCodes.prank(tx.origin);
         limitOrderRouterWrapper.invokeOnlyEOA();
@@ -241,226 +238,70 @@ contract LimitOrderRouterTest is DSTest {
         limitOrderRouterWrapper.validateOrderSequencing(orderBatch);
     }
 
-    ///TODO: Revisit this is potentially deprecated
-    // function testGetAllOrderIds() public {
-    //     cheatCodes.deal(address(this), MAX_UINT);
-    //     depositGasCreditsForMockOrders(MAX_UINT);
-    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
+    function testValidateAndCancelOrder() public {
+        LimitOrderBook.LimitOrder memory order = newOrder(
+            WETH,
+            USDC,
+            0,
+            1 ether,
+            0
+        );
 
-    //     IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
-
-    //     //Place a new batch of orders
-    //     bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethBatch();
-
-    //     bytes32 canceledOrderId = tokenToWethOrderBatch[0];
-    //     orderBook.cancelOrder(canceledOrderId);
-
-    //     bytes32[] memory fufilledOrderIds = new bytes32[](2);
-    //     fufilledOrderIds[0] = tokenToWethOrderBatch[1];
-    //     fufilledOrderIds[1] = tokenToWethOrderBatch[2];
-
-    //     //Keep track of the order that is still pending
-    //     bytes32 pendingOrderId = tokenToWethOrderBatch[3];
-
-    //     //Execute the the orders that will be marked as fufilled
-    //     cheatCodes.prank(tx.origin);
-    //     limitOrderRouter.executeLimitOrders(fufilledOrderIds);
-
-    //     bytes32[][] memory allOrderIds = orderBook.getAllOrderIds(
-    //         address(this)
-    //     );
-
-    //     assertEq(allOrderIds[0][0], pendingOrderId);
-    //     assertEq(allOrderIds[2][0], canceledOrderId);
-    //     assertEq(allOrderIds[1][0], fufilledOrderIds[0]);
-    //     assertEq(allOrderIds[1][1], fufilledOrderIds[1]);
-    // }
-    ///TODO: Update this test
-    //Test validate and cancel
-    // function testValidateAndCancelOrder() public {
-    //     LimitOrderBook.LimitOrder memory order = newOrder(WETH, USDC, 0, 0, 0);
-    //     cheatCodes.deal(address(this), MAX_UINT);
-
-    //     depositGasCreditsForMockOrders(minimumGasCredits - 1);
-    //     bytes32 orderId = placeMockOrder(order);
-
-    //     bool canceled = limitOrderRouter.validateAndCancelOrder(orderId);
-    //     assertTrue(canceled);
-
-    //     LimitOrderBook.LimitOrder memory canceledOrder = orderBook
-    //         .getLimitOrderById(orderId);
-
-    //     assert(canceledOrder.orderId == bytes32(0));
-
-    //     //Gas credit balance should be decremented by minimumBalanceSubMultiplier
-    //     assertEq(
-    //         (minimumGasCredits - 1) - minimumBalanceSubMultiplier,
-    //         limitOrderRouter.gasCreditBalance(address(this))
-    //     );
-    // }
-
-    //Should fail validateAndCancel since user has the min credit balance
-    function testFailValidateAndCancelOrder() public {
-        LimitOrderBook.LimitOrder memory order = newOrder(WETH, USDC, 0, 0, 0);
         cheatCodes.deal(address(this), MAX_UINT);
+
+        IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
+
+        depositGasCreditsForMockOrders(type(uint128).max);
+
+        (bool depositSuccess, ) = address(WETH).call{value: 1 ether}(
+            abi.encodeWithSignature("deposit()")
+        );
+        require(depositSuccess, "failure when depositing ether into weth");
 
         bytes32 orderId = placeMockOrder(order);
 
-        uint256 sufficientCredits = MAX_UINT;
-
-        depositGasCreditsForMockOrders(sufficientCredits);
+        IWETH(WETH).withdraw(100000);
 
         bool canceled = limitOrderRouter.validateAndCancelOrder(orderId);
-
-        //Should fail assertion since the user has sufficient credits
         assertTrue(canceled);
+
+        LimitOrderBook.OrderType orderType = orderBook.addressToOrderIds(
+            address(this),
+            orderId
+        );
+
+        assert(orderType == LimitOrderBook.OrderType.CanceledLimitOrder);
     }
 
-    //----------------------------Gas Credit Tests-----------------------------------------
-    ///@notice Deposit gas credits test
-    function testDepositGasCredits(uint256 _amount) public {
-        //deal this address max eth
+    //Should fail validateAndCancel since user has the min credit balance
+    function testFailValidateAndCancelOrder() public {
+        LimitOrderBook.LimitOrder memory order = newOrder(
+            WETH,
+            USDC,
+            0,
+            1 ether,
+            0
+        );
+
         cheatCodes.deal(address(this), MAX_UINT);
 
-        bool underflow;
-        assembly {
-            let bal := selfbalance()
-            underflow := gt(sub(bal, _amount), bal)
-        }
+        depositGasCreditsForMockOrders(type(uint128).max);
 
-        if (_amount == 0) {
-            underflow = true;
-        }
+        (bool depositSuccess, ) = address(WETH).call{value: 1 ether}(
+            abi.encodeWithSignature("deposit()")
+        );
+        require(depositSuccess, "failure when depositing ether into weth");
 
-        if (!underflow) {
-            if (address(this).balance > _amount) {
-                //deposit gas credits
-                (bool depositSuccess, ) = address(limitOrderExecutor).call{
-                    value: _amount
-                }(abi.encodeWithSignature("depositGasCredits()"));
+        bytes32 orderId = placeMockOrder(order);
 
-                //require that the deposit was a success
-                require(
-                    depositSuccess,
-                    "testDepositGasCredits: deposit failed"
-                );
+        bool canceled = limitOrderRouter.validateAndCancelOrder(orderId);
+        assertTrue(!canceled);
 
-                //get the updated gasCreditBalance for the address
-                uint256 gasCreditBalance = limitOrderExecutor.gasCreditBalance(
-                    address(this)
-                );
-
-                //check that the creditBalance map has been updated
-                require(
-                    gasCreditBalance == _amount,
-                    "gasCreditBalance!=_amount"
-                );
-            }
-        }
-    }
-
-    ///@notice Fail deposit gas credits, revert InsufficientWalletBalance test
-    function testFailDepositGasCredits_InsufficientWalletBalance(
-        uint256 _amount
-    ) public {
-        //for fuzzing make sure that the input amount is < the balance of the test contract
-        cheatCodes.prank(address(0x1920201785C3E370668Edac2eE36A011A4E95785));
-
-        if (_amount > 0) {
-            //deposit gas credits
-            (bool depositSuccess, ) = address(limitOrderExecutor).call{
-                value: _amount
-            }(abi.encodeWithSignature("depositGasCredits()"));
-
-            //require that the deposit was a success
-            require(
-                depositSuccess,
-                "testFailDepositGasCredits_InsufficientWalletBalance: deposit failed"
-            );
-        } else {
-            require(false, "amount is 0");
-        }
-    }
-
-    ///@notice Withdraw gas credit pass test
-    function testWithdrawGasCredits(uint256 _amount) public {
-        cheatCodes.deal(address(this), MAX_UINT);
-
-        bool underflow;
-        assembly {
-            let bal := selfbalance()
-            underflow := gt(sub(bal, _amount), bal)
-        }
-
-        if (!underflow) {
-            //for fuzzing make sure that the input amount is < the balance of the test contract
-            if (_amount > 0) {
-                //deposit gas credits
-                (bool depositSuccess, ) = address(limitOrderExecutor).call{
-                    value: _amount
-                }(abi.encodeWithSignature("depositGasCredits()"));
-
-                //require that the deposit was a success
-                require(depositSuccess, "testRemoveGasCredits: deposit failed");
-
-                //get the updated gasCreditBalance for the address
-                uint256 gasCreditBalance = limitOrderExecutor.gasCreditBalance(
-                    address(this)
-                );
-
-                //check that the creditBalance map has been updated
-                require(
-                    gasCreditBalance == _amount,
-                    "gasCreditBalance!=_amount"
-                );
-
-                bool withdrawSuccess = limitOrderExecutor.withdrawGasCredits(
-                    _amount
-                );
-
-                require(withdrawSuccess, "Unable to withdraw credits");
-            }
-        }
-    }
-
-    ///@notice Fail withdraw gas credits, revert InsufficientGasCreditBalance test
-    function testFailWithdrawGasCredits_InsufficientGasCreditBalance(
-        uint256 _amount
-    ) public {
-        cheatCodes.deal(address(this), MAX_UINT);
-
-        //ensure there is not an overflow for fuzzing
-        bool overflow;
-        assembly {
-            overflow := lt(_amount, add(_amount, 1))
-        }
-
-        //make sure that amount+1 does not overflow
-        if (!overflow) {
-            if (_amount > 0) {
-                //deposit gas credits
-                (bool depositSuccess, ) = address(limitOrderExecutor).call{
-                    value: _amount
-                }(abi.encodeWithSignature("depositGasCredits()"));
-
-                //require that the deposit was a success
-                require(
-                    depositSuccess,
-                    "testFailRemoveGasCredits_InsufficientGasCreditBalance: deposit failed"
-                );
-
-                //withdraw one more than the
-                bool withdrawSuccess = limitOrderExecutor.withdrawGasCredits(
-                    _amount + 1
-                );
-
-                require(withdrawSuccess, "Unable to withdraw credits");
-            } else {
-                require(false, "input is 0");
-            }
-        } else {
-            require(false, "overflow");
-        }
+        LimitOrderBook.OrderType orderType = orderBook.addressToOrderIds(
+            address(this),
+            orderId
+        );
+        assert(orderType == LimitOrderBook.OrderType.PendingLimitOrder);
     }
 
     ///@notice Refresh order test

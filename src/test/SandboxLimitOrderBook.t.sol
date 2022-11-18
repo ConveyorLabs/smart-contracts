@@ -106,11 +106,11 @@ contract SandboxLimitOrderBookTest is DSTest {
     function testGetSandboxLimitOrderById() public {
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
-        swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
+        swapHelper.swapEthForTokenWithUniV2(100 ether, swapToken);
 
         //create a new order
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order = newSandboxLimitOrder(swapToken, wnato, 5, 5);
+            memory order = newSandboxLimitOrder(swapToken, wnato, 10e21, 5);
         //place a mock order
         bytes32 orderId = placeMockSandboxLimitOrder(order);
 
@@ -129,48 +129,48 @@ contract SandboxLimitOrderBookTest is DSTest {
         sandboxLimitOrderBook.getSandboxLimitOrderById(bytes32(0));
     }
 
-    // function testGetOrderIds() public {
-    //     cheatCodes.deal(address(this), MAX_UINT);
-    //     IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
-    //     //if the fuzzed amount is enough to complete the swap
-    //     swapHelper.swapEthForTokenWithUniV2(10000, swapToken);
+    function testGetOrderIds() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+        //if the fuzzed amount is enough to complete the swap
+        swapHelper.swapEthForTokenWithUniV2(100 ether, swapToken);
 
-    //     bytes32 orderId1 = placeMockSandboxLimitOrder(
-    //         newSandboxLimitOrder(swapToken, wnato, uint112(1), uint112(1))
-    //     );
+        bytes32 orderId1 = placeMockSandboxLimitOrder(
+            newSandboxLimitOrder(swapToken, wnato, 10e21, uint112(1))
+        );
 
-    //     bytes32 orderId2 = placeMockSandboxLimitOrder(
-    //         newSandboxLimitOrder(swapToken, wnato, uint112(1), uint112(1))
-    //     );
+        bytes32 orderId2 = placeMockSandboxLimitOrder(
+            newSandboxLimitOrder(swapToken, wnato, 10e21, uint112(1))
+        );
 
-    //     sandboxLimitOrderBook.cancelOrder(orderId2);
+        sandboxLimitOrderBook.cancelOrder(orderId2);
 
-    //     uint256 orderIdsLength = sandboxLimitOrderBook.getAllOrderIdsLength(
-    //         address(this)
-    //     );
+        uint256 orderIdsLength = sandboxLimitOrderBook.getAllOrderIdsLength(
+            address(this)
+        );
 
-    //     bytes32[] memory pendingSandboxLimitOrders = sandboxLimitOrderBook
-    //         .getOrderIds(
-    //             address(this),
-    //             SandboxLimitOrderBook.OrderType.PendingSandboxLimitOrder,
-    //             0,
-    //             orderIdsLength
-    //         );
+        bytes32[] memory pendingSandboxLimitOrders = sandboxLimitOrderBook
+            .getOrderIds(
+                address(this),
+                SandboxLimitOrderBook.OrderType.PendingSandboxLimitOrder,
+                0,
+                orderIdsLength
+            );
 
-    //     bytes32[] memory canceledSandboxLimitOrders = sandboxLimitOrderBook
-    //         .getOrderIds(
-    //             address(this),
-    //             SandboxLimitOrderBook.OrderType.CanceledSandboxLimitOrder,
-    //             0,
-    //             orderIdsLength
-    //         );
+        bytes32[] memory canceledSandboxLimitOrders = sandboxLimitOrderBook
+            .getOrderIds(
+                address(this),
+                SandboxLimitOrderBook.OrderType.CanceledSandboxLimitOrder,
+                0,
+                orderIdsLength
+            );
 
-    //     assertEq(pendingSandboxLimitOrders.length, 1);
-    //     assertEq(canceledSandboxLimitOrders.length, 1);
+        assertEq(pendingSandboxLimitOrders.length, 1);
+        assertEq(canceledSandboxLimitOrders.length, 1);
 
-    //     assertEq(pendingSandboxLimitOrders[0], orderId1);
-    //     assertEq(canceledSandboxLimitOrders[0], orderId2);
-    // }
+        assertEq(pendingSandboxLimitOrders[0], orderId1);
+        assertEq(canceledSandboxLimitOrders[0], orderId2);
+    }
 
     ///@notice Test palce order fuzz test
     function testPlaceSandboxOrder(
@@ -179,7 +179,7 @@ contract SandboxLimitOrderBookTest is DSTest {
     ) public {
         cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
-        if (!(amountInRemaining < 1000000000000000)) {
+        if (!(amountInRemaining < 10e21)) {
             //if the fuzzed amount is enough to complete the swap
             try
                 swapHelper.swapEthForTokenWithUniV2(
@@ -383,7 +383,7 @@ contract SandboxLimitOrderBookTest is DSTest {
             memory order = newSandboxLimitOrder(
                 swapToken,
                 wnato,
-                1000000000000000000,
+                10e21,
                 1000000000000000000
             );
 

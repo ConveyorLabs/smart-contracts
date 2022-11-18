@@ -1025,9 +1025,10 @@ contract SandboxLimitOrderRouterTest is DSTest {
         uint128 fillAmountWeth
     ) public {
         bool run;
+        uint256 minWethQuantity = 10e15;
         assembly {
             run := and(
-                lt(1000000000000000, wethQuantity),
+                lt(minWethQuantity, wethQuantity),
                 lt(wethQuantity, 10000000000000000000000)
             )
         }
