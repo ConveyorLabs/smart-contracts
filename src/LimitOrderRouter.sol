@@ -132,7 +132,7 @@ contract LimitOrderRouter is LimitOrderBook {
                 revert OrderDoesNotExist(orderId);
             }
 
-            totalRefreshFees += _refreshLimitOrder(order, gasPrice);
+            totalRefreshFees += _refreshLimitOrder(order);
 
             unchecked {
                 ++i;
@@ -148,19 +148,21 @@ contract LimitOrderRouter is LimitOrderBook {
 
     ///@notice Internal helper function to refresh a Limit Order.
     ///@param order - The Limit Order to be refreshed.
-    ///@param gasPrice - The current gasPrice from the Gas oracle.
     ///@return executorFee - The fee to be compensated to the off-chain executor.
-    function _refreshLimitOrder(LimitOrder memory order, uint256 gasPrice)
+    function _refreshLimitOrder(LimitOrder memory order)
         internal
         returns (uint256 executorFee)
     {
+        uint256 currentBalance = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
+            .gasCreditBalance(order.owner);
+
         ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
         if (block.timestamp > order.expirationTimestamp) {
             return _cancelLimitOrderViaExecutor(order);
         }
 
         ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
-        if (gasCreditBalance[order.owner] < REFRESH_FEE) {
+        if (currentBalance < REFRESH_FEE) {
             return _cancelLimitOrderViaExecutor(order);
         }
 
@@ -174,7 +176,10 @@ contract LimitOrderRouter is LimitOrderBook {
         }
 
         ///@notice Decrement the order.owner's gas credit balance
-        gasCreditBalance[order.owner] -= REFRESH_FEE;
+        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+            order.owner,
+            currentBalance - REFRESH_FEE
+        );
 
         ///@notice update the order's last refresh timestamp
         ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
