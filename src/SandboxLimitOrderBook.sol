@@ -9,14 +9,13 @@ import "./lib/ConveyorMath.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./test/utils/Console.sol";
 import "./SandboxLimitOrderRouter.sol";
-import "./GasOracle.sol";
+import "./ConveyorGasOracle.sol";
 
 /// @title SandboxLimitOrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
 
-//TODO: need to separate gas oracle
-contract SandboxLimitOrderBook is GasOracle {
+contract SandboxLimitOrderBook is ConveyorGasOracle {
     address immutable LIMIT_ORDER_EXECUTOR;
     address public immutable SANDBOX_LIMIT_ORDER_ROUTER;
 
@@ -72,7 +71,7 @@ contract SandboxLimitOrderBook is GasOracle {
         address _weth,
         address _usdc,
         uint256 _sandboxLimitOrderExecutionGasCost
-    ) GasOracle(_conveyorGasOracle) {
+    ) ConveyorGasOracle(_conveyorGasOracle) {
         require(
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"

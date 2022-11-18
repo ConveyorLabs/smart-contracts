@@ -75,6 +75,8 @@ contract LimitOrderExecutorTest is DSTest {
     bytes32 _uniswapV2HexDem =
         hex"96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f";
 
+    IConveyorGasOracle conveyorGasOracle;
+
     //Initialize array of Dex specifications
     bytes32[] _hexDems = [_uniswapV2HexDem, _uniswapV2HexDem];
     address[] _dexFactories = [_uniV2FactoryAddress, _uniV3FactoryAddress];
@@ -104,6 +106,10 @@ contract LimitOrderExecutorTest is DSTest {
             aggregatorV3Address,
             300000,
             250000
+        );
+
+        conveyorGasOracle = IConveyorGasOracle(
+            limitOrderExecutor.SANDBOX_LIMIT_ORDER_BOOK()
         );
 
         limitOrderRouter = ILimitOrderRouter(
@@ -305,7 +311,7 @@ contract LimitOrderExecutorTest is DSTest {
                 uint256 gasCompensationBefore = address(tx.origin).balance;
 
                 ///@notice Get the gas price and set the lower and upper bound threshold.
-                uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
+                uint256 gasPrice = conveyorGasOracle.getGasPrice();
                 uint256 executionCostUpper = 300000; //Should be an upper bound
                 uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -385,7 +391,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
+        uint256 gasPrice = conveyorGasOracle.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -487,7 +493,7 @@ contract LimitOrderExecutorTest is DSTest {
                 uint256 gasCompensationBefore = address(tx.origin).balance;
 
                 ///@notice Get the gas price and set the lower and upper bound threshold.
-                uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
+                uint256 gasPrice = conveyorGasOracle.getGasPrice();
 
                 uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -555,7 +561,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
+        uint256 gasPrice = conveyorGasOracle.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -656,7 +662,7 @@ contract LimitOrderExecutorTest is DSTest {
                 uint256 gasCompensationBefore = address(tx.origin).balance;
 
                 ///@notice Get the gas price and set the lower and upper bound threshold.
-                uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
+                uint256 gasPrice = conveyorGasOracle.getGasPrice();
 
                 uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -729,7 +735,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
+        uint256 gasPrice = conveyorGasOracle.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -794,7 +800,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
+        uint256 gasPrice = conveyorGasOracle.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -851,7 +857,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
+        uint256 gasPrice = conveyorGasOracle.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -909,7 +915,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
+        uint256 gasPrice = conveyorGasOracle.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -977,7 +983,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
+        uint256 gasPrice = conveyorGasOracle.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -1033,7 +1039,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
+        uint256 gasPrice = conveyorGasOracle.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -1081,7 +1087,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
+        uint256 gasPrice = conveyorGasOracle.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 
@@ -1141,7 +1147,7 @@ contract LimitOrderExecutorTest is DSTest {
         uint256 gasCompensationBefore = address(tx.origin).balance;
 
         ///@notice Get the gas price and set the lower and upper bound threshold.
-        uint256 gasPrice = limitOrderRouterWrapper.getGasPrice();
+        uint256 gasPrice = conveyorGasOracle.getGasPrice();
 
         uint256 executionCostLower = 60000; //Should be a lower bound
 

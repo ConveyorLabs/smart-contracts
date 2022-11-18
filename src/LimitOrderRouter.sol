@@ -116,9 +116,6 @@ contract LimitOrderRouter is LimitOrderBook {
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
     function refreshOrder(bytes32[] memory orderIds) external nonReentrant {
-        ///@notice Get the current gas price from the v3 Aggregator.
-        uint256 gasPrice = getGasPrice();
-
         ///@notice Initialize totalRefreshFees;
         uint256 totalRefreshFees;
 
@@ -225,8 +222,9 @@ contract LimitOrderRouter is LimitOrderBook {
         internal
         returns (uint256)
     {
-        ///@notice Get the current gas price from the v3 Aggregator.
-        uint256 gasPrice = getGasPrice();
+        ///@notice Get the current gas price.
+        uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
+            .getGasPrice();
 
         ///@notice Get the minimum gas credits needed for a single order
         uint256 executorFee = gasPrice * LIMIT_ORDER_EXECUTION_GAS_COST;
@@ -330,7 +328,8 @@ contract LimitOrderRouter is LimitOrderBook {
         external
         nonReentrant
     {
-        uint256 gasPrice = getGasPrice();
+        uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
+            .getGasPrice();
 
         //Update the initial gas balance.
         assembly {
@@ -405,7 +404,6 @@ contract LimitOrderRouter is LimitOrderBook {
             orderOwners,
             OrderType.PendingLimitOrder
         );
-        ///TODO: Transfer this from the executor gas credit balance
         ///@notice Transfer the reward to the off-chain executor.
         ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
             msg.sender,
