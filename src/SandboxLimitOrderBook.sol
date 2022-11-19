@@ -135,7 +135,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         uint32 lastRefreshTimestamp;
         uint32 expirationTimestamp;
         uint32 fillPercent;
-        uint128 fee;
+        uint128 feeRemaining;
         uint128 amountInRemaining;
         uint128 amountOutRemaining;
         address owner;
@@ -830,7 +830,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
                     )
                 );
                 ///@notice Set the Orders min fee to be received during execution.
-                newOrder.fee = minFeeReceived;
+                newOrder.feeRemaining = minFeeReceived;
             }
 
             ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
@@ -1177,19 +1177,22 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
             order.owner,
             amountInFilled
         );
+
         ///@notice Cache the Orders amountInRemaining.
-        uint128 amountInRemaining = orderIdToSandboxLimitOrder[orderId]
-            .amountInRemaining;
+        uint128 amountInRemaining = order.amountInRemaining;
+        ///@notice Cache the Orders feeRemaining.
+        uint128 feeRemaining = order.feeRemaining;
+
         ///@notice Update the orders fillPercent to amountInFilled/amountInRemaining as 16.16 fixed point
         orderIdToSandboxLimitOrder[orderId].fillPercent += ConveyorMath
             .fromX64ToX16(
                 ConveyorMath.divUU(amountInFilled, amountInRemaining)
             );
-
+        ///@notice Update the orders amountInRemaining to amountInRemaining - amountInFilled.
         orderIdToSandboxLimitOrder[orderId].amountInRemaining =
             order.amountInRemaining -
             amountInFilled;
-
+        ///@notice Update the orders amountOutRemaining to amountOutRemaining - amountOutFilled.
         orderIdToSandboxLimitOrder[orderId].amountOutRemaining =
             order.amountOutRemaining -
             amountOutFilled;
@@ -1197,6 +1200,16 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         ///@notice Update the status of the order to PartialFilled
         addressToOrderIds[order.owner][order.orderId] = OrderType
             .PartialFilledSandboxLimitOrder;
+
+        ///@notice Update the orders feeRemaining to feeRemaining - feeRemaining * amountInFilled/amountInRemaining.
+        orderIdToSandboxLimitOrder[orderId].feeRemaining =
+            feeRemaining -
+            uint128(
+                ConveyorMath.mul64U(
+                    ConveyorMath.divUU(amountInFilled, amountInRemaining),
+                    feeRemaining
+                )
+            );
     }
 
     ///@notice Function to remove an order from the system.

@@ -491,7 +491,7 @@ contract SandboxLimitOrderBookTest is DSTest {
             fillPercent: 0,
             lastRefreshTimestamp: 0,
             expirationTimestamp: uint32(MAX_UINT),
-            fee: 0,
+            feeRemaining: 0,
             amountInRemaining: amountInRemaining,
             amountOutRemaining: amountOutRemaining,
             owner: address(this),
