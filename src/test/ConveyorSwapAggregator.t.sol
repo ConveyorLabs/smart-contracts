@@ -77,7 +77,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         uint256 amountIn = 825000000;
         address tokenOut = 0x2e85ae1C47602f7927bCabc2Ff99C40aA222aE15;
         uint256 amountOutMin = 4948702184313056519683340;
-        address firstLP = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+        address firstLP = 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0;
         address secondLP = 0xdC1D67Bc953Bf67F007243c7DED42d67410a6De5;
 
         swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
