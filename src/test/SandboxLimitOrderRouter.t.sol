@@ -254,7 +254,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
             orderIds[0] = placeMockOrder(order);
             ///@notice Grab the order fee
             orders[0] = orderBook.getSandboxLimitOrderById(orderIds[0]);
-            uint256 cumulativeFee = orders[0].fee;
+            uint256 cumulativeFee = orders[0].feeRemaining;
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
             transferAddress[0] = daiWethV2;
             ///@notice Set the fill amount to the total amountIn on the order i.e. 10000 DAI.
@@ -328,18 +328,6 @@ contract SandboxLimitOrderRouterTest is DSTest {
         }
     }
 
-    ///@notice Helper function to calculate the amountRequired from a swap.
-    function _calculateExactAmountRequired(
-        uint256 amountFilled,
-        uint256 amountInRemaining,
-        uint256 amountOutRemaining
-    ) internal pure returns (uint256 amountOutRequired) {
-        amountOutRequired = ConveyorMath.mul64U(
-            ConveyorMath.divUU(amountOutRemaining, amountInRemaining),
-            amountFilled
-        );
-    }
-
     ///@notice ExecuteMulticallOrder Sandbox Router test
     function testExecuteMulticallOrderSingleV3() public {
         ///@notice Deal funds to all of the necessary receivers
@@ -382,7 +370,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
             ///@notice Grab the order fee
             orders[0] = orderBook.getSandboxLimitOrderById(orderIds[0]);
 
-            uint256 cumulativeFee = orders[0].fee;
+            uint256 cumulativeFee = orders[0].feeRemaining;
 
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
             transferAddress[0] = address(sandboxRouter);
@@ -590,7 +578,8 @@ contract SandboxLimitOrderRouterTest is DSTest {
             console.log(orders[0].owner);
             console.log(orders[1].owner);
 
-            uint256 cumulativeFee = orders[0].fee + orders[1].fee;
+            uint256 cumulativeFee = orders[0].feeRemaining +
+                orders[1].feeRemaining;
 
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
             transferAddress[0] = address(sandboxRouter);
@@ -778,7 +767,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
             orderIds[0] = placeMockOrder(order);
             ///@notice Grab the order fee
             orders[0] = orderBook.getSandboxLimitOrderById(orderIds[0]);
-            uint256 cumulativeFee = orders[0].fee;
+            uint256 cumulativeFee = orders[0].feeRemaining;
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
             transferAddress[0] = daiWethV2;
 
@@ -848,7 +837,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
             orderIds[0] = placeMockOrder(order);
             ///@notice Grab the order fee
             orders[0] = orderBook.getSandboxLimitOrderById(orderIds[0]);
-            uint256 cumulativeFee = orders[0].fee;
+            uint256 cumulativeFee = orders[0].feeRemaining;
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
             transferAddress[0] = daiWethV2;
 
@@ -989,7 +978,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
             orderIds[0] = placeMockOrder(order);
             ///@notice Grab the order fee
             orders[0] = orderBook.getSandboxLimitOrderById(orderIds[0]);
-            uint256 cumulativeFee = orders[0].fee; //Dont pay a fee should revert on ConveyorFeesNotPaid
+            uint256 cumulativeFee = orders[0].feeRemaining; //Dont pay a fee should revert on ConveyorFeesNotPaid
             ///@notice Set the DAI/WETH v2 lp address as the transferAddress.
             transferAddress[0] = daiWethV2;
 
@@ -1250,10 +1239,12 @@ contract SandboxLimitOrderRouterTest is DSTest {
                 if (fillAmounts[0] == orders[0].amountInRemaining) {
                     assert(postExecutionOrder.orderId == bytes32(0));
                 } else {
+                    ///@notice Assert the amountInRemaining is reduced by the fillAmount
                     assertEq(
                         postExecutionOrder.amountInRemaining,
                         orders[0].amountInRemaining - fillAmounts[0]
                     );
+                    ///@notice Assert the amountOutRemaining is reduced by the fillAmount*amountOutRemaining/amountInRemaining.
                     assertEq(
                         postExecutionOrder.amountOutRemaining,
                         ConveyorMath.mul64U(
@@ -1264,25 +1255,20 @@ contract SandboxLimitOrderRouterTest is DSTest {
                             fillAmounts[0]
                         )
                     );
+                    ///@notice Assert the feeRemaining is reduced by the feeRemaining*fillAmount/amountInRemaining.
+                    assertEq(
+                        postExecutionOrder.feeRemaining,
+                        ConveyorMath.mul64U(
+                            ConveyorMath.divUU(
+                                fillAmounts[0],
+                                orders[0].amountInRemaining
+                            ),
+                            orders[0].feeRemaining
+                        )
+                    );
                 }
             }
         }
-    }
-
-    function initializeTestBalanceState(uint128 wethQuantity) internal {
-        ///@notice Deal funds to all of the necessary receivers
-        cheatCodes.deal(address(this), type(uint128).max);
-        cheatCodes.deal(address(swapHelper), type(uint128).max);
-        ///@notice Deposit Gas Credits to cover order execution.
-        depositGasCreditsForMockOrdersWrapper(type(uint128).max);
-        cheatCodes.deal(address(this), wethQuantity);
-
-        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
-        (bool depositSuccess, ) = address(WETH).call{value: wethQuantity}(
-            abi.encodeWithSignature("deposit()")
-        );
-        require(depositSuccess, "Fudge");
-        IERC20(WETH).approve(address(limitOrderExecutor), wethQuantity);
     }
 
     //================================================================
@@ -1401,7 +1387,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
     ) internal {
         uint256 totalOrderFees = 0;
         for (uint256 i = 0; i < orders.length; ++i) {
-            totalOrderFees += orders[i].fee;
+            totalOrderFees += orders[i].feeRemaining;
         }
         uint256 feesCompensated = IERC20(WETH).balanceOf(
             address(limitOrderExecutor)
@@ -1412,6 +1398,34 @@ contract SandboxLimitOrderRouterTest is DSTest {
     //================================================================
     //====================== Misc Helpers ============================
     //================================================================
+    function initializeTestBalanceState(uint128 wethQuantity) internal {
+        ///@notice Deal funds to all of the necessary receivers
+        cheatCodes.deal(address(this), type(uint128).max);
+        cheatCodes.deal(address(swapHelper), type(uint128).max);
+        ///@notice Deposit Gas Credits to cover order execution.
+        depositGasCreditsForMockOrdersWrapper(type(uint128).max);
+        cheatCodes.deal(address(this), wethQuantity);
+
+        ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
+        (bool depositSuccess, ) = address(WETH).call{value: wethQuantity}(
+            abi.encodeWithSignature("deposit()")
+        );
+        require(depositSuccess, "Fudge");
+        IERC20(WETH).approve(address(limitOrderExecutor), wethQuantity);
+    }
+
+    ///@notice Helper function to calculate the amountRequired from a swap.
+    function _calculateExactAmountRequired(
+        uint256 amountFilled,
+        uint256 amountInRemaining,
+        uint256 amountOutRemaining
+    ) internal pure returns (uint256 amountOutRequired) {
+        amountOutRequired = ConveyorMath.mul64U(
+            ConveyorMath.divUU(amountOutRemaining, amountInRemaining),
+            amountFilled
+        );
+    }
+
     function initialize10DimensionalOrderIdBundles()
         internal
         pure
@@ -1454,7 +1468,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
             for (uint256 i = 0; i < orderIds.length; ++i) {
                 SandboxLimitOrderBook.SandboxLimitOrder memory order = orderBook
                     .getSandboxLimitOrderById(orderIds[i]);
-                cumulativeFee += order.fee;
+                cumulativeFee += order.feeRemaining;
                 orders[i] = order;
             }
         }
@@ -1742,7 +1756,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
             amountInRemaining: amountInRemaining,
             lastRefreshTimestamp: 0,
             expirationTimestamp: type(uint32).max,
-            fee: 0,
+            feeRemaining: 0,
             owner: msg.sender,
             tokenIn: tokenIn,
             tokenOut: tokenOut,

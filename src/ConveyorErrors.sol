@@ -85,3 +85,7 @@ error ConveyorFeesNotPaid(
     uint256 feesPaid,
     uint256 unpaidFeesRemaining
 );
+error InsufficientFillAmountSpecified(
+    uint128 fillAmountSpecified,
+    uint128 amountInRemaining
+);

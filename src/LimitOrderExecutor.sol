@@ -684,24 +684,47 @@ contract LimitOrderExecutor is SwapRouter {
 
             ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
             for (uint256 i = 0; i < orders.length; ++i) {
+                uint128 fillAmount = sandboxMulticall.fillAmounts[i];
                 IERC20(orders[i].tokenIn).safeTransferFrom(
                     orders[i].owner,
                     sandboxMulticall.transferAddresses[i],
-                    sandboxMulticall.fillAmounts[i]
+                    fillAmount
                 );
 
-                expectedAccumulatedFees += orders[i].fee;
+                uint256 feeRequired = ConveyorMath.mul64U(
+                    ConveyorMath.divUU(fillAmount, orders[i].amountInRemaining),
+                    orders[i].feeRemaining
+                );
+
+                if (feeRequired == 0) {
+                    revert InsufficientFillAmountSpecified(
+                        fillAmount,
+                        orders[i].amountInRemaining
+                    );
+                }
+                expectedAccumulatedFees += feeRequired;
             }
         } else {
             ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
             for (uint256 i = 0; i < orders.length; ++i) {
+                uint128 fillAmount = sandboxMulticall.fillAmounts[i];
                 IERC20(orders[i].tokenIn).safeTransferFrom(
                     orders[i].owner,
                     SANDBOX_LIMIT_ORDER_ROUTER,
-                    sandboxMulticall.fillAmounts[i]
+                    fillAmount
+                );
+                uint256 feeRequired = ConveyorMath.mul64U(
+                    ConveyorMath.divUU(fillAmount, orders[i].amountInRemaining),
+                    orders[i].feeRemaining
                 );
 
-                expectedAccumulatedFees += orders[i].fee;
+                if (feeRequired == 0) {
+                    revert InsufficientFillAmountSpecified(
+                        fillAmount,
+                        orders[i].amountInRemaining
+                    );
+                }
+                expectedAccumulatedFees += feeRequired;
             }
         }
 
