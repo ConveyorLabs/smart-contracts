@@ -121,8 +121,7 @@ contract LimitOrderExecutorTest is DSTest {
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             address(limitOrderExecutor),
-            300000,
-            250000
+            300000
         );
 
         orderBook = ILimitOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
@@ -3121,16 +3120,14 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
         address _weth,
         address _usdc,
         address _limitOrderExecutor,
-        uint256 _limitOrderExecutionGasCost,
-        uint256 _sandboxLimitOrderExecutionGasCost
+        uint256 _limitOrderExecutionGasCost
     )
         LimitOrderRouter(
             _gasOracle,
             _weth,
             _usdc,
             _limitOrderExecutor,
-            _limitOrderExecutionGasCost,
-            _sandboxLimitOrderExecutionGasCost
+            _limitOrderExecutionGasCost
         )
     {}
 

@@ -166,15 +166,8 @@ contract SwapRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
-        (
-            SwapRouter.SpotReserve memory priceDaiWeth,
-            address poolAddressDaiWeth
-        ) = limitOrderExecutor.calculateV3SpotPrice(
-                dai,
-                weth,
-                3000,
-                _uniV3FactoryAddress
-            );
+        (SwapRouter.SpotReserve memory priceDaiWeth, ) = limitOrderExecutor
+            .calculateV3SpotPrice(dai, weth, 3000, _uniV3FactoryAddress);
 
         assertEq(priceDaiWeth.spotPrice, 195219315785396777134689842230198271);
     }

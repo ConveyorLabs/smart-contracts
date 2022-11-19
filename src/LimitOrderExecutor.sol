@@ -121,7 +121,6 @@ contract LimitOrderExecutor is SwapRouter {
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
-
         address _chainLinkGasOracle,
         uint256 _limitOrderExecutionGasCost,
         uint256 _sandboxLimitOrderExecutionGasCost
@@ -144,18 +143,15 @@ contract LimitOrderExecutor is SwapRouter {
         LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
         SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
 
-
         SANDBOX_LIMIT_ORDER_BOOK = address(
             new SandboxLimitOrderBook(
                 _chainLinkGasOracle,
-
                 address(this),
                 _weth,
                 _usdc,
                 _sandboxLimitOrderExecutionGasCost
             )
         );
-
 
         ///@notice Assign the SANDBOX_LIMIT_ORDER_ROUTER address
         SANDBOX_LIMIT_ORDER_ROUTER = ISandboxLimitOrderBook(
@@ -168,8 +164,7 @@ contract LimitOrderExecutor is SwapRouter {
                 _weth,
                 _usdc,
                 address(this),
-                _limitOrderExecutionGasCost,
-                _sandboxLimitOrderExecutionGasCost
+                _limitOrderExecutionGasCost
             )
         );
 

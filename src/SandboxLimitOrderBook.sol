@@ -795,7 +795,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         address orderToken = orderGroup[0].tokenIn;
 
         ///@notice Get the value of all orders on the orderToken that are currently placed for the msg.sender.
-        uint256 updatedTotalOrdersValue = _getTotalOrdersValue(orderToken);
+        uint256 updatedTotalOrdersValue = getTotalOrdersValue(orderToken);
 
         ///@notice Get the current balance of the orderToken that the msg.sender has in their account.
         uint256 tokenBalance = IERC20(orderToken).balanceOf(msg.sender);
@@ -1013,7 +1013,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
             revert OrderDoesNotExist(orderId);
         }
         ///@notice Get the total orders value for the msg.sender on the tokenIn
-        uint256 totalOrdersValue = _getTotalOrdersValue(order.tokenIn);
+        uint256 totalOrdersValue = getTotalOrdersValue(order.tokenIn);
 
         ///@notice Update the total orders value
         totalOrdersValue += amountInRemaining;
@@ -1156,7 +1156,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
 
         ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
         if (block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL) {
-            return 0;
+            revert OrderNotEligibleForRefresh(order.orderId);
         }
 
         uint256 currentCreditBalance = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
@@ -1169,9 +1169,9 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         );
 
         ///@notice update the order's last refresh timestamp
-        ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
+        ///@dev uint32(block.timestamp).
         orderIdToSandboxLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
-            block.timestamp % (2**32 - 1)
+            block.timestamp
         );
 
         ///@notice Emit an event to notify the off-chain executors that the order has been refreshed.
@@ -1304,8 +1304,8 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
     /// @notice Helper function to get the total order value on a specific token for the msg.sender.
     /// @param token - Token address to get total order value on.
     /// @return totalOrderValue - The total value of orders that exist for the msg.sender on the specified token.
-    function _getTotalOrdersValue(address token)
-        internal
+    function getTotalOrdersValue(address token)
+        public
         view
         returns (uint256 totalOrderValue)
     {

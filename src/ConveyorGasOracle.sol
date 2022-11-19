@@ -21,8 +21,11 @@ contract ConveyorGasOracle {
     uint256 lastGasOracleTimestamp;
     ///@notice Mean of gas oracle prices across the time horizon
     uint256 meanGasPrice;
+    uint256 cumulativeSum;
+    uint256 arithmeticscale = 1;
 
     event MeanGasPriceUpdate(
+        uint256 blockNumber,
         uint256 timestamp,
         uint256 gasPrice,
         uint256 meanGasPrice
@@ -36,72 +39,48 @@ contract ConveyorGasOracle {
         (, int256 answer, , , ) = IAggregatorV3(gasOracleAddress)
             .latestRoundData();
         meanGasPrice = uint256(answer);
+        cumulativeSum = meanGasPrice;
         lastGasOracleTimestamp = block.timestamp;
     }
 
     ///@notice Gets the latest gas price from the Chainlink data feed for the fast gas oracle
     function getGasPrice() public returns (uint256) {
-        bool sufficientlyElapsedTime;
-        assembly {
-            sufficientlyElapsedTime := iszero(
-                ///@notice Limit only 1 call to to the oracle per block.
-                lt(
-                    sub(timeHorizon, 1),
-                    sub(
-                        timeHorizon,
-                        sub(lastGasOracleTimestamp.slot, timestamp())
-                    )
-                )
-            )
-        }
-        if (sufficientlyElapsedTime) {
+        if (!(block.timestamp == lastGasOracleTimestamp)) {
             (, int256 answer, , , ) = IAggregatorV3(gasOracleAddress)
                 .latestRoundData();
 
             uint256 gasPrice = uint256(answer);
-
-            uint128 proportionalTimeHorizonElapsed = ConveyorMath.divUU(
-                block.timestamp - lastGasOracleTimestamp,
-                timeHorizon
+            if (block.timestamp - lastGasOracleTimestamp > timeHorizon) {
+                cumulativeSum = meanGasPrice + gasPrice;
+                arithmeticscale = 2;
+                meanGasPrice = cumulativeSum / arithmeticscale;
+            } else {
+                cumulativeSum += gasPrice;
+                arithmeticscale++;
+                meanGasPrice = cumulativeSum / arithmeticscale;
+            }
+            emit MeanGasPriceUpdate(
+                block.number,
+                block.timestamp,
+                gasPrice,
+                meanGasPrice
             );
-            console.log(proportionalTimeHorizonElapsed);
+        }
 
-            uint128 divisor = (uint128(1) +
-                (ConveyorMath.divUU(
-                    block.timestamp - lastGasOracleTimestamp,
-                    timeHorizon
-                ) % 2**64));
+        ///@notice Update the last gas timestamp
+        lastGasOracleTimestamp = block.timestamp;
 
-            ///@notice update the meanGasPrice
-            meanGasPrice = ConveyorMath.divUU(
-                uint256(
-                    meanGasPrice +
-                        ConveyorMath.mul64U(
-                            proportionalTimeHorizonElapsed,
-                            gasPrice
-                        )
-                ),
-                uint256(divisor)
-            );
-
-            emit MeanGasPriceUpdate(block.timestamp, gasPrice, meanGasPrice);
-
-            ///@notice Update the last gas timestamp
-            lastGasOracleTimestamp = block.timestamp;
-
-            ///@notice
-            /* The gas price is determined to be the oracleGasPrice * 1.25 since the Chainlink Gas Oracle can deviate up to 25% between updates
+        ///@notice
+        /* The gas price is determined to be the oracleGasPrice * 1.25 since the Chainlink Gas Oracle can deviate up to 25% between updates
          If the Chainlink Gas oracle is reporting a price that is 25% less than the actual price, then the adjustedGasPrice will report the fair market gas price
          If the Gas oracle is reporting a price 25% greater than the actual gas price, the adjusted price is still 25% greater than the oracle.
          This allows for the off chain executor to always be incentivized to execute a transaction, regardless of how far the gasOracle deviates
          from the fair market price. 
         */
 
-            uint256 adjustedGasPrice = (uint256(meanGasPrice) *
-                ONE_HUNDRED_TWENTY_FIVE) / ONE_HUNDRED;
-            return adjustedGasPrice;
-        } else {
-            return meanGasPrice;
-        }
+        uint256 adjustedGasPrice = (uint256(meanGasPrice) *
+            ONE_HUNDRED_TWENTY_FIVE) / ONE_HUNDRED;
+
+        return adjustedGasPrice;
     }
 }

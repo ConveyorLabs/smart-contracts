@@ -89,8 +89,7 @@ contract LimitOrderRouter is LimitOrderBook {
         address _weth,
         address _usdc,
         address _limitOrderExecutor,
-        uint256 _limitOrderExecutionGasCost,
-        uint256 _sandboxLimitOrderExecutionGasCost
+        uint256 _limitOrderExecutionGasCost
     )
         LimitOrderBook(
             _gasOracle,
@@ -114,7 +113,6 @@ contract LimitOrderRouter is LimitOrderBook {
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
     function refreshOrder(bytes32[] memory orderIds) external nonReentrant {
-
         ///@notice Initialize totalRefreshFees;
         uint256 totalRefreshFees;
 
@@ -165,7 +163,7 @@ contract LimitOrderRouter is LimitOrderBook {
 
         ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
         if (block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL) {
-            return 0;
+            revert OrderNotEligibleForRefresh(order.orderId);
         }
 
         ///@notice Decrement the order.owner's gas credit balance
