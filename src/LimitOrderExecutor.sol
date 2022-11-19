@@ -250,7 +250,7 @@ contract LimitOrderExecutor is SwapRouter {
         emit GasCreditEvent(msg.sender, newBalance);
 
         ///@notice Transfer the withdraw amount to the account.
-        safeTransferETH(msg.sender, value);
+        _safeTransferETH(msg.sender, value);
 
         return true;
     }
@@ -275,7 +275,7 @@ contract LimitOrderExecutor is SwapRouter {
         onlyOrderBook
     {
         ///@notice Transfer the withdraw amount to the account.
-        safeTransferETH(receiver, value);
+        _safeTransferETH(receiver, value);
     }
 
     /// @notice Internal helper function to approximate the minimum gas credits needed for order execution.
@@ -342,12 +342,12 @@ contract LimitOrderExecutor is SwapRouter {
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = _getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn);
+        ) = getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn);
 
         ///@notice Initialize all execution prices for the token pair.
         TokenToWethExecutionPrice[] memory executionPrices = ILimitOrderQuoter(
             LIMIT_ORDER_QUOTER
-        )._initializeTokenToWethExecutionPrices(
+        ).initializeTokenToWethExecutionPrices(
                 spotReserveAToWeth,
                 lpAddressesAToWeth
             );
@@ -362,7 +362,7 @@ contract LimitOrderExecutor is SwapRouter {
         for (uint256 i = 0; i < orders.length; ) {
             ///@notice Create a variable to track the best execution price in the array of execution prices.
             uint256 bestPriceIndex = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
-                ._findBestTokenToWethExecutionPrice(
+                .findBestTokenToWethExecutionPrice(
                     executionPrices,
                     orders[i].buy
                 );
@@ -394,7 +394,7 @@ contract LimitOrderExecutor is SwapRouter {
             }
         }
         ///@notice Transfer the totalBeaconReward to the off chain executor.
-        transferBeaconReward(totalBeaconReward, tx.origin, WETH);
+        _transferBeaconReward(totalBeaconReward, tx.origin, WETH);
 
         ///@notice Increment the conveyor balance.
         conveyorBalance += totalConveyorReward;
@@ -420,7 +420,7 @@ contract LimitOrderExecutor is SwapRouter {
             );
 
         ///@notice Transfer the tokenOut amount to the order owner.
-        transferTokensOutToOwner(order.owner, amountOutWeth, WETH);
+        _transferTokensOutToOwner(order.owner, amountOutWeth, WETH);
 
         return (uint256(conveyorReward), uint256(beaconReward));
     }
@@ -458,7 +458,7 @@ contract LimitOrderExecutor is SwapRouter {
 
         ///@notice Swap from tokenA to Weth.
         amountOutWeth = uint128(
-            swap(
+            _swap(
                 tokenIn,
                 WETH,
                 lpAddressAToWeth,
@@ -471,7 +471,7 @@ contract LimitOrderExecutor is SwapRouter {
         );
 
         ///@notice Take out fees from the amountOut.
-        uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
+        uint128 protocolFee = calculateFee(amountOutWeth, USDC, WETH);
 
         ///@notice Calculate the conveyorReward and executor reward.
         (conveyorReward, beaconReward) = ConveyorFeeMath.calculateReward(
@@ -507,16 +507,16 @@ contract LimitOrderExecutor is SwapRouter {
             (
                 SpotReserve[] memory spotReserveAToWeth,
                 address[] memory lpAddressesAToWeth
-            ) = _getAllPrices(tokenIn, WETH, feeIn);
+            ) = getAllPrices(tokenIn, WETH, feeIn);
 
             ///@notice Get all prices for the pairing Weth to tokenOut
             (
                 SpotReserve[] memory spotReserveWethToB,
                 address[] memory lpAddressWethToB
-            ) = _getAllPrices(WETH, orders[0].tokenOut, feeOut);
+            ) = getAllPrices(WETH, orders[0].tokenOut, feeOut);
 
             executionPrices = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
-                ._initializeTokenToTokenExecutionPrices(
+                .initializeTokenToTokenExecutionPrices(
                     tokenIn,
                     spotReserveAToWeth,
                     lpAddressesAToWeth,
@@ -534,7 +534,7 @@ contract LimitOrderExecutor is SwapRouter {
         for (uint256 i = 0; i < orders.length; ) {
             ///@notice Create a variable to track the best execution price in the array of execution prices.
             uint256 bestPriceIndex = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
-                ._findBestTokenToTokenExecutionPrice(
+                .findBestTokenToTokenExecutionPrice(
                     executionPrices,
                     orders[i].buy
                 );
@@ -565,7 +565,7 @@ contract LimitOrderExecutor is SwapRouter {
             }
         }
         ///@notice Transfer the totalBeaconReward to the off chain executor.
-        transferBeaconReward(totalBeaconReward, tx.origin, WETH);
+        _transferBeaconReward(totalBeaconReward, tx.origin, WETH);
 
         conveyorBalance += totalConveyorReward;
 
@@ -603,13 +603,13 @@ contract LimitOrderExecutor is SwapRouter {
                 }
             } else {
                 ///@notice Transfer the TokenIn to the contract.
-                transferTokensToContract(order);
+                _transferTokensToContract(order);
 
                 ///@notice Cache the order quantity.
                 uint256 amountIn = order.quantity;
 
                 ///@notice Take out fees from the batch amountIn since token0 is weth.
-                uint128 protocolFee = _calculateFee(
+                uint128 protocolFee = calculateFee(
                     uint128(amountIn),
                     USDC,
                     WETH
@@ -633,7 +633,7 @@ contract LimitOrderExecutor is SwapRouter {
         }
 
         ///@notice Swap Weth for tokenB.
-        uint256 amountOutInB = swap(
+        uint256 amountOutInB = _swap(
             WETH,
             order.tokenOut,
             executionPrice.lpAddressWethToB,
@@ -653,7 +653,7 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Transfer the order quantity to the contract.
     ///@param order - The orders tokens to be transferred.
-    function transferTokensToContract(LimitOrderBook.LimitOrder memory order)
+    function _transferTokensToContract(LimitOrderBook.LimitOrder memory order)
         internal
     {
         IERC20(order.tokenIn).safeTransferFrom(
@@ -783,7 +783,7 @@ contract LimitOrderExecutor is SwapRouter {
         uint256 withdrawAmount = conveyorBalance;
         ///@notice Set the conveyorBalance to 0 prior to transferring the ETH.
         conveyorBalance = 0;
-        safeTransferETH(owner, withdrawAmount);
+        _safeTransferETH(owner, withdrawAmount);
     }
 
     ///@notice Function to confirm ownership transfer of the contract.

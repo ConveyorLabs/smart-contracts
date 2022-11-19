@@ -120,7 +120,7 @@ contract SwapRouter is ConveyorTickMath {
     //======================Constructor================================
 
     /**@dev It is important to note that a univ2 compatible DEX must be initialized in the 0th index.
-        The _calculateFee function relies on a uniV2 DEX to be in the 0th index.*/
+        The calculateFee function relies on a uniV2 DEX to be in the 0th index.*/
     ///@param _deploymentByteCodes - Array of DEX creation init bytecodes.
     ///@param _dexFactories - Array of DEX factory addresses.
     ///@param _isUniV2 - Array of booleans indicating if the DEX is UniV2 compatible.
@@ -157,7 +157,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@notice Transfer ETH to a specific address and require that the call was successful.
     ///@param to - The address that should be sent Ether.
     ///@param amount - The amount of Ether that should be sent.
-    function safeTransferETH(address to, uint256 amount) internal {
+    function _safeTransferETH(address to, uint256 amount) internal {
         bool success;
 
         assembly {
@@ -178,7 +178,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@param usdc - Address of USDC
     ///@param weth - Address of Weth
     /// @return calculated_fee_64x64 -  Returns the fee percent that is applied to the amountOut realized from an executed.
-    function _calculateFee(
+    function calculateFee(
         uint128 amountIn,
         address usdc,
         address weth
@@ -248,7 +248,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@param orderOwner - The address to send the tokens to.
     ///@param amount - The amount of tokenOut to send to orderOwner.
     ///@param tokenOut - The address of the ERC20 token being sent to orderOwner.
-    function transferTokensOutToOwner(
+    function _transferTokensOutToOwner(
         address orderOwner,
         uint256 amount,
         address tokenOut
@@ -260,7 +260,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@param totalBeaconReward - The total reward to be transferred to the executor.
     ///@param executorAddress - The address to send the reward to.
     ///@param weth - The wrapped native token address.
-    function transferBeaconReward(
+    function _transferBeaconReward(
         uint256 totalBeaconReward,
         address executorAddress,
         address weth
@@ -269,7 +269,7 @@ contract SwapRouter is ConveyorTickMath {
         IWETH(weth).withdraw(totalBeaconReward);
 
         ///@notice Send the off-chain executor their reward.
-        safeTransferETH(executorAddress, totalBeaconReward);
+        _safeTransferETH(executorAddress, totalBeaconReward);
     }
 
     ///@notice Helper function to execute a swap on a UniV2 LP
@@ -343,7 +343,7 @@ contract SwapRouter is ConveyorTickMath {
     ///@param _receiver - Address to receive the amountOut.
     ///@param _sender - Address to send the tokenIn.
     ///@return amountReceived - Amount received from the swap.
-    function swap(
+    function _swap(
         address _tokenIn,
         address _tokenOut,
         address _lp,
@@ -505,7 +505,7 @@ contract SwapRouter is ConveyorTickMath {
         address token1,
         address _factory,
         bytes32 _initBytecode
-    ) public view returns (SpotReserve memory spRes, address poolAddress) {
+    ) internal view returns (SpotReserve memory spRes, address poolAddress) {
         ///@notice Require token address's are not identical
         require(token0 != token1, "Invalid Token Pair, IDENTICAL Address's");
 
@@ -663,7 +663,7 @@ contract SwapRouter is ConveyorTickMath {
     /// @param tokenA - Address of tokenA.
     /// @param tokenB - Address of tokenB.
     function _sortTokens(address tokenA, address tokenB)
-        public
+        internal
         pure
         returns (address token0, address token1)
     {
@@ -713,7 +713,7 @@ contract SwapRouter is ConveyorTickMath {
     /// @param FEE - The Uniswap V3 pool fee on the token pair.
     /// @return prices - SpotReserve array holding the reserves and spot prices across all dexes.
     /// @return lps - Pool address's on the token pair across all dexes.
-    function _getAllPrices(
+    function getAllPrices(
         address token0,
         address token1,
         uint24 FEE

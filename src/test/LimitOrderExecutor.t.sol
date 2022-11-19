@@ -3056,14 +3056,6 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
             );
     }
 
-    function getAllPrices(
-        address token0,
-        address token1,
-        uint24 FEE
-    ) public view returns (SpotReserve[] memory prices, address[] memory lps) {
-        return _getAllPrices(token0, token1, FEE);
-    }
-
     function calculateV2SpotPrice(
         address token0,
         address token1,
@@ -3082,15 +3074,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         return _calculateV3SpotPrice(token0, token1, FEE, _factory);
     }
 
-    function calculateFee(
-        uint128 amountIn,
-        address usdc,
-        address weth
-    ) public view returns (uint128) {
-        return _calculateFee(amountIn, usdc, weth);
-    }
-
-    function _swap(
+    function swap(
         address _tokenIn,
         address _tokenOut,
         address _lp,
@@ -3101,7 +3085,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         address _sender
     ) public returns (uint256 amountReceived) {
         return
-            swap(
+            _swap(
                 _tokenIn,
                 _tokenOut,
                 _lp,

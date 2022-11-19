@@ -382,7 +382,7 @@ contract LimitOrderRouter is LimitOrderBook {
         }
 
         ///@notice Get the array of order owners.
-        address[] memory orderOwners = getLimitOrderOwners(orders);
+        address[] memory orderOwners = _getLimitOrderOwners(orders);
 
         ///@notice Iterate through all orderIds in the batch and delete the orders from queue post execution.
         for (uint256 i = 0; i < orderIds.length; ) {
@@ -399,7 +399,7 @@ contract LimitOrderRouter is LimitOrderBook {
         emit OrderFufilled(orderIds);
 
         ///@notice Calculate the execution gas compensation.
-        uint256 executionGasCompensation = calculateExecutionGasCompensation(
+        uint256 executionGasCompensation = _calculateExecutionGasCompensation(
             gasPrice,
             orderOwners,
             OrderType.PendingLimitOrder
@@ -414,7 +414,7 @@ contract LimitOrderRouter is LimitOrderBook {
     ///@notice Function to return an array of limit order owners.
     ///@param orders - Array of LimitOrders.
     ///@return orderOwners - An array of order owners in the orders array.
-    function getLimitOrderOwners(LimitOrder[] memory orders)
+    function _getLimitOrderOwners(LimitOrder[] memory orders)
         internal
         pure
         returns (address[] memory orderOwners)
@@ -447,7 +447,7 @@ contract LimitOrderRouter is LimitOrderBook {
 
     ///@notice Function to calculate the execution gas consumed during executeLimitOrders
     ///@return executionGasConsumed - The amount of gas consumed.
-    function calculateExecutionGasConsumed(
+    function _calculateExecutionGasConsumed(
         uint256 gasPrice,
         uint256 numberOfOrders,
         OrderType orderType
@@ -473,7 +473,7 @@ contract LimitOrderRouter is LimitOrderBook {
     ///@notice Function to adjust order owner's gas credit balance and calaculate the compensation to be paid to the executor.
     ///@param orderOwners - The order owners in the batch.
     ///@return gasExecutionCompensation - The amount to be paid to the off-chain executor for execution gas.
-    function calculateExecutionGasCompensation(
+    function _calculateExecutionGasCompensation(
         uint256 gasPrice,
         address[] memory orderOwners,
         OrderType orderType
@@ -481,7 +481,7 @@ contract LimitOrderRouter is LimitOrderBook {
         uint256 orderOwnersLength = orderOwners.length;
 
         ///@notice Decrement gas credit balances for each order owner
-        uint256 executionGasConsumed = calculateExecutionGasConsumed(
+        uint256 executionGasConsumed = _calculateExecutionGasConsumed(
             gasPrice,
             orderOwners.length,
             orderType
