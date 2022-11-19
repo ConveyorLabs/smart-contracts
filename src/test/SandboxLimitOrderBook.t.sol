@@ -26,6 +26,18 @@ interface CheatCodes {
     ) external;
 
     function warp(uint256) external;
+
+    function createSelectFork(string calldata, uint256)
+        external
+        returns (uint256);
+
+    function makePersistent(address) external;
+
+    function rollFork(uint256 forkId, uint256 blockNumber) external;
+
+    function rollFork(uint256) external;
+
+    function activeFork() external returns (uint256);
 }
 
 contract SandboxLimitOrderBookTest is DSTest {
@@ -101,7 +113,11 @@ contract SandboxLimitOrderBookTest is DSTest {
         sandboxLimitOrderBook = ISandboxLimitOrderBook(
             limitOrderExecutor.SANDBOX_LIMIT_ORDER_BOOK()
         );
-
+        cheatCodes.makePersistent(address(sandboxLimitOrderBookWrapper));
+        cheatCodes.makePersistent(address(limitOrderExecutor));
+        cheatCodes.makePersistent(address(limitOrderQuoter));
+        cheatCodes.makePersistent(address(swapHelper));
+        cheatCodes.makePersistent(address(sandboxLimitOrderBook));
         cheatCodes.deal(address(this), type(uint128).max);
         depositGasCreditsForMockOrders(type(uint64).max);
     }
@@ -143,7 +159,7 @@ contract SandboxLimitOrderBookTest is DSTest {
         cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
         //if the fuzzed amount is enough to complete the swap
-        swapHelper.swapEthForTokenWithUniV2(100 ether, swapToken);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, swapToken);
 
         bytes32 orderId1 = placeMockSandboxLimitOrder(
             newSandboxLimitOrder(swapToken, WETH, 10e21, uint112(1))

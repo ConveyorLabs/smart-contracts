@@ -31,8 +31,8 @@ jobs:
         with:
           version: nightly
 
-      - name: Run tests
-        run: forge test -vvv -f${{ secrets.MAINNET_ENDPOINT }} --fork-block-number 15233771 --ffi
-
+      - name: Run quoter tests
+        run: forge test -vvv -f${{ secrets.MAINNET_ENDPOINT }} --fork-block-number 15233771 --ffi 
+      
       - name: Run snapshot
         run: forge snapshot -vvv -f${{ secrets.MAINNET_ENDPOINT }} --fork-block-number 15233771 --ffi

@@ -45,10 +45,7 @@ contract ConveyorGasOracleTest is DSTest {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         ///@notice This is the fast gas oracle address for Ethereum Mainnet
 
-        forkId = cheatCodes.createSelectFork(
-            "https://mainnet.infura.io/v3/5eb79c68c5a3401f94685c5661b621e2",
-            15233771
-        );
+        forkId = cheatCodes.createSelectFork("mainnet", 15233771);
         address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
         gasOracle = new ConveyorGasOracle(aggregatorV3Address);
         cheatCodes.makePersistent(address(gasOracle));

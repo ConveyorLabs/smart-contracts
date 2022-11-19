@@ -26,6 +26,14 @@ interface CheatCodes {
         bool,
         bool
     ) external;
+
+    function makePersistent(address) external;
+
+    function createSelectFork(string calldata, uint256)
+        external
+        returns (uint256);
+
+    function rollFork(uint256 forkId, uint256 blockNumber) external;
 }
 
 contract LimitOrderQuoterTest is DSTest {
@@ -97,6 +105,7 @@ contract LimitOrderQuoterTest is DSTest {
     uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000; //0.00001
     address swapRouter = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
+    uint256 forkId;
 
     function setUp() public {
         scriptRunner = new ScriptRunner();
@@ -107,6 +116,7 @@ contract LimitOrderQuoterTest is DSTest {
         limitOrderQuoter = new ExecutionWrapper(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
+        cheatCodes.makePersistent(address(limitOrderQuoter));
         iQuoter = IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
     }
 
