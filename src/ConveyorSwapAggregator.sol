@@ -5,7 +5,7 @@ import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 
 interface IConveyorSwapExecutor {
-    function executeMulticall(ConveyorSwapAggregator.Call[] calldata calls)
+    function executeMulticall(ConveyorSwapAggregator.Call[] memory calls)
         external;
 }
 
@@ -60,31 +60,15 @@ contract ConveyorSwapAggregator {
 
 contract ConveyorSwapExecutor {
     function executeMulticall(ConveyorSwapAggregator.Call[] calldata calls)
-        internal
+        public
     {
         uint256 callsLength = calls.length;
         for (uint256 i = 0; i < callsLength; ) {
             ConveyorSwapAggregator.Call memory call = calls[i];
 
-            address target = call.target;
-            bytes memory data = call.callData;
-            uint256 dataLength = data.length;
+            (bool success, ) = call.target.call(call.callData);
 
-            assembly {
-                let success := call(
-                    gas(),
-                    target,
-                    0, // no ether
-                    data, // input buffer
-                    dataLength, // input length
-                    0x00, // output buffer
-                    0x00 // output length
-                )
-
-                if iszero(success) {
-                    revert(0x00, 0xbad)
-                }
-            }
+            require(success, "call failed");
 
             unchecked {
                 ++i;

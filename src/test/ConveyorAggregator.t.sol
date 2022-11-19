@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import "./utils/test.sol";
 import "./utils/Swap.sol";
-import "../ConveyorSwapAggregator.sol";
+import "../csat.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -33,7 +33,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint256 amountIn = 1900000000000000000000;
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        uint256 amountOutMin = 1;
+        uint256 amountOutMin = 54776144172760093;
         address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
 
         swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
@@ -45,7 +45,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         ConveyorSwapAggregator.Call[]
             memory calls = new ConveyorSwapAggregator.Call[](1);
 
-        calls[0] = newUniV2Call(lp, 0, 54776144172760093, address(this));
+        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(this));
 
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
