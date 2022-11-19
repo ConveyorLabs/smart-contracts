@@ -48,7 +48,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param executionPrices - Array of execution prices to evaluate.
     ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
     ///@return bestPriceIndex - Index of the best price in the executionPrices array.
-    function _findBestTokenToWethExecutionPrice(
+    function findBestTokenToWethExecutionPrice(
         SwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex) {
@@ -93,7 +93,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param executionPrices - Array of execution prices to evaluate.
     ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
     ///@return bestPriceIndex - Index of the best price in the executionPrices array.
-    function _findBestTokenToTokenExecutionPrice(
+    function findBestTokenToTokenExecutionPrice(
         SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex) {
@@ -133,7 +133,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
     ///@param spotReserveAToWeth - Spot reserve of tokenA to Weth.
     ///@param lpAddressesAToWeth - Pair address of tokenA to Weth.
-    function _initializeTokenToWethExecutionPrices(
+    function initializeTokenToWethExecutionPrices(
         SwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth
     ) external pure returns (SwapRouter.TokenToWethExecutionPrice[] memory) {
@@ -165,7 +165,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param lpAddressesAToWeth - Pair address of tokenA to Weth.
     ///@param spotReserveWethToB - Spot reserve of Weth to tokenB.
     ///@param lpAddressesWethToB - Pair address of Weth to tokenB
-    function _initializeTokenToTokenExecutionPrices(
+    function initializeTokenToTokenExecutionPrices(
         address tokenIn,
         SwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth,

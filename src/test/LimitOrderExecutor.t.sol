@@ -121,8 +121,7 @@ contract LimitOrderExecutorTest is DSTest {
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             address(limitOrderExecutor),
-            300000,
-            250000
+            300000
         );
 
         orderBook = ILimitOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
@@ -3057,14 +3056,6 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
             );
     }
 
-    function getAllPrices(
-        address token0,
-        address token1,
-        uint24 FEE
-    ) public view returns (SpotReserve[] memory prices, address[] memory lps) {
-        return _getAllPrices(token0, token1, FEE);
-    }
-
     function calculateV2SpotPrice(
         address token0,
         address token1,
@@ -3083,15 +3074,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         return _calculateV3SpotPrice(token0, token1, FEE, _factory);
     }
 
-    function calculateFee(
-        uint128 amountIn,
-        address usdc,
-        address weth
-    ) public view returns (uint128) {
-        return _calculateFee(amountIn, usdc, weth);
-    }
-
-    function _swap(
+    function swap(
         address _tokenIn,
         address _tokenOut,
         address _lp,
@@ -3102,7 +3085,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         address _sender
     ) public returns (uint256 amountReceived) {
         return
-            swap(
+            _swap(
                 _tokenIn,
                 _tokenOut,
                 _lp,
@@ -3121,16 +3104,14 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
         address _weth,
         address _usdc,
         address _limitOrderExecutor,
-        uint256 _limitOrderExecutionGasCost,
-        uint256 _sandboxLimitOrderExecutionGasCost
+        uint256 _limitOrderExecutionGasCost
     )
         LimitOrderRouter(
             _gasOracle,
             _weth,
             _usdc,
             _limitOrderExecutor,
-            _limitOrderExecutionGasCost,
-            _sandboxLimitOrderExecutionGasCost
+            _limitOrderExecutionGasCost
         )
     {}
 

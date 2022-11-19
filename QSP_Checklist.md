@@ -71,7 +71,7 @@ The visibility of the `safeTransferETH()` function in several contracts is publi
 The `safeTransferETH()` function visibility was changed to internal for all contracts affected.
 
 ### QSP-1_2
-In the SwapRouter contract, several `transferXXX()` functions allow anyone to call and direct transfer the funds away. The following is the list of functions: `transferTokensToContract()`, `transferTokensOutToOwner()`, and `transferBeaconReward()`.
+In the SwapRouter contract, several `transferXXX()` functions allow anyone to call and direct transfer the funds away. The following is the list of functions: `transferTokensToContract()`, `_transferTokensOutToOwner()`, and `_transferBeaconReward()`.
  
 ### Resolution
 All `transferXXX()` functions were updated to only be callable by the execution contract.

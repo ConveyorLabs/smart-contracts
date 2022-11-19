@@ -66,6 +66,7 @@ error SandboxFillAmountNotSatisfied(
     uint256 amountFilled,
     uint256 fillAmountRequired
 );
+error OrderNotEligibleForRefresh(bytes32 orderId);
 
 error SandboxAmountOutRequiredNotSatisfied(
     bytes32 orderId,

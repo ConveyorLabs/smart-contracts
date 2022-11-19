@@ -166,15 +166,8 @@ contract SwapRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
-        (
-            SwapRouter.SpotReserve memory priceDaiWeth,
-            address poolAddressDaiWeth
-        ) = limitOrderExecutor.calculateV3SpotPrice(
-                dai,
-                weth,
-                3000,
-                _uniV3FactoryAddress
-            );
+        (SwapRouter.SpotReserve memory priceDaiWeth, ) = limitOrderExecutor
+            .calculateV3SpotPrice(dai, weth, 3000, _uniV3FactoryAddress);
 
         assertEq(priceDaiWeth.spotPrice, 195219315785396777134689842230198271);
     }
@@ -656,7 +649,7 @@ contract SwapRouterTest is DSTest {
         uint256 amountInMaximum = amountReceived - 1;
         address receiver = address(this);
 
-        limitOrderExecutor._swap(
+        limitOrderExecutor.swap(
             tokenIn,
             tokenOut,
             lp,
@@ -686,7 +679,7 @@ contract SwapRouterTest is DSTest {
 
         address receiver = address(this);
 
-        uint256 amountOut = limitOrderExecutor._swap(
+        uint256 amountOut = limitOrderExecutor.swap(
             tokenIn,
             tokenOut,
             lp,
@@ -769,14 +762,6 @@ contract LimitOrderExecutorWrapper is SwapRouter {
             );
     }
 
-    function getAllPrices(
-        address token0,
-        address token1,
-        uint24 FEE
-    ) public view returns (SpotReserve[] memory prices, address[] memory lps) {
-        return _getAllPrices(token0, token1, FEE);
-    }
-
     function calculateV2SpotPrice(
         address token0,
         address token1,
@@ -795,15 +780,7 @@ contract LimitOrderExecutorWrapper is SwapRouter {
         return _calculateV3SpotPrice(token0, token1, FEE, _factory);
     }
 
-    function calculateFee(
-        uint128 amountIn,
-        address usdc,
-        address weth
-    ) public view returns (uint128) {
-        return _calculateFee(amountIn, usdc, weth);
-    }
-
-    function _swap(
+    function swap(
         address _tokenIn,
         address _tokenOut,
         address _lp,
@@ -814,7 +791,7 @@ contract LimitOrderExecutorWrapper is SwapRouter {
         address _sender
     ) public returns (uint256 amountReceived) {
         return
-            swap(
+            _swap(
                 _tokenIn,
                 _tokenOut,
                 _lp,

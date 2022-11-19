@@ -150,9 +150,9 @@ contract LimitOrderQuoterTest is DSTest {
         executionPrices[1] = tokenToTokenExecutionPrice1;
 
         uint256 bestPriceIndexBuy = limitOrderQuoter
-            ._findBestTokenToTokenExecutionPrice(executionPrices, true);
+            .findBestTokenToTokenExecutionPrice(executionPrices, true);
         uint256 bestPriceIndexSell = limitOrderQuoter
-            ._findBestTokenToTokenExecutionPrice(executionPrices, false);
+            .findBestTokenToTokenExecutionPrice(executionPrices, false);
 
         assertEq(bestPriceIndexBuy, 0);
         assertEq(bestPriceIndexSell, 1);

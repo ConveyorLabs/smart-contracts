@@ -26,13 +26,13 @@ interface IOrderRouter {
         view
         returns (SwapRouter.SpotReserve memory spRes, address poolAddress);
 
-    function _calculateFee(
+    function calculateFee(
         uint128 amountIn,
         address usdc,
         address weth
     ) external view returns (uint128);
 
-    function _getAllPrices(
+    function getAllPrices(
         address token0,
         address token1,
         uint24 FEE

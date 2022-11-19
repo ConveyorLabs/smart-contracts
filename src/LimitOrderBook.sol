@@ -273,7 +273,7 @@ contract LimitOrderBook {
         }
 
         ///@notice Update the total orders value on the orderToken for the msg.sender.
-        updateTotalOrdersQuantity(
+        _updateTotalOrdersQuantity(
             orderToken,
             msg.sender,
             updatedTotalOrdersValue
@@ -393,7 +393,7 @@ contract LimitOrderBook {
         }
 
         ///@notice Update the total orders quantity
-        updateTotalOrdersQuantity(order.tokenIn, msg.sender, totalOrdersValue);
+        _updateTotalOrdersQuantity(order.tokenIn, msg.sender, totalOrdersValue);
 
         ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
         uint256 totalApprovedQuantity = IERC20(order.tokenIn).allowance(
@@ -550,7 +550,7 @@ contract LimitOrderBook {
     ///@param token - Token address to update the total order value on.
     ///@param owner - Account address to update the total order value from.
     ///@param newQuantity - Amount set the the new total order value to.
-    function updateTotalOrdersQuantity(
+    function _updateTotalOrdersQuantity(
         address token,
         address owner,
         uint256 newQuantity
