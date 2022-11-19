@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import "../SwapRouter.sol";
 interface ILimitOrderQuoter {
-    function _findBestTokenToTokenExecutionPrice(
+    function findBestTokenToTokenExecutionPrice(
         SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex);
@@ -18,7 +18,7 @@ interface ILimitOrderQuoter {
         SwapRouter.TokenToWethExecutionPrice memory executionPrice
     ) external returns (SwapRouter.TokenToWethExecutionPrice memory);
 
-    function _findBestTokenToWethExecutionPrice(
+    function findBestTokenToWethExecutionPrice(
         SwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex);
@@ -31,14 +31,14 @@ interface ILimitOrderQuoter {
         address tokenIn
     ) external returns (uint256 amountOutMinAToWeth);
 
-    function _initializeTokenToWethExecutionPrices(
+    function initializeTokenToWethExecutionPrices(
         SwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth
     )
         external
         view
         returns (SwapRouter.TokenToWethExecutionPrice[] memory);
-    function _initializeTokenToTokenExecutionPrices(
+    function initializeTokenToTokenExecutionPrices(
         address tokenIn,
         SwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth,

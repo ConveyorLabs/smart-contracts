@@ -1073,7 +1073,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
                     (bool reverted, ) = address(sandboxLimitOrderBookWrapper)
                         .call(
                             abi.encodeWithSignature(
-                                "_initializePreSandboxExecutionState(bytes32[][],uint128[])",
+                                "initializePreSandboxExecutionState(bytes32[][],uint128[])",
                                 orderIdBundles,
                                 fillAmounts
                             )
@@ -1082,7 +1082,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
                 } else {
                     SandboxLimitOrderBook.PreSandboxExecutionState
                         memory preSandboxExecutionState = sandboxLimitOrderBookWrapper
-                            ._initializePreSandboxExecutionState(
+                            .initializePreSandboxExecutionState(
                                 orderIdBundles,
                                 fillAmounts
                             );
@@ -1219,7 +1219,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
 
             (bool status, ) = address(sandboxLimitOrderBookWrapper).call(
                 abi.encodeWithSignature(
-                    "_validateSandboxExecutionAndFillOrders(bytes32[][],uint128[],LimitOrderRouter.PreSandboxExecutionState)",
+                    "validateSandboxExecutionAndFillOrders(bytes32[][],uint128[],LimitOrderRouter.PreSandboxExecutionState)",
                     orderIdBundles,
                     fillAmounts,
                     preSandboxExecutionState
@@ -1227,11 +1227,11 @@ contract SandboxLimitOrderRouterTest is DSTest {
             );
             assertTrue(status);
         } else {
-            sandboxLimitOrderBookWrapper._validateSandboxExecutionAndFillOrders(
-                    orderIdBundles,
-                    fillAmounts,
-                    preSandboxExecutionState
-                );
+            sandboxLimitOrderBookWrapper.validateSandboxExecutionAndFillOrders(
+                orderIdBundles,
+                fillAmounts,
+                preSandboxExecutionState
+            );
             {
                 SandboxLimitOrderBook.SandboxLimitOrder
                     memory postExecutionOrder = sandboxLimitOrderBookWrapper
@@ -2097,7 +2097,7 @@ contract SandboxLimitOrderBookWrapper is SandboxLimitOrderBook {
         return getSandboxLimitOrderById(orderId);
     }
 
-    function _initializePreSandboxExecutionState(
+    function initializePreSandboxExecutionState(
         bytes32[][] calldata orderIdBundles,
         uint128[] calldata fillAmounts
     )
@@ -2105,15 +2105,15 @@ contract SandboxLimitOrderBookWrapper is SandboxLimitOrderBook {
         view
         returns (PreSandboxExecutionState memory preSandboxExecutionState)
     {
-        return initializePreSandboxExecutionState(orderIdBundles, fillAmounts);
+        return _initializePreSandboxExecutionState(orderIdBundles, fillAmounts);
     }
 
-    function _validateSandboxExecutionAndFillOrders(
+    function validateSandboxExecutionAndFillOrders(
         bytes32[][] memory orderIdBundles,
         uint128[] memory fillAmounts,
         PreSandboxExecutionState memory preSandboxExecutionState
     ) public {
-        validateSandboxExecutionAndFillOrders(
+        _validateSandboxExecutionAndFillOrders(
             orderIdBundles,
             fillAmounts,
             preSandboxExecutionState
