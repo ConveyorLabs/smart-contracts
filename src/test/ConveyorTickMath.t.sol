@@ -25,6 +25,16 @@ interface CheatCodes {
         bool,
         bool
     ) external;
+
+    function makePersistent(address) external;
+
+    function createSelectFork(string calldata, uint256)
+        external
+        returns (uint256);
+
+    function rollFork(uint256 forkId, uint256 blockNumber) external;
+
+    function activeFork() external returns (uint256);
 }
 
 contract ConveyorTickMathTest is DSTest {
@@ -41,7 +51,7 @@ contract ConveyorTickMathTest is DSTest {
     address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-
+    address poolAddress = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
     //Test Pool addresses
     address daiWethPoolV3 = 0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8;
     address usdcWethPoolV3 = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
@@ -80,6 +90,7 @@ contract ConveyorTickMathTest is DSTest {
         false
     ];
     address _uniV2Address = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    uint256 forkId;
 
     function setUp() public {
         swapHelper = new Swap(_uniV2Address, WETH);
@@ -91,6 +102,8 @@ contract ConveyorTickMathTest is DSTest {
         iQuoter = IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
         //Initialize the Sw
         swapRouter = new SwapRouterWrapper(_hexDems, _dexFactories, _isUniV2);
+        cheatCodes.makePersistent(address(swapRouter));
+        cheatCodes.makePersistent(address(conveyorTickMath));
     }
 
     ///@notice Test simulateAmountOutOnSqrtPriceX96 Quoted Amount out calculation.
@@ -194,8 +207,8 @@ contract ConveyorTickMathTest is DSTest {
         bool run = true;
 
         {
-            uint112 MAX_INPUT = 1000000000000000000000; //1000 ETH
-            //Input quantities range between 100-1000 ETH to hopefully always have enough to cross a tick
+            uint112 MAX_INPUT = 100000000000000000000; //1000 WETH
+            //Input quantities range between 100-1000 WETH to hopefully always have enough to cross a tick
             if (
                 _alphaX == 0 ||
                 _alphaX > MAX_INPUT ||
@@ -205,10 +218,6 @@ contract ConveyorTickMathTest is DSTest {
             }
         }
         if (run) {
-            //Get the sqrtPriceX96 and the current tick on the v3 pool.
-            (uint160 sqrtPriceX96, int24 tickBefore, , , , , ) = IUniswapV3Pool(
-                usdcWethPoolV3
-            ).slot0();
             //Get the tick spacing on the pool
             int24 tickSpacing = IUniswapV3Pool(usdcWethPoolV3).tickSpacing();
             //Get token0 from the pool
@@ -229,43 +238,25 @@ contract ConveyorTickMathTest is DSTest {
                 )
             );
 
-            //Deal some ether to the test contract
-            cheatCodes.deal(address(this), 500000000000 ether);
-
-            //Wrap the Ether
-            address(WETH).call{value: 500000000000 ether}(
-                abi.encodeWithSignature("deposit()")
-            );
-
-            //Transfer the input amount to the SwapRotuer contract to be sent to the pool in the swap callback.
-            IERC20(WETH).transfer(address(swapRouter), _alphaX);
-
-            //Perform the swap on the pool to recalculate if the current tick has been crossed
-            uint256 amountReceived = swapRouter.swapV3(
-                usdcWethPoolV3,
+            //Get the expected amountOut in Dai from the v3 quoter.
+            uint256 amountOutExpected = iQuoter.quoteExactInputSingle(
                 WETH,
                 USDC,
                 500,
                 _alphaX,
-                amountOutToValidate,
-                address(this),
-                address(swapRouter)
+                TickMath.MAX_SQRT_RATIO - 1
             );
 
-            //Get the current tick after the swap to see if a tick has been crossed.
-            (, int24 tickAfter, , , , , ) = IUniswapV3Pool(usdcWethPoolV3)
-                .slot0();
-
-            //The tick should have incremented
-            assertGt(tickAfter, tickBefore);
             //Validate that the amount we received matches out quote.
-            assertLt(amountOutToValidate, amountReceived);
+            assertEq(amountOutToValidate, amountOutExpected);
         }
     }
 
     //Block: 15233771
     function testFromSqrtX96() public {
-        address poolAddress = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+        forkId = cheatCodes.activeFork();
+        cheatCodes.rollFork(forkId, 15233771);
+
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 

@@ -54,7 +54,7 @@ error DuplicateOrderIdsInOrderGroup();
 error InvalidCalldata();
 error InsufficientMsgValue();
 error UnauthorizedCaller();
-
+error AmountInIsZero();
 ///@notice Returns the index of the call that failed within the SandboxRouter.Call[] array
 error SandboxCallFailed(uint256 callIndex);
 error InvalidTransferAddressArray();

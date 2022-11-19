@@ -184,6 +184,9 @@ contract SwapRouter is ConveyorTickMath {
         address weth
     ) public view returns (uint128) {
         uint128 calculated_fee_64x64;
+        if (amountIn == 0) {
+            revert AmountInIsZero();
+        }
 
         ///@notice Initialize spot reserve structure to retrive the spot price from uni v2
         (SpotReserve memory _spRes, ) = _calculateV2SpotPrice(

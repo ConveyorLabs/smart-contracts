@@ -306,9 +306,8 @@ contract LimitOrderExecutor is SwapRouter {
             gasPrice *
             SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 
-        uint256 minimumGasCredits = (minimumLimitGasCredits *
-            minimumSandboxLimitGasCredits *
-            multiplier) / ONE_HUNDRED;
+        uint256 minimumGasCredits = ((minimumLimitGasCredits +
+            minimumSandboxLimitGasCredits) * multiplier) / ONE_HUNDRED;
 
         ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
         return minimumGasCredits;

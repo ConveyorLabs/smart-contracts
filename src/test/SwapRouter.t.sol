@@ -24,6 +24,16 @@ interface CheatCodes {
     function prank(address) external;
 
     function deal(address who, uint256 amount) external;
+
+    function makePersistent(address) external;
+
+    function createSelectFork(string calldata, uint256)
+        external
+        returns (uint256);
+
+    function rollFork(uint256 forkId, uint256 blockNumber) external;
+
+    function activeFork() external returns (uint256);
 }
 
 contract SwapRouterTest is DSTest {
@@ -72,6 +82,7 @@ contract SwapRouterTest is DSTest {
     ];
     bool[] _isUniV2 = [true, true, false];
     uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000; //3402823669209385000000000000000000000
+    uint256 forkId;
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
@@ -82,6 +93,7 @@ contract SwapRouterTest is DSTest {
             _dexFactories,
             _isUniV2
         );
+        cheatCodes.makePersistent(address(limitOrderExecutor));
 
         uniV2Router = IUniswapV2Router02(_uniV2Address);
         uniV2Factory = IUniswapV2Factory(_uniV2FactoryAddress);
@@ -102,6 +114,8 @@ contract SwapRouterTest is DSTest {
 
     ///@notice Test calculate V2 spot price on sushi
     function testCalculateV2SpotSushiTest1() public {
+        uint256 forkId = cheatCodes.activeFork();
+        cheatCodes.rollFork(forkId, 15233771);
         //Test token address's
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -132,6 +146,8 @@ contract SwapRouterTest is DSTest {
 
     ///@notice Test calculate v2 spot price sushi weth/kope
     function testCalculateV2SpotSushiTest2() public {
+        uint256 forkId = cheatCodes.activeFork();
+        cheatCodes.rollFork(forkId, 15233771);
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address kope = 0x8CC9b5406049D2b66106bb39C5047666E50F06FE;
 
@@ -151,6 +167,8 @@ contract SwapRouterTest is DSTest {
 
     ///@notice Test calculate v2 spot price sushi dai/ohm
     function testCalculateV2SpotSushiTest3() public {
+        uint256 forkId = cheatCodes.activeFork();
+        cheatCodes.rollFork(forkId, 15233771);
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         address ohm = 0x64aa3364F17a4D01c6f1751Fd97C2BD3D7e7f1D5;
 
@@ -162,6 +180,8 @@ contract SwapRouterTest is DSTest {
 
     ///@notice Test calculate V3 spot price weth/dai
     function testCalculateV3SpotPrice1() public {
+        uint256 forkId = cheatCodes.activeFork();
+        cheatCodes.rollFork(forkId, 15233771);
         //Test token address's
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
@@ -174,6 +194,8 @@ contract SwapRouterTest is DSTest {
 
     ///@notice Test calculate V3 spot price usdc/dai
     function testCalculateV3SpotPrice2() public {
+        uint256 forkId = cheatCodes.activeFork();
+        cheatCodes.rollFork(forkId, 15233771);
         //Test token address's
 
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -189,6 +211,8 @@ contract SwapRouterTest is DSTest {
 
     ///@notice Test calculate v2 spot price Uni
     function testCalculateV2SpotUni1() public {
+        uint256 forkId = cheatCodes.activeFork();
+        cheatCodes.rollFork(forkId, 15233771);
         //Test tokens
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -210,6 +234,8 @@ contract SwapRouterTest is DSTest {
 
     ///@notice v2 spot price assertion test
     function testCalculateV2SpotUni2() public {
+        uint256 forkId = cheatCodes.activeFork();
+        cheatCodes.rollFork(forkId, 15233771);
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
@@ -229,6 +255,8 @@ contract SwapRouterTest is DSTest {
 
     ///@notice v2 spot price assertion test
     function testCalculateV2SpotUni3() public {
+        uint256 forkId = cheatCodes.activeFork();
+        cheatCodes.rollFork(forkId, 15233771);
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
 
