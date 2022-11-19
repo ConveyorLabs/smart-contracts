@@ -346,6 +346,9 @@ contract LimitOrderRouter is LimitOrderBook {
 
         for (uint256 i = 0; i < orderIds.length; ) {
             orders[i] = getLimitOrderById(orderIds[i]);
+            if (orders[i].orderId == bytes32(0)) {
+                revert OrderDoesNotExist(orderIds[i]);
+            }
             unchecked {
                 ++i;
             }
