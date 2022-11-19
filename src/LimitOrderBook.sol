@@ -27,14 +27,20 @@ contract LimitOrderBook {
     address immutable USDC;
 
     //----------------------Constructor------------------------------------//
-
+    ///@param _conveyorGasOracle The address of the Chainlink gas oracle.
+    ///@param _limitOrderExecutor The address of the LimitOrderExecutor contract.
+    ///@param _weth The address of the WETH contract.
+    ///@param _usdc The address of the USDC contract.
+    ///@param _limitOrderExecutionGasCost The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut.
     constructor(
         address _conveyorGasOracle,
         address _limitOrderExecutor,
         address _weth,
         address _usdc,
         uint256 _limitOrderExecutionGasCost
+
     ) {
+
         require(
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"
@@ -110,6 +116,11 @@ contract LimitOrderBook {
         bytes32 orderId;
     }
 
+    ///@notice Enum containing Order details for any limit order.
+    ///@param None - Indicates that the order is not in the orderbook.
+    ///@param PendingLimitOrder - Indicates that the order is in the orderbook and is a pending limit order.
+    ///@param FilledLimitOrder - Indicates that the order is in the orderbook and is a filled limit order.
+    ///@param CanceledLimitOrder - Indicates that the order is in the orderbook and is a canceled limit order.
     enum OrderType {
         None,
         PendingLimitOrder,
@@ -142,7 +153,8 @@ contract LimitOrderBook {
 
     //----------------------Functions------------------------------------//
 
-    ///@notice Gets an active order by the orderId. If the order does not exist, the return value will be bytes(0)
+    ///@notice Gets an active order by the orderId. If the order does not exist, the return value will be bytes(0).
+    ///@param orderId The orderId of the order to get.
     function getLimitOrderById(bytes32 orderId)
         public
         view
@@ -481,9 +493,7 @@ contract LimitOrderBook {
 
     ///@notice Function to resolve an order as completed.
     ///@param orderId - The orderId that should be resolved from the system.
-    function _resolveCompletedOrder(bytes32 orderId, OrderType orderType)
-        internal
-    {
+    function _resolveCompletedOrder(bytes32 orderId) internal {
         ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
         LimitOrder memory order = orderIdToLimitOrder[orderId];
 
@@ -572,7 +582,7 @@ contract LimitOrderBook {
 
         uint256 orderOffsetSlot;
         assembly {
-            //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order
+            //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order.
             orderOffsetSlot := add(
                 add(allOrderIds, 0x20),
                 mul(orderOffset, 0x20)
@@ -582,9 +592,9 @@ contract LimitOrderBook {
         for (uint256 i = 0; i < length; ++i) {
             bytes32 orderId;
             assembly {
-                //Get the orderId at the orderOffsetSlot
+                //Get the orderId at the orderOffsetSlot.
                 orderId := mload(orderOffsetSlot)
-                //Update the orderOffsetSlot
+                //Update the orderOffsetSlot.
                 orderOffsetSlot := add(orderOffsetSlot, 0x20)
             }
 
@@ -596,7 +606,7 @@ contract LimitOrderBook {
             }
         }
 
-        //Reassign length of each array
+        //Reassign length of each array.
         assembly {
             mstore(orderIds, orderIdIndex)
         }

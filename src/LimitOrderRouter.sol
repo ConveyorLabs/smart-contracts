@@ -83,6 +83,7 @@ contract LimitOrderRouter is LimitOrderBook {
     ///@param _weth - Address of the wrapped native token for the chain.
     ///@param _usdc - Address of the USD pegged token for the chain.
     ///@param _limitOrderExecutor - Address of the limit order executor contract
+    ///@param _limitOrderExecutionGasCost - The amount of gas required to execute a limit order.
     constructor(
         address _gasOracle,
         address _weth,
@@ -113,6 +114,7 @@ contract LimitOrderRouter is LimitOrderBook {
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
     function refreshOrder(bytes32[] memory orderIds) external nonReentrant {
+
         ///@notice Initialize totalRefreshFees;
         uint256 totalRefreshFees;
 
@@ -388,7 +390,7 @@ contract LimitOrderRouter is LimitOrderBook {
         for (uint256 i = 0; i < orderIds.length; ) {
             bytes32 orderId = orderIds[i];
             ///@notice Mark the order as resolved from the system.
-            _resolveCompletedOrder(orderId, OrderType.PendingLimitOrder);
+            _resolveCompletedOrder(orderId);
 
             unchecked {
                 ++i;

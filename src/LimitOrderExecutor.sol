@@ -28,17 +28,9 @@ contract LimitOrderExecutor is SwapRouter {
     ///====================================Constants==============================================//
     ///@notice The Maximum Reward a beacon can receive from stoploss execution.
     ///Note:
-
-    //TODO: update this comment
     /*
-        The STOP_LOSS_MAX_BEACON_REWARD is set to 0.05 WETH. Also Note the protocol is receiving 0.05 WETH for trades with fees surpassing the STOP_LOSS_MAX_BEACON_REWARD.
-        What this means is that for stoploss orders, if the quantity of the Order surpasses the threshold such that 0.1% of the order quantity in WETH 
-        is greater than 0.1 WETH total. Then the fee paid by the user will be 0.1/OrderQuantity where OrderQuantity is in terms of the amount received from the 
-        output of the first Swap if WETH is not the input token. Note: For all other types of Limit Orders there is no hardcoded cap on the fee paid by the end user.
-        Therefore 0.1% of the OrderQuantity will be the minimum fee paid. The fee curve reaches 0.1% in the limit, but the threshold for this 
-        fee being paid is roughly $750,000. The fee paid by the user ranges from 0.5%-0.1% following a logistic curve which approaches 0.1% assymtocically in the limit
-        as OrderQuantity -> infinity for all non stoploss orders. 
-    */
+     * The maximum reward a beacon can receive from stoploss execution is 0.05 ETH for stoploss orders as a preventative measure for artificial price manipulation.
+     */
     uint128 constant STOP_LOSS_MAX_BEACON_REWARD = 50000000000000000;
 
     ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
@@ -81,7 +73,7 @@ contract LimitOrderExecutor is SwapRouter {
         _;
     }
 
-    ///@notice Reentrancy modifier for transferToSandBoxRouter.
+    ///@notice Reentrancy guard modifier.
     modifier nonReentrant() {
         if (reentrancyStatus) {
             revert Reentrancy();
@@ -129,6 +121,7 @@ contract LimitOrderExecutor is SwapRouter {
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
+
         address _chainLinkGasOracle,
         uint256 _limitOrderExecutionGasCost,
         uint256 _sandboxLimitOrderExecutionGasCost
@@ -137,6 +130,7 @@ contract LimitOrderExecutor is SwapRouter {
             _chainLinkGasOracle != address(0),
             "Invalid gas oracle address"
         );
+
         require(_weth != address(0), "Invalid weth address");
         require(_usdc != address(0), "Invalid usdc address");
         require(
@@ -150,15 +144,18 @@ contract LimitOrderExecutor is SwapRouter {
         LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
         SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
 
+
         SANDBOX_LIMIT_ORDER_BOOK = address(
             new SandboxLimitOrderBook(
                 _chainLinkGasOracle,
+
                 address(this),
                 _weth,
                 _usdc,
                 _sandboxLimitOrderExecutionGasCost
             )
         );
+
 
         ///@notice Assign the SANDBOX_LIMIT_ORDER_ROUTER address
         SANDBOX_LIMIT_ORDER_ROUTER = ISandboxLimitOrderBook(
@@ -181,13 +178,6 @@ contract LimitOrderExecutor is SwapRouter {
     }
 
     //------------Gas Credit Functions------------------------
-
-    function updateGasCreditBalance(address orderOwner, uint256 newBalance)
-        external
-        onlyOrderBook
-    {
-        gasCreditBalance[orderOwner] = newBalance;
-    }
 
     /// @notice Function to deposit gas credits.
     /// @return success - Boolean that indicates if the deposit completed successfully.
@@ -270,6 +260,21 @@ contract LimitOrderExecutor is SwapRouter {
         return true;
     }
 
+    ///@notice Function to update a orderOwners Gas credit balance.
+    ///@dev This function is only externally callable from the SandboxLimitOrderBook & LimitOrderRouter contract.
+    ///@param orderOwner The address of the order owner.
+    ///@param newBalance The the new gas credit balance for the order owner.
+    function updateGasCreditBalance(address orderOwner, uint256 newBalance)
+        external
+        onlyOrderBook
+    {
+        gasCreditBalance[orderOwner] = newBalance;
+    }
+
+    ///@notice Function to transfer the execution fee to the off-chain executor.
+    ///@dev updateGasCreditBalance must be called before this function.
+    ///@param receiver - The address of the off-chain executor.
+    ///@param value - The amount to transfer to the off-chain executor.
     function transferGasCreditFees(address receiver, uint256 value)
         external
         onlyOrderBook
@@ -667,9 +672,8 @@ contract LimitOrderExecutor is SwapRouter {
     ///@param orders The orders to be executed.
     ///@param sandboxMulticall -
     ///@dev
-    /*The sandBoxRouter address is an immutable address from the limitOrderRouter.
-    Since the function is onlyLimitOrderRouter, the sandBoxRouter address will never change*/
-
+    /*The sandBoxRouter address is an immutable address from the sandboxLimitOrderBook.
+    Since the function is onlySandboxLimitOrderBook, the sandBoxRouter address will never change*/
     function executeSandboxLimitOrders(
         SandboxLimitOrderBook.SandboxLimitOrder[] memory orders,
         SandboxLimitOrderRouter.SandboxMulticall calldata sandboxMulticall
@@ -743,6 +747,9 @@ contract LimitOrderExecutor is SwapRouter {
         );
     }
 
+    ///@notice Helper function to assert Protocol fees have been paid during sandbox execution.
+    ///@param contractBalancePreExecution - The contract balance before execution in WETH.
+    ///@param expectedAccumulatedFees - The expected accumulated fees in WETH.
     function _requireConveyorFeeIsPaid(
         uint256 contractBalancePreExecution,
         uint256 expectedAccumulatedFees

@@ -131,6 +131,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
     }
 
     ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
+    ///@param spotReserveAToWeth - Spot reserve of tokenA to Weth.
+    ///@param lpAddressesAToWeth - Pair address of tokenA to Weth.
     function _initializeTokenToWethExecutionPrices(
         SwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth
@@ -157,13 +159,18 @@ contract LimitOrderQuoter is ConveyorTickMath {
         return (executionPrices);
     }
 
-    ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
+    ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[].
+    ///@param tokenIn - Address of the token to swap from.
+    ///@param spotReserveAToWeth - Spot reserve of tokenA to Weth.
+    ///@param lpAddressesAToWeth - Pair address of tokenA to Weth.
+    ///@param spotReserveWethToB - Spot reserve of Weth to tokenB.
+    ///@param lpAddressesWethToB - Pair address of Weth to tokenB
     function _initializeTokenToTokenExecutionPrices(
         address tokenIn,
         SwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth,
         SwapRouter.SpotReserve[] memory spotReserveWethToB,
-        address[] memory lpAddressWethToB
+        address[] memory lpAddressesWethToB
     ) external view returns (SwapRouter.TokenToTokenExecutionPrice[] memory) {
         ///@notice Initialize a new TokenToTokenExecutionPrice array to store prices.
         SwapRouter.TokenToTokenExecutionPrice[]
@@ -183,7 +190,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
                     spotReserveWethToB[i].res1,
                     spotReserveWethToB[i].spotPrice,
                     address(0),
-                    lpAddressWethToB[i]
+                    lpAddressesWethToB[i]
                 );
             }
         } else {
@@ -210,7 +217,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
                             spotReserveWethToB[j].res0,
                             spotPriceFinal,
                             lpAddressesAToWeth[i],
-                            lpAddressWethToB[j]
+                            lpAddressesWethToB[j]
                         );
                     ///@notice Increment the index
                     unchecked {
