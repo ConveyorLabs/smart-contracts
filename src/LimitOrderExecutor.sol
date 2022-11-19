@@ -701,7 +701,13 @@ contract LimitOrderExecutor is SwapRouter {
                     sandboxMulticall.fillAmounts[i]
                 );
 
-                expectedAccumulatedFees += orders[i].fee;
+                expectedAccumulatedFees += ConveyorMath.mul64U(
+                    ConveyorMath.divUU(
+                        sandboxMulticall.fillAmounts[i],
+                        orders[i].amountInRemaining
+                    ),
+                    orders[i].fee
+                );
             }
         }
 
