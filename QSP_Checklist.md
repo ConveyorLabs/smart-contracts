@@ -328,7 +328,7 @@ A few code comments state that orders should be canceled in certain cases while 
 ### Resolution
 Comments referring to order cancellation in these instances have been removed or cancellation logic has been added.
 
-# QSP-10 Granting Insufficient Gas Credit to the Executor ❎
+# QSP-10 Granting Insufficient Gas Credit to the Executor ✅
 
 ### Description
 The calculateExecutionGasConsumed() function returns the gas difference of the initialTxGas and the current gas retrieved by the gas() call. The returned value is the
@@ -961,7 +961,7 @@ Relevant Gas Snapshot Post Changes:
 ╰────────────────────────────────────────────────────┴─────────────────┴───────┴────────┴───────┴─────────╯
 ```
 
-# QSP-26 Issues in Maximum Beacon Reward Calculation 
+# QSP-26 Issues in Maximum Beacon Reward Calculation ✅
 ### Resolution
 We decided to remove the `alphaX` and `maxBeaconReward` functions from the contract because of the gas consumed from the computation. We also decided capping the reward was not necessary for any limit order other than a stop loss. We added a constant: 
 ```solidity
@@ -970,10 +970,16 @@ uint128 constant STOP_LOSS_MAX_BEACON_REWARD = 50000000000000000;
 This constant is used in place of the `maxBeaconReward` in the case of stoploss orders. 
 
 # QSP-27 Verifier's Dilemma ✅
+`Old System`
 For order execution, the gas price that can be used is capped so that an off-chain executor can assign the max gas to avoid being frontrun by another off-chain executor. The cap is 1.75% above the Chainlink fast gas oracle. The Chainlink oracle's gas price can deviate from the real competitive gas price by 25% before an update. If the gas oracle is 25% lower than
 the competitive gas price, the execution transaction gas price is still priced at a competitive rate. If the gas oracle is 25% higher than the competitive gas price, the execution gas price will be faster than the current competitive rate. At all times, the execution transaction's gas price will be competitve.
 
 Since the gas price is an exact value, searchers can not monitor the mempool and front run the transaction with a higher gas price. This effecively eliminates the verifier's delimma from the protocol, incentivizing the off-chain executor to be the first to compute the execution opportunity and submit a transaction. Any while miners/block builders can order a block as they desire there is not an incentive to order one transaction in front of the other, allowing the first to submit the transaction to be included in most cases. There is still a chance that block builders (or validators, depending on the chain) could reorder transactions before including them in the block. Off-chain executors are encouraged to use Flashbots or equivalent, for chains that have private relays to further avoid potential frontrunning. 
+
+`New System`
+The new system will not cap the `tx.gasPrice`. Instead, on chains where possible the open source executor will use relayers for `tx` obfuscation, and on chains without relayers will use `pga` mechanics. This was decided to give the executor maximum flexibility on pathing allowing them to pass `SandboxLimitOrders` liquidity through convex pathing where there will likely be competition outside the network to capture mev opportunities. The executor gets to keep any profit above the `amountOutRequired` on the order, so we expect to see and employ complex strategies that would be severely handicapped by requiring any max `gasPrice`.
+
+With that said, the owners of the `SandboxLimitOrders` being executed will only pay a maximum amount of gas compensation defined as an immutable variable in the `ConveyorExecutor` called `SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST`.
 
 
 # QSP-28 Taxed Token Swaps Using Uniswap V3 Might Fail 🟡
