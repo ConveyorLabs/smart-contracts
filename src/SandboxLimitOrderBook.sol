@@ -408,7 +408,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
     ///@notice Function to initialize the PreSandboxExecution state prior to sandbox execution.
     ///@param orderIdBundles - The order ids to execute.
     ///@param fillAmounts - The fill amounts for each order.
-    ///@return preSandboxExecution - The PreSandboxExecution state.
+    ///@return preSandboxExecutionState - The PreSandboxExecution state.
     function initializePreSandboxExecutionState(
         bytes32[][] calldata orderIdBundles,
         uint128[] calldata fillAmounts
