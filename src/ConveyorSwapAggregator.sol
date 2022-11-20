@@ -13,7 +13,7 @@ interface IConveyorSwapExecutor {
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Dex aggregator that executes standalone swaps, and fulfills limit orders during execution.
 contract ConveyorSwapAggregator {
-    address immutable CONVEYOR_SWAP_EXECUTOR;
+    address public immutable CONVEYOR_SWAP_EXECUTOR;
 
     constructor() {
         CONVEYOR_SWAP_EXECUTOR = address(new ConveyorSwapExecutor());
@@ -35,7 +35,7 @@ contract ConveyorSwapAggregator {
         address tokenOut,
         uint256 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
-    ) public {
+    ) external {
         IERC20(tokenIn).transferFrom(
             msg.sender,
             swapAggregatorMulticall.tokenInDestination,

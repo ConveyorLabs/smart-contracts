@@ -3,7 +3,8 @@ pragma solidity 0.8.16;
 
 import "./utils/test.sol";
 import "./utils/Swap.sol";
-import "../ConveyorSwapAggregator.sol";
+import "../interfaces/IConveyorSwapAggregator.sol";
+import "../lib/ConveyorTickMath.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -16,7 +17,7 @@ interface CheatCodes {
 }
 
 contract ConveyorSwapAggregatorTest is DSTest {
-    ConveyorSwapAggregator conveyorSwapAggregator;
+    IConveyorSwapAggregator conveyorSwapAggregator;
 
     Swap swapHelper;
     CheatCodes cheatCodes;
@@ -30,7 +31,9 @@ contract ConveyorSwapAggregatorTest is DSTest {
         swapHelper = new Swap(uniV2Addr, WETH);
         cheatCodes.deal(address(swapHelper), type(uint256).max);
 
-        conveyorSwapAggregator = new ConveyorSwapAggregator();
+        conveyorSwapAggregator = IConveyorSwapAggregator(
+            address(new ConveyorSwapAggregator())
+        );
     }
 
     function testSwapUniv2SingleLP() public {
@@ -110,6 +113,79 @@ contract ConveyorSwapAggregatorTest is DSTest {
             amountOutMin,
             multicall
         );
+    }
+
+    function testSwapUniv3SingleLP() public {
+        // cheatCodes.createSelectFork("mainnet", 16000218);
+        cheatCodes.deal(address(this), type(uint128).max);
+        address tokenIn = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        uint256 amountIn = 487387019661733947;
+        address tokenOut = 0xba5BDe662c17e2aDFF1075610382B9B691296350;
+        uint256 amountOutMin = 5678000000000000000000;
+        address lp = 0x7685cD3ddD862b8745B1082A6aCB19E14EAA74F3;
+
+        (bool depositSuccess, ) = address(tokenIn).call{value: 1000 ether}(
+            abi.encodeWithSignature("deposit()")
+        );
+
+        require(depositSuccess, "Error when depositing eth for weth");
+
+        IERC20(tokenIn).approve(
+            address(conveyorSwapAggregator),
+            type(uint256).max
+        );
+
+        ConveyorSwapAggregator.Call[]
+            memory calls = new ConveyorSwapAggregator.Call[](1);
+
+        calls[0] = newUniV3Call(
+            lp,
+            conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
+            address(this),
+            false,
+            amountIn,
+            tokenIn
+        );
+
+        ConveyorSwapAggregator.SwapAggregatorMulticall
+            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+                conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
+                calls
+            );
+
+        conveyorSwapAggregator.swap(
+            tokenIn,
+            amountIn,
+            tokenOut,
+            amountOutMin,
+            multicall
+        );
+    }
+
+    ///@notice Helper function to create a single mock call for a v3 swap.
+    function newUniV3Call(
+        address _lp,
+        address _sender,
+        address _receiver,
+        bool _zeroForOne,
+        uint256 _amountIn,
+        address _tokenIn
+    ) public pure returns (ConveyorSwapAggregator.Call memory) {
+        ///@notice Pack the required data for the call.
+        bytes memory data = abi.encode(_zeroForOne, _tokenIn, _sender);
+        ///@notice Encode the callData for the call.
+        bytes memory callData = abi.encodeWithSignature(
+            "swap(address,bool,int256,uint160,bytes)",
+            _receiver,
+            _zeroForOne,
+            int256(_amountIn),
+            _zeroForOne
+                ? TickMath.MIN_SQRT_RATIO + 1
+                : TickMath.MAX_SQRT_RATIO - 1,
+            data
+        );
+        ///@notice Return the call
+        return ConveyorSwapAggregator.Call({target: _lp, callData: callData});
     }
 
     ///@notice Helper function to create a single mock call for a v2 swap.
