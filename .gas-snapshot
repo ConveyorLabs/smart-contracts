@@ -1,5 +1,4 @@
 GasOracleTest:testGetPrice() (gas: 24118)
-
 LimitOrderQuoterTest:testFindBestTokenToTokenExecutionPrice() (gas: 15191)
 LimitOrderQuoterTest:testSimulateAToBPriceChangeV2ReserveOutputs(uint112) (runs: 256, μ: 64332, ~: 85200)
 LimitOrderQuoterTest:testSimulateAToBPriceChangeV2SpotPrice(uint112) (runs: 256, μ: 64264, ~: 85077)

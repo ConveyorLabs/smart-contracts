@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.16;
+pragma solidity 0.8.16;
 
 import "../../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../../lib/interfaces/token/IWETH.sol";
 
 contract Swap {
-    address wnato;
+    address WETH;
 
     IUniswapV2Router02 uniV2Router;
 
-    constructor(address uniV2Addr, address _wnato) {
-        wnato = _wnato;
+    constructor(address uniV2Addr, address _WETH) {
+        WETH = _WETH;
         uniV2Router = IUniswapV2Router02(uniV2Addr);
     }
 
@@ -22,7 +22,7 @@ contract Swap {
     {
         //set the path
         address[] memory path = new address[](2);
-        path[0] = wnato;
+        path[0] = WETH;
         path[1] = _swapToken;
 
         // swap eth for tokens
@@ -43,7 +43,7 @@ contract Swap {
     {
         //set the path
         address[] memory path = new address[](2);
-        path[0] = wnato;
+        path[0] = WETH;
         path[1] = _swapToken;
 
         // swap eth for tokens

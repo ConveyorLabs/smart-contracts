@@ -1,17 +1,104 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.16;
+pragma solidity 0.8.16;
 
-import "./SwapRouter.sol";
+import "./LimitOrderSwapRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./lib/ConveyorFeeMath.sol";
+import "./LimitOrderRouter.sol";
+import "./interfaces/ILimitOrderSwapRouter.sol";
+import "./interfaces/ISandboxLimitOrderRouter.sol";
+import "./interfaces/ISandboxLimitOrderBook.sol";
+import "./interfaces/ILimitOrderBook.sol";
 
-contract LimitOrderExecutor is SwapRouter {
+/// @title LimitOrderExecutor
+/// @author 0xOsiris, 0xKitsune
+/// @notice This contract handles all order execution.
+contract LimitOrderExecutor is LimitOrderSwapRouter {
+    using SafeERC20 for IERC20;
     ///====================================Immutable Storage Variables==============================================//
     address immutable WETH;
     address immutable USDC;
     address immutable LIMIT_ORDER_QUOTER;
+    address public immutable LIMIT_ORDER_ROUTER;
+    address public immutable SANDBOX_LIMIT_ORDER_BOOK;
+    address public immutable SANDBOX_LIMIT_ORDER_ROUTER;
+    uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
+    uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 
-    ///@notice The contract owner.
+    ///====================================Constants==============================================//
+    ///@notice The Maximum Reward a beacon can receive from stoploss execution.
+    ///Note:
+    /*
+     * The maximum reward a beacon can receive from stoploss execution is 0.05 ETH for stoploss orders as a preventative measure for artificial price manipulation.
+     */
+    uint128 constant STOP_LOSS_MAX_BEACON_REWARD = 50000000000000000;
+
+    ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
+    ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
+    uint256 constant GAS_CREDIT_BUFFER = 150;
+    uint256 constant ONE_HUNDRED = 100;
+
+    ///@notice Mapping to hold gas credit balances for accounts.
+    mapping(address => uint256) public gasCreditBalance;
+
+    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
+    event GasCreditEvent(address indexed sender, uint256 indexed balance);
+
+    //----------------------Modifiers------------------------------------//
+
+    ///@notice Modifier to restrict smart contracts from calling a function.
+    modifier onlyLimitOrderRouter() {
+        if (msg.sender != LIMIT_ORDER_ROUTER) {
+            revert MsgSenderIsNotLimitOrderRouter();
+        }
+        _;
+    }
+
+    ///@notice Modifier to restrict smart contracts from calling a function.
+    modifier onlyOrderBook() {
+        if (
+            msg.sender != LIMIT_ORDER_ROUTER &&
+            msg.sender != SANDBOX_LIMIT_ORDER_BOOK
+        ) {
+            revert MsgSenderIsNotOrderBook();
+        }
+        _;
+    }
+
+    ///@notice Modifier to restrict smart contracts from calling a function.
+    modifier onlySandboxLimitOrderBook() {
+        if (msg.sender != SANDBOX_LIMIT_ORDER_BOOK) {
+            revert MsgSenderIsNotLimitOrderBook();
+        }
+        _;
+    }
+
+    ///@notice Reentrancy guard modifier.
+    modifier nonReentrant() {
+        if (reentrancyStatus) {
+            revert Reentrancy();
+        }
+
+        reentrancyStatus = true;
+        _;
+        reentrancyStatus = false;
+    }
+
+    ///@notice Modifier function to only allow the owner of the contract to call specific functions
+    ///@dev Functions with onlyOwner: withdrawConveyorFees, transferOwnership.
+    modifier onlyOwner() {
+        if (msg.sender != owner) {
+            revert MsgSenderIsNotOwner();
+        }
+
+        _;
+    }
+
+    ///@notice Temporary owner storage variable when transferring ownership of the contract.
+    address tempOwner;
+
+    ///@notice The owner of the Order Router contract
+    ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
     address owner;
 
     ///@notice Conveyor funds balance in the contract.
@@ -26,23 +113,227 @@ contract LimitOrderExecutor is SwapRouter {
     ///@param _deploymentByteCodes The deployment bytecodes of all dex factory contracts.
     ///@param _dexFactories The Dex factory addresses.
     ///@param _isUniV2 Array of booleans indication whether the Dex is V2 architecture.
+    ///@param _chainLinkGasOracle Address for the chainlink fast gas oracle.
     constructor(
         address _weth,
         address _usdc,
         address _limitOrderQuoterAddress,
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
-        bool[] memory _isUniV2
-    ) SwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
+        bool[] memory _isUniV2,
+        address _chainLinkGasOracle,
+        uint256 _limitOrderExecutionGasCost,
+        uint256 _sandboxLimitOrderExecutionGasCost
+    ) LimitOrderSwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
+        require(
+            _chainLinkGasOracle != address(0),
+            "Invalid gas oracle address"
+        );
+
+        require(_weth != address(0), "Invalid weth address");
+        require(_usdc != address(0), "Invalid usdc address");
+        require(
+            _limitOrderQuoterAddress != address(0),
+            "Invalid LimitOrderQuoter address"
+        );
+
         USDC = _usdc;
         WETH = _weth;
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
+        LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
+        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
+
+        SANDBOX_LIMIT_ORDER_BOOK = address(
+            new SandboxLimitOrderBook(
+                _chainLinkGasOracle,
+                address(this),
+                _weth,
+                _usdc,
+                _sandboxLimitOrderExecutionGasCost
+            )
+        );
+
+        ///@notice Assign the SANDBOX_LIMIT_ORDER_ROUTER address
+        SANDBOX_LIMIT_ORDER_ROUTER = ISandboxLimitOrderBook(
+            SANDBOX_LIMIT_ORDER_BOOK
+        ).getSandboxLimitOrderRouterAddress();
+
+        LIMIT_ORDER_ROUTER = address(
+            new LimitOrderRouter(
+                SANDBOX_LIMIT_ORDER_BOOK, ///@notice The SandboxLimitOrderBook inherits the conveyor gas oracle.
+                _weth,
+                _usdc,
+                address(this),
+                _limitOrderExecutionGasCost
+            )
+        );
+
+        ///@notice assign the owner address
         owner = msg.sender;
     }
 
-    ///@notice Function to execute a batch of Token to Weth Orders.
-    function executeTokenToWethOrders(OrderBook.Order[] memory orders)
+    //------------Gas Credit Functions------------------------
+
+    /// @notice Function to deposit gas credits.
+    /// @return success - Boolean that indicates if the deposit completed successfully.
+    function depositGasCredits() public payable returns (bool success) {
+        if (msg.value == 0) {
+            revert InsufficientMsgValue();
+        }
+        ///@notice Increment the gas credit balance for the user by the msg.value
+        uint256 newBalance = gasCreditBalance[msg.sender] + msg.value;
+
+        ///@notice Set the gas credit balance of the sender to the new balance.
+        gasCreditBalance[msg.sender] = newBalance;
+
+        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
+        emit GasCreditEvent(msg.sender, newBalance);
+
+        return true;
+    }
+
+    /**@notice Function to withdraw gas credits from an account's balance. If the withdraw results in the account's gas credit
+    balance required to execute existing orders, those orders must be canceled before the gas credits can be withdrawn.
+    */
+    /// @param value - The amount to withdraw from the gas credit balance.
+    /// @return success - Boolean that indicates if the withdraw completed successfully.
+    function withdrawGasCredits(uint256 value)
+        public
+        nonReentrant
+        returns (bool success)
+    {
+        uint256 userGasCreditBalance = gasCreditBalance[msg.sender];
+        ///@notice Require that account's credit balance is larger than withdraw amount
+        if (userGasCreditBalance < value) {
+            revert InsufficientGasCreditBalance(
+                msg.sender,
+                userGasCreditBalance,
+                value
+            );
+        }
+
+        ///@notice Get the current gas price from the v3 Aggregator.
+        uint256 gasPrice = ILimitOrderBook(SANDBOX_LIMIT_ORDER_BOOK)
+            .getGasPrice();
+
+        ///@notice Require that account has enough gas for order execution after the gas credit withdrawal.
+        if (
+            !(
+                _hasMinGasCredits(
+                    gasPrice,
+                    msg.sender,
+                    userGasCreditBalance - value,
+                    GAS_CREDIT_BUFFER
+                )
+            )
+        ) {
+            uint256 minGasCredits = _calculateMinGasCredits(
+                gasPrice,
+                msg.sender,
+                GAS_CREDIT_BUFFER
+            );
+
+            revert InsufficientGasCreditBalance(
+                msg.sender,
+                userGasCreditBalance,
+                minGasCredits
+            );
+        }
+
+        ///@notice Decrease the account's gas credit balance
+        uint256 newBalance = gasCreditBalance[msg.sender] - value;
+
+        ///@notice Set the senders new gas credit balance.
+        gasCreditBalance[msg.sender] = newBalance;
+
+        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
+        emit GasCreditEvent(msg.sender, newBalance);
+
+        ///@notice Transfer the withdraw amount to the account.
+        _safeTransferETH(msg.sender, value);
+
+        return true;
+    }
+
+    ///@notice Function to update a orderOwners Gas credit balance.
+    ///@dev This function is only externally callable from the SandboxLimitOrderBook & LimitOrderRouter contract.
+    ///@param orderOwner The address of the order owner.
+    ///@param newBalance The the new gas credit balance for the order owner.
+    function updateGasCreditBalance(address orderOwner, uint256 newBalance)
         external
+        onlyOrderBook
+    {
+        gasCreditBalance[orderOwner] = newBalance;
+    }
+
+    ///@notice Function to transfer the execution fee to the off-chain executor.
+    ///@dev updateGasCreditBalance must be called before this function.
+    ///@param receiver - The address of the off-chain executor.
+    ///@param value - The amount to transfer to the off-chain executor.
+    function transferGasCreditFees(address receiver, uint256 value)
+        external
+        onlyOrderBook
+    {
+        ///@notice Transfer the withdraw amount to the account.
+        _safeTransferETH(receiver, value);
+    }
+
+    /// @notice Internal helper function to approximate the minimum gas credits needed for order execution.
+    /// @param gasPrice - The Current gas price in gwei
+    /// @param userAddress - The account address that will be checked for minimum gas credits.
+    /** @param multiplier - Multiplier value represented in e^3 to adjust the minimum gas requirement to 
+        fulfill an order, accounting for potential fluctuations in gas price. For example, a multiplier of `1.5` 
+        will be represented as `150` in the contract. **/
+    /// @return minGasCredits - Total ETH required to cover the minimum gas credits for order execution.
+    function _calculateMinGasCredits(
+        uint256 gasPrice,
+        address userAddress,
+        uint256 multiplier
+    ) internal view returns (uint256 minGasCredits) {
+        ///@notice Get the total amount of active orders for the userAddress
+        uint256 totalLimitOrdersCount = ILimitOrderBook(LIMIT_ORDER_ROUTER)
+            .totalOrdersPerAddress(userAddress);
+
+        uint256 totalSandboxLimitOrdersCound = ISandboxLimitOrderBook(
+            SANDBOX_LIMIT_ORDER_BOOK
+        ).totalOrdersPerAddress(userAddress);
+
+        ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
+        uint256 minimumLimitGasCredits = totalLimitOrdersCount *
+            gasPrice *
+            LIMIT_ORDER_EXECUTION_GAS_COST;
+        uint256 minimumSandboxLimitGasCredits = totalSandboxLimitOrdersCound *
+            gasPrice *
+            SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
+
+        uint256 minimumGasCredits = ((minimumLimitGasCredits +
+            minimumSandboxLimitGasCredits) * multiplier) / ONE_HUNDRED;
+
+        ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
+        return minimumGasCredits;
+    }
+
+    /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders.
+    /// @param gasPrice - The current gas price in gwei.
+    /// @param userAddress - The account address that will be checked for minimum gas credits.
+    /// @param userGasCreditBalance - The current gas credit balance of the userAddress.
+    /// @return bool - Indicates whether the user has the minimum gas credit requirements.
+    function _hasMinGasCredits(
+        uint256 gasPrice,
+        address userAddress,
+        uint256 userGasCreditBalance,
+        uint256 multipler
+    ) internal view returns (bool) {
+        return
+            userGasCreditBalance >=
+            _calculateMinGasCredits(gasPrice, userAddress, multipler);
+    }
+
+    ///@notice Function to execute a batch of Token to Weth Orders.
+    ///@param orders The orders to be executed.
+    function executeTokenToWethOrders(LimitOrderBook.LimitOrder[] memory orders)
+        external
+        onlyLimitOrderRouter
         returns (uint256, uint256)
     {
         ///@notice Get all of the execution prices on TokenIn to Weth for each dex.
@@ -50,33 +341,27 @@ contract LimitOrderExecutor is SwapRouter {
         (
             SpotReserve[] memory spotReserveAToWeth,
             address[] memory lpAddressesAToWeth
-        ) = _getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn);
+        ) = getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn);
 
         ///@notice Initialize all execution prices for the token pair.
         TokenToWethExecutionPrice[] memory executionPrices = ILimitOrderQuoter(
             LIMIT_ORDER_QUOTER
-        )._initializeTokenToWethExecutionPrices(
+        ).initializeTokenToWethExecutionPrices(
                 spotReserveAToWeth,
                 lpAddressesAToWeth
             );
-
-        ///@notice Calculate the max beacon reward from the spot reserves.
-        uint128 maxBeaconReward = calculateMaxBeaconReward(
-            spotReserveAToWeth,
-            orders,
-            false
-        );
 
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
 
         ///@notice Set totalConveyorReward to 0
+
         uint256 totalConveyorReward = 0;
 
         for (uint256 i = 0; i < orders.length; ) {
             ///@notice Create a variable to track the best execution price in the array of execution prices.
             uint256 bestPriceIndex = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
-                ._findBestTokenToWethExecutionPrice(
+                .findBestTokenToWethExecutionPrice(
                     executionPrices,
                     orders[i].buy
                 );
@@ -88,7 +373,6 @@ contract LimitOrderExecutor is SwapRouter {
                     uint256 conveyorReward
                 ) = _executeTokenToWethOrder(
                         orders[i],
-                        maxBeaconReward,
                         executionPrices[bestPriceIndex]
                     );
                 ///@notice Increment the total beacon and conveyor reward.
@@ -109,7 +393,7 @@ contract LimitOrderExecutor is SwapRouter {
             }
         }
         ///@notice Transfer the totalBeaconReward to the off chain executor.
-        transferBeaconReward(totalBeaconReward, tx.origin, WETH);
+        _transferBeaconReward(totalBeaconReward, tx.origin, WETH);
 
         ///@notice Increment the conveyor balance.
         conveyorBalance += totalConveyorReward;
@@ -121,9 +405,8 @@ contract LimitOrderExecutor is SwapRouter {
     ///@param order - The order to be executed.
     ///@param executionPrice - The best priced TokenToWethExecutionPrice to execute the order on.
     function _executeTokenToWethOrder(
-        OrderBook.Order memory order,
-        uint128 maxBeaconReward,
-        SwapRouter.TokenToWethExecutionPrice memory executionPrice
+        LimitOrderBook.LimitOrder memory order,
+        LimitOrderSwapRouter.TokenToWethExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
         ///@notice Swap the batch amountIn on the batch lp address and send the weth back to the contract.
         (
@@ -134,16 +417,9 @@ contract LimitOrderExecutor is SwapRouter {
                 executionPrice.lpAddressAToWeth,
                 order
             );
-        beaconReward = maxBeaconReward > beaconReward
-            ? beaconReward
-            : maxBeaconReward;
 
         ///@notice Transfer the tokenOut amount to the order owner.
-        transferTokensOutToOwner(
-            order.owner,
-            amountOutWeth - (beaconReward + conveyorReward),
-            WETH
-        );
+        _transferTokensOutToOwner(order.owner, amountOutWeth, WETH);
 
         return (uint256(conveyorReward), uint256(beaconReward));
     }
@@ -154,7 +430,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@return amountOutWeth - The amountOut in Weth after the swap.
     function _executeSwapTokenToWethOrder(
         address lpAddressAToWeth,
-        OrderBook.Order memory order
+        LimitOrderBook.LimitOrder memory order
     )
         internal
         returns (
@@ -170,7 +446,7 @@ contract LimitOrderExecutor is SwapRouter {
         address tokenIn = order.tokenIn;
 
         ///@notice Calculate the amountOutMin for the tokenA to Weth swap.
-        uint256 batchAmountOutMinAToWeth = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
+        uint256 amountOutMinAToWeth = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
             .calculateAmountOutMinAToWeth(
                 lpAddressAToWeth,
                 orderQuantity,
@@ -181,26 +457,33 @@ contract LimitOrderExecutor is SwapRouter {
 
         ///@notice Swap from tokenA to Weth.
         amountOutWeth = uint128(
-            swap(
+            _swap(
                 tokenIn,
                 WETH,
                 lpAddressAToWeth,
                 feeIn,
                 order.quantity,
-                batchAmountOutMinAToWeth,
+                amountOutMinAToWeth,
                 address(this),
                 order.owner
             )
         );
 
         ///@notice Take out fees from the amountOut.
-        uint128 protocolFee = _calculateFee(amountOutWeth, USDC, WETH);
+        uint128 protocolFee = calculateFee(amountOutWeth, USDC, WETH);
 
         ///@notice Calculate the conveyorReward and executor reward.
         (conveyorReward, beaconReward) = ConveyorFeeMath.calculateReward(
             protocolFee,
             amountOutWeth
         );
+        ///@notice If the order is a stoploss, and the beaconReward surpasses 0.05 WETH. Cap the protocol and the off chain executor at 0.05 WETH.
+        if (order.stoploss) {
+            if (STOP_LOSS_MAX_BEACON_REWARD < beaconReward) {
+                beaconReward = STOP_LOSS_MAX_BEACON_REWARD;
+                conveyorReward = STOP_LOSS_MAX_BEACON_REWARD;
+            }
+        }
 
         ///@notice Get the AmountIn for weth to tokenB.
         amountOutWeth = amountOutWeth - (beaconReward + conveyorReward);
@@ -208,44 +491,39 @@ contract LimitOrderExecutor is SwapRouter {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
-    function executeTokenToTokenOrders(OrderBook.Order[] memory orders)
-        external
-        returns (uint256, uint256)
-    {
+    function executeTokenToTokenOrders(
+        LimitOrderBook.LimitOrder[] memory orders
+    ) external onlyLimitOrderRouter returns (uint256, uint256) {
         TokenToTokenExecutionPrice[] memory executionPrices;
         address tokenIn = orders[0].tokenIn;
-        uint128 maxBeaconReward;
+
         uint24 feeIn = orders[0].feeIn;
         uint24 feeOut = orders[0].feeOut;
 
         {
-            
-                ///@notice Get all execution prices.
-                ///@notice Get all prices for the pairing tokenIn to Weth
-                (
-                    SpotReserve[] memory spotReserveAToWeth,
-                    address[] memory lpAddressesAToWeth
-                ) = _getAllPrices(tokenIn, WETH, feeIn);
-            
+            ///@notice Get all execution prices.
+            ///@notice Get all prices for the pairing tokenIn to Weth
+            (
+                SpotReserve[] memory spotReserveAToWeth,
+                address[] memory lpAddressesAToWeth
+            ) = getAllPrices(tokenIn, WETH, feeIn);
+
             ///@notice Get all prices for the pairing Weth to tokenOut
             (
                 SpotReserve[] memory spotReserveWethToB,
                 address[] memory lpAddressWethToB
-            ) = _getAllPrices(WETH, orders[0].tokenOut, feeOut);
+            ) = getAllPrices(WETH, orders[0].tokenOut, feeOut);
 
             executionPrices = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
-                ._initializeTokenToTokenExecutionPrices(
+                .initializeTokenToTokenExecutionPrices(
                     tokenIn,
                     spotReserveAToWeth,
                     lpAddressesAToWeth,
                     spotReserveWethToB,
                     lpAddressWethToB
                 );
-            ///@notice Get the Max beacon reward on the SpotReserves
-            maxBeaconReward = WETH != tokenIn
-                ? calculateMaxBeaconReward(spotReserveAToWeth, orders, false)
-                : calculateMaxBeaconReward(spotReserveWethToB, orders, true);
         }
+
         ///@notice Set totalBeaconReward to 0
         uint256 totalBeaconReward = 0;
         ///@notice Set totalConveyorReward to 0
@@ -255,7 +533,7 @@ contract LimitOrderExecutor is SwapRouter {
         for (uint256 i = 0; i < orders.length; ) {
             ///@notice Create a variable to track the best execution price in the array of execution prices.
             uint256 bestPriceIndex = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
-                ._findBestTokenToTokenExecutionPrice(
+                .findBestTokenToTokenExecutionPrice(
                     executionPrices,
                     orders[i].buy
                 );
@@ -267,7 +545,6 @@ contract LimitOrderExecutor is SwapRouter {
                     uint256 conveyorReward
                 ) = _executeTokenToTokenOrder(
                         orders[i],
-                        maxBeaconReward,
                         executionPrices[bestPriceIndex]
                     );
                 totalBeaconReward += beaconReward;
@@ -287,7 +564,7 @@ contract LimitOrderExecutor is SwapRouter {
             }
         }
         ///@notice Transfer the totalBeaconReward to the off chain executor.
-        transferBeaconReward(totalBeaconReward, tx.origin, WETH);
+        _transferBeaconReward(totalBeaconReward, tx.origin, WETH);
 
         conveyorBalance += totalConveyorReward;
 
@@ -298,8 +575,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@param order - The order to be executed.
     ///@param executionPrice - The best priced TokenToTokenExecution price to execute the order on.
     function _executeTokenToTokenOrder(
-        OrderBook.Order memory order,
-        uint128 maxBeaconReward,
+        LimitOrderBook.LimitOrder memory order,
         TokenToTokenExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
         ///@notice Initialize variables to prevent stack too deep.
@@ -322,17 +598,17 @@ contract LimitOrderExecutor is SwapRouter {
                 );
 
                 if (amountInWethToB == 0) {
-                    revert InsufficientOutputAmount();
+                    revert InsufficientOutputAmount(0, 1);
                 }
             } else {
                 ///@notice Transfer the TokenIn to the contract.
-                transferTokensToContract(order);
+                _transferTokensToContract(order);
 
                 ///@notice Cache the order quantity.
                 uint256 amountIn = order.quantity;
 
                 ///@notice Take out fees from the batch amountIn since token0 is weth.
-                uint128 protocolFee = _calculateFee(
+                uint128 protocolFee = calculateFee(
                     uint128(amountIn),
                     USDC,
                     WETH
@@ -342,13 +618,21 @@ contract LimitOrderExecutor is SwapRouter {
                 (conveyorReward, beaconReward) = ConveyorFeeMath
                     .calculateReward(protocolFee, uint128(amountIn));
 
+                ///@notice If the order is a stoploss, and the beaconReward surpasses 0.05 WETH. Cap the protocol and the off chain executor at 0.05 WETH.
+                if (order.stoploss) {
+                    if (STOP_LOSS_MAX_BEACON_REWARD < beaconReward) {
+                        beaconReward = STOP_LOSS_MAX_BEACON_REWARD;
+                        conveyorReward = STOP_LOSS_MAX_BEACON_REWARD;
+                    }
+                }
+
                 ///@notice Get the amountIn for the Weth to tokenB swap.
                 amountInWethToB = amountIn - (beaconReward + conveyorReward);
             }
         }
 
         ///@notice Swap Weth for tokenB.
-        uint256 amountOutInB = swap(
+        uint256 amountOutInB = _swap(
             WETH,
             order.tokenOut,
             executionPrice.lpAddressWethToB,
@@ -360,56 +644,164 @@ contract LimitOrderExecutor is SwapRouter {
         );
 
         if (amountOutInB == 0) {
-            revert InsufficientOutputAmount();
+            revert InsufficientOutputAmount(0, 1);
         }
-
-        ///@notice Adjust the beaconReward according to the maxBeaconReward.
-        beaconReward = beaconReward < maxBeaconReward
-            ? beaconReward
-            : maxBeaconReward;
 
         return (uint256(conveyorReward), uint256(beaconReward));
     }
 
     ///@notice Transfer the order quantity to the contract.
-    ///@return success - Boolean to indicate if the transfer was successful.
-    function transferTokensToContract(OrderBook.Order memory order)
+    ///@param order - The orders tokens to be transferred.
+    function _transferTokensToContract(LimitOrderBook.LimitOrder memory order)
         internal
-        returns (bool success)
     {
-        try
-            IERC20(order.tokenIn).transferFrom(
-                order.owner,
-                address(this),
-                order.quantity
-            )
-        {} catch {
-            ///@notice Revert on token transfer failure.
-            revert TokenTransferFailed(order.orderId);
+        IERC20(order.tokenIn).safeTransferFrom(
+            order.owner,
+            address(this),
+            order.quantity
+        );
+    }
+
+    ///@notice Function to execute multicall orders from the context of LimitOrderExecutor.
+    ///@param orders The orders to be executed.
+    ///@param sandboxMulticall -
+    ///@dev
+    /*The sandBoxRouter address is an immutable address from the sandboxLimitOrderBook.
+    Since the function is onlySandboxLimitOrderBook, the sandBoxRouter address will never change*/
+    function executeSandboxLimitOrders(
+        SandboxLimitOrderBook.SandboxLimitOrder[] memory orders,
+        SandboxLimitOrderRouter.SandboxMulticall calldata sandboxMulticall
+    ) external onlySandboxLimitOrderBook nonReentrant {
+        uint256 expectedAccumulatedFees = 0;
+
+        if (sandboxMulticall.transferAddresses.length > 0) {
+            ///@notice Ensure that the transfer address array is equal to the length of orders to avoid out of bounds index errors
+            if (sandboxMulticall.transferAddresses.length != orders.length) {
+                revert InvalidTransferAddressArray();
+            }
+
+            ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
+            for (uint256 i = 0; i < orders.length; ++i) {
+                uint128 fillAmount = sandboxMulticall.fillAmounts[i];
+                IERC20(orders[i].tokenIn).safeTransferFrom(
+                    orders[i].owner,
+                    sandboxMulticall.transferAddresses[i],
+                    fillAmount
+                );
+
+                uint256 feeRequired = ConveyorMath.mul64U(
+                    ConveyorMath.divUU(fillAmount, orders[i].amountInRemaining),
+                    orders[i].feeRemaining
+                );
+
+                if (feeRequired == 0) {
+                    revert InsufficientFillAmountSpecified(
+                        fillAmount,
+                        orders[i].amountInRemaining
+                    );
+                }
+                expectedAccumulatedFees += feeRequired;
+            }
+        } else {
+            ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
+            for (uint256 i = 0; i < orders.length; ++i) {
+                uint128 fillAmount = sandboxMulticall.fillAmounts[i];
+                IERC20(orders[i].tokenIn).safeTransferFrom(
+                    orders[i].owner,
+                    SANDBOX_LIMIT_ORDER_ROUTER,
+                    fillAmount
+                );
+                uint256 feeRequired = ConveyorMath.mul64U(
+                    ConveyorMath.divUU(fillAmount, orders[i].amountInRemaining),
+                    orders[i].feeRemaining
+                );
+
+                if (feeRequired == 0) {
+                    revert InsufficientFillAmountSpecified(
+                        fillAmount,
+                        orders[i].amountInRemaining
+                    );
+                }
+                expectedAccumulatedFees += feeRequired;
+            }
         }
-        return true;
+
+        ///@notice Cache the contract balance to check if the fee was paid post execution
+        uint256 contractBalancePreExecution = IERC20(WETH).balanceOf(
+            address(this)
+        );
+
+        ///@notice acll the SandboxRouter callback to execute the calldata from the sandboxMulticall
+        ISandboxLimitOrderRouter(SANDBOX_LIMIT_ORDER_ROUTER)
+            .sandboxRouterCallback(sandboxMulticall);
+
+        _requireConveyorFeeIsPaid(
+            contractBalancePreExecution,
+            expectedAccumulatedFees
+        );
+    }
+
+    ///@notice Helper function to assert Protocol fees have been paid during sandbox execution.
+    ///@param contractBalancePreExecution - The contract balance before execution in WETH.
+    ///@param expectedAccumulatedFees - The expected accumulated fees in WETH.
+    function _requireConveyorFeeIsPaid(
+        uint256 contractBalancePreExecution,
+        uint256 expectedAccumulatedFees
+    ) internal view {
+        ///@notice Check if the contract balance is greater than or equal to the contractBalancePreExecution + expectedAccumulatedFees
+        uint256 contractBalancePostExecution = IERC20(WETH).balanceOf(
+            address(this)
+        );
+
+        bool feeIsPaid;
+        assembly {
+            feeIsPaid := iszero(
+                lt(
+                    contractBalancePostExecution,
+                    add(contractBalancePreExecution, expectedAccumulatedFees)
+                )
+            )
+        }
+
+        ///@notice If the fees are not paid, revert
+        if (!feeIsPaid) {
+            revert ConveyorFeesNotPaid(
+                expectedAccumulatedFees,
+                contractBalancePostExecution - contractBalancePreExecution,
+                expectedAccumulatedFees -
+                    (contractBalancePostExecution - contractBalancePreExecution)
+            );
+        }
     }
 
     ///@notice Function to withdraw owner fee's accumulated
-    function withdrawConveyorFees() external {
-        if (reentrancyStatus == true) {
-            revert Reentrancy();
-        }
-        reentrancyStatus = true;
+    function withdrawConveyorFees() external nonReentrant onlyOwner {
+        ///@notice Unwrap the the conveyorBalance.
+        IWETH(WETH).withdraw(conveyorBalance);
 
-        if (msg.sender != owner) {
-            revert MsgSenderIsNotOwner();
-        }
-        safeTransferETH(owner, conveyorBalance);
+        uint256 withdrawAmount = conveyorBalance;
+        ///@notice Set the conveyorBalance to 0 prior to transferring the ETH.
         conveyorBalance = 0;
-        reentrancyStatus = false;
+        _safeTransferETH(owner, withdrawAmount);
+    }
+
+    ///@notice Function to confirm ownership transfer of the contract.
+    function confirmTransferOwnership() external {
+        if (msg.sender != tempOwner) {
+            revert UnauthorizedCaller();
+        }
+
+        ///@notice Cleanup tempOwner storage.
+        tempOwner = address(0);
+        owner = msg.sender;
     }
 
     ///@notice Function to transfer ownership of the contract.
-    function transferOwnership(address newOwner) external {
-        if (msg.sender != owner) {
-            revert MsgSenderIsNotOwner();
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) {
+            revert InvalidAddress();
         }
-        owner = newOwner;
+
+        tempOwner = newOwner;
     }
 }

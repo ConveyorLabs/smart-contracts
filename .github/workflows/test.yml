@@ -1,6 +1,14 @@
 name: test
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - production
+      - staging
+  pull_request:
+    branches:
+      - production
+      - staging
 
 jobs:
   check:
@@ -22,9 +30,9 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
-
+  
       - name: Run tests
-        run: forge test -vvv -f${{ secrets.MAINNET_ENDPOINT }} --fork-block-number 15233771 --ffi
+        run: forge test -f "${{ secrets.MAINNET_RPC_ENDPOINT }}" --ffi
 
-      - name: Run snapshot 
-        run: forge snapshot -vvv -f${{ secrets.MAINNET_ENDPOINT }} --fork-block-number 15233771 --ffi
+      - name: Run snapshot
+        run: forge test -f "${{ secrets.MAINNET_RPC_ENDPOINT }}" --ffi
