@@ -83,7 +83,7 @@ contract ConveyorSwapExecutor {
     function uniswapV3SwapCallback(
         int256 amount0Delta,
         int256 amount1Delta,
-        bytes memory data
+        bytes calldata data
     ) external {
         ///@notice Decode all of the swap data.
         (bool _zeroForOne, address tokenIn, address _sender) = abi.decode(

@@ -459,7 +459,7 @@ contract LimitOrderBook {
     }
 
     /// @notice cancel all orders relevant in ActiveOrders mapping to the msg.sender i.e the function caller
-    function cancelOrders(bytes32[] memory orderIds) public {
+    function cancelOrders(bytes32[] calldata orderIds) public {
         //check that there is one or more orders
         for (uint256 i = 0; i < orderIds.length; ) {
             cancelOrder(orderIds[i]);

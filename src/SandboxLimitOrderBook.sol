@@ -455,7 +455,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
     }
 
     /// @notice cancel all orders relevant in ActiveOrders mapping to the msg.sender i.e the function caller
-    function cancelOrders(bytes32[] memory orderIds) public {
+    function cancelOrders(bytes32[] calldata orderIds) public {
         //check that there is one or more orders
         for (uint256 i = 0; i < orderIds.length; ) {
             cancelOrder(orderIds[i]);
@@ -583,7 +583,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
 
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
-    function refreshOrder(bytes32[] memory orderIds) external nonReentrant {
+    function refreshOrder(bytes32[] calldata orderIds) external nonReentrant {
         ///@notice Initialize totalRefreshFees;
         uint256 totalRefreshFees;
 
@@ -821,8 +821,8 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
     ///@param fillAmounts - The fill amounts for each order.
     ///@param preSandboxExecutionState - The pre execution state of the orders.
     function _validateSandboxExecutionAndFillOrders(
-        bytes32[][] memory orderIdBundles,
-        uint128[] memory fillAmounts,
+        bytes32[][] calldata orderIdBundles,
+        uint128[] calldata fillAmounts,
         PreSandboxExecutionState memory preSandboxExecutionState
     ) internal {
         ///@notice Initialize the orderIdIndex to 0.
@@ -937,7 +937,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
     function _validateMultiOrderBundle(
         uint256 orderIdIndex,
         uint256 bundleLength,
-        uint128[] memory fillAmounts,
+        uint128[] calldata fillAmounts,
         PreSandboxExecutionState memory preSandboxExecutionState
     ) internal {
         ///@notice Cache the first order in the bundle

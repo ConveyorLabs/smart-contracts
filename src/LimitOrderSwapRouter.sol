@@ -115,7 +115,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     //======================Immutables================================
 
     ///@notice The address of the Uniswap V3 factory. b
-    address uniswapV3Factory;
+    address immutable UNISWAP_V3_FACTORY;
 
     //======================Constructor================================
 
@@ -147,10 +147,13 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
                 })
             );
 
+            address uniswapV3Factory;
             ///@notice If the dex is a univ3 variant, then set the uniswapV3Factory storage address.
             if (!_isUniV2[i]) {
                 uniswapV3Factory = _dexFactories[i];
             }
+
+            UNISWAP_V3_FACTORY = uniswapV3Factory;
         }
     }
 
@@ -459,7 +462,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
                 (uint256, bool, address, address, uint24, address)
             );
 
-        address poolAddress = IUniswapV3Factory(uniswapV3Factory).getPool(
+        address poolAddress = IUniswapV3Factory(UNISWAP_V3_FACTORY).getPool(
             tokenIn,
             tokenOut,
             fee

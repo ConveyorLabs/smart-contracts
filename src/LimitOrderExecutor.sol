@@ -331,11 +331,9 @@ contract LimitOrderExecutor is LimitOrderSwapRouter {
 
     ///@notice Function to execute a batch of Token to Weth Orders.
     ///@param orders The orders to be executed.
-    function executeTokenToWethOrders(LimitOrderBook.LimitOrder[] memory orders)
-        external
-        onlyLimitOrderRouter
-        returns (uint256, uint256)
-    {
+    function executeTokenToWethOrders(
+        LimitOrderBook.LimitOrder[] calldata orders
+    ) external onlyLimitOrderRouter returns (uint256, uint256) {
         ///@notice Get all of the execution prices on TokenIn to Weth for each dex.
         ///@notice Get all prices for the pairing
         (
@@ -405,7 +403,7 @@ contract LimitOrderExecutor is LimitOrderSwapRouter {
     ///@param order - The order to be executed.
     ///@param executionPrice - The best priced TokenToWethExecutionPrice to execute the order on.
     function _executeTokenToWethOrder(
-        LimitOrderBook.LimitOrder memory order,
+        LimitOrderBook.LimitOrder calldata order,
         LimitOrderSwapRouter.TokenToWethExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
         ///@notice Swap the batch amountIn on the batch lp address and send the weth back to the contract.
@@ -430,7 +428,7 @@ contract LimitOrderExecutor is LimitOrderSwapRouter {
     ///@return amountOutWeth - The amountOut in Weth after the swap.
     function _executeSwapTokenToWethOrder(
         address lpAddressAToWeth,
-        LimitOrderBook.LimitOrder memory order
+        LimitOrderBook.LimitOrder calldata order
     )
         internal
         returns (
@@ -492,7 +490,7 @@ contract LimitOrderExecutor is LimitOrderSwapRouter {
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
     function executeTokenToTokenOrders(
-        LimitOrderBook.LimitOrder[] memory orders
+        LimitOrderBook.LimitOrder[] calldata orders
     ) external onlyLimitOrderRouter returns (uint256, uint256) {
         TokenToTokenExecutionPrice[] memory executionPrices;
         address tokenIn = orders[0].tokenIn;
@@ -575,7 +573,7 @@ contract LimitOrderExecutor is LimitOrderSwapRouter {
     ///@param order - The order to be executed.
     ///@param executionPrice - The best priced TokenToTokenExecution price to execute the order on.
     function _executeTokenToTokenOrder(
-        LimitOrderBook.LimitOrder memory order,
+        LimitOrderBook.LimitOrder calldata order,
         TokenToTokenExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
         ///@notice Initialize variables to prevent stack too deep.
@@ -652,7 +650,7 @@ contract LimitOrderExecutor is LimitOrderSwapRouter {
 
     ///@notice Transfer the order quantity to the contract.
     ///@param order - The orders tokens to be transferred.
-    function _transferTokensToContract(LimitOrderBook.LimitOrder memory order)
+    function _transferTokensToContract(LimitOrderBook.LimitOrder calldata order)
         internal
     {
         IERC20(order.tokenIn).safeTransferFrom(
@@ -669,7 +667,7 @@ contract LimitOrderExecutor is LimitOrderSwapRouter {
     /*The sandBoxRouter address is an immutable address from the sandboxLimitOrderBook.
     Since the function is onlySandboxLimitOrderBook, the sandBoxRouter address will never change*/
     function executeSandboxLimitOrders(
-        SandboxLimitOrderBook.SandboxLimitOrder[] memory orders,
+        SandboxLimitOrderBook.SandboxLimitOrder[] calldata orders,
         SandboxLimitOrderRouter.SandboxMulticall calldata sandboxMulticall
     ) external onlySandboxLimitOrderBook nonReentrant {
         uint256 expectedAccumulatedFees = 0;
