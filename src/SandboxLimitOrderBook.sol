@@ -6,7 +6,7 @@ import "./interfaces/ILimitOrderBook.sol";
 import "./interfaces/ILimitOrderSwapRouter.sol";
 import "./LimitOrderSwapRouter.sol";
 import "./lib/ConveyorMath.sol";
-import "./interfaces/ILimitOrderExecutor.sol";
+import "./interfaces/IConveyorExecutor.sol";
 import "./test/utils/Console.sol";
 import "./SandboxLimitOrderRouter.sol";
 import "./ConveyorGasOracle.sol";
@@ -18,7 +18,7 @@ import "./ConveyorGasOracle.sol";
 contract SandboxLimitOrderBook is ConveyorGasOracle {
     // ========================================= Immutables =============================================
 
-    ///@notice The address of the LimitOrderExecutor contract.
+    ///@notice The address of the ConveyorExecutor contract.
     address immutable LIMIT_ORDER_EXECUTOR;
     ///@notice The address of the SandboxLimitOrderRouter contract.
     address public immutable SANDBOX_LIMIT_ORDER_ROUTER;
@@ -522,7 +522,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         ) {
             ///@notice Remove the order from the limit order system.
 
-            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
                 msg.sender,
                 _cancelSandboxLimitOrderViaExecutor(order)
             );
@@ -552,20 +552,20 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         addressToOrderIds[msg.sender][order.orderId] = OrderType
             .CanceledSandboxLimitOrder;
 
-        uint256 orderOwnerGasCreditBalance = ILimitOrderExecutor(
+        uint256 orderOwnerGasCreditBalance = IConveyorExecutor(
             LIMIT_ORDER_EXECUTOR
         ).gasCreditBalance(order.owner);
 
         ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
         if (orderOwnerGasCreditBalance > executorFee) {
             ///@notice Decrement from the order owner's gas credit balance.
-            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
                 order.owner,
                 orderOwnerGasCreditBalance - executorFee
             );
         } else {
             ///@notice Otherwise, decrement the entire gas credit balance.
-            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
                 order.owner,
                 0
             );
@@ -602,7 +602,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         }
 
         ///@notice Transfer the refresh fee to off-chain executor who called the function.
-        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+        IConveyorExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
             msg.sender,
             totalRefreshFees
         );
@@ -622,7 +622,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
 
         ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
         if (
-            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).gasCreditBalance(
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).gasCreditBalance(
                 order.owner
             ) < REFRESH_FEE
         ) {
@@ -641,11 +641,11 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
             revert OrderNotEligibleForRefresh(order.orderId);
         }
 
-        uint256 currentCreditBalance = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
+        uint256 currentCreditBalance = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
             .gasCreditBalance(order.owner);
 
         ///@notice Decrement the order.owner's gas credit balance
-        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+        IConveyorExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
             order.owner,
             currentCreditBalance - REFRESH_FEE
         );
@@ -692,7 +692,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
             );
 
         ///@notice Call the limit order executor to transfer all of the order owners tokens to the contract.
-        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).executeSandboxLimitOrders(
+        IConveyorExecutor(LIMIT_ORDER_EXECUTOR).executeSandboxLimitOrders(
             preSandboxExecutionState.sandboxLimitOrders,
             sandboxMulticall
         );
@@ -712,7 +712,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         );
 
         ///@notice Transfer the reward to the off-chain executor.
-        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+        IConveyorExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
             tx.origin,
             executionGasCompensation
         );
@@ -753,7 +753,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
                     bytes32 orderId = orderIdBundle[j];
 
                     ///@notice Transfer the tokens from the order owners to the sandbox router contract.
-                    ///@dev This function is executed in the context of LimitOrderExecutor as a delegatecall.
+                    ///@dev This function is executed in the context of ConveyorExecutor as a delegatecall.
 
                     ///@notice Get the current order
                     SandboxLimitOrder
@@ -1147,12 +1147,12 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         unchecked {
             for (uint256 i = 0; i < orderOwnersLength; ) {
                 ///@notice Adjust the order owner's gas credit balance
-                uint256 ownerGasCreditBalance = ILimitOrderExecutor(
+                uint256 ownerGasCreditBalance = IConveyorExecutor(
                     LIMIT_ORDER_EXECUTOR
                 ).gasCreditBalance(orderOwners[i]);
 
                 if (ownerGasCreditBalance >= gasDecrementValue) {
-                    ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
+                    IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
                         .updateGasCreditBalance(
                             orderOwners[i],
                             ownerGasCreditBalance - gasDecrementValue
@@ -1160,7 +1160,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
 
                     gasExecutionCompensation += gasDecrementValue;
                 } else {
-                    ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
+                    IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
                         .updateGasCreditBalance(orderOwners[i], 0);
 
                     gasExecutionCompensation += ownerGasCreditBalance;
@@ -1300,6 +1300,22 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         totalOrdersQuantity[totalOrdersValueKey] = newQuantity;
     }
 
+    ///@notice Transfer ETH to a specific address and require that the call was successful.
+    ///@param to - The address that should be sent Ether.
+    ///@param amount - The amount of Ether that should be sent.
+    function _safeTransferETH(address to, uint256 amount) internal {
+        bool success;
+
+        assembly {
+            // Transfer the ETH and store if it succeeded or not.
+            success := call(gas(), to, amount, 0, 0, 0, 0)
+        }
+
+        if (!success) {
+            revert ETHTransferFailed();
+        }
+    }
+
     ///@notice Function to check if an order owner has sufficient gas credits for all active orders at order placement time.
     ///@param numberOfOrders - The owners current number of active orders.
     function _checkSufficientGasCreditsForOrderPlacement(uint256 numberOfOrders)
@@ -1308,7 +1324,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         ///@notice Cache the gasPrice and the userGasCreditBalance
         uint256 gasPrice = getGasPrice();
 
-        uint256 userGasCreditBalance = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
+        uint256 userGasCreditBalance = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
             .gasCreditBalance(msg.sender);
 
         ///@notice Get the total amount of active orders for the userAddress
@@ -1332,10 +1348,14 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
         if (msg.value != 0) {
             ///@notice Update the account gas credit balance
 
-            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
                 msg.sender,
                 userGasCreditBalance + msg.value
             );
+
+            ///@notice Transfer the msg.value to the ConveyorExecutor contract.
+            _safeTransferETH(LIMIT_ORDER_EXECUTOR, msg.value);
+
             emit GasCreditEvent(msg.sender, userGasCreditBalance + msg.value);
         }
     }

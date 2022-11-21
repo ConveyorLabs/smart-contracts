@@ -9,7 +9,7 @@ import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
 import "./utils/Swap.sol";
 import "../LimitOrderQuoter.sol";
-import "../LimitOrderExecutor.sol";
+import "../ConveyorExecutor.sol";
 import "../LimitOrderSwapRouter.sol";
 import "../SandboxLimitOrderBook.sol";
 
@@ -42,7 +42,7 @@ interface CheatCodes {
 
 contract SandboxLimitOrderBookTest is DSTest {
     CheatCodes cheatCodes;
-    LimitOrderExecutor limitOrderExecutor;
+    ConveyorExecutor limitOrderExecutor;
     LimitOrderQuoter limitOrderQuoter;
     Swap swapHelper;
     ISandboxLimitOrderBook sandboxLimitOrderBook;
@@ -91,7 +91,7 @@ contract SandboxLimitOrderBookTest is DSTest {
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
 
-        limitOrderExecutor = new LimitOrderExecutor(
+        limitOrderExecutor = new ConveyorExecutor(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             address(limitOrderQuoter),

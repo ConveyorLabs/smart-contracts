@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import "./LimitOrderSwapRouter.sol";
 import "./lib/ConveyorTickMath.sol";
 
-/// @title LimitOrderExecutor
+/// @title ConveyorExecutor
 /// @author 0xOsiris, 0xKitsune
 /// @notice This contract handles all CFMM quoting logic.
 contract LimitOrderQuoter is ConveyorTickMath {

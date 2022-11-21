@@ -12,7 +12,7 @@ import "../../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "./utils/ScriptRunner.sol";
 import "../LimitOrderRouter.sol";
 import "../LimitOrderQuoter.sol";
-import "../LimitOrderExecutor.sol";
+import "../ConveyorExecutor.sol";
 import "../interfaces/ILimitOrderRouter.sol";
 import "../interfaces/ILimitOrderBook.sol";
 import "../interfaces/ISandboxLimitOrderRouter.sol";
@@ -1272,7 +1272,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
     }
 
     //================================================================
-    //====== Sandbox Execution Unit Tests ~ LimitOrderExecutor =======
+    //====== Sandbox Execution Unit Tests ~ ConveyorExecutor =======
     //================================================================
     function _requireConveyorFeeIsPaid(
         uint128 contractBalancePreExecution,
@@ -2036,7 +2036,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
 }
 
 //wrapper around LimitOrderSwapRouter to expose internal functions for testing
-contract LimitOrderExecutorWrapper is LimitOrderExecutor {
+contract LimitOrderExecutorWrapper is ConveyorExecutor {
     constructor(
         address _weth,
         address _usdc,
@@ -2048,7 +2048,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         uint256 _limitOrderExecutionGasCost,
         uint256 _sandboxLimitOrderExecutionGasCost
     )
-        LimitOrderExecutor(
+        ConveyorExecutor(
             _weth,
             _usdc,
             _limitOrderQuoter,
@@ -2125,7 +2125,7 @@ contract SandboxLimitOrderBookWrapper is SandboxLimitOrderBook {
         SandboxLimitOrderRouter.SandboxMulticall calldata sandboxMulticall,
         address limitOrderExecutor
     ) public {
-        ILimitOrderExecutor(address(limitOrderExecutor))
+        IConveyorExecutor(address(limitOrderExecutor))
             .executeSandboxLimitOrders(orders, sandboxMulticall);
     }
 }

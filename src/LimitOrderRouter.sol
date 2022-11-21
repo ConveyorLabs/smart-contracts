@@ -7,7 +7,7 @@ import "./ConveyorErrors.sol";
 import "../lib/interfaces/token/IWETH.sol";
 import "./LimitOrderSwapRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
-import "./interfaces/ILimitOrderExecutor.sol";
+import "./interfaces/IConveyorExecutor.sol";
 import "./interfaces/ILimitOrderRouter.sol";
 
 /// @title LimitOrderRouter
@@ -103,7 +103,7 @@ contract LimitOrderRouter is LimitOrderBook {
         ///@dev All other addresses are being asserted in the limit order executor, which deploys the limit order router
         require(
             _limitOrderExecutor != address(0),
-            "Invalid LimitOrderExecutor address"
+            "Invalid ConveyorExecutor address"
         );
 
         ///@notice Set the owner of the contract
@@ -131,7 +131,7 @@ contract LimitOrderRouter is LimitOrderBook {
         }
 
         ///@notice Transfer the refresh fee to off-chain executor who called the function.
-        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+        IConveyorExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
             msg.sender,
             totalRefreshFees
         );
@@ -144,7 +144,7 @@ contract LimitOrderRouter is LimitOrderBook {
         internal
         returns (uint256 executorFee)
     {
-        uint256 currentBalance = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
+        uint256 currentBalance = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
             .gasCreditBalance(order.owner);
 
         ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
@@ -167,7 +167,7 @@ contract LimitOrderRouter is LimitOrderBook {
         }
 
         ///@notice Decrement the order.owner's gas credit balance
-        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+        IConveyorExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
             order.owner,
             currentBalance - REFRESH_FEE
         );
@@ -201,7 +201,7 @@ contract LimitOrderRouter is LimitOrderBook {
 
         if (IERC20(order.tokenIn).balanceOf(order.owner) < order.quantity) {
             ///@notice Remove the order from the limit order system.
-            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
                 msg.sender,
                 _cancelLimitOrderViaExecutor(order)
             );
@@ -232,20 +232,20 @@ contract LimitOrderRouter is LimitOrderBook {
         addressToOrderIds[msg.sender][order.orderId] = OrderType
             .CanceledLimitOrder;
 
-        uint256 orderOwnerGasCreditBalance = ILimitOrderExecutor(
+        uint256 orderOwnerGasCreditBalance = IConveyorExecutor(
             LIMIT_ORDER_EXECUTOR
         ).gasCreditBalance(order.owner);
 
         ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
         if (orderOwnerGasCreditBalance > executorFee) {
             ///@notice Decrement from the order owner's gas credit balance.
-            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
                 order.owner,
                 orderOwnerGasCreditBalance - executorFee
             );
         } else {
             ///@notice Otherwise, decrement the entire gas credit balance.
-            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
                 order.owner,
                 0
             );
@@ -378,12 +378,12 @@ contract LimitOrderRouter is LimitOrderBook {
 
         ///@notice If the order is not taxed and the tokenOut on the order is Weth
         if (orders[0].tokenOut == WETH) {
-            (totalBeaconReward, totalConveyorReward) = ILimitOrderExecutor(
+            (totalBeaconReward, totalConveyorReward) = IConveyorExecutor(
                 LIMIT_ORDER_EXECUTOR
             ).executeTokenToWethOrders(orders);
         } else {
             ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
-            (totalBeaconReward, totalConveyorReward) = ILimitOrderExecutor(
+            (totalBeaconReward, totalConveyorReward) = IConveyorExecutor(
                 LIMIT_ORDER_EXECUTOR
             ).executeTokenToTokenOrders(orders);
         }
@@ -412,7 +412,7 @@ contract LimitOrderRouter is LimitOrderBook {
             OrderType.PendingLimitOrder
         );
         ///@notice Transfer the reward to the off-chain executor.
-        ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+        IConveyorExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
             msg.sender,
             executionGasCompensation
         );
@@ -500,12 +500,12 @@ contract LimitOrderRouter is LimitOrderBook {
         unchecked {
             for (uint256 i = 0; i < orderOwnersLength; ) {
                 ///@notice Adjust the order owner's gas credit balance
-                uint256 ownerGasCreditBalance = ILimitOrderExecutor(
+                uint256 ownerGasCreditBalance = IConveyorExecutor(
                     LIMIT_ORDER_EXECUTOR
                 ).gasCreditBalance(orderOwners[i]);
 
                 if (ownerGasCreditBalance >= gasDecrementValue) {
-                    ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
+                    IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
                         .updateGasCreditBalance(
                             orderOwners[i],
                             ownerGasCreditBalance - gasDecrementValue
@@ -513,7 +513,7 @@ contract LimitOrderRouter is LimitOrderBook {
 
                     gasExecutionCompensation += gasDecrementValue;
                 } else {
-                    ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
+                    IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
                         .updateGasCreditBalance(orderOwners[i], 0);
 
                     gasExecutionCompensation += ownerGasCreditBalance;

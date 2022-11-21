@@ -5,7 +5,7 @@ import "../LimitOrderBook.sol";
 import "../SandboxLimitOrderBook.sol";
 import "../SandboxLimitOrderRouter.sol";
 
-interface ILimitOrderExecutor {
+interface IConveyorExecutor {
     function executeTokenToWethOrders(LimitOrderBook.LimitOrder[] memory orders)
         external
         returns (uint256, uint256);

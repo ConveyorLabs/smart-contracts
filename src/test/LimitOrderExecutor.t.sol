@@ -12,7 +12,7 @@ import "../../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "./utils/ScriptRunner.sol";
 import "../LimitOrderRouter.sol";
 import "../LimitOrderQuoter.sol";
-import "../LimitOrderExecutor.sol";
+import "../ConveyorExecutor.sol";
 import "../interfaces/ILimitOrderRouter.sol";
 import "../interfaces/ILimitOrderBook.sol";
 
@@ -3116,7 +3116,7 @@ contract LimitOrderExecutorTest is DSTest {
 }
 
 //wrapper around LimitOrderSwapRouter to expose internal functions for testing
-contract LimitOrderExecutorWrapper is LimitOrderExecutor {
+contract LimitOrderExecutorWrapper is ConveyorExecutor {
     constructor(
         address _weth,
         address _usdc,
@@ -3128,7 +3128,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         uint256 _limitOrderExecutionGasCost,
         uint256 _sandboxLimitOrderExecutionGasCost
     )
-        LimitOrderExecutor(
+        ConveyorExecutor(
             _weth,
             _usdc,
             _limitOrderQuoter,

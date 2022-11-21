@@ -10,10 +10,10 @@ import "./interfaces/ISandboxLimitOrderRouter.sol";
 import "./interfaces/ISandboxLimitOrderBook.sol";
 import "./interfaces/ILimitOrderBook.sol";
 
-/// @title LimitOrderExecutor
+/// @title ConveyorExecutor
 /// @author 0xOsiris, 0xKitsune
 /// @notice This contract handles all order execution.
-contract LimitOrderExecutor is LimitOrderSwapRouter {
+contract ConveyorExecutor is LimitOrderSwapRouter {
     using SafeERC20 for IERC20;
     ///====================================Immutable Storage Variables==============================================//
     address immutable WETH;
@@ -660,7 +660,7 @@ contract LimitOrderExecutor is LimitOrderSwapRouter {
         );
     }
 
-    ///@notice Function to execute multicall orders from the context of LimitOrderExecutor.
+    ///@notice Function to execute multicall orders from the context of ConveyorExecutor.
     ///@param orders The orders to be executed.
     ///@param sandboxMulticall -
     ///@dev

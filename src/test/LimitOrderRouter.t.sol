@@ -12,7 +12,7 @@ import "../../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "./utils/ScriptRunner.sol";
 import "../LimitOrderRouter.sol";
 import "../LimitOrderQuoter.sol";
-import "../LimitOrderExecutor.sol";
+import "../ConveyorExecutor.sol";
 import "../interfaces/ILimitOrderRouter.sol";
 import "../interfaces/ILimitOrderBook.sol";
 
@@ -36,7 +36,7 @@ contract LimitOrderRouterTest is DSTest {
     LimitOrderRouterWrapper limitOrderRouterWrapper;
     ILimitOrderRouter limitOrderRouter;
     ILimitOrderBook orderBook;
-    LimitOrderExecutor limitOrderExecutor;
+    ConveyorExecutor limitOrderExecutor;
     LimitOrderQuoter limitOrderQuoter;
 
     ScriptRunner scriptRunner;
@@ -97,7 +97,7 @@ contract LimitOrderRouterTest is DSTest {
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
 
-        limitOrderExecutor = new LimitOrderExecutor(
+        limitOrderExecutor = new ConveyorExecutor(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             address(limitOrderQuoter),

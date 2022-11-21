@@ -11,11 +11,11 @@ import "../lib/libraries/token/SafeERC20.sol";
 /// @notice SandboxRouter uses a multiCall architecture to execute limit orders.
 contract SandboxLimitOrderRouter {
     using SafeERC20 for IERC20;
-    ///@notice LimitOrderExecutor & LimitOrderRouter Addresses.
+    ///@notice ConveyorExecutor & LimitOrderRouter Addresses.
     address immutable LIMIT_ORDER_EXECUTOR;
     address immutable SANDBOX_LIMIT_ORDER_BOOK;
 
-    ///@notice Modifier to restrict addresses other than the LimitOrderExecutor from calling the contract
+    ///@notice Modifier to restrict addresses other than the ConveyorExecutor from calling the contract
     modifier onlyLimitOrderExecutor() {
         if (msg.sender != LIMIT_ORDER_EXECUTOR) {
             revert MsgSenderIsNotLimitOrderExecutor();
@@ -44,7 +44,7 @@ contract SandboxLimitOrderRouter {
     }
 
     ///@notice Constructor for the sandbox router contract.
-    ///@param _limitOrderExecutor - The LimitOrderExecutor contract address.
+    ///@param _limitOrderExecutor - The ConveyorExecutor contract address.
     ///@param _sandboxLimitOrderBook - The SandboxLimitOrderBook contract address.
     constructor(address _limitOrderExecutor, address _sandboxLimitOrderBook) {
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;

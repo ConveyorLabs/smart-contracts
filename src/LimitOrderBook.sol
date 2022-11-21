@@ -6,7 +6,7 @@ import "./ConveyorErrors.sol";
 import "./interfaces/ILimitOrderSwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 import "./test/utils/Console.sol";
-import "./interfaces/ILimitOrderExecutor.sol";
+import "./interfaces/IConveyorExecutor.sol";
 import "./interfaces/IConveyorGasOracle.sol";
 
 /// @title LimitOrderBook
@@ -28,7 +28,7 @@ contract LimitOrderBook {
 
     //----------------------Constructor------------------------------------//
     ///@param _conveyorGasOracle The address of the Chainlink gas oracle.
-    ///@param _limitOrderExecutor The address of the LimitOrderExecutor contract.
+    ///@param _limitOrderExecutor The address of the ConveyorExecutor contract.
     ///@param _weth The address of the WETH contract.
     ///@param _usdc The address of the USDC contract.
     ///@param _limitOrderExecutionGasCost The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut.
@@ -78,6 +78,9 @@ contract LimitOrderBook {
         uint32 indexed lastRefreshTimestamp,
         uint32 indexed expirationTimestamp
     );
+
+    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
+    event GasCreditEvent(address indexed sender, uint256 indexed balance);
 
     //----------------------Structs------------------------------------//
 
@@ -165,6 +168,22 @@ contract LimitOrderBook {
         }
 
         return order;
+    }
+
+    ///@notice Transfer ETH to a specific address and require that the call was successful.
+    ///@param to - The address that should be sent Ether.
+    ///@param amount - The amount of Ether that should be sent.
+    function _safeTransferETH(address to, uint256 amount) internal {
+        bool success;
+
+        assembly {
+            // Transfer the ETH and store if it succeeded or not.
+            success := call(gas(), to, amount, 0, 0, 0, 0)
+        }
+
+        if (!success) {
+            revert ETHTransferFailed();
+        }
     }
 
     ///@notice Places a new order (or group of orders) into the system.
@@ -307,7 +326,7 @@ contract LimitOrderBook {
         uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
             .getGasPrice();
 
-        uint256 userGasCreditBalance = ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
+        uint256 userGasCreditBalance = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
             .gasCreditBalance(msg.sender);
 
         ///@notice Get the total amount of active orders for the userAddress
@@ -331,10 +350,15 @@ contract LimitOrderBook {
         if (msg.value != 0) {
             ///@notice Update the account gas credit balance
 
-            ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
                 msg.sender,
                 userGasCreditBalance + msg.value
             );
+
+            ///@notice Transfer the msg.value to the ConveyorExecutor contract.
+            _safeTransferETH(LIMIT_ORDER_EXECUTOR, msg.value);
+
+            emit GasCreditEvent(msg.sender, userGasCreditBalance + msg.value);
         }
     }
 
