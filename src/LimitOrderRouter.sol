@@ -1,28 +1,20 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.16;
+pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
-import "../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
-import "../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
-import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
-import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
-import "../lib/libraries/ConveyorMath.sol";
-import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
-import "./OrderBook.sol";
-import "./SwapRouter.sol";
+import "./LimitOrderBook.sol";
 import "./ConveyorErrors.sol";
-import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/interfaces/token/IWETH.sol";
-import "../lib/interfaces/uniswap-v3/IQuoter.sol";
-import "../lib/libraries/ConveyorTickMath.sol";
-import "./interfaces/ITokenToTokenLimitOrderExecution.sol";
-import "./interfaces/ITaxedLimitOrderExecution.sol";
-import "./interfaces/ITokenToWethLimitOrderExecution.sol";
+import "./LimitOrderSwapRouter.sol";
+import "./interfaces/ILimitOrderQuoter.sol";
+import "./interfaces/IConveyorExecutor.sol";
+import "./interfaces/ILimitOrderRouter.sol";
 
-/// @title SwapRouter
-/// @author LeytonTaylor, 0xKitsune, Conveyor Labs
-/// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
-contract LimitOrderRouter is OrderBook {
+/// @title LimitOrderRouter
+/// @author 0xOsiris, 0xKitsune, Conveyor Labs
+/// @notice Limit Order contract to execute existing limit orders within the LimitOrderBook contract.
+contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
+    using SafeERC20 for IERC20;
     // ========================================= Modifiers =============================================
 
     ///@notice Modifier to restrict smart contracts from calling a function.
@@ -43,12 +35,9 @@ contract LimitOrderRouter is OrderBook {
         _;
     }
 
-    ///@notice Conveyor funds balance in the contract.
-    uint256 conveyorBalance;
-
     ///@notice Modifier to restrict reentrancy into a function.
     modifier nonReentrant() {
-        if (reentrancyStatus == true) {
+        if (reentrancyStatus) {
             revert Reentrancy();
         }
         reentrancyStatus = true;
@@ -56,32 +45,29 @@ contract LimitOrderRouter is OrderBook {
         reentrancyStatus = false;
     }
 
+    ///@notice Modifier to restrict smart contracts from calling a function.
+    modifier onlyLimitOrderExecutor() {
+        if (msg.sender != LIMIT_ORDER_EXECUTOR) {
+            revert MsgSenderIsNotLimitOrderExecutor();
+        }
+        _;
+    }
+
     // ========================================= Constants  =============================================
 
     ///@notice Interval that determines when an order is eligible for refresh. The interval is set to 30 days represented in Unix time.
-    uint256 constant REFRESH_INTERVAL = 2592000;
+    uint256 private constant REFRESH_INTERVAL = 2592000;
 
     ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
-    uint256 constant REFRESH_FEE = 20000000000000000;
+    ///@notice The refresh fee is 0.02 ETH
+    uint256 private constant REFRESH_FEE = 20000000000000000;
 
     // ========================================= State Variables =============================================
 
     ///@notice Boolean responsible for indicating if a function has been entered when the nonReentrant modifier is used.
     bool reentrancyStatus = false;
 
-    ///@notice Mapping to hold gas credit balances for accounts.
-    mapping(address => uint256) public gasCreditBalance;
-
-    ///@notice The wrapped native token address for the chain.
-    address immutable WETH;
-
-    ///@notice The USD pegged token address for the chain.
-    address immutable USDC;
-
-    ///@notice The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
-    uint256 immutable ORDER_EXECUTION_GAS_COST;
-
-    ///@notice State variable to track the amount of gas initally alloted during executeOrders.
+    ///@notice State variable to track the amount of gas initally alloted during executeLimitOrders.
     uint256 initialTxGas;
 
     ///@notice Temporary owner storage variable when transferring ownership of the contract.
@@ -91,336 +77,249 @@ contract LimitOrderRouter is OrderBook {
     ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
     address owner;
 
-    ///@notice TokenToTokenExecution contract address.
-    address immutable tokenToTokenExecutionAddress;
-
-    ///@notice TaxedExecution contract address.
-    address immutable taxedExecutionAddress;
-
-    ///@notice TokenToWethExecution contract address.
-    address immutable tokenToWethExecutionAddress;
-
     // ========================================= Constructor =============================================
 
     ///@param _gasOracle - Address of the ChainLink fast gas oracle.
     ///@param _weth - Address of the wrapped native token for the chain.
     ///@param _usdc - Address of the USD pegged token for the chain.
-    ///@param _executionCost - The execution cost of fufilling a standard ERC20 swap from tokenIn to tokenOut
+    ///@param _limitOrderExecutor - Address of the limit order executor contract
+    ///@param _limitOrderExecutionGasCost - The amount of gas required to execute a limit order.
     constructor(
         address _gasOracle,
         address _weth,
         address _usdc,
-        uint256 _executionCost,
-        address _tokenToTokenExecutionAddress,
-        address _taxedExecutionAddress,
-        address _tokenToWethExecutionAddress,
-        address _orderRouter
-    ) OrderBook(_gasOracle, _orderRouter) {
-        WETH = _weth;
-        USDC = _usdc;
-        ORDER_EXECUTION_GAS_COST = _executionCost;
-        owner = msg.sender;
-        tokenToTokenExecutionAddress = _tokenToTokenExecutionAddress;
-        taxedExecutionAddress = _taxedExecutionAddress;
-        tokenToWethExecutionAddress = _tokenToWethExecutionAddress;
-    }
-
-    // ========================================= Events  =============================================
-
-    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
-    event GasCreditEvent(address indexed sender, uint256 indexed balance);
-
-    ///@notice Event that notifies off-chain executors when an order has been refreshed.
-    event OrderRefreshed(
-        bytes32 indexed orderId,
-        uint32 indexed lastRefreshTimestamp,
-        uint32 indexed expirationTimestamp
-    );
-
-    // ========================================= FUNCTIONS =============================================
-
-    //------------Gas Credit Functions------------------------
-
-    /// @notice Function to deposit gas credits.
-    /// @return success - Boolean that indicates if the deposit completed successfully.
-    function depositGasCredits() public payable returns (bool success) {
-        ///@notice Increment the gas credit balance for the user by the msg.value
-        uint256 newBalance = gasCreditBalance[msg.sender] + msg.value;
-
-        ///@notice Set the gas credit balance of the sender to the new balance.
-        gasCreditBalance[msg.sender] = newBalance;
-
-        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
-        emit GasCreditEvent(msg.sender, newBalance);
-
-        return true;
-    }
-
-    /**@notice Function to withdraw gas credits from an account's balance. If the withdraw results in the account's gas credit
-    balance required to execute existing orders, those orders must be canceled before the gas credits can be withdrawn.
-    */
-    /// @param value - The amount to withdraw from the gas credit balance.
-    /// @return success - Boolean that indicates if the withdraw completed successfully.
-    function withdrawGasCredits(uint256 value)
-        public
-        nonReentrant
-        returns (bool success)
+        address _limitOrderExecutor,
+        uint256 _limitOrderExecutionGasCost
+    )
+        LimitOrderBook(
+            _gasOracle,
+            _limitOrderExecutor,
+            _weth,
+            _usdc,
+            _limitOrderExecutionGasCost
+        )
     {
-        ///@notice Require that account's credit balance is larger than withdraw amount
-        if (gasCreditBalance[msg.sender] < value) {
-            revert InsufficientGasCreditBalance();
-        }
+        ///@notice Require that deployment addresses are not zero
+        ///@dev All other addresses are being asserted in the limit order executor, which deploys the limit order router
+        require(
+            _limitOrderExecutor != address(0),
+            "Invalid ConveyorExecutor address"
+        );
 
-        ///@notice Get the current gas price from the v3 Aggregator.
-        uint256 gasPrice = getGasPrice();
-
-        ///@notice Require that account has enough gas for order execution after the gas credit withdrawal.
-        if (
-            !(
-                _hasMinGasCredits(
-                    gasPrice,
-                    ORDER_EXECUTION_GAS_COST,
-                    msg.sender,
-                    gasCreditBalance[msg.sender] - value
-                )
-            )
-        ) {
-            revert InsufficientGasCreditBalanceForOrderExecution();
-        }
-
-        ///@notice Decrease the account's gas credit balance
-        uint256 newBalance = gasCreditBalance[msg.sender] - value;
-
-        ///@notice Set the senders new gas credit balance.
-        gasCreditBalance[msg.sender] = newBalance;
-
-        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
-        emit GasCreditEvent(msg.sender, newBalance);
-
-        ///@notice Transfer the withdraw amount to the account.
-        safeTransferETH(msg.sender, value);
-
-        return true;
+        ///@notice Set the owner of the contract
+        owner = msg.sender;
     }
 
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
-    function refreshOrder(bytes32[] memory orderIds) external nonReentrant {
+    function refreshOrder(bytes32[] calldata orderIds) external nonReentrant {
+        ///@notice Initialize totalRefreshFees;
+        uint256 totalRefreshFees;
+
         ///@notice For each order in the orderIds array.
         for (uint256 i = 0; i < orderIds.length; ) {
             ///@notice Get the current orderId.
             bytes32 orderId = orderIds[i];
 
-            ///@notice Cache the order in memory.
-            Order memory order = getOrderById(orderId);
+            LimitOrder memory order = getLimitOrderById(orderId);
 
-            ///@notice Check if order exists, otherwise revert.
-            if (order.owner == address(0)) {
-                revert OrderDoesNotExist(orderId);
-            }
-
-            ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
-            if (block.timestamp > order.expirationTimestamp) {
-                _cancelOrder(order);
-
-                unchecked {
-                    ++i;
-                }
-
-                continue;
-            }
-
-            ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
-            if (gasCreditBalance[order.owner] < REFRESH_FEE) {
-                unchecked {
-                    ++i;
-                }
-
-                continue;
-            }
-
-            ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
-            if (
-                block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL
-            ) {
-                unchecked {
-                    ++i;
-                }
-
-                continue;
-            }
-
-            ///@notice Get the current gas price from the v3 Aggregator.
-            uint256 gasPrice = getGasPrice();
-
-            ///@notice Require that account has enough gas for order execution after the refresh, otherwise, cancel the order and continue the loop.
-            if (
-                !(
-                    _hasMinGasCredits(
-                        gasPrice,
-                        ORDER_EXECUTION_GAS_COST,
-                        order.owner,
-                        gasCreditBalance[order.owner] - REFRESH_FEE
-                    )
-                )
-            ) {
-                _cancelOrder(order);
-
-                unchecked {
-                    ++i;
-                }
-
-                continue;
-            }
-
-            ///@notice Transfer the refresh fee to off-chain executor who called the function.
-            safeTransferETH(msg.sender, REFRESH_FEE);
-
-            ///@notice Decrement the order.owner's gas credit balance
-            gasCreditBalance[order.owner] -= REFRESH_FEE;
-
-            ///@notice update the order's last refresh timestamp
-            ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
-            orderIdToOrder[orderId].lastRefreshTimestamp = uint32(
-                block.timestamp % (2**32 - 1)
-            );
-
-            ///@notice Emit an event to notify the off-chain executors that the order has been refreshed.
-            emit OrderRefreshed(
-                orderId,
-                order.lastRefreshTimestamp,
-                order.expirationTimestamp
-            );
+            totalRefreshFees += _refreshLimitOrder(order);
 
             unchecked {
                 ++i;
             }
         }
+
+        ///@notice Transfer the refresh fee to off-chain executor who called the function.
+        IConveyorExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+            msg.sender,
+            totalRefreshFees
+        );
+    }
+
+    ///@notice Internal helper function to refresh a Limit Order.
+    ///@param order - The Limit Order to be refreshed.
+    ///@return executorFee - The fee to be compensated to the off-chain executor.
+    function _refreshLimitOrder(LimitOrder memory order)
+        internal
+        returns (uint256 executorFee)
+    {
+        uint256 currentBalance = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
+            .gasCreditBalance(order.owner);
+
+        ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
+        if (block.timestamp > order.expirationTimestamp) {
+            return _cancelLimitOrderViaExecutor(order);
+        }
+
+        ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
+        if (currentBalance < REFRESH_FEE) {
+            return _cancelLimitOrderViaExecutor(order);
+        }
+
+        if (IERC20(order.tokenIn).balanceOf(order.owner) < order.quantity) {
+            return _cancelLimitOrderViaExecutor(order);
+        }
+
+        ///@notice If the time elapsed since the last refresh is less than 30 days, continue to the next iteration in the loop.
+        if (block.timestamp - order.lastRefreshTimestamp < REFRESH_INTERVAL) {
+            revert OrderNotEligibleForRefresh(order.orderId);
+        }
+
+        ///@notice Decrement the order.owner's gas credit balance
+        IConveyorExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+            order.owner,
+            currentBalance - REFRESH_FEE
+        );
+
+        ///@notice update the order's last refresh timestamp
+        ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
+        orderIdToLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
+            block.timestamp % (2**32 - 1)
+        );
+
+        ///@notice Emit an event to notify the off-chain executors that the order has been refreshed.
+        emit OrderRefreshed(
+            order.orderId,
+            order.lastRefreshTimestamp,
+            order.expirationTimestamp
+        );
+
+        ///@notice Accumulate the REFRESH_FEE.
+        return REFRESH_FEE;
     }
 
     /// @notice Function for off-chain executors to cancel an Order that does not have the minimum gas credit balance for order execution.
     /// @param orderId - Order Id of the order to cancel.
-    /// @return success - Boolean to indicate if the order was successfully cancelled and compensation was sent to the off-chain executor.
+    /// @return success - Boolean to indicate if the order was successfully canceled and compensation was sent to the off-chain executor.
     function validateAndCancelOrder(bytes32 orderId)
         external
         nonReentrant
         returns (bool success)
     {
-        ///@notice Cache the order to run validation checks before cancellation.
-        Order memory order = orderIdToOrder[orderId];
+        LimitOrder memory order = getLimitOrderById(orderId);
 
-        ///@notice Check if order exists, otherwise revert.
-        if (order.owner == address(0)) {
-            revert OrderDoesNotExist(orderId);
-        }
-
-        ///@notice Get the current gas price from the v3 Aggregator.
-        uint256 gasPrice = getGasPrice();
-
-        ///@notice Get the minimum gas credits needed for a single order
-        uint256 minimumGasCreditsForSingleOrder = gasPrice *
-            ORDER_EXECUTION_GAS_COST;
-
-        ///@notice Check if the account has the minimum gas credits for
-        if (
-            !(
-                _hasMinGasCredits(
-                    gasPrice,
-                    ORDER_EXECUTION_GAS_COST,
-                    order.owner,
-                    gasCreditBalance[order.owner]
-                )
-            )
-        ) {
+        if (IERC20(order.tokenIn).balanceOf(order.owner) < order.quantity) {
             ///@notice Remove the order from the limit order system.
-            _cancelOrder(order);
-
-            ///@notice Decrement from the order owner's gas credit balance.
-            gasCreditBalance[order.owner] -= minimumGasCreditsForSingleOrder;
-
-            ///@notice Send the off-chain executor the reward for cancelling the order.
-            safeTransferETH(msg.sender, minimumGasCreditsForSingleOrder);
-
-            ///@notice Emit an order cancelled event to notify the off-chain exectors.
-            bytes32[] memory orderIds = new bytes32[](1);
-            orderIds[0] = order.orderId;
-            emit OrderCancelled(orderIds);
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+                msg.sender,
+                _cancelLimitOrderViaExecutor(order)
+            );
 
             return true;
         }
+
         return false;
     }
 
     /// @notice Internal helper function to cancel an order. This function is only called after cancel order validation.
     /// @param order - The order to cancel.
-    /// @return success - Boolean to indicate if the order was successfully cancelled.
-    function _cancelOrder(Order memory order) internal returns (bool success) {
-        ///@notice Get the current gas price from the v3 Aggregator.
-        uint256 gasPrice = getGasPrice();
+    /// @return success - Boolean to indicate if the order was successfully canceled.
+    function _cancelLimitOrderViaExecutor(LimitOrder memory order)
+        internal
+        returns (uint256)
+    {
+        ///@notice Get the current gas price.
+        uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
+            .getGasPrice();
 
         ///@notice Get the minimum gas credits needed for a single order
-        uint256 minimumGasCreditsForSingleOrder = gasPrice *
-            ORDER_EXECUTION_GAS_COST;
+        uint256 executorFee = gasPrice * LIMIT_ORDER_EXECUTION_GAS_COST;
 
         ///@notice Remove the order from the limit order system.
-        _removeOrderFromSystem(order);
+        _removeOrderFromSystem(order.orderId);
 
-        uint256 orderOwnerGasCreditBalance = gasCreditBalance[order.owner];
+        addressToOrderIds[msg.sender][order.orderId] = OrderType
+            .CanceledLimitOrder;
+
+        uint256 orderOwnerGasCreditBalance = IConveyorExecutor(
+            LIMIT_ORDER_EXECUTOR
+        ).gasCreditBalance(order.owner);
 
         ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
-        if (orderOwnerGasCreditBalance > minimumGasCreditsForSingleOrder) {
+        if (orderOwnerGasCreditBalance > executorFee) {
             ///@notice Decrement from the order owner's gas credit balance.
-            gasCreditBalance[order.owner] -= minimumGasCreditsForSingleOrder;
-
-            ///@notice Send the off-chain executor the reward for cancelling the order.
-            safeTransferETH(msg.sender, minimumGasCreditsForSingleOrder);
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+                order.owner,
+                orderOwnerGasCreditBalance - executorFee
+            );
         } else {
             ///@notice Otherwise, decrement the entire gas credit balance.
-            gasCreditBalance[order.owner] -= orderOwnerGasCreditBalance;
-            ///@notice Send the off-chain executor the reward for cancelling the order.
-            safeTransferETH(msg.sender, orderOwnerGasCreditBalance);
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
+                order.owner,
+                0
+            );
+            executorFee = orderOwnerGasCreditBalance;
         }
 
-        ///@notice Emit an order cancelled event to notify the off-chain exectors.
+        ///@notice Emit an order canceled event to notify the off-chain exectors.
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = order.orderId;
-        emit OrderCancelled(orderIds);
+        emit OrderCanceled(orderIds);
 
-        return true;
+        return executorFee;
     }
 
     ///@notice Function to validate the congruency of an array of orders.
     ///@param orders Array of orders to be validated
-    function _validateOrderSequencing(Order[] memory orders) internal pure {
+    function _validateOrderSequencing(LimitOrder[] memory orders)
+        internal
+        pure
+    {
         ///@notice Iterate through the length of orders -1.
-        for (uint256 i = 0; i < orders.length - 1; i++) {
+        for (uint256 i = 0; i < orders.length - 1; ) {
             ///@notice Cache order at index i, and i+1
-            Order memory currentOrder = orders[i];
-            Order memory nextOrder = orders[i + 1];
+            LimitOrder memory currentOrder = orders[i];
+            LimitOrder memory nextOrder = orders[i + 1];
 
             ///@notice Check if the current order is less than or equal to the next order
             if (currentOrder.quantity > nextOrder.quantity) {
-                revert InvalidBatchOrder();
+                revert InvalidOrderGroupSequence();
             }
 
-            ///@notice Check if the token in is the same for the last order
+            ///@notice Check if the token in is the same for the next order
             if (currentOrder.tokenIn != nextOrder.tokenIn) {
-                revert IncongruentInputTokenInBatch();
+                revert IncongruentInputTokenInOrderGroup(
+                    nextOrder.tokenIn,
+                    currentOrder.tokenIn
+                );
             }
 
-            ///@notice Check if the token out is the same for the last order
+            ///@notice Check if the stoploss status is the same for the next order
+            if (currentOrder.stoploss != nextOrder.stoploss) {
+                revert IncongruentStoplossStatusInOrderGroup();
+            }
+
+            ///@notice Check if the token out is the same for the next order
             if (currentOrder.tokenOut != nextOrder.tokenOut) {
-                revert IncongruentOutputTokenInBatch();
+                revert IncongruentOutputTokenInOrderGroup(
+                    nextOrder.tokenOut,
+                    currentOrder.tokenOut
+                );
             }
 
-            ///@notice Check if the token tax status is the same for the last order
+            ///@notice Check if the buy status is the same for the next order
             if (currentOrder.buy != nextOrder.buy) {
-                revert IncongruentBuySellStatusInBatch();
+                revert IncongruentBuySellStatusInOrderGroup();
             }
 
-            ///@notice Check if the token tax status is the same for the last order
+            ///@notice Check if the tax status is the same for the next order
             if (currentOrder.taxed != nextOrder.taxed) {
-                revert IncongruentTaxedTokenInBatch();
+                revert IncongruentTaxedTokenInOrderGroup();
+            }
+
+            ///@notice Check if the fee in is the same for the next order
+            if (currentOrder.feeIn != nextOrder.feeIn) {
+                revert IncongruentFeeInInOrderGroup();
+            }
+
+            ///@notice Check if the fee out is the same for the next order
+            if (currentOrder.feeOut != nextOrder.feeOut) {
+                revert IncongruentFeeOutInOrderGroup();
+            }
+
+            unchecked {
+                ++i;
             }
         }
     }
@@ -429,19 +328,42 @@ contract LimitOrderRouter is OrderBook {
 
     ///@notice This function is called by off-chain executors, passing in an array of orderIds to execute a specific batch of orders.
     /// @param orderIds - Array of orderIds to indicate which orders should be executed.
-    function executeOrders(bytes32[] calldata orderIds) external onlyEOA {
+    function executeLimitOrders(bytes32[] calldata orderIds)
+        external
+        nonReentrant
+    {
+        uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
+            .getGasPrice();
+
         //Update the initial gas balance.
         assembly {
             sstore(initialTxGas.slot, gas())
         }
 
-        ///@notice Get all of the orders by orderId and add them to a temporary orders array
-        Order[] memory orders = new Order[](orderIds.length);
-        for (uint256 i = 0; i < orderIds.length; ) {
-            orders[i] = getOrderById(orderIds[i]);
+        ///@notice Revert if the length of the orderIds array is 0.
+        if (orderIds.length == 0) {
+            revert InvalidCalldata();
+        }
 
+        ///@notice Get all of the orders by orderId and add them to a temporary orders array
+        LimitOrder[] memory orders = new LimitOrder[](orderIds.length);
+
+        for (uint256 i = 0; i < orderIds.length; ) {
+            orders[i] = getLimitOrderById(orderIds[i]);
+            if (orders[i].orderId == bytes32(0)) {
+                revert OrderDoesNotExist(orderIds[i]);
+            }
             unchecked {
                 ++i;
+            }
+        }
+        ///@notice Cache stoploss status for the orders.
+        bool isStoplossExecution = orders[0].stoploss;
+        ///@notice If msg.sender != tx.origin and the stoploss status for the batch is true, revert the transaction.
+        ///@dev Stoploss batches strictly require EOA execution.
+        if (isStoplossExecution) {
+            if (msg.sender != tx.origin) {
+                revert NonEOAStoplossExecution();
             }
         }
 
@@ -451,68 +373,29 @@ contract LimitOrderRouter is OrderBook {
             _validateOrderSequencing(orders);
         }
 
-        ///@notice Check if the order contains any taxed tokens.
-        if (orders[0].taxed == true) {
-            ///@notice If the tokenOut on the order is Weth
-            if (orders[0].tokenOut == WETH) {
-                ///@notice If the length of the orders array > 1, execute multiple TokenToWeth taxed orders.
-                if (orders.length > 1) {
-                    ITaxedLimitOrderExecution(taxedExecutionAddress)
-                        .executeTokenToWethTaxedOrders(orders);
-                    ///@notice If the length ==1, execute a single TokenToWeth taxed order.
-                } else {
-                    ITokenToWethLimitOrderExecution(tokenToWethExecutionAddress)
-                        .executeTokenToWethOrderSingle(orders);
-                }
-            } else {
-                ///@notice If the length of the orders array > 1, execute multiple TokenToToken taxed orders.
-                if (orders.length > 1) {
-                    ///@notice Otherwise, if the tokenOut is not Weth and the order is a taxed order.
-                    ITaxedLimitOrderExecution(taxedExecutionAddress)
-                        .executeTokenToTokenTaxedOrders(orders);
-                    ///@notice If the length ==1, execute a single TokenToToken taxed order.
-                } else {
-                    ITokenToTokenExecution(tokenToTokenExecutionAddress)
-                        .executeTokenToTokenOrderSingle(orders);
-                }
-            }
+        uint256 totalBeaconReward;
+        uint256 totalConveyorReward;
+
+        ///@notice If the order is not taxed and the tokenOut on the order is Weth
+        if (orders[0].tokenOut == WETH) {
+            (totalBeaconReward, totalConveyorReward) = IConveyorExecutor(
+                LIMIT_ORDER_EXECUTOR
+            ).executeTokenToWethOrders(orders);
         } else {
-            ///@notice If the order is not taxed and the tokenOut on the order is Weth
-            if (orders[0].tokenOut == WETH) {
-                ///@notice If the length of the orders array > 1, execute multiple TokenToWeth taxed orders.
-                if (orders.length > 1) {
-                    ITokenToWethLimitOrderExecution(tokenToWethExecutionAddress)
-                        .executeTokenToWethOrders(orders);
-                    ///@notice If the length ==1, execute a single TokenToWeth taxed order.
-                } else {
-                    ITokenToWethLimitOrderExecution(tokenToWethExecutionAddress)
-                        .executeTokenToWethOrderSingle(orders);
-                }
-            } else {
-                ///@notice If the length of the orders array > 1, execute multiple TokenToToken orders.
-                if (orders.length > 1) {
-                    ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
-                    ITokenToTokenExecution(tokenToTokenExecutionAddress)
-                        .executeTokenToTokenOrders(orders);
-                    ///@notice If the length ==1, execute a single TokenToToken order.
-                } else {
-                    ITokenToTokenExecution(tokenToTokenExecutionAddress)
-                        .executeTokenToTokenOrderSingle(orders);
-                }
-            }
+            ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
+            (totalBeaconReward, totalConveyorReward) = IConveyorExecutor(
+                LIMIT_ORDER_EXECUTOR
+            ).executeTokenToTokenOrders(orders);
         }
 
         ///@notice Get the array of order owners.
-        address[] memory orderOwners = getOrderOwners(orders);
+        address[] memory orderOwners = _getLimitOrderOwners(orders);
 
         ///@notice Iterate through all orderIds in the batch and delete the orders from queue post execution.
         for (uint256 i = 0; i < orderIds.length; ) {
             bytes32 orderId = orderIds[i];
             ///@notice Mark the order as resolved from the system.
-            _resolveCompletedOrder(orderIdToOrder[orderId]);
-
-            ///@notice Mark order as fulfilled in addressToFufilledOrderIds mapping
-            addressToFufilledOrderIds[orderOwners[i]][orderIds[i]] = true;
+            _resolveCompletedOrder(orderId);
 
             unchecked {
                 ++i;
@@ -523,18 +406,22 @@ contract LimitOrderRouter is OrderBook {
         emit OrderFufilled(orderIds);
 
         ///@notice Calculate the execution gas compensation.
-        uint256 executionGasCompensation = calculateExecutionGasCompensation(
-            orderOwners
+        uint256 executionGasCompensation = _calculateExecutionGasCompensation(
+            gasPrice,
+            orderOwners,
+            OrderType.PendingLimitOrder
         );
-
         ///@notice Transfer the reward to the off-chain executor.
-        safeTransferETH(msg.sender, executionGasCompensation);
+        IConveyorExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+            msg.sender,
+            executionGasCompensation
+        );
     }
 
-    ///@notice Function to return an array of order owners.
-    ///@param orders - Array of orders.
+    ///@notice Function to return an array of limit order owners.
+    ///@param orders - Array of LimitOrders.
     ///@return orderOwners - An array of order owners in the orders array.
-    function getOrderOwners(Order[] memory orders)
+    function _getLimitOrderOwners(LimitOrder[] memory orders)
         internal
         pure
         returns (address[] memory orderOwners)
@@ -548,87 +435,92 @@ contract LimitOrderRouter is OrderBook {
         }
     }
 
-    ///@notice Function to withdraw owner fee's accumulated
-    function withdrawConveyorFees() external onlyOwner nonReentrant {
-        safeTransferETH(owner, conveyorBalance);
-        conveyorBalance = 0;
-    }
-
     ///@notice Function to confirm ownership transfer of the contract.
     function confirmTransferOwnership() external {
         if (msg.sender != tempOwner) {
-            revert UnauthorizedCaller();
+            revert MsgSenderIsNotTempOwner();
         }
         owner = msg.sender;
+        tempOwner = address(0);
     }
 
     ///@notice Function to transfer ownership of the contract.
     function transferOwnership(address newOwner) external onlyOwner {
-        if (owner == address(0)) {
+        if (newOwner == address(0)) {
             revert InvalidAddress();
         }
         tempOwner = newOwner;
     }
 
-    ///@notice Function to calculate the execution gas consumed during executeOrders
+    ///@notice Function to calculate the execution gas consumed during executeLimitOrders
     ///@return executionGasConsumed - The amount of gas consumed.
-    function calculateExecutionGasConsumed()
-        internal
-        view
-        returns (uint256 executionGasConsumed)
-    {
+    function _calculateExecutionGasConsumed(
+        uint256 gasPrice,
+        uint256 numberOfOrders,
+        OrderType orderType
+    ) internal view returns (uint256 executionGasConsumed) {
         assembly {
-            executionGasConsumed := sub(sload(initialTxGas.slot), gas())
+            executionGasConsumed := mul(
+                gasPrice,
+                sub(sload(initialTxGas.slot), gas())
+            )
+        }
+
+        if (orderType == OrderType.PendingLimitOrder) {
+            ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
+            uint256 maxExecutionCompensation = LIMIT_ORDER_EXECUTION_GAS_COST *
+                numberOfOrders *
+                gasPrice;
+            if (executionGasConsumed > maxExecutionCompensation) {
+                executionGasConsumed = maxExecutionCompensation;
+            }
         }
     }
 
     ///@notice Function to adjust order owner's gas credit balance and calaculate the compensation to be paid to the executor.
     ///@param orderOwners - The order owners in the batch.
     ///@return gasExecutionCompensation - The amount to be paid to the off-chain executor for execution gas.
-    function calculateExecutionGasCompensation(address[] memory orderOwners)
-        internal
-        returns (uint256 gasExecutionCompensation)
-    {
+    function _calculateExecutionGasCompensation(
+        uint256 gasPrice,
+        address[] memory orderOwners,
+        OrderType orderType
+    ) internal returns (uint256 gasExecutionCompensation) {
         uint256 orderOwnersLength = orderOwners.length;
 
         ///@notice Decrement gas credit balances for each order owner
-        uint256 executionGasConsumed = calculateExecutionGasConsumed();
+        uint256 executionGasConsumed = _calculateExecutionGasConsumed(
+            gasPrice,
+            orderOwners.length,
+            orderType
+        );
+
         uint256 gasDecrementValue = executionGasConsumed / orderOwnersLength;
 
         ///@notice Unchecked for gas efficiency
         unchecked {
             for (uint256 i = 0; i < orderOwnersLength; ) {
                 ///@notice Adjust the order owner's gas credit balance
-                uint256 ownerGasCreditBalance = gasCreditBalance[
-                    orderOwners[i]
-                ];
+                uint256 ownerGasCreditBalance = IConveyorExecutor(
+                    LIMIT_ORDER_EXECUTOR
+                ).gasCreditBalance(orderOwners[i]);
 
                 if (ownerGasCreditBalance >= gasDecrementValue) {
-                    gasCreditBalance[orderOwners[i]] -= gasDecrementValue;
+                    IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
+                        .updateGasCreditBalance(
+                            orderOwners[i],
+                            ownerGasCreditBalance - gasDecrementValue
+                        );
+
                     gasExecutionCompensation += gasDecrementValue;
                 } else {
-                    gasCreditBalance[orderOwners[i]] -= ownerGasCreditBalance;
+                    IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
+                        .updateGasCreditBalance(orderOwners[i], 0);
+
                     gasExecutionCompensation += ownerGasCreditBalance;
                 }
 
                 ++i;
             }
-        }
-    }
-
-    ///@notice Transfer ETH to a specific address and require that the call was successful.
-    ///@param to - The address that should be sent Ether.
-    ///@param amount - The amount of Ether that should be sent.
-    function safeTransferETH(address to, uint256 amount) public {
-        bool success;
-
-        assembly {
-            // Transfer the ETH and store if it succeeded or not.
-            success := call(gas(), to, amount, 0, 0, 0, 0)
-        }
-
-        if (!success) {
-            revert ETHTransferFailed();
         }
     }
 }
