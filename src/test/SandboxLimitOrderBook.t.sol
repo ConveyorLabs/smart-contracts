@@ -456,7 +456,6 @@ contract SandboxLimitOrderBookTest is DSTest {
         }
     }
 
-    ///TODO: Write a fuzz test for this
     function testFailPlaceSandboxLimitOrder_InsufficientWalletBalance(
         uint112 amountOutRemaining
     ) public {
@@ -486,7 +485,6 @@ contract SandboxLimitOrderBookTest is DSTest {
         sandboxLimitOrderBook.placeSandboxLimitOrder(orderGroup);
     }
 
-    ///TODO: Write a fuzz test for this
     function testFailPlaceSandboxLimitOrder_InsufficientAllowanceForOrderPlacement(
         uint256 amountOutRemaining
     ) public {
@@ -518,7 +516,6 @@ contract SandboxLimitOrderBookTest is DSTest {
         } catch {}
     }
 
-    ///TODO: Write a fuzz test for this
     function testCancelSandboxLimitOrder(uint256 amountOutRemaining) public {
         uint256 amountInRemaining = 1000000000000000000;
 

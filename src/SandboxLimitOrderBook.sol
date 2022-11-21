@@ -255,7 +255,6 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
                         if (spRes[k].spotPrice != 0) {
                             tokenAWethSpotPrice = spRes[k].spotPrice;
                             break;
-                            ///TODO: Revisit this
                         }
 
                         unchecked {
@@ -937,7 +936,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
     function _validateMultiOrderBundle(
         uint256 orderIdIndex,
         uint256 bundleLength,
-        uint128[] calldata fillAmounts,
+        uint128[] memory fillAmounts,
         PreSandboxExecutionState memory preSandboxExecutionState
     ) internal {
         ///@notice Cache the first order in the bundle

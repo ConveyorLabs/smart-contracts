@@ -258,8 +258,6 @@ contract LimitOrderQuoter is ConveyorTickMath {
         return (executionPrices);
     }
 
-    //TODO: Update to the new simulation function @leyton
-
     ///@notice Function to simulate the TokenToToken price change on a pair.
     ///@param alphaX - The input quantity to simulate the price change on.
     ///@param executionPrice - The TokenToTokenExecutionPrice to simulate the price change on.
@@ -296,8 +294,6 @@ contract LimitOrderQuoter is ConveyorTickMath {
             uint8 tokenInDecimals = token1 == WETH
                 ? IERC20(token0).decimals()
                 : IERC20(token1).decimals();
-
-            //TODO: @leyton check this out
 
             ///@notice Convert to 18 decimals to have correct price change on the reserve quantities in common 18 decimal form.
             uint128 amountIn = tokenInDecimals <= 18

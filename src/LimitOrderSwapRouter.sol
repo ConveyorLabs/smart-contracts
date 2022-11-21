@@ -513,7 +513,10 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
         bytes32 _initBytecode
     ) internal view returns (SpotReserve memory spRes, address poolAddress) {
         ///@notice Require token address's are not identical
-        require(token0 != token1, "Invalid Token Pair, IDENTICAL Address's");
+
+        if (token0 == token1) {
+            revert IdenticalTokenAddresses();
+        }
 
         address tok0;
         address tok1;
