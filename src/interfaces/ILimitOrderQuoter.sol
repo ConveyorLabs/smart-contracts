@@ -5,7 +5,8 @@ import "../LimitOrderSwapRouter.sol";
 
 interface ILimitOrderQuoter {
     function findBestTokenToTokenExecutionPrice(
-        SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice[]
+            memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex);
 
@@ -20,7 +21,7 @@ interface ILimitOrderQuoter {
     ) external returns (LimitOrderSwapRouter.TokenToWethExecutionPrice memory);
 
     function findBestTokenToWethExecutionPrice(
-        SwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
+        LimitOrderSwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex);
 
@@ -33,9 +34,12 @@ interface ILimitOrderQuoter {
     ) external returns (uint256 amountOutMinAToWeth);
 
     function initializeTokenToWethExecutionPrices(
-        SwapRouter.SpotReserve[] memory spotReserveAToWeth,
+        LimitOrderSwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth
-    ) external view returns (SwapRouter.TokenToWethExecutionPrice[] memory);
+    )
+        external
+        view
+        returns (LimitOrderSwapRouter.TokenToWethExecutionPrice[] memory);
 
     function initializeTokenToTokenExecutionPrices(
         address tokenIn,

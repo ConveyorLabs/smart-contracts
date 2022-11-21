@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
-
-import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
+import "../lib/interfaces/token/IERC20.sol";
 import "./interfaces/ILimitOrderBook.sol";
-import "./interfaces/ISwapRouter.sol";
+import "./interfaces/ILimitOrderSwapRouter.sol";
+import "./LimitOrderSwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./test/utils/Console.sol";
@@ -245,9 +245,11 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
                 ///@notice Boolean indicating if user wants to cover the fee from the fee credit balance, or by calling placeOrder with payment.
                 if (!(newOrder.tokenIn == WETH)) {
                     ///@notice Calculate the spot price of the input token to WETH on Uni v2.
-                    (SwapRouter.SpotReserve[] memory spRes, ) = IOrderRouter(
-                        LIMIT_ORDER_EXECUTOR
-                    ).getAllPrices(newOrder.tokenIn, WETH, 500);
+                    (
+                        LimitOrderSwapRouter.SpotReserve[] memory spRes,
+
+                    ) = ILimitOrderSwapRouter(LIMIT_ORDER_EXECUTOR)
+                            .getAllPrices(newOrder.tokenIn, WETH, 500);
                     uint256 tokenAWethSpotPrice;
                     for (uint256 k = 0; k < spRes.length; ) {
                         if (spRes[k].spotPrice != 0) {
@@ -290,11 +292,12 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
                 ///@notice Set the minimum fee to the fee*wethValue*subsidy.
                 uint128 minFeeReceived = uint128(
                     ConveyorMath.mul64U(
-                        IOrderRouter(LIMIT_ORDER_EXECUTOR).calculateFee(
-                            uint128(relativeWethValue),
-                            USDC,
-                            WETH
-                        ),
+                        ILimitOrderSwapRouter(LIMIT_ORDER_EXECUTOR)
+                            .calculateFee(
+                                uint128(relativeWethValue),
+                                USDC,
+                                WETH
+                            ),
                         relativeWethValue
                     )
                 );

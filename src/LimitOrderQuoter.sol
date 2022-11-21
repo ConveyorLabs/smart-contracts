@@ -49,7 +49,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
     ///@return bestPriceIndex - Index of the best price in the executionPrices array.
     function findBestTokenToWethExecutionPrice(
-        SwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
+        LimitOrderSwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex) {
         ///@notice If the order is a buy order, set the initial best price at 0.
@@ -94,7 +94,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
     ///@return bestPriceIndex - Index of the best price in the executionPrices array.
     function findBestTokenToTokenExecutionPrice(
-        SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
+        LimitOrderSwapRouter.TokenToTokenExecutionPrice[]
+            memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex) {
         ///@notice If the order is a buy order, set the initial best price at type(uint256).max.
@@ -134,7 +135,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param spotReserveAToWeth - Spot reserve of tokenA to Weth.
     ///@param lpAddressesAToWeth - Pair address of tokenA to Weth.
     function initializeTokenToWethExecutionPrices(
-        SwapRouter.SpotReserve[] memory spotReserveAToWeth,
+        LimitOrderSwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth
     )
         external
@@ -175,7 +176,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
         LimitOrderSwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth,
         LimitOrderSwapRouter.SpotReserve[] memory spotReserveWethToB,
-        address[] memory lpAddressWethToB
+        address[] memory lpAddressesWethToB
     )
         external
         view
