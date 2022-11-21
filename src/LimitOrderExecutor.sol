@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import "./SwapRouter.sol";
+import "./LimitOrderSwapRouter.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 import "./lib/ConveyorFeeMath.sol";
 import "./LimitOrderRouter.sol";
-import "./interfaces/ISwapRouter.sol";
+import "./interfaces/ILimitOrderSwapRouter.sol";
 import "./interfaces/ISandboxLimitOrderRouter.sol";
 import "./interfaces/ISandboxLimitOrderBook.sol";
 import "./interfaces/ILimitOrderBook.sol";
@@ -13,7 +13,7 @@ import "./interfaces/ILimitOrderBook.sol";
 /// @title LimitOrderExecutor
 /// @author 0xOsiris, 0xKitsune
 /// @notice This contract handles all order execution.
-contract LimitOrderExecutor is SwapRouter {
+contract LimitOrderExecutor is LimitOrderSwapRouter {
     using SafeERC20 for IERC20;
     ///====================================Immutable Storage Variables==============================================//
     address immutable WETH;
@@ -124,7 +124,7 @@ contract LimitOrderExecutor is SwapRouter {
         address _chainLinkGasOracle,
         uint256 _limitOrderExecutionGasCost,
         uint256 _sandboxLimitOrderExecutionGasCost
-    ) SwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
+    ) LimitOrderSwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
         require(
             _chainLinkGasOracle != address(0),
             "Invalid gas oracle address"
@@ -406,7 +406,7 @@ contract LimitOrderExecutor is SwapRouter {
     ///@param executionPrice - The best priced TokenToWethExecutionPrice to execute the order on.
     function _executeTokenToWethOrder(
         LimitOrderBook.LimitOrder memory order,
-        SwapRouter.TokenToWethExecutionPrice memory executionPrice
+        LimitOrderSwapRouter.TokenToWethExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
         ///@notice Swap the batch amountIn on the batch lp address and send the weth back to the contract.
         (
