@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 import "./interfaces/ILimitOrderBook.sol";
-import "./interfaces/ILimitOrderSwapRouter.sol";
+import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 import "./interfaces/ILimitOrderExecutor.sol";
 import "./test/utils/Console.sol";
@@ -1125,27 +1125,6 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
 
         uint256 gasDecrementValue = executionGasConsumed / orderOwnersLength;
 
-<<<<<<< HEAD
-            ///@notice Increment the total value of orders by the quantity of the new order
-            updatedTotalOrdersValue += newOrder.amountInRemaining;
-            uint256 relativeWethValue;
-            {
-                ///@notice Boolean indicating if user wants to cover the fee from the fee credit balance, or by calling placeOrder with payment.
-                if (!(newOrder.tokenIn == WETH)) {
-                    ///@notice Calculate the spot price of the input token to WETH on Uni v2.
-                    (
-                        LimitOrderSwapRouter.SpotReserve[] memory spRes,
-
-                    ) = ILimitOrderSwapRouter(LIMIT_ORDER_EXECUTOR)
-                            ._getAllPrices(newOrder.tokenIn, WETH, 500);
-                    uint256 tokenAWethSpotPrice;
-                    for (uint256 k = 0; k < spRes.length; ) {
-                        if (spRes[k].spotPrice != 0) {
-                            tokenAWethSpotPrice = spRes[k].spotPrice;
-                            break;
-                            ///TODO: Revisit this
-                        }
-=======
         ///@notice Unchecked for gas efficiency
         unchecked {
             for (uint256 i = 0; i < orderOwnersLength; ) {
@@ -1153,7 +1132,6 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
                 uint256 ownerGasCreditBalance = ILimitOrderExecutor(
                     LIMIT_ORDER_EXECUTOR
                 ).gasCreditBalance(orderOwners[i]);
->>>>>>> sandbox-router
 
                 if (ownerGasCreditBalance >= gasDecrementValue) {
                     ILimitOrderExecutor(LIMIT_ORDER_EXECUTOR)
@@ -1170,86 +1148,6 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
                     gasExecutionCompensation += ownerGasCreditBalance;
                 }
 
-<<<<<<< HEAD
-                if (relativeWethValue < MIN_ORDER_VALUE_IN_WETH) {
-                    revert InsufficientOrderInputValue();
-                }
-
-                ///@notice Set the minimum fee to the fee*wethValue*subsidy.
-                uint128 minFeeReceived = uint128(
-                    ConveyorMath.mul64U(
-                        ILimitOrderSwapRouter(LIMIT_ORDER_EXECUTOR)
-                            ._calculateFee(
-                                uint128(relativeWethValue),
-                                USDC,
-                                WETH
-                            ),
-                        relativeWethValue
-                    )
-                );
-                ///@notice Set the Orders min fee to be received during execution.
-                newOrder.fee = minFeeReceived;
-            }
-
-            ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
-            if ((orderToken != newOrder.tokenIn)) {
-                revert IncongruentInputTokenInOrderGroup(
-                    newOrder.tokenIn,
-                    orderToken
-                );
-            }
-
-            ///@notice If the msg.sender does not have a sufficent balance to cover the order, revert.
-            if (tokenBalance < updatedTotalOrdersValue) {
-                revert InsufficientWalletBalance(
-                    msg.sender,
-                    tokenBalance,
-                    updatedTotalOrdersValue
-                );
-            }
-
-            ///@notice Create a new orderId from the orderNonce and current block timestamp
-            bytes32 orderId = keccak256(
-                abi.encode(orderNonce, block.timestamp)
-            );
-
-            ///@notice increment the orderNonce
-            /**@dev This is unchecked because the orderNonce and block.timestamp will never be the same, so even if the 
-            orderNonce overflows, it will still produce unique orderIds because the timestamp will be different.
-            */
-            unchecked {
-                orderNonce += 2;
-            }
-
-            ///@notice Set the new order's owner to the msg.sender
-            newOrder.owner = msg.sender;
-
-            ///@notice update the newOrder's Id to the orderId generated from the orderNonce
-            newOrder.orderId = orderId;
-
-            ///@notice update the newOrder's last refresh timestamp
-            ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
-            newOrder.lastRefreshTimestamp = uint32(block.timestamp);
-
-            ///@notice Add the newly created order to the orderIdToOrder mapping
-            orderIdToSandboxLimitOrder[orderId] = newOrder;
-
-            ///@notice Add the orderId to the addressToOrderIds mapping
-            addressToOrderIds[msg.sender][orderId] = OrderType
-                .PendingSandboxLimitOrder;
-
-            ///@notice Increment the total orders per address for the msg.sender
-            ++totalOrdersPerAddress[msg.sender];
-
-            ///@notice Add the orderId to the orderIds array for the PlaceOrder event emission and increment the orderIdIndex
-            orderIds[i] = orderId;
-
-            ///@notice Add the orderId to the addressToAllOrderIds structure
-            addressToAllOrderIds[msg.sender].push(orderId);
-
-            unchecked {
-=======
->>>>>>> sandbox-router
                 ++i;
             }
         }
