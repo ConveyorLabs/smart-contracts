@@ -8,26 +8,26 @@ git clone https://github.com/ConveyorLabs/LimitOrders-v0 && cd LimitOrders-v0
 ```
 ### Run The Test Suite
 ```sh
- forge test -f <RPC_URL> --ffi --fork-block-number 15233771
+ forge test -f <RPC_URL> --ffi 
  //Run a individual Test 
- forge test -f <RPC_URL> --ffi --fork-block-number 15233771 --match-contract LimitOrderRouterTest --match-test testOnlyEOA 
+ forge test -f <RPC_URL> --ffi --match-contract LimitOrderRouterTest --match-test testOnlyEOA 
 
 ```
 ### Forge Coverage
 ```sh
- forge coverage -f <RPC_URL> --ffi --fork-block-number 15233771
+ forge coverage -f <RPC_URL> --ffi 
 
 ```
 
 ### Forge Snapshot
 ```sh
- forge snapshot -f <RPC_URL> --ffi --fork-block-number 15233771
+ forge snapshot -f <RPC_URL> --ffi 
 
 ```
 
 ### Detailed Gas Report 
 ```sh
- forge test -f <RPC_URL> --ffi --fork-block-number 15233771  --gas-report
+ forge test -f <RPC_URL> --ffi --gas-report
 
 ```
 
