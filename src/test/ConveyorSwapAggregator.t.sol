@@ -2,6 +2,7 @@
 pragma solidity 0.8.16;
 
 import "./utils/test.sol";
+import "./utils/Console.sol";
 import "./utils/Swap.sol";
 import "../interfaces/IConveyorSwapAggregator.sol";
 import "../lib/ConveyorTickMath.sol";
@@ -14,6 +15,12 @@ interface CheatCodes {
     function createSelectFork(string calldata, uint256)
         external
         returns (uint256);
+
+    function rollFork(uint256 forkId, uint256 blockNumber) external;
+
+    function activeFork() external returns (uint256);
+
+    function makePersistent(address) external;
 }
 
 contract ConveyorSwapAggregatorTest is DSTest {
@@ -33,6 +40,14 @@ contract ConveyorSwapAggregatorTest is DSTest {
 
         conveyorSwapAggregator = IConveyorSwapAggregator(
             address(new ConveyorSwapAggregator())
+        );
+        cheatCodes.makePersistent(address(conveyorSwapAggregator));
+        cheatCodes.makePersistent(address(this));
+        cheatCodes.makePersistent(
+            address(0xba5BDe662c17e2aDFF1075610382B9B691296350)
+        );
+        cheatCodes.makePersistent(
+            address(conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR())
         );
     }
 
@@ -116,19 +131,25 @@ contract ConveyorSwapAggregatorTest is DSTest {
     }
 
     function testSwapUniv3SingleLP() public {
-        // cheatCodes.createSelectFork("mainnet", 16000218);
-        cheatCodes.deal(address(this), type(uint128).max);
-        address tokenIn = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        uint256 amountIn = 487387019661733947;
-        address tokenOut = 0xba5BDe662c17e2aDFF1075610382B9B691296350;
-        uint256 amountOutMin = 5678000000000000000000;
+        cheatCodes.deal(address(this), type(uint256).max);
+        address tokenIn = 0xba5BDe662c17e2aDFF1075610382B9B691296350;
+        uint256 amountIn = 5678000000000000000000;
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        uint256 amountOutMin = 487387019661733947;
         address lp = 0x7685cD3ddD862b8745B1082A6aCB19E14EAA74F3;
 
-        (bool depositSuccess, ) = address(tokenIn).call{value: 1000 ether}(
-            abi.encodeWithSignature("deposit()")
+        //Deposit weth to address(this)
+        (bool depositSuccess, ) = address(tokenOut).call{
+            value: 500000000 ether
+        }(abi.encodeWithSignature("deposit()"));
+        require(depositSuccess, "deposit failed");
+        IUniswapV3Pool(lp).swap(
+            address(this),
+            false,
+            500 ether,
+            TickMath.MAX_SQRT_RATIO - 1,
+            abi.encode(false, tokenOut, address(this))
         );
-
-        require(depositSuccess, "Error when depositing eth for weth");
 
         IERC20(tokenIn).approve(
             address(conveyorSwapAggregator),
@@ -142,11 +163,15 @@ contract ConveyorSwapAggregatorTest is DSTest {
             lp,
             conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
             address(this),
-            false,
+            true,
             amountIn,
             tokenIn
         );
+        console.log(IERC20(tokenIn).balanceOf(address(this)));
 
+        uint256 forkId = cheatCodes.activeFork();
+        cheatCodes.rollFork(forkId, 16000218);
+        console.log(IERC20(tokenIn).balanceOf(address(this)));
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
                 conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
@@ -160,6 +185,30 @@ contract ConveyorSwapAggregatorTest is DSTest {
             amountOutMin,
             multicall
         );
+    }
+
+    function uniswapV3SwapCallback(
+        int256 amount0Delta,
+        int256 amount1Delta,
+        bytes memory data
+    ) external {
+        ///@notice Decode all of the swap data.
+        (bool _zeroForOne, address tokenIn, address _sender) = abi.decode(
+            data,
+            (bool, address, address)
+        );
+
+        ///@notice Set amountIn to the amountInDelta depending on boolean zeroForOne.
+        uint256 amountIn = _zeroForOne
+            ? uint256(amount0Delta)
+            : uint256(amount1Delta);
+
+        if (!(_sender == address(this))) {
+            ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender.
+            IERC20(tokenIn).transferFrom(_sender, msg.sender, amountIn);
+        } else {
+            IERC20(tokenIn).transfer(msg.sender, amountIn);
+        }
     }
 
     ///@notice Helper function to create a single mock call for a v3 swap.
