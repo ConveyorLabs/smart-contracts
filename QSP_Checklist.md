@@ -1,5 +1,9 @@
 # Architectural Changes
-The protocol has been split into two seperate LimitOrder systems for `LimitOrders` and `SandboxLimitOrders`. The `LimitOrder` system is the old contract architecture with a few small modifications/optimizations. The `LimitOrder` system was changed to have a linear execution flow, and will be exclusively used for `stoploss` orders although it is compable of executing any type of limit order. We created the `SandboxLimitOrders` system to reduce execution cost, and significantly increase the flexibility of the protocol. Instead of computing the optimal pathing on chain, the `SandboxLimitOrders` system optimistically executes arbitrary calldata passed by the executor and simply validates the users token balances pre/post execution to ensure order fulfillment. This allows complete flexibility to the executor for Order fulfillment as well as significant gas savings for the user. 
+The protocol has been split into two seperate LimitOrder systems, `LimitOrders` and `SandboxLimitOrders`. 
+
+The `LimitOrder` system is the old contract architecture with a few small modifications/optimizations. The `LimitOrder` system was changed to have a linear execution flow, and will be exclusively used for `stoploss` orders although it is capable of executing any type of limit order.
+
+In addition to the previoius `LimitOrder` system, we created the `SandboxLimitOrders` system to reduce execution cost, and significantly increase the flexibility of the protocol. To save execution cost and allow for maximum flexiblity in execution, the `SandboxLimitOrders` system optimistically executes arbitrary calldata passed by the executor and simply validates the users token balances pre/post execution to ensure order fulfillment, allowing for significant gas savings for the user. 
 
 ## Old System
 `LimitOrderBook.sol`, Previously `OrderBook.sol` </br>
