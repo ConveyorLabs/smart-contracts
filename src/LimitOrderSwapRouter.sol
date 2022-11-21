@@ -788,22 +788,4 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
             return (_spotPrices, _lps);
         }
     }
-
-    function sandboxSwap(
-        address tokenIn,
-        address tokenOut,
-        uint256 amountIn,
-        uint256 amountOutMin,
-        bytes calldata data
-    ) public {
-        uint256 tokenOutBalance = IERC20(tokenOut).balanceOf(msg.sender);
-        uint256 tokenOutAmountRequired = tokenOutBalance + amountOutMin;
-
-        if (IERC20(tokenOut).balanceOf(msg.sender) < tokenOutAmountRequired) {
-            revert InsufficientOutputAmount(
-                tokenOutAmountRequired - IERC20(tokenOut).balanceOf(msg.sender),
-                amountOutMin
-            );
-        }
-    }
 }
