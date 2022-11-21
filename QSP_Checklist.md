@@ -76,7 +76,7 @@ Reference `SwapRouter`
 ## SandboxLimitOrder System / Architectural Overview
 The `SandboxLimitOrders` system optimistically executes arbitrary calldata passed by the executor and validates the users token balances pre/post execution to ensure order fulfillment, allowing for significant gas savings for the user. The off-chain executor passes in a `SandboxMulticall` to the exectuion function.
 
-```js
+```solidity
 
     struct SandboxMulticall {
         bytes32[][] orderIdBundles;
@@ -105,7 +105,7 @@ The `SandboxLimitOrders` system optimistically executes arbitrary calldata passe
 
 `calls` - An array of `Call` defining the target addresses and calldata to be optimistically executed. 
 
-```js
+```solidity
     ///@notice Function to execute multiple OrderGroups
     ///@param sandboxMultiCall The calldata to be executed by the contract.
     function executeSandboxMulticall(SandboxMulticall calldata sandboxMultiCall)
@@ -144,7 +144,7 @@ The `SandboxLimitOrders` system optimistically executes arbitrary calldata passe
 
 ### `SandboxLimitOrderBook` - Nearly identical to `OrderBook` for Order placement, cancellation refresh, and removal. 
 
-```go
+```solidity
     struct SandboxLimitOrder {
         bool buy;
         uint32 lastRefreshTimestamp;
@@ -431,7 +431,7 @@ transaction will never work and block the service. The following is the list of 
 ### Resolution
 #### 1.)
 Modified `getAllOrderIds` to use an `offset`, and `length` parameter to index `addressToAllOrderIds` array from a specified position with a fixed return data `length`.
-```js
+```solidity
 function getOrderIds(
         address owner,
         OrderType targetOrderType,
@@ -483,14 +483,14 @@ The number of `dexes` deployed in the constructor of the `SwapRouter` will never
 # QSP-15 Missing Input Validation ✅
 ### Description
 1.) The following has been added to `_removeOrderFromSystem` in both `LimitOrderBook` and `SandboxLimitOrderBook`
-```js
+```solidity
         ///@notice If the order has already been removed from the contract revert.
         if (order.orderId == bytes32(0)) {
             revert DuplicateOrderIdsInOrderGroup();
         }
 ```
 2.)
-```js
+```solidity
     ///@notice Function to transfer ownership of the contract.
     function transferOwnership(address newOwner) external onlyOwner {
         if (newOwner == address(0)) {
@@ -500,7 +500,7 @@ The number of `dexes` deployed in the constructor of the `SwapRouter` will never
     }
 ```
 3.) The following has been added to `executeOrders`
-```js
+```solidity
  for (uint256 i = 0; i < orderIds.length; ) {
             orders[i] = getLimitOrderById(orderIds[i]);
             if (orders[i].orderId == bytes32(0)) {
@@ -512,7 +512,7 @@ The number of `dexes` deployed in the constructor of the `SwapRouter` will never
         }
 ```
 4.) 
-```js
+```solidity
 constructor(
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
@@ -544,7 +544,7 @@ constructor(
     }
 ```
 5.)
-```js
+```solidity
 
     constructor(address _gasOracleAddress) {
         require(_gasOracleAddress != address(0), "Invalid address");
@@ -559,7 +559,7 @@ constructor(
 ```
 6.)
 `SandboxLimitOrderBook`
-```js
+```solidity
 constructor(
         address _conveyorGasOracle,
         address _limitOrderExecutor,
@@ -583,7 +583,7 @@ constructor(
     }
 ```
 `LimitOrderBook`
-```js
+```solidity
 constructor(
         address _conveyorGasOracle,
         address _limitOrderExecutor,
@@ -606,7 +606,7 @@ constructor(
     }
 ```
 7.) This validation is happening in the `ConveyorExecutor` Constructor prior to deploying the `LimitOrderRouter`
-```js
+```solidity
 constructor(
         address _weth,
         address _usdc,
@@ -666,7 +666,7 @@ constructor(
     }
 ```
 8.) This function has moved into the `ConveyorExecutor`, below is the resolved code.
-```js
+```solidity
 function depositGasCredits() public payable returns (bool success) {
         if (msg.value == 0) {
             revert InsufficientMsgValue();
@@ -685,14 +685,14 @@ function depositGasCredits() public payable returns (bool success) {
 ```
 9.) Ref `4` for resolved code.
 10.) Added assertion to `calculateFee`
-```js
+```solidity
 uint128 calculated_fee_64x64;
         if (amountIn == 0) {
             revert AmountInIsZero();
         }
 ```
 11.) Not Applicable in the current architecture. Below is the Quoter constructor.
-```js
+```solidity
 constructor(address _weth) {
         require(_weth != address(0), "Invalid weth address");
         WETH = _weth;
@@ -713,7 +713,7 @@ malicious activity.
 ### Resolution
 The GasOracle now stores a moving average over a 24 hour time horizon, adjusting the average everytime the gas oracle is called, accounting for any volitility or stale gas prices. 
 
-```js
+```solidity
 
 contract GasOracle {
     //--snip--
@@ -811,7 +811,7 @@ This function has been removed as it is no longer needed with a linear execution
 The function `TokenToWethLimitOrderExecution._executeTokenToWethBatchOrders()` is no longer used with the changes to a simpler linear execution architecture. All orders from Token -> Weth will now be executed at the top level by `LimitOrderExecutor#L52executeTokenToWethOrders`. This function calculates the `maxBeaconReward` `LimitOrderExecutor#L72` and calls `_executeTokenToWethOrder#L97` passing in the `maxBeaconReward` as a parameter. `_executeTokenToWethOrder` calls `_executeSwapTokenToWethOrder#L141` with the `maxBeaconReward` as a parameter and the returned `amountOutWeth` value is decremented by the `beaconReward` after the `beaconReward` has been capped. The fix can be referenced at 
 
 `ConveyorExecutor#L476`
-```js
+```solidity
         ///@notice Calculate the conveyorReward and executor reward.
         (conveyorReward, beaconReward) = ConveyorFeeMath.calculateReward(
             protocolFee,
@@ -881,14 +881,14 @@ When placing an order, the contract will check if users set a high enough allowa
 the function updateOrder().
 ### Resolution
 Added a check that ensures the allowance of the sender on the `LimitOrderExecutor` contract >= the `newOrder.quantity`. Reference `OrderBook.sol#L277-281` for the fix:
-```js
+```solidity
         ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
         if (totalApprovedQuantity < newOrder.quantity) {
             revert InsufficientAllowanceForOrderUpdate();
         }
 ```
 Test Reference `OrderBook.t.sol#L363-401`:
-```js
+```solidity
     ///@notice Test fail update order insufficient allowance
     function testFailUpdateOrder_InsufficientAllowanceForOrderUpdate(
         uint128 price,
