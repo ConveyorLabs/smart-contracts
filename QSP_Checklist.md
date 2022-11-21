@@ -3,9 +3,11 @@ The protocol has been split into two seperate LimitOrder systems, `LimitOrders` 
 
 The `LimitOrder` system is the old contract architecture with a few small modifications/optimizations. The `LimitOrder` system was changed to have a linear execution flow, and will be exclusively used for `stoploss` orders although it is capable of executing any type of limit order.
 
-In addition to the previoius `LimitOrder` system, we created the `SandboxLimitOrders` system to reduce execution cost, and significantly increase the flexibility of the protocol. To save execution cost and allow for maximum flexiblity in execution, the `SandboxLimitOrders` system optimistically executes arbitrary calldata passed by the executor and simply validates the users token balances pre/post execution to ensure order fulfillment, allowing for significant gas savings for the user. 
+In addition to the previoius `LimitOrder` system, we created the `SandboxLimitOrders` system to reduce execution cost, and significantly increase the flexibility of the protocol. To save execution cost and allow for maximum flexiblity in execution, the `SandboxLimitOrder` system optimistically executes arbitrary calldata passed by the executor and simply validates the users token balances pre/post execution to ensure order fulfillment, allowing for significant gas savings for the user. 
 
-## Old System
+## LimitOrder System
+The following contracts are part of the LimitOrder system.
+
 `LimitOrderBook.sol`, Previously `OrderBook.sol` </br>
 `LimitOrderRouter.sol` </br>
 `LimitOrderQuoter.sol`, Previously `LimitOrderBatcher.sol` </br>
@@ -14,8 +16,17 @@ In addition to the previoius `LimitOrder` system, we created the `SandboxLimitOr
 `SwapRouter` </br>
 `ConveyorExecutor`, Previously `LimitOrderExecutor`</br>
 `ConveyorGasOracle`, Previously `GasOracle`
-### Uniswap V3 Changes
 
+## SandboxLimitOrder System
+The following contracts are part of the SandboxLimitOrder system.
+
+`SandboxLimitOrderBook.sol`, Previously `OrderBook.sol` </br>
+`SandboxLimitOrderRouter.sol` </br>
+`ConveyorGasOracle`, Previously `GasOracle`
+
+
+
+## Uniswap V3 Changes
 #### Function `LimitOrderBatcher.calculateAmountOutMinAToWeth()`
 We eliminated the use of the v3 Quoter in the contract. Our quoting logic was modeled after: (https://github.com/Uniswap/v3-core/blob/main/contracts/UniswapV3Pool.sol#L596).
 
@@ -35,10 +46,13 @@ This function was modified to be more gas efficient by eliminating all calls to 
 #### Function `SwapRouter.getNextSqrtPriceV3`
 This has been simplified to be more gas efficient by eliminating all calls to the quoter. <br />
 Reference `SwapRouter`
-## New System - Architectural Overview
-### `SandboxLimitOrderRouter` - Contains exposed function for SandboxLimitOrderExecution </br>
 
-```go
+
+
+## SandboxLimitOrder System / Architectural Overview
+The `SandboxLimitOrders` system optimistically executes arbitrary calldata passed by the executor and validates the users token balances pre/post execution to ensure order fulfillment, allowing for significant gas savings for the user. The off-chain executor passes in a `SandboxMulticall` to the exectuion function.
+
+```js
 
     struct SandboxMulticall {
         bytes32[][] orderIdBundles;
@@ -158,7 +172,10 @@ Reference `SwapRouter`
 ### `ConveyorGasOracle.sol`
 
 
-# QSP-1 Stealing User and Contract Funds ✅
+# QSP Resolution
+The following sections detail the findings from the initial QSP report and the resolutions for each issue.
+
+## QSP-1 Stealing User and Contract Funds ✅
 Severity: 🔴**High Risk**🔴
 ## Description
 Some funds-transferring functions in the contracts are declared as public or external but without any authorization checks, allowing anyone to arbitrarily call the functions and transfer funds.
