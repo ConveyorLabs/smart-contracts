@@ -60,7 +60,7 @@ contract LimitOrderRouter is LimitOrderBook {
 
     ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
     ///@notice The refresh fee is 0.02 ETH
-    uint256 constant REFRESH_FEE = 20000000000000000;
+    uint256 private constant REFRESH_FEE = 20000000000000000;
 
     // ========================================= State Variables =============================================
 

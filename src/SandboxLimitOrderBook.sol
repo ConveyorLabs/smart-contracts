@@ -40,11 +40,11 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
     ///@notice Interval that determines when an order is eligible for refresh. The interval is set to 30 days represented in Unix time.
     uint256 private constant REFRESH_INTERVAL = 2592000;
     ///@notice The minimum order value in WETH for an order to be eligible for placement.
-    uint256 constant MIN_ORDER_VALUE_IN_WETH = 10e15;
+    uint256 private constant MIN_ORDER_VALUE_IN_WETH = 10e15;
 
     ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
     ///@notice The refresh fee is 0.02 ETH
-    uint256 constant REFRESH_FEE = 20000000000000000;
+    uint256 private constant REFRESH_FEE = 20000000000000000;
 
     // ========================================= Storage =============================================
 
