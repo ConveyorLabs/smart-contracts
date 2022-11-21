@@ -35,16 +35,16 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
 
     ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
     ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
-    uint256 constant GAS_CREDIT_BUFFER = 150;
+    uint256 private constant GAS_CREDIT_BUFFER = 150;
 
     ///@notice Interval that determines when an order is eligible for refresh. The interval is set to 30 days represented in Unix time.
-    uint256 constant REFRESH_INTERVAL = 2592000;
+    uint256 private constant REFRESH_INTERVAL = 2592000;
     ///@notice The minimum order value in WETH for an order to be eligible for placement.
-    uint256 constant MIN_ORDER_VALUE_IN_WETH = 10e15;
+    uint256 private constant MIN_ORDER_VALUE_IN_WETH = 10e15;
 
     ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
     ///@notice The refresh fee is 0.02 ETH
-    uint256 constant REFRESH_FEE = 20000000000000000;
+    uint256 private constant REFRESH_FEE = 20000000000000000;
 
     // ========================================= Storage =============================================
 
@@ -255,7 +255,6 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
                         if (spRes[k].spotPrice != 0) {
                             tokenAWethSpotPrice = spRes[k].spotPrice;
                             break;
-                            ///TODO: Revisit this
                         }
 
                         unchecked {
@@ -455,7 +454,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
     }
 
     /// @notice cancel all orders relevant in ActiveOrders mapping to the msg.sender i.e the function caller
-    function cancelOrders(bytes32[] memory orderIds) public {
+    function cancelOrders(bytes32[] calldata orderIds) public {
         //check that there is one or more orders
         for (uint256 i = 0; i < orderIds.length; ) {
             cancelOrder(orderIds[i]);
@@ -583,7 +582,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
 
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
-    function refreshOrder(bytes32[] memory orderIds) external nonReentrant {
+    function refreshOrder(bytes32[] calldata orderIds) external nonReentrant {
         ///@notice Initialize totalRefreshFees;
         uint256 totalRefreshFees;
 
@@ -747,10 +746,10 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
 
         uint256 arrayIndex = 0;
         {
-            for (uint256 i = 0; i < orderIdBundles.length; ++i) {
+            for (uint256 i = 0; i < orderIdBundles.length; ) {
                 bytes32[] memory orderIdBundle = orderIdBundles[i];
 
-                for (uint256 j = 0; j < orderIdBundle.length; ++j) {
+                for (uint256 j = 0; j < orderIdBundle.length; ) {
                     bytes32 orderId = orderIdBundle[j];
 
                     ///@notice Transfer the tokens from the order owners to the sandbox router contract.
@@ -803,6 +802,14 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
                     unchecked {
                         ++arrayIndex;
                     }
+
+                    unchecked {
+                        ++j;
+                    }
+                }
+
+                unchecked {
+                    ++i;
                 }
             }
         }
@@ -813,15 +820,15 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
     ///@param fillAmounts - The fill amounts for each order.
     ///@param preSandboxExecutionState - The pre execution state of the orders.
     function _validateSandboxExecutionAndFillOrders(
-        bytes32[][] memory orderIdBundles,
-        uint128[] memory fillAmounts,
+        bytes32[][] calldata orderIdBundles,
+        uint128[] calldata fillAmounts,
         PreSandboxExecutionState memory preSandboxExecutionState
     ) internal {
         ///@notice Initialize the orderIdIndex to 0.
         ///@dev orderIdIndex is used to track the current index of the sandboxLimitOrders array in the preSandboxExecutionState.
         uint256 orderIdIndex = 0;
         ///@notice Iterate through each bundle in the order id bundles.
-        for (uint256 i = 0; i < orderIdBundles.length; ++i) {
+        for (uint256 i = 0; i < orderIdBundles.length; ) {
             bytes32[] memory orderIdBundle = orderIdBundles[i];
             ///@notice If the bundle length is greater than 1, then the validate a multi-order bundle.
             if (orderIdBundle.length > 1) {
@@ -847,6 +854,10 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
                 );
                 ///@notice Increment the orderIdIndex by 1.
                 ++orderIdIndex;
+            }
+
+            unchecked {
+                ++i;
             }
         }
     }
@@ -958,7 +969,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
 
         {
             ///@notice For each order in the bundle
-            for (uint256 i = 1; i < bundleLength; ++i) {
+            for (uint256 i = 1; i < bundleLength; ) {
                 ///@notice Cache the order
                 SandboxLimitOrder memory currentOrder = preSandboxExecutionState
                     .sandboxLimitOrders[offset + 1];
@@ -1056,6 +1067,10 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
                 ///@notice Set prevOrder to the currentOrder and increment the offset.
                 prevOrder = currentOrder;
                 ++offset;
+
+                unchecked {
+                    ++i;
+                }
             }
 
             ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
@@ -1388,7 +1403,7 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
             )
         }
 
-        for (uint256 i = 0; i < length; ++i) {
+        for (uint256 i = 0; i < length; ) {
             bytes32 orderId;
             assembly {
                 //Get the orderId at the orderOffsetSlot
@@ -1402,6 +1417,10 @@ contract SandboxLimitOrderBook is ConveyorGasOracle {
             if (orderType == targetOrderType) {
                 orderIds[orderIdIndex] = orderId;
                 ++orderIdIndex;
+            }
+
+            unchecked {
+                ++i;
             }
         }
 

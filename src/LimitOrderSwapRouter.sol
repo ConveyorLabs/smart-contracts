@@ -99,23 +99,23 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
 
     //======================Constants================================
 
-    uint128 constant MIN_FEE_64x64 = 18446744073709552;
-    uint128 constant BASE_SWAP_FEE = 55340232221128660;
-    uint128 constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
-    uint256 constant MAX_UINT_256 =
+    uint128 private constant MIN_FEE_64x64 = 18446744073709552;
+    uint128 private constant BASE_SWAP_FEE = 55340232221128660;
+    uint128 private constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
+    uint256 private constant MAX_UINT_256 =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-    uint256 constant ONE_128x128 = uint256(1) << 128;
-    uint24 constant ZERO_UINT24 = 0;
-    uint256 constant ZERO_POINT_NINE = 16602069666338597000 << 64;
-    uint256 constant ONE_POINT_TWO_FIVE = 23058430092136940000 << 64;
-    uint128 constant ZERO_POINT_ONE = 1844674407370955300;
-    uint128 constant ZERO_POINT_ZERO_ZERO_FIVE = 92233720368547760;
-    uint128 constant ZERO_POINT_ZERO_ZERO_ONE = 18446744073709550;
+    uint256 private constant ONE_128x128 = uint256(1) << 128;
+    uint24 private constant ZERO_UINT24 = 0;
+    uint256 private constant ZERO_POINT_NINE = 16602069666338597000 << 64;
+    uint256 private constant ONE_POINT_TWO_FIVE = 23058430092136940000 << 64;
+    uint128 private constant ZERO_POINT_ONE = 1844674407370955300;
+    uint128 private constant ZERO_POINT_ZERO_ZERO_FIVE = 92233720368547760;
+    uint128 private constant ZERO_POINT_ZERO_ZERO_ONE = 18446744073709550;
 
     //======================Immutables================================
 
     ///@notice The address of the Uniswap V3 factory. b
-    address uniswapV3Factory;
+    address immutable UNISWAP_V3_FACTORY;
 
     //======================Constructor================================
 
@@ -147,10 +147,13 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
                 })
             );
 
+            address uniswapV3Factory;
             ///@notice If the dex is a univ3 variant, then set the uniswapV3Factory storage address.
             if (!_isUniV2[i]) {
                 uniswapV3Factory = _dexFactories[i];
             }
+
+            UNISWAP_V3_FACTORY = uniswapV3Factory;
         }
     }
 
@@ -444,7 +447,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     function uniswapV3SwapCallback(
         int256 amount0Delta,
         int256 amount1Delta,
-        bytes memory data
+        bytes calldata data
     ) external {
         ///@notice Decode all of the swap data.
         (
@@ -459,7 +462,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
                 (uint256, bool, address, address, uint24, address)
             );
 
-        address poolAddress = IUniswapV3Factory(uniswapV3Factory).getPool(
+        address poolAddress = IUniswapV3Factory(UNISWAP_V3_FACTORY).getPool(
             tokenIn,
             tokenOut,
             fee
@@ -510,7 +513,10 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
         bytes32 _initBytecode
     ) internal view returns (SpotReserve memory spRes, address poolAddress) {
         ///@notice Require token address's are not identical
-        require(token0 != token1, "Invalid Token Pair, IDENTICAL Address's");
+
+        if (token0 == token1) {
+            revert IdenticalTokenAddresses();
+        }
 
         address tok0;
         address tok1;
@@ -728,7 +734,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
             address[] memory _lps = new address[](dexes.length);
 
             ///@notice Iterate through Dexs in dexes and check if isUniV2.
-            for (uint256 i = 0; i < dexes.length; ++i) {
+            for (uint256 i = 0; i < dexes.length; ) {
                 if (dexes[i].isUniV2) {
                     {
                         ///@notice Get the Uniswap v2 spot price and lp address.
@@ -768,6 +774,10 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
                             }
                         }
                     }
+                }
+
+                unchecked {
+                    ++i;
                 }
             }
 

@@ -56,11 +56,11 @@ contract LimitOrderRouter is LimitOrderBook {
     // ========================================= Constants  =============================================
 
     ///@notice Interval that determines when an order is eligible for refresh. The interval is set to 30 days represented in Unix time.
-    uint256 constant REFRESH_INTERVAL = 2592000;
+    uint256 private constant REFRESH_INTERVAL = 2592000;
 
     ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
     ///@notice The refresh fee is 0.02 ETH
-    uint256 constant REFRESH_FEE = 20000000000000000;
+    uint256 private constant REFRESH_FEE = 20000000000000000;
 
     // ========================================= State Variables =============================================
 
@@ -112,7 +112,7 @@ contract LimitOrderRouter is LimitOrderBook {
 
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
-    function refreshOrder(bytes32[] memory orderIds) external nonReentrant {
+    function refreshOrder(bytes32[] calldata orderIds) external nonReentrant {
         ///@notice Initialize totalRefreshFees;
         uint256 totalRefreshFees;
 
@@ -267,7 +267,7 @@ contract LimitOrderRouter is LimitOrderBook {
         pure
     {
         ///@notice Iterate through the length of orders -1.
-        for (uint256 i = 0; i < orders.length - 1; i++) {
+        for (uint256 i = 0; i < orders.length - 1; ) {
             ///@notice Cache order at index i, and i+1
             LimitOrder memory currentOrder = orders[i];
             LimitOrder memory nextOrder = orders[i + 1];
@@ -316,6 +316,10 @@ contract LimitOrderRouter is LimitOrderBook {
             ///@notice Check if the fee out is the same for the next order
             if (currentOrder.feeOut != nextOrder.feeOut) {
                 revert IncongruentFeeOutInOrderGroup();
+            }
+
+            unchecked {
+                ++i;
             }
         }
     }

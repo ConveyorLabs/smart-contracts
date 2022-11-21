@@ -2109,8 +2109,8 @@ contract SandboxLimitOrderBookWrapper is SandboxLimitOrderBook {
     }
 
     function validateSandboxExecutionAndFillOrders(
-        bytes32[][] memory orderIdBundles,
-        uint128[] memory fillAmounts,
+        bytes32[][] calldata orderIdBundles,
+        uint128[] calldata fillAmounts,
         PreSandboxExecutionState memory preSandboxExecutionState
     ) public {
         _validateSandboxExecutionAndFillOrders(
