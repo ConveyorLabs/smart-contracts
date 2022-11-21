@@ -49,7 +49,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
     ///@return bestPriceIndex - Index of the best price in the executionPrices array.
     function findBestTokenToWethExecutionPrice(
-        LimitOrderSwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
+        LimitOrderSwapRouter.TokenToWethExecutionPrice[]
+            calldata executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex) {
         ///@notice If the order is a buy order, set the initial best price at 0.
@@ -95,7 +96,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@return bestPriceIndex - Index of the best price in the executionPrices array.
     function findBestTokenToTokenExecutionPrice(
         LimitOrderSwapRouter.TokenToTokenExecutionPrice[]
-            memory executionPrices,
+            calldata executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex) {
         ///@notice If the order is a buy order, set the initial best price at type(uint256).max.
@@ -135,8 +136,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param spotReserveAToWeth - Spot reserve of tokenA to Weth.
     ///@param lpAddressesAToWeth - Pair address of tokenA to Weth.
     function initializeTokenToWethExecutionPrices(
-        LimitOrderSwapRouter.SpotReserve[] memory spotReserveAToWeth,
-        address[] memory lpAddressesAToWeth
+        LimitOrderSwapRouter.SpotReserve[] calldata spotReserveAToWeth,
+        address[] calldata lpAddressesAToWeth
     )
         external
         pure
@@ -177,10 +178,10 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param lpAddressesWethToB - Pair address of Weth to tokenB
     function initializeTokenToTokenExecutionPrices(
         address tokenIn,
-        LimitOrderSwapRouter.SpotReserve[] memory spotReserveAToWeth,
-        address[] memory lpAddressesAToWeth,
-        LimitOrderSwapRouter.SpotReserve[] memory spotReserveWethToB,
-        address[] memory lpAddressesWethToB
+        LimitOrderSwapRouter.SpotReserve[] calldata spotReserveAToWeth,
+        address[] calldata lpAddressesAToWeth,
+        LimitOrderSwapRouter.SpotReserve[] calldata spotReserveWethToB,
+        address[] calldata lpAddressesWethToB
     )
         external
         view

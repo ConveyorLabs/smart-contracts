@@ -112,7 +112,7 @@ contract LimitOrderRouter is LimitOrderBook {
 
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
-    function refreshOrder(bytes32[] memory orderIds) external nonReentrant {
+    function refreshOrder(bytes32[] calldata orderIds) external nonReentrant {
         ///@notice Initialize totalRefreshFees;
         uint256 totalRefreshFees;
 
