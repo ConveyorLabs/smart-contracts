@@ -31,7 +31,7 @@ jobs:
         with:
           version: nightly
   
-      - name: Run quoter tests
+      - name: Run tests
         run: forge test -f "${{ secrets.MAINNET_RPC_ENDPOINT }}" --ffi
 
       - name: Run snapshot

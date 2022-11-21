@@ -22,8 +22,6 @@ interface CheatCodes {
 
     function rollFork(uint256) external;
 
-    function rollFork(uint256 forkId, uint256 blockNumber) external;
-
     function activeFork() external returns (uint256);
 
     function createFork(string calldata) external returns (uint256);
@@ -33,6 +31,8 @@ interface CheatCodes {
     function createSelectFork(string calldata, uint256)
         external
         returns (uint256);
+
+    function rollFork(uint256 forkId, uint256 blockNumber) external;
 }
 
 contract ConveyorGasOracleTest is DSTest {
@@ -44,8 +44,8 @@ contract ConveyorGasOracleTest is DSTest {
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
         ///@notice This is the fast gas oracle address for Ethereum Mainnet
-
-        forkId = cheatCodes.createSelectFork("mainnet", 15233771);
+        forkId = cheatCodes.activeFork();
+        cheatCodes.rollFork(forkId, 15233771);
         address aggregatorV3Address = 0x169E633A2D1E6c10dD91238Ba11c4A708dfEF37C;
         gasOracle = new ConveyorGasOracle(aggregatorV3Address);
         cheatCodes.makePersistent(address(gasOracle));
