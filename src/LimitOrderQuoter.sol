@@ -9,8 +9,8 @@ import "./lib/ConveyorTickMath.sol";
 /// @notice This contract handles all CFMM quoting logic.
 contract LimitOrderQuoter is ConveyorTickMath {
     address immutable WETH;
-    uint256 constant MAX_UINT256 = type(uint256).max;
-    uint256 constant ZERO = 0;
+    uint256 private constant MAX_UINT256 = type(uint256).max;
+    uint256 private constant ZERO = 0;
 
     constructor(address _weth) {
         require(_weth != address(0), "Invalid weth address");

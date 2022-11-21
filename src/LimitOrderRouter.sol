@@ -56,7 +56,7 @@ contract LimitOrderRouter is LimitOrderBook {
     // ========================================= Constants  =============================================
 
     ///@notice Interval that determines when an order is eligible for refresh. The interval is set to 30 days represented in Unix time.
-    uint256 constant REFRESH_INTERVAL = 2592000;
+    uint256 private constant REFRESH_INTERVAL = 2592000;
 
     ///@notice The fee paid every time an order is refreshed by an off-chain executor to keep the order active within the system.
     ///@notice The refresh fee is 0.02 ETH

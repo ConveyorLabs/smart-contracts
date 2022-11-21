@@ -31,12 +31,12 @@ contract LimitOrderExecutor is LimitOrderSwapRouter {
     /*
      * The maximum reward a beacon can receive from stoploss execution is 0.05 ETH for stoploss orders as a preventative measure for artificial price manipulation.
      */
-    uint128 constant STOP_LOSS_MAX_BEACON_REWARD = 50000000000000000;
+    uint128 private constant STOP_LOSS_MAX_BEACON_REWARD = 50000000000000000;
 
     ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
     ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
-    uint256 constant GAS_CREDIT_BUFFER = 150;
-    uint256 constant ONE_HUNDRED = 100;
+    uint256 private constant GAS_CREDIT_BUFFER = 150;
+    uint256 private constant ONE_HUNDRED = 100;
 
     ///@notice Mapping to hold gas credit balances for accounts.
     mapping(address => uint256) public gasCreditBalance;

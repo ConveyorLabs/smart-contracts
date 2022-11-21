@@ -17,7 +17,7 @@ contract LimitOrderBook {
 
     ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
     ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
-    uint256 constant GAS_CREDIT_BUFFER = 150;
+    uint256 private constant GAS_CREDIT_BUFFER = 150;
     address immutable CONVEYOR_GAS_ORACLE;
 
     ///@notice The execution cost of fufilling a LimitOrder with a standard ERC20 swap from tokenIn to tokenOut
@@ -38,9 +38,7 @@ contract LimitOrderBook {
         address _weth,
         address _usdc,
         uint256 _limitOrderExecutionGasCost
-
     ) {
-
         require(
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"

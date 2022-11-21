@@ -99,18 +99,18 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
 
     //======================Constants================================
 
-    uint128 constant MIN_FEE_64x64 = 18446744073709552;
-    uint128 constant BASE_SWAP_FEE = 55340232221128660;
-    uint128 constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
-    uint256 constant MAX_UINT_256 =
+    uint128 private constant MIN_FEE_64x64 = 18446744073709552;
+    uint128 private constant BASE_SWAP_FEE = 55340232221128660;
+    uint128 private constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
+    uint256 private constant MAX_UINT_256 =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-    uint256 constant ONE_128x128 = uint256(1) << 128;
-    uint24 constant ZERO_UINT24 = 0;
-    uint256 constant ZERO_POINT_NINE = 16602069666338597000 << 64;
-    uint256 constant ONE_POINT_TWO_FIVE = 23058430092136940000 << 64;
-    uint128 constant ZERO_POINT_ONE = 1844674407370955300;
-    uint128 constant ZERO_POINT_ZERO_ZERO_FIVE = 92233720368547760;
-    uint128 constant ZERO_POINT_ZERO_ZERO_ONE = 18446744073709550;
+    uint256 private constant ONE_128x128 = uint256(1) << 128;
+    uint24 private constant ZERO_UINT24 = 0;
+    uint256 private constant ZERO_POINT_NINE = 16602069666338597000 << 64;
+    uint256 private constant ONE_POINT_TWO_FIVE = 23058430092136940000 << 64;
+    uint128 private constant ZERO_POINT_ONE = 1844674407370955300;
+    uint128 private constant ZERO_POINT_ZERO_ZERO_FIVE = 92233720368547760;
+    uint128 private constant ZERO_POINT_ZERO_ZERO_ONE = 18446744073709550;
 
     //======================Immutables================================
 

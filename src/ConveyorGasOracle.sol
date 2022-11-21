@@ -9,10 +9,10 @@ import "./test/utils/Console.sol";
 /// @author 0xOsiris, 0xKitsune
 /// @notice This contract fetches the latest fast gas price from the Chainlink Gas Oracle
 contract ConveyorGasOracle {
-    uint256 constant ONE_HUNDRED_TWENTY_FIVE = 125;
-    uint256 constant ONE_HUNDRED = 100;
+    uint256 private constant ONE_HUNDRED_TWENTY_FIVE = 125;
+    uint256 private constant ONE_HUNDRED = 100;
     ///@notice Time horizon for arithmetic mean of has price.
-    uint256 constant timeHorizon = 86400;
+    uint256 private constant timeHorizon = 86400;
 
     ///@notice The gasOracleAddress is the address of the Chainlink Gas Oracle.
     address immutable gasOracleAddress;
