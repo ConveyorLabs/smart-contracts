@@ -27,6 +27,8 @@ interface CheatCodes {
         bool,
         bool
     ) external;
+
+    function warp(uint256) external;
 }
 
 contract LimitOrderRouterTest is DSTest {
@@ -41,7 +43,7 @@ contract LimitOrderRouterTest is DSTest {
 
     Swap swapHelper;
     Swap swapHelperUniV2;
-
+    uint256 REFRESH_FEE = 20000000000000000;
     address uniV2Addr = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
     //Initialize cheatcodes
@@ -119,8 +121,7 @@ contract LimitOrderRouterTest is DSTest {
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             address(limitOrderExecutor),
-            300000,
-            250000
+            300000
         );
     }
 
@@ -340,75 +341,83 @@ contract LimitOrderRouterTest is DSTest {
             assert(order0.orderId != bytes32(0));
         }
 
+        cheatCodes.warp(block.timestamp + 2592000);
+        uint256 gasCreditsBefore = limitOrderExecutor.gasCreditBalance(
+            address(this)
+        );
         limitOrderRouter.refreshOrder(orderBatch);
 
         //Ensure the order was not canceled and lastRefresh timestamp is updated to block.timestamp
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             LimitOrderBook.LimitOrder memory order0 = orderBook
                 .getLimitOrderById(orderBatch[i]);
-            console.log(order0.lastRefreshTimestamp);
-            console.log(block.timestamp);
+            assert(
+                limitOrderExecutor.gasCreditBalance(address(this)) ==
+                    gasCreditsBefore - REFRESH_FEE
+            );
             assert(order0.lastRefreshTimestamp == block.timestamp);
         }
     }
 
-    // ///Test refresh order, cancel order since order has expired test
-    // function testRefreshOrderWithCancelOrderOrderExpired() public {
-    //     cheatCodes.deal(address(this), MAX_UINT);
-    //     depositGasCreditsForMockOrders(MAX_UINT);
-    //     cheatCodes.deal(address(swapHelper), MAX_UINT);
-    //     swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
-    //     IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
-
-    //     //Initialize a new order
-    //     LimitOrderBook.LimitOrder memory order = newMockOrder(
-    //         DAI,
-    //         UNI,
-    //         1,
-    //         false,
-    //         false,
-    //         0,
-    //         1,
-    //         5000000000000000000000, //5000 DAI
-    //         3000,
-    //         3000,
-    //         0,
-    //         0
-    //     );
-
-    //     bytes32 orderId = placeMockOrder(order);
-
-    //     bytes32[] memory orderBatch = new bytes32[](1);
-
-    //     orderBatch[0] = orderId;
-
-    //     //Ensure order was not canceled
-    //     for (uint256 i = 0; i < orderBatch.length; ++i) {
-    //         LimitOrderBook.LimitOrder memory order0 = orderBook
-    //             .getLimitOrderById(orderBatch[i]);
-
-    //         assert(order0.orderId != bytes32(0));
-    //     }
-
-    //     limitOrderRouter.refreshOrder(orderBatch);
-
-    //     //Ensure the orders are canceled
-    //     for (uint256 i = 0; i < orderBatch.length; ++i) {
-    //         LimitOrderBook.LimitOrder memory order0 = orderBook
-    //             .getLimitOrderById(orderBatch[i]);
-    //         assert(order0.orderId == bytes32(0));
-    //     }
-    // }
-
-    //block 15233771
-    ///Test refresh order, Order not refreshable since last refresh timestamp isn't beyond the refresh threshold from the current block.timestamp
-    function testRefreshOrderNotRefreshable() public {
+    ///Test refresh order, cancel order since order has expired test
+    function testRefreshOrder_CancelOrderOrderExpired() public {
         cheatCodes.deal(address(this), MAX_UINT);
         depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
-        console.log(block.timestamp);
+
+        //Initialize a new order
+        LimitOrderBook.LimitOrder memory order = newMockOrder(
+            DAI,
+            UNI,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000000, //5000 DAI
+            3000,
+            3000,
+            0,
+            0
+        );
+
+        bytes32 orderId = placeMockOrder(order);
+
+        bytes32[] memory orderBatch = new bytes32[](1);
+
+        orderBatch[0] = orderId;
+
+        //Ensure order was not canceled
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            LimitOrderBook.LimitOrder memory order0 = orderBook
+                .getLimitOrderById(orderBatch[i]);
+
+            assert(order0.orderId != bytes32(0));
+        }
+
+        limitOrderRouter.refreshOrder(orderBatch);
+
+        //Ensure the orders are canceled
+        for (uint256 i = 0; i < orderBatch.length; ++i) {
+            LimitOrderBook.OrderType orderType = orderBook.addressToOrderIds(
+                address(this),
+                orderBatch[i]
+            );
+            assert(orderType == LimitOrderBook.OrderType.CanceledLimitOrder);
+        }
+    }
+
+    //block 15233771
+    ///Test refresh order, Order not refreshable since last refresh timestamp isn't beyond the refresh threshold from the current block.timestamp
+    function testFailRefreshOrder_OrderNotEligibleForRefresh() public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(MAX_UINT);
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
+        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
+
         LimitOrderBook.LimitOrder memory order1 = newMockOrder(
             DAI,
             UNI,
@@ -437,14 +446,6 @@ contract LimitOrderRouterTest is DSTest {
         }
 
         limitOrderRouter.refreshOrder(orderBatch);
-
-        //Ensure order was not refreshed or canceled
-        for (uint256 i = 0; i < orderBatch.length; ++i) {
-            LimitOrderBook.LimitOrder memory order0 = orderBook
-                .getLimitOrderById(orderBatch[i]);
-            assert(order0.orderId != bytes32(0));
-            assert(order1.lastRefreshTimestamp == 1659049037);
-        }
     }
 
     receive() external payable {}
@@ -1892,16 +1893,14 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
         address _weth,
         address _usdc,
         address _limitOrderExecutor,
-        uint256 _limitOrderExecutionGasCost,
-        uint256 _sandboxLimitOrderExecutionGasCost
+        uint256 _limitOrderExecutionGasCost
     )
         LimitOrderRouter(
             _gasOracle,
             _weth,
             _usdc,
             _limitOrderExecutor,
-            _limitOrderExecutionGasCost,
-            _sandboxLimitOrderExecutionGasCost
+            _limitOrderExecutionGasCost
         )
     {}
 

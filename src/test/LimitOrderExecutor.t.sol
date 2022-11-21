@@ -121,11 +121,153 @@ contract LimitOrderExecutorTest is DSTest {
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             address(limitOrderExecutor),
-            300000,
-            250000
+            300000
         );
 
         orderBook = ILimitOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
+    }
+
+    ///@notice Test min gas credits
+    function testMinGasCredits() public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
+
+        //swap 20 ether for the swap token
+        swapHelper.swapEthForTokenWithUniV2(2000 ether, DAI);
+
+        //Create a new mock order
+        LimitOrderBook.LimitOrder memory order = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000000, //5000 WETH
+            3000,
+            0,
+            0,
+            MAX_U32
+        );
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(type(uint128).max);
+
+        placeMockOrder(order);
+
+        //Pass in a sample min gas credits that is sufficiently above the threshold
+        bool hasMinGasCredits = limitOrderExecutor.hasMinGasCredits(
+            50000000000,
+            address(this),
+            type(uint128).max,
+            150
+        );
+
+        assert(hasMinGasCredits);
+    }
+
+    function testFailMinGasCredits() public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
+
+        //swap 20 ether for the swap token
+        swapHelper.swapEthForTokenWithUniV2(2000 ether, DAI);
+
+        //Create a new mock order
+        LimitOrderBook.LimitOrder memory order = newMockOrder(
+            DAI,
+            WETH,
+            1,
+            false,
+            false,
+            0,
+            1,
+            5000000000000000000000, //5000 WETH
+            3000,
+            0,
+            0,
+            MAX_U32
+        );
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(type(uint128).max);
+
+        placeMockOrder(order);
+
+        //Pass in a sample min gas credits that is sufficiently above the threshold
+        bool hasMinGasCredits = limitOrderExecutor.hasMinGasCredits(
+            50000000000,
+            address(this),
+            1,
+            150
+        );
+
+        assertTrue(hasMinGasCredits);
+    }
+
+    ///@notice Test calculate min gas credits
+    function testCalculateMinGasCredits(uint128 _amount) public {
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(20000 ether, swapToken);
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+
+        //create a new order
+        LimitOrderBook.LimitOrder memory order = newOrder(
+            swapToken,
+            WETH,
+            245000000000000000000,
+            5,
+            5
+        );
+
+        //create a new order
+        LimitOrderBook.LimitOrder memory order1 = newOrder(
+            swapToken,
+            WETH,
+            245000000000000000000,
+            5,
+            5
+        );
+
+        cheatCodes.deal(address(this), MAX_UINT);
+        depositGasCreditsForMockOrders(type(uint128).max);
+        //place a mock order
+        placeMockOrder(order);
+        placeMockOrder(order1);
+        bool overflow;
+        assembly {
+            overflow := lt(_amount, add(_amount, 1))
+        }
+
+        uint256 totalOrdersCount = 2;
+        uint256 executionCost = 300000;
+        uint256 multiplier = 150;
+
+        if (!overflow) {
+            if (_amount > 0) {
+                unchecked {
+                    if (
+                        totalOrdersCount *
+                            multiplier *
+                            executionCost *
+                            _amount <
+                        MAX_UINT
+                    ) {
+                        uint256 minGasCredits = limitOrderExecutor
+                            .calculateMinGasCredits(
+                                _amount,
+                                address(this),
+                                multiplier
+                            );
+
+                        uint256 expected = totalOrdersCount *
+                            _amount *
+                            executionCost *
+                            multiplier;
+                        assertEq(expected / 100, minGasCredits);
+                    }
+                }
+            }
+        }
     }
 
     //================================================================
@@ -2999,6 +3141,14 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         )
     {}
 
+    function calculateMinGasCredits(
+        uint256 gasPrice,
+        address userAddress,
+        uint256 multiplier
+    ) public view returns (uint256) {
+        return _calculateMinGasCredits(gasPrice, userAddress, multiplier);
+    }
+
     function getV3PoolFee(address pairAddress)
         public
         view
@@ -3034,6 +3184,21 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
             );
     }
 
+    function hasMinGasCredits(
+        uint256 gasPrice,
+        address userAddress,
+        uint256 gasCreditBalance,
+        uint256 multiplier
+    ) public view returns (bool) {
+        return
+            _hasMinGasCredits(
+                gasPrice,
+                userAddress,
+                gasCreditBalance,
+                multiplier
+            );
+    }
+
     function swapV3(
         address _lp,
         address _tokenIn,
@@ -3057,14 +3222,6 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
             );
     }
 
-    function getAllPrices(
-        address token0,
-        address token1,
-        uint24 FEE
-    ) public view returns (SpotReserve[] memory prices, address[] memory lps) {
-        return _getAllPrices(token0, token1, FEE);
-    }
-
     function calculateV2SpotPrice(
         address token0,
         address token1,
@@ -3083,15 +3240,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         return _calculateV3SpotPrice(token0, token1, FEE, _factory);
     }
 
-    function calculateFee(
-        uint128 amountIn,
-        address usdc,
-        address weth
-    ) public view returns (uint128) {
-        return _calculateFee(amountIn, usdc, weth);
-    }
-
-    function _swap(
+    function swap(
         address _tokenIn,
         address _tokenOut,
         address _lp,
@@ -3102,7 +3251,7 @@ contract LimitOrderExecutorWrapper is LimitOrderExecutor {
         address _sender
     ) public returns (uint256 amountReceived) {
         return
-            swap(
+            _swap(
                 _tokenIn,
                 _tokenOut,
                 _lp,
@@ -3121,16 +3270,14 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
         address _weth,
         address _usdc,
         address _limitOrderExecutor,
-        uint256 _limitOrderExecutionGasCost,
-        uint256 _sandboxLimitOrderExecutionGasCost
+        uint256 _limitOrderExecutionGasCost
     )
         LimitOrderRouter(
             _gasOracle,
             _weth,
             _usdc,
             _limitOrderExecutor,
-            _limitOrderExecutionGasCost,
-            _sandboxLimitOrderExecutionGasCost
+            _limitOrderExecutionGasCost
         )
     {}
 

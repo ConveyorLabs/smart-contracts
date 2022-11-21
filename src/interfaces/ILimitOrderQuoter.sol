@@ -2,9 +2,10 @@
 pragma solidity 0.8.16;
 
 import "../LimitOrderSwapRouter.sol";
+
 interface ILimitOrderQuoter {
-    function _findBestTokenToTokenExecutionPrice(
-        LimitOrderSwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
+    function findBestTokenToTokenExecutionPrice(
+        SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex);
 
@@ -18,8 +19,8 @@ interface ILimitOrderQuoter {
         LimitOrderSwapRouter.TokenToWethExecutionPrice memory executionPrice
     ) external returns (LimitOrderSwapRouter.TokenToWethExecutionPrice memory);
 
-    function _findBestTokenToWethExecutionPrice(
-        LimitOrderSwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
+    function findBestTokenToWethExecutionPrice(
+        SwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex);
 
@@ -31,14 +32,12 @@ interface ILimitOrderQuoter {
         address tokenIn
     ) external returns (uint256 amountOutMinAToWeth);
 
-    function _initializeTokenToWethExecutionPrices(
-        LimitOrderSwapRouter.SpotReserve[] memory spotReserveAToWeth,
+    function initializeTokenToWethExecutionPrices(
+        SwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth
-    )
-        external
-        view
-        returns (LimitOrderSwapRouter.TokenToWethExecutionPrice[] memory);
-    function _initializeTokenToTokenExecutionPrices(
+    ) external view returns (SwapRouter.TokenToWethExecutionPrice[] memory);
+
+    function initializeTokenToTokenExecutionPrices(
         address tokenIn,
         LimitOrderSwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth,
@@ -48,4 +47,4 @@ interface ILimitOrderQuoter {
         external
         view
         returns (LimitOrderSwapRouter.TokenToTokenExecutionPrice[] memory);
-}   
+}

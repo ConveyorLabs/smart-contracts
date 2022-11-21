@@ -48,8 +48,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param executionPrices - Array of execution prices to evaluate.
     ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
     ///@return bestPriceIndex - Index of the best price in the executionPrices array.
-    function _findBestTokenToWethExecutionPrice(
-        LimitOrderSwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
+    function findBestTokenToWethExecutionPrice(
+        SwapRouter.TokenToWethExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex) {
         ///@notice If the order is a buy order, set the initial best price at 0.
@@ -93,8 +93,8 @@ contract LimitOrderQuoter is ConveyorTickMath {
     ///@param executionPrices - Array of execution prices to evaluate.
     ///@param buyOrder - Boolean indicating whether the order is a buy or sell.
     ///@return bestPriceIndex - Index of the best price in the executionPrices array.
-    function _findBestTokenToTokenExecutionPrice(
-        LimitOrderSwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
+    function findBestTokenToTokenExecutionPrice(
+        SwapRouter.TokenToTokenExecutionPrice[] memory executionPrices,
         bool buyOrder
     ) external pure returns (uint256 bestPriceIndex) {
         ///@notice If the order is a buy order, set the initial best price at type(uint256).max.
@@ -131,10 +131,16 @@ contract LimitOrderQuoter is ConveyorTickMath {
     }
 
     ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
-    function _initializeTokenToWethExecutionPrices(
-        LimitOrderSwapRouter.SpotReserve[] memory spotReserveAToWeth,
+    ///@param spotReserveAToWeth - Spot reserve of tokenA to Weth.
+    ///@param lpAddressesAToWeth - Pair address of tokenA to Weth.
+    function initializeTokenToWethExecutionPrices(
+        SwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth
-    ) external pure returns (LimitOrderSwapRouter.TokenToWethExecutionPrice[] memory) {
+    )
+        external
+        pure
+        returns (LimitOrderSwapRouter.TokenToWethExecutionPrice[] memory)
+    {
         ///@notice Initialize a new TokenToWethExecutionPrice array to store prices.
         LimitOrderSwapRouter.TokenToWethExecutionPrice[]
             memory executionPrices = new LimitOrderSwapRouter.TokenToWethExecutionPrice[](
@@ -145,26 +151,36 @@ contract LimitOrderQuoter is ConveyorTickMath {
         {
             ///@notice For each spot reserve, initialize a token to weth execution price.
             for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
-                executionPrices[i] = LimitOrderSwapRouter.TokenToWethExecutionPrice(
-                    spotReserveAToWeth[i].res0,
-                    spotReserveAToWeth[i].res1,
-                    spotReserveAToWeth[i].spotPrice,
-                    lpAddressesAToWeth[i]
-                );
+                executionPrices[i] = LimitOrderSwapRouter
+                    .TokenToWethExecutionPrice(
+                        spotReserveAToWeth[i].res0,
+                        spotReserveAToWeth[i].res1,
+                        spotReserveAToWeth[i].spotPrice,
+                        lpAddressesAToWeth[i]
+                    );
             }
         }
 
         return (executionPrices);
     }
 
-    ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[]
-    function _initializeTokenToTokenExecutionPrices(
+    ///@notice Initializes all routes from tokenA to Weth -> Weth to tokenB and returns an array of all combinations as ExectionPrice[].
+    ///@param tokenIn - Address of the token to swap from.
+    ///@param spotReserveAToWeth - Spot reserve of tokenA to Weth.
+    ///@param lpAddressesAToWeth - Pair address of tokenA to Weth.
+    ///@param spotReserveWethToB - Spot reserve of Weth to tokenB.
+    ///@param lpAddressesWethToB - Pair address of Weth to tokenB
+    function initializeTokenToTokenExecutionPrices(
         address tokenIn,
         LimitOrderSwapRouter.SpotReserve[] memory spotReserveAToWeth,
         address[] memory lpAddressesAToWeth,
         LimitOrderSwapRouter.SpotReserve[] memory spotReserveWethToB,
         address[] memory lpAddressWethToB
-    ) external view returns (LimitOrderSwapRouter.TokenToTokenExecutionPrice[] memory) {
+    )
+        external
+        view
+        returns (LimitOrderSwapRouter.TokenToTokenExecutionPrice[] memory)
+    {
         ///@notice Initialize a new TokenToTokenExecutionPrice array to store prices.
         LimitOrderSwapRouter.TokenToTokenExecutionPrice[]
             memory executionPrices = new LimitOrderSwapRouter.TokenToTokenExecutionPrice[](
@@ -176,15 +192,16 @@ contract LimitOrderQuoter is ConveyorTickMath {
             ///@notice Iterate through each SpotReserve on Weth to TokenB
             for (uint256 i = 0; i < spotReserveWethToB.length; ++i) {
                 ///@notice Then set res0, and res1 for tokenInToWeth to 0 and lpAddressAToWeth to the 0 address
-                executionPrices[i] = LimitOrderSwapRouter.TokenToTokenExecutionPrice(
-                    0,
-                    0,
-                    spotReserveWethToB[i].res0,
-                    spotReserveWethToB[i].res1,
-                    spotReserveWethToB[i].spotPrice,
-                    address(0),
-                    lpAddressWethToB[i]
-                );
+                executionPrices[i] = LimitOrderSwapRouter
+                    .TokenToTokenExecutionPrice(
+                        0,
+                        0,
+                        spotReserveWethToB[i].res0,
+                        spotReserveWethToB[i].res1,
+                        spotReserveWethToB[i].spotPrice,
+                        address(0),
+                        lpAddressesWethToB[i]
+                    );
             }
         } else {
             ///@notice Initialize index to 0
@@ -210,7 +227,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
                             spotReserveWethToB[j].res0,
                             spotPriceFinal,
                             lpAddressesAToWeth[i],
-                            lpAddressWethToB[j]
+                            lpAddressesWethToB[j]
                         );
                     ///@notice Increment the index
                     unchecked {
@@ -239,7 +256,10 @@ contract LimitOrderQuoter is ConveyorTickMath {
     function simulateTokenToTokenPriceChange(
         uint128 alphaX,
         LimitOrderSwapRouter.TokenToTokenExecutionPrice memory executionPrice
-    ) external returns (LimitOrderSwapRouter.TokenToTokenExecutionPrice memory) {
+    )
+        external
+        returns (LimitOrderSwapRouter.TokenToTokenExecutionPrice memory)
+    {
         ///@notice Check if the reserves are set to 0. This indicates if the tokenPair is Weth to TokenOut if true.
         if (
             executionPrice.aToWethReserve0 != 0 &&
@@ -296,7 +316,10 @@ contract LimitOrderQuoter is ConveyorTickMath {
     function _simulateTokenToTokenPriceChange(
         uint128 alphaX,
         LimitOrderSwapRouter.TokenToTokenExecutionPrice memory executionPrice
-    ) internal returns (LimitOrderSwapRouter.TokenToTokenExecutionPrice memory) {
+    )
+        internal
+        returns (LimitOrderSwapRouter.TokenToTokenExecutionPrice memory)
+    {
         ///@notice Retrive the new simulated spot price, reserve values, and amount out on the TokenIn To Weth pool
         (
             uint256 newSpotPriceA,
@@ -373,7 +396,10 @@ contract LimitOrderQuoter is ConveyorTickMath {
     function _simulateWethToTokenPriceChange(
         uint128 alphaX,
         LimitOrderSwapRouter.TokenToTokenExecutionPrice memory executionPrice
-    ) internal returns (LimitOrderSwapRouter.TokenToTokenExecutionPrice memory) {
+    )
+        internal
+        returns (LimitOrderSwapRouter.TokenToTokenExecutionPrice memory)
+    {
         ///@notice Cache the Weth and TokenOut reserves
         uint128 reserveBWeth = executionPrice.wethToBReserve0;
         uint128 reserveBToken = executionPrice.wethToBReserve1;

@@ -54,7 +54,7 @@ error DuplicateOrderIdsInOrderGroup();
 error InvalidCalldata();
 error InsufficientMsgValue();
 error UnauthorizedCaller();
-
+error AmountInIsZero();
 ///@notice Returns the index of the call that failed within the SandboxRouter.Call[] array
 error SandboxCallFailed(uint256 callIndex);
 error InvalidTransferAddressArray();
@@ -66,6 +66,7 @@ error SandboxFillAmountNotSatisfied(
     uint256 amountFilled,
     uint256 fillAmountRequired
 );
+error OrderNotEligibleForRefresh(bytes32 orderId);
 
 error SandboxAmountOutRequiredNotSatisfied(
     bytes32 orderId,
@@ -84,4 +85,8 @@ error ConveyorFeesNotPaid(
     uint256 expectedFees,
     uint256 feesPaid,
     uint256 unpaidFeesRemaining
+);
+error InsufficientFillAmountSpecified(
+    uint128 fillAmountSpecified,
+    uint128 amountInRemaining
 );
