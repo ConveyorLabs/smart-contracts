@@ -253,8 +253,8 @@ contract ConveyorTickMathTest is DSTest {
             int256 errorAmount = int256(amountOutExpected) -
                 int256(amountOutToValidate);
             uint256 absErrorAmount = uint256(ConveyorMath.abs(errorAmount));
-            //Ensure they are equal within 10000 wei
-            assert(absErrorAmount < 10000);
+            //Ensure they are equal within 100000 wei
+            assert(absErrorAmount < 100000);
         }
     }
 
