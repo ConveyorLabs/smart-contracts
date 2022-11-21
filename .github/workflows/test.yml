@@ -33,8 +33,8 @@ jobs:
 
 
       - name: Export Mainnet endpoint
-        run: export MAINNET_RPC_ENDPOINT="${{ secrets.MAINNET_RPC_ENDPOINT }}"
-        
+        run: echo "${{ secrets.MAINNET_RPC_ENDPOINT }}" >> $MAINNET_RPC_ENDPOINT
+  
       - name: Run quoter tests
         run: forge test -f mainnet --ffi
 
