@@ -32,7 +32,7 @@ jobs:
           version: nightly
 
       - name: Run quoter tests
-        run: forge test -vvv -f${{ secrets.MAINNET_ENDPOINT }} --fork-block-number 15233771 --ffi 
-      
+        run: forge test -f mainnet --ffi
+
       - name: Run snapshot
-        run: forge snapshot -vvv -f${{ secrets.MAINNET_ENDPOINT }} --fork-block-number 15233771 --ffi
+        run: forge test -f mainnet --ffi
