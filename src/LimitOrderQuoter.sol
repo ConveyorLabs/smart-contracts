@@ -3,11 +3,12 @@ pragma solidity 0.8.16;
 
 import "./LimitOrderSwapRouter.sol";
 import "./lib/ConveyorTickMath.sol";
+import "./interfaces/ILimitOrderQuoter.sol";
 
 /// @title ConveyorExecutor
 /// @author 0xOsiris, 0xKitsune
 /// @notice This contract handles all CFMM quoting logic.
-contract LimitOrderQuoter is ConveyorTickMath {
+contract LimitOrderQuoter is ILimitOrderQuoter, ConveyorTickMath {
     address immutable WETH;
     uint256 private constant MAX_UINT256 = type(uint256).max;
     uint256 private constant ZERO = 0;

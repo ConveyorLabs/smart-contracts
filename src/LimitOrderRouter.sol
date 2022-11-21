@@ -13,7 +13,7 @@ import "./interfaces/ILimitOrderRouter.sol";
 /// @title LimitOrderRouter
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the LimitOrderBook contract.
-contract LimitOrderRouter is LimitOrderBook {
+contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
     using SafeERC20 for IERC20;
     // ========================================= Modifiers =============================================
 

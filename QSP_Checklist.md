@@ -1,3 +1,27 @@
+# Updated Scope
+- `src/ConveyorExecutor.sol`
+- `src/LimitOrderSwapRouter.sol`
+- `src/LimitOrderRouter.sol`
+- `src/LimitOrderBook.sol`
+- `src/SandboxLimitOrderRouter.sol`
+- `src/SandboxLimitOrderBook.sol`
+- `src/LimitOrderQuoter.sol`
+- `src/ConveyorGasOracle.sol`
+- `src/ConveyorSwapAggregator.sol`
+- `src/ConveyorErrors.sol`
+- `src/interfaces/IConveyorExecutor.sol`
+- `src/interfaces/IConveyorGasOracle.sol`
+- `src/interfaces/IConveyorSwapAggregator.sol`
+- `src/interfaces/ILimitOrderBook.sol`
+- `src/interfaces/ILimitOrderQuoter.sol`
+- `src/interfaces/ILimitOrderRouter.sol`
+- `src/interfaces/ILimitOrderSwapRouter.sol`
+- `src/interfaces/ISandboxLimitOrderBook.sol`
+- `src/interfaces/ISandboxLimitOrderRouter.sol`
+- `src/lib/ConveyorTickMath.sol`
+- `src/lib/ConveyorMath.sol`
+- `src/lib/ConveyorFeeMath.sol`
+  
 # Architectural Changes
 The protocol has been split into two seperate LimitOrder systems, `LimitOrders` and `SandboxLimitOrders`. 
 

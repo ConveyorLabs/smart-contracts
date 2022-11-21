@@ -4,11 +4,12 @@ pragma solidity 0.8.16;
 import "../lib/AggregatorV3Interface.sol";
 import "./lib/ConveyorMath.sol";
 import "./test/utils/Console.sol";
+import "./interfaces/IConveyorGasOracle.sol";
 
 /// @title ConveyorGasOracle
 /// @author 0xOsiris, 0xKitsune
 /// @notice This contract fetches the latest fast gas price from the Chainlink Gas Oracle
-contract ConveyorGasOracle {
+contract ConveyorGasOracle is IConveyorGasOracle {
     uint256 private constant ONE_HUNDRED_TWENTY_FIVE = 125;
     uint256 private constant ONE_HUNDRED = 100;
     ///@notice Time horizon for arithmetic mean of has price.

@@ -9,11 +9,12 @@ import "./interfaces/ILimitOrderSwapRouter.sol";
 import "./interfaces/ISandboxLimitOrderRouter.sol";
 import "./interfaces/ISandboxLimitOrderBook.sol";
 import "./interfaces/ILimitOrderBook.sol";
+import "./interfaces/IConveyorExecutor.sol";
 
 /// @title ConveyorExecutor
 /// @author 0xOsiris, 0xKitsune
 /// @notice This contract handles all order execution.
-contract ConveyorExecutor is LimitOrderSwapRouter {
+contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
     using SafeERC20 for IERC20;
     ///====================================Immutable Storage Variables==============================================//
     address immutable WETH;
@@ -213,7 +214,7 @@ contract ConveyorExecutor is LimitOrderSwapRouter {
         }
 
         ///@notice Get the current gas price from the v3 Aggregator.
-        uint256 gasPrice = ILimitOrderBook(SANDBOX_LIMIT_ORDER_BOOK)
+        uint256 gasPrice = IConveyorGasOracle(SANDBOX_LIMIT_ORDER_BOOK)
             .getGasPrice();
 
         ///@notice Require that account has enough gas for order execution after the gas credit withdrawal.

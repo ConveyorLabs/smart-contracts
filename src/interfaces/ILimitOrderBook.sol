@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
-
 import "../LimitOrderBook.sol";
 
 interface ILimitOrderBook {
@@ -27,8 +26,6 @@ interface ILimitOrderBook {
         external
         view
         returns (bytes32[][] memory);
-
-    function getGasPrice() external view returns (uint256);
 
     function addressToOrderIds(address owner, bytes32 orderId)
         external

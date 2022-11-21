@@ -1319,6 +1319,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
     //================================================================
     //=========== Sandbox Execution State Assertion Helpers ==========
     //================================================================
+
     ///@notice Helper function to Cache the order owners token balances and gas credit balances
     function initializePreExecutionOwnerBalances(
         address[] memory owners,
@@ -1326,6 +1327,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         address[] memory tokenOut
     )
         internal
+        view
         returns (
             uint256[] memory,
             uint256[] memory,
@@ -1339,7 +1341,9 @@ contract SandboxLimitOrderRouterTest is DSTest {
         for (uint256 i = 0; i < owners.length; ++i) {
             tokenInBalances[i] = IERC20(tokenIn[i]).balanceOf(owners[i]);
             tokenOutBalances[i] = IERC20(tokenOut[i]).balanceOf(owners[i]);
-            gasCreditBalances[i] = limitOrderRouter.gasCreditBalance(owners[i]);
+            gasCreditBalances[i] = limitOrderExecutor.gasCreditBalance(
+                owners[i]
+            );
         }
 
         return (tokenInBalances, tokenOutBalances, gasCreditBalances);

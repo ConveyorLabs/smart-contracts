@@ -143,11 +143,11 @@ contract ConveyorTickMathTest is DSTest {
             );
 
             {
-                //Ensure they are equal within 10 wei
-                assertEq(
-                    int256(amountOutToValidate) / 100,
-                    int256(amountOutExpected) / 100
-                );
+                int256 errorAmount = int256(amountOutExpected) -
+                    int256(amountOutToValidate);
+                uint256 absErrorAmount = uint256(ConveyorMath.abs(errorAmount));
+                //Ensure they are equal within 10000 wei
+                assert(absErrorAmount < 10000);
 
                 console.log(amountOutToValidate, amountOutExpected);
             }
@@ -193,7 +193,11 @@ contract ConveyorTickMathTest is DSTest {
             );
 
             {
-                assertEq(amountOutToValidate / 100, amountOutExpected / 100);
+                int256 errorAmount = int256(amountOutExpected) -
+                    int256(amountOutToValidate);
+                uint256 absErrorAmount = uint256(ConveyorMath.abs(errorAmount));
+                //Ensure they are equal within 10000 wei
+                assert(absErrorAmount < 10000);
             }
         }
     }
@@ -246,8 +250,11 @@ contract ConveyorTickMathTest is DSTest {
                 TickMath.MAX_SQRT_RATIO - 1
             );
 
-            //Validate that the amount we received matches out quote.
-            assertEq(amountOutToValidate, amountOutExpected);
+            int256 errorAmount = int256(amountOutExpected) -
+                int256(amountOutToValidate);
+            uint256 absErrorAmount = uint256(ConveyorMath.abs(errorAmount));
+            //Ensure they are equal within 10000 wei
+            assert(absErrorAmount < 10000);
         }
     }
 

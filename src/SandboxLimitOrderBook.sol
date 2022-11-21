@@ -15,7 +15,7 @@ import "./ConveyorGasOracle.sol";
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
 
-contract SandboxLimitOrderBook is ConveyorGasOracle {
+contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
     // ========================================= Immutables =============================================
 
     ///@notice The address of the ConveyorExecutor contract.

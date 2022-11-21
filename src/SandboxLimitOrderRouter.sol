@@ -5,11 +5,12 @@ import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 import "./interfaces/ISandboxLimitOrderBook.sol";
 import "../lib/libraries/token/SafeERC20.sol";
+import "./interfaces/ISandboxLimitOrderRouter.sol";
 
 /// @title SandboxRouter
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice SandboxRouter uses a multiCall architecture to execute limit orders.
-contract SandboxLimitOrderRouter {
+contract SandboxLimitOrderRouter is ISandboxLimitOrderRouter {
     using SafeERC20 for IERC20;
     ///@notice ConveyorExecutor & LimitOrderRouter Addresses.
     address immutable LIMIT_ORDER_EXECUTOR;
