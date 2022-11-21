@@ -30,13 +30,9 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
-
-
-      - name: Export Mainnet endpoint
-        run: echo "${{ secrets.MAINNET_RPC_ENDPOINT }}" >> $MAINNET_RPC_ENDPOINT
   
       - name: Run quoter tests
-        run: forge test -f mainnet --ffi
+        run: forge test -f "${{ secrets.MAINNET_RPC_ENDPOINT }} --ffi
 
       - name: Run snapshot
-        run: forge test -f mainnet --ffi
+        run: forge test -f "${{ secrets.MAINNET_RPC_ENDPOINT }} --ffi
