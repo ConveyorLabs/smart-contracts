@@ -728,7 +728,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
             address[] memory _lps = new address[](dexes.length);
 
             ///@notice Iterate through Dexs in dexes and check if isUniV2.
-            for (uint256 i = 0; i < dexes.length; ++i) {
+            for (uint256 i = 0; i < dexes.length; ) {
                 if (dexes[i].isUniV2) {
                     {
                         ///@notice Get the Uniswap v2 spot price and lp address.
@@ -768,6 +768,10 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
                             }
                         }
                     }
+                }
+
+                unchecked {
+                    ++i;
                 }
             }
 

@@ -267,7 +267,7 @@ contract LimitOrderRouter is LimitOrderBook {
         pure
     {
         ///@notice Iterate through the length of orders -1.
-        for (uint256 i = 0; i < orders.length - 1; i++) {
+        for (uint256 i = 0; i < orders.length - 1; ) {
             ///@notice Cache order at index i, and i+1
             LimitOrder memory currentOrder = orders[i];
             LimitOrder memory nextOrder = orders[i + 1];
@@ -316,6 +316,10 @@ contract LimitOrderRouter is LimitOrderBook {
             ///@notice Check if the fee out is the same for the next order
             if (currentOrder.feeOut != nextOrder.feeOut) {
                 revert IncongruentFeeOutInOrderGroup();
+            }
+
+            unchecked {
+                ++i;
             }
         }
     }

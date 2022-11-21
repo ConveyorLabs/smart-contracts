@@ -681,7 +681,7 @@ contract LimitOrderExecutor is LimitOrderSwapRouter {
             }
 
             ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
-            for (uint256 i = 0; i < orders.length; ++i) {
+            for (uint256 i = 0; i < orders.length; ) {
                 uint128 fillAmount = sandboxMulticall.fillAmounts[i];
                 IERC20(orders[i].tokenIn).safeTransferFrom(
                     orders[i].owner,
@@ -701,10 +701,14 @@ contract LimitOrderExecutor is LimitOrderSwapRouter {
                     );
                 }
                 expectedAccumulatedFees += feeRequired;
+
+                unchecked {
+                    ++i;
+                }
             }
         } else {
             ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
-            for (uint256 i = 0; i < orders.length; ++i) {
+            for (uint256 i = 0; i < orders.length; ) {
                 uint128 fillAmount = sandboxMulticall.fillAmounts[i];
                 IERC20(orders[i].tokenIn).safeTransferFrom(
                     orders[i].owner,
@@ -723,6 +727,10 @@ contract LimitOrderExecutor is LimitOrderSwapRouter {
                     );
                 }
                 expectedAccumulatedFees += feeRequired;
+
+                unchecked {
+                    ++i;
+                }
             }
         }
 

@@ -151,7 +151,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
         ///@notice Scoping to avoid stack too deep.
         {
             ///@notice For each spot reserve, initialize a token to weth execution price.
-            for (uint256 i = 0; i < spotReserveAToWeth.length; ++i) {
+            for (uint256 i = 0; i < spotReserveAToWeth.length; ) {
                 executionPrices[i] = LimitOrderSwapRouter
                     .TokenToWethExecutionPrice(
                         spotReserveAToWeth[i].res0,
@@ -159,6 +159,10 @@ contract LimitOrderQuoter is ConveyorTickMath {
                         spotReserveAToWeth[i].spotPrice,
                         lpAddressesAToWeth[i]
                     );
+
+                unchecked {
+                    ++i;
+                }
             }
         }
 
@@ -191,7 +195,7 @@ contract LimitOrderQuoter is ConveyorTickMath {
         ///@notice If TokenIn is Weth
         if (tokenIn == WETH) {
             ///@notice Iterate through each SpotReserve on Weth to TokenB
-            for (uint256 i = 0; i < spotReserveWethToB.length; ++i) {
+            for (uint256 i = 0; i < spotReserveWethToB.length; ) {
                 ///@notice Then set res0, and res1 for tokenInToWeth to 0 and lpAddressAToWeth to the 0 address
                 executionPrices[i] = LimitOrderSwapRouter
                     .TokenToTokenExecutionPrice(
@@ -203,6 +207,10 @@ contract LimitOrderQuoter is ConveyorTickMath {
                         address(0),
                         lpAddressesWethToB[i]
                     );
+
+                unchecked {
+                    ++i;
+                }
             }
         } else {
             ///@notice Initialize index to 0

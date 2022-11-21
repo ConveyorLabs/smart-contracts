@@ -587,7 +587,7 @@ contract LimitOrderBook {
             )
         }
 
-        for (uint256 i = 0; i < length; ++i) {
+        for (uint256 i = 0; i < length; ) {
             bytes32 orderId;
             assembly {
                 //Get the orderId at the orderOffsetSlot.
@@ -601,6 +601,10 @@ contract LimitOrderBook {
             if (orderType == targetOrderType) {
                 orderIds[orderIdIndex] = orderId;
                 ++orderIdIndex;
+            }
+
+            unchecked {
+                ++i;
             }
         }
 
