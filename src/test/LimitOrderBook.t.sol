@@ -379,6 +379,36 @@ contract LimitOrderBookTest is DSTest {
         }
     }
 
+    ///@notice Test fail update order on invalid sender
+    function testFailUpdateOrder_MsgSenderIsNotOrderOwner(
+        uint128 price,
+        uint64 quantity,
+        uint128 amountOutMin,
+        uint128 newPrice,
+        uint64 newQuantity
+    ) public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
+
+        //create a new order
+        LimitOrderBook.LimitOrder memory order = newOrder(
+            swapToken,
+            WETH,
+            price,
+            quantity,
+            amountOutMin
+        );
+
+        //submit the updated order
+
+        bytes32 orderId = placeMockOrder(order);
+        cheatCodes.prank(tx.origin);
+        orderBook.updateOrder(orderId, newPrice, newQuantity);
+    }
+
     ///@notice Test fail update order insufficient allowance
     function testFailUpdateOrder_InsufficientAllowanceForOrderUpdate(
         uint128 price,

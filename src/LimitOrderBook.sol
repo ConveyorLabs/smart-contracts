@@ -451,11 +451,9 @@ contract LimitOrderBook {
     ) internal {
         ///@notice Get the existing order that will be replaced with the new order
         LimitOrder memory order = orderIdToLimitOrder[orderId];
-
         if (order.owner != msg.sender) {
             revert MsgSenderIsNotOrderOwner();
         }
-
         ///@notice Update the executionCredits if msg.value !=0.
         if (msg.value != 0) {
             uint128 newExecutionCredit = orderIdToLimitOrder[order.orderId]
