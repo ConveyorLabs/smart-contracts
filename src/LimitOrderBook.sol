@@ -211,7 +211,6 @@ contract LimitOrderBook {
 
     ///@notice Function to increase the execution credit for an order.
     ///@param orderId - The orderId of the order to increase the execution credit for.
-    ///@param amount - The amount to increase the execution credit by.
     function increaseExecutionCredit(bytes32 orderId)
         external
         payable
