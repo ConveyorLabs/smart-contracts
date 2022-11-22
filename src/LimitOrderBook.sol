@@ -25,6 +25,10 @@ contract LimitOrderBook {
     address immutable WETH;
     address immutable USDC;
 
+    uint256 minExecutionCredit;
+
+    address owner;
+
     //----------------------Constructor------------------------------------//
     ///@param _conveyorGasOracle The address of the Chainlink gas oracle.
     ///@param _limitOrderExecutor The address of the ConveyorExecutor contract.
@@ -36,13 +40,22 @@ contract LimitOrderBook {
         address _limitOrderExecutor,
         address _weth,
         address _usdc,
-        uint256 _limitOrderExecutionGasCost
+        uint256 _limitOrderExecutionGasCost,
+        uint256 _minExecutionCredit,
     ) {
         require(
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"
         );
 
+        require(
+            _minExecutionCredit !=0, "Minimum Execution Credit is 0"
+        );
+
+
+
+        owner = tx.origin;
+        minExecutionCredit=_minExecutionCredit;
         WETH = _weth;
         USDC = _usdc;
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
@@ -65,6 +78,10 @@ contract LimitOrderBook {
     to the orderIds param. 
      */
     event OrderUpdated(bytes32[] orderIds);
+
+    /**@notice Event that is emitted when a an orders execution credits are updated. 
+     */
+    event OrderExecutionCreditUpdated(bytes32 orderId, uint256 newExecutionCredit);
 
     /**@notice Event that is emitted when an order is filled. For each order that is filled, the corresponding orderId is added
     to the orderIds param. 
@@ -94,6 +111,7 @@ contract LimitOrderBook {
     ///@param price - The execution price representing the spot price of tokenIn/tokenOut that the order should be filled at. This is represented as a 64x64 fixed point number.
     ///@param amountOutMin - The minimum amount out that the order owner is willing to accept. This value is represented in tokenOut.
     ///@param quantity - The amount of tokenIn that the order use as the amountIn value for the swap (represented in amount * 10**tokenInDecimals).
+    ///@param executionCredit - The amount of ETH to be compensated to the off-chain executor at execution time. 
     ///@param owner - The owner of the order. This is set to the msg.sender at order placement.
     ///@param tokenIn - The tokenIn for the order.
     ///@param tokenOut - The tokenOut for the order.
@@ -110,6 +128,7 @@ contract LimitOrderBook {
         uint128 price;
         uint128 amountOutMin;
         uint128 quantity;
+        uint128 executionCredit;
         address owner;
         address tokenIn;
         address tokenOut;
@@ -152,7 +171,51 @@ contract LimitOrderBook {
     uint256 orderNonce = 1;
 
     //----------------------Functions------------------------------------//
+    function decreaseExecutionCredit(bytes32 orderId, uint256 amount) external nonReentrant {
+        LimitOrder memory order = orderIdToLimitOrder[orderId];
 
+        if(order.orderId == bytes32(0)){
+            revert OrderDoesNotExist(order.orderId);
+        }
+        if(order.owner != msg.sender){
+            revert MsgSenderIsNotOrderOwner();
+        }
+        ///@notice Cache the credits.
+        uint128 executionCredit = order.executionCredit;
+        if(executionCredit < amount){
+            revert WithdrawAmountExceedsExecutionCredit(amount, executionCredit);
+        }else{
+            if(executionCredit-amount < minExecutionCredit){
+                revert InsufficientExecutionCredit(executionCredit-amount, minExecutionCredit);
+            }
+        }
+        ///@notice Update the order execution Credit state.
+        orderIdToOrder[orderId].executionCredit = executionCredit-amount;
+        ///@notice Pay the sender the amount withdrawed. 
+        _safeTransferETH(msg.sender amount);
+        emit OrderExecutionCreditUpdated(borderId, executionCredit-amount);
+    }
+
+    function increaseExecutionCredit(bytes32 orderId) external payable nonReentrant {
+        LimitOrder memory order = orderIdToLimitOrder[orderId];
+        if(msg.value==0){
+            revert InsufficientMsgValue();
+        }
+        if(order.orderId == bytes32(0)){
+            revert OrderDoesNotExist(order.orderId);
+        }
+        if(order.owner != msg.sender){
+            revert MsgSenderIsNotOrderOwner();
+        }
+
+        uint256 newExecutionCreditBalance = orderIdToOrder[orderId].executionCredit+msg.value;
+        ///@notice Update the order execution Credit state.
+        orderIdToOrder[orderId].executionCredit = newExecutionCreditBalance;
+        ///@notice Pay the sender the amount withdrawed. 
+        _safeTransferETH(msg.sender amount);
+
+        emit OrderExecutionCreditUpdated(borderId, newExecutionCreditBalance);
+    }
     ///@notice Gets an active order by the orderId. If the order does not exist, the return value will be bytes(0).
     ///@param orderId The orderId of the order to get.
     function getLimitOrderById(bytes32 orderId)
@@ -193,7 +256,14 @@ contract LimitOrderBook {
         payable
         returns (bytes32[] memory)
     {
-        _checkSufficientGasCreditsForOrderPlacement(orderGroup.length);
+        ///@notice Set the minimum credits for placement to minimumExecutionCredit * # of Orders
+        uint256 minimumExecutionCreditForOrderGroup = minExecutionCredit * orderGroup.length;
+        ///@notice Revert if the msg.value is under the minimumExecutionCreditForOrderGroup.
+        if(msg.value < minimumExecutionCreditForOrderGroup){
+            revert InsufficientExecutionCredit(msg.value, minimumExecutionCreditForOrderGroup);
+        }
+        ///@notice Initialize cumulativeExecutionCredit to store the total executionCredit set through the order group. 
+        uint256 cumulativeExecutionCredit;
 
         ///@notice Initialize a new list of bytes32 to store the newly created orderIds.
         bytes32[] memory orderIds = new bytes32[](orderGroup.length);
@@ -249,6 +319,9 @@ contract LimitOrderBook {
                 abi.encode(orderNonce, block.timestamp)
             );
 
+            ///@notice Increment the cumulative execution credit by the current orders execution. 
+            cumulativeExecutionCredit += newOrder.executionCredit;
+
             ///@notice increment the orderNonce
             /**@dev This is unchecked because the orderNonce and block.timestamp will never be the same, so even if the 
             orderNonce overflows, it will still produce unique orderIds because the timestamp will be different.
@@ -262,7 +335,7 @@ contract LimitOrderBook {
 
             ///@notice update the newOrder's Id to the orderId generated from the orderNonce
             newOrder.orderId = orderId;
-
+           
             ///@notice update the newOrder's last refresh timestamp
             ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
             newOrder.lastRefreshTimestamp = uint32(block.timestamp);
@@ -282,12 +355,17 @@ contract LimitOrderBook {
 
             ///@notice Add the orderId to the addressToAllOrderIds structure
             addressToAllOrderIds[msg.sender].push(orderId);
+            
 
             unchecked {
                 ++i;
             }
         }
 
+        ///@notice Assert that the cumulative execution credits == msg.value;
+        if(cumulativeExecutionCredit != msg.value){
+            revert MsgValueIsNotCumulativeExecutionCredit(msg.value, cumulativeExecutionCredit);
+        }
         ///@notice Update the total orders value on the orderToken for the msg.sender.
         _updateTotalOrdersQuantity(
             orderToken,
@@ -316,51 +394,6 @@ contract LimitOrderBook {
         return orderIds;
     }
 
-    ///@notice Function to check if an order owner has sufficient gas credits for all active orders at order placement time.
-    ///@param numberOfOrders - The owners current number of active orders.
-    function _checkSufficientGasCreditsForOrderPlacement(uint256 numberOfOrders)
-        internal
-    {
-        ///@notice Cache the gasPrice and the userGasCreditBalance
-        uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
-            .getGasPrice();
-
-        uint256 userGasCreditBalance = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
-            .gasCreditBalance(msg.sender);
-
-        ///@notice Get the total amount of active orders for the userAddress
-        uint256 totalOrderCount = totalOrdersPerAddress[msg.sender];
-
-        ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
-        uint256 minimumGasCredits = (totalOrderCount + numberOfOrders) *
-            gasPrice *
-            LIMIT_ORDER_EXECUTION_GAS_COST *
-            GAS_CREDIT_BUFFER;
-
-        ///@notice If the gasCreditBalance + msg value does not cover the min gas credits, then revert
-        if (userGasCreditBalance + msg.value < minimumGasCredits) {
-            revert InsufficientGasCreditBalance(
-                msg.sender,
-                userGasCreditBalance + msg.value,
-                minimumGasCredits
-            );
-        }
-
-        if (msg.value != 0) {
-            ///@notice Update the account gas credit balance
-
-            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
-                msg.sender,
-                userGasCreditBalance + msg.value
-            );
-
-            ///@notice Transfer the msg.value to the ConveyorExecutor contract.
-            _safeTransferETH(LIMIT_ORDER_EXECUTOR, msg.value);
-
-            emit GasCreditEvent(msg.sender, userGasCreditBalance + msg.value);
-        }
-    }
-
     /**@notice Updates an existing order. If the order exists and all order criteria is met, the order at the specified orderId will
     be updated to the newOrder's parameters. */
     /**@param orderId - OrderId of order to update.
@@ -371,7 +404,8 @@ contract LimitOrderBook {
         bytes32 orderId,
         uint128 price,
         uint128 quantity
-    ) public {
+    ) public payable {
+
         ///@notice Check if the order exists
         OrderType orderType = addressToOrderIds[msg.sender][orderId];
 
@@ -396,6 +430,18 @@ contract LimitOrderBook {
     ) internal {
         ///@notice Get the existing order that will be replaced with the new order
         LimitOrder memory order = orderIdToLimitOrder[orderId];
+        
+        if(order.owner == msg.sender){
+            revert MsgSenderIsNotOrderOwner();
+        }
+
+        ///@notice Update the executionCredits if msg.value !=0.
+        if(msg.value !=0){
+            uint256 newExecutionCredit= orderIdToLimitOrder[order.orderId].executionCredit + msg.value;
+            orderIdToLimitOrder[order.orderId].executionCredit= newExecutionCredit;
+            emit OrderExecutionCreditUpdated(order.orderId,newExecutionCredit);
+        }
+
 
         ///@notice Get the total orders value for the msg.sender on the tokenIn
         uint256 totalOrdersValue = getTotalOrdersValue(order.tokenIn);
@@ -637,5 +683,11 @@ contract LimitOrderBook {
         }
 
         return orderIds;
+    }
+
+    function setMinExecutionCredit(uint256 newMinExecutionCredit) external onlyOwner {
+        uint256 oldMinExecutionCredit = minExecutionCredit;
+        minExecutionCredit= newMinExecutionCredit;
+        emit MinExecutionCreditUpdated(newMinCredit, oldMinExecutionCredit)
     }
 }

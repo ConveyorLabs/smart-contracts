@@ -90,3 +90,6 @@ error InsufficientFillAmountSpecified(
     uint128 fillAmountSpecified,
     uint128 amountInRemaining
 );
+error InsufficientExecutionCredit(uint256 msgValue, uint256 minExecutionCredit);
+error WithdrawAmountExceedsExecutionCredit(uint256 amount, uint256 executionCredit);
+error MsgValueIsNotCumulativeExecutionCredit(uint256 msgValue, uint256 cumulativeExecutionCredit);
