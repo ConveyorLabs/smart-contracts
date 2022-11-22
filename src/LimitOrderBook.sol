@@ -172,7 +172,9 @@ contract LimitOrderBook {
     ///@dev The orderNonce is set to 1 intially, and is always incremented by 2, so that the nonce is always odd, ensuring that there are not collisions with the orderIds from the SandboxLimitOrderBook
     uint256 orderNonce = 1;
 
-    //----------------------Functions------------------------------------//
+    ///@notice Function to decrease the execution credit for an order.
+    ///@param orderId - The orderId of the order to decrease the execution credit for.
+    ///@param amount - The amount to decrease the execution credit by.
     function decreaseExecutionCredit(bytes32 orderId, uint128 amount)
         external
         nonReentrant
@@ -207,6 +209,9 @@ contract LimitOrderBook {
         emit OrderExecutionCreditUpdated(orderId, executionCredit - amount);
     }
 
+    ///@notice Function to increase the execution credit for an order.
+    ///@param orderId - The orderId of the order to increase the execution credit for.
+    ///@param amount - The amount to increase the execution credit by.
     function increaseExecutionCredit(bytes32 orderId)
         external
         payable
