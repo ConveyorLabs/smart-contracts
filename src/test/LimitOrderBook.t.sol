@@ -90,9 +90,6 @@ contract LimitOrderBookTest is DSTest {
 
         //Wrapper contract to test internal functions
         orderBook = ILimitOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
-
-        // cheatCodes.deal(address(this), type(uint128).max);
-        // depositGasCreditsForMockOrders(type(uint64).max);
     }
 
     ///@notice Test get order by id
