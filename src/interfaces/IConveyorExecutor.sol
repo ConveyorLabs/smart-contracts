@@ -10,18 +10,12 @@ interface IConveyorExecutor {
         external
         returns (uint256, uint256);
 
-    function executeTokenToTokenOrders(LimitOrderBook.LimitOrder[] memory orders)
-        external
-        returns (uint256, uint256);
+    function executeTokenToTokenOrders(
+        LimitOrderBook.LimitOrder[] memory orders
+    ) external returns (uint256, uint256);
 
     function executeSandboxLimitOrders(
         SandboxLimitOrderBook.SandboxLimitOrder[] memory orders,
         SandboxLimitOrderRouter.SandboxMulticall calldata calls
     ) external;
-
-    function gasCreditBalance(address user) external view returns (uint256);
-
-    function updateGasCreditBalance(address owner, uint256 newBalance) external;
-
-    function transferGasCreditFees(address owner, uint256 value) external;
 }

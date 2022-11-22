@@ -104,9 +104,7 @@ contract LimitOrderRouterTest is DSTest {
             _hexDems,
             _dexFactories,
             _isUniV2,
-            aggregatorV3Address,
-            300000,
-            250000
+            1
         );
 
         limitOrderRouter = ILimitOrderRouter(
@@ -117,11 +115,10 @@ contract LimitOrderRouterTest is DSTest {
 
         //Wrapper contract to test internal functions
         limitOrderRouterWrapper = new LimitOrderRouterWrapper(
-            aggregatorV3Address,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             address(limitOrderExecutor),
-            300000
+            1
         );
     }
 
@@ -139,9 +136,6 @@ contract LimitOrderRouterTest is DSTest {
     //================================================================
 
     function testValidateOrderSequence() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
-
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         LimitOrderBook.LimitOrder[]
@@ -151,8 +145,6 @@ contract LimitOrderRouterTest is DSTest {
     }
 
     function testFailValidateOrderSequence_InvalidBatchOrder() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         LimitOrderBook.LimitOrder[]
@@ -164,8 +156,6 @@ contract LimitOrderRouterTest is DSTest {
     function testFailValidateOrderSequence_IncongruentInputTokenInBatch()
         public
     {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         LimitOrderBook.LimitOrder[]
@@ -175,8 +165,6 @@ contract LimitOrderRouterTest is DSTest {
     }
 
     function testFailValidateOrderSequence_IncongruentStoplossStatus() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         LimitOrderBook.LimitOrder[]
@@ -186,8 +174,6 @@ contract LimitOrderRouterTest is DSTest {
     }
 
     function testFailValidateOrderSequence_IncongruentTokenOut() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         LimitOrderBook.LimitOrder[]
@@ -196,8 +182,6 @@ contract LimitOrderRouterTest is DSTest {
     }
 
     function testFailValidateOrderSequence_IncongruentFeeIn() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         LimitOrderBook.LimitOrder[]
@@ -206,8 +190,6 @@ contract LimitOrderRouterTest is DSTest {
     }
 
     function testFailValidateOrderSequence_IncongruentFeeOut() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         LimitOrderBook.LimitOrder[]
@@ -218,8 +200,6 @@ contract LimitOrderRouterTest is DSTest {
     function testFailValidateOrderSequence_IncongruentBuySellStatusInBatch()
         public
     {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         LimitOrderBook.LimitOrder[]
@@ -230,8 +210,6 @@ contract LimitOrderRouterTest is DSTest {
     function testFailValidateOrderSequence_IncongruentTaxedTokenInBatch()
         public
     {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         LimitOrderBook.LimitOrder[]
@@ -248,11 +226,9 @@ contract LimitOrderRouterTest is DSTest {
             0
         );
 
-        cheatCodes.deal(address(this), MAX_UINT);
+        cheatCodes.deal(address(this), 1 ether);
 
         IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
-
-        depositGasCreditsForMockOrders(type(uint128).max);
 
         (bool depositSuccess, ) = address(WETH).call{value: 1 ether}(
             abi.encodeWithSignature("deposit()")
@@ -284,9 +260,7 @@ contract LimitOrderRouterTest is DSTest {
             0
         );
 
-        cheatCodes.deal(address(this), MAX_UINT);
-
-        depositGasCreditsForMockOrders(type(uint128).max);
+        cheatCodes.deal(address(this), 1 ether);
 
         (bool depositSuccess, ) = address(WETH).call{value: 1 ether}(
             abi.encodeWithSignature("deposit()")
@@ -307,8 +281,6 @@ contract LimitOrderRouterTest is DSTest {
 
     ///@notice Refresh order test
     function testRefreshOrder() public {
-        cheatCodes.deal(address(this), type(uint128).max);
-        depositGasCreditsForMockOrders(type(uint128).max);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
@@ -333,36 +305,30 @@ contract LimitOrderRouterTest is DSTest {
         bytes32[] memory orderBatch = new bytes32[](1);
 
         orderBatch[0] = orderId;
+        uint256 gasCreditsBefore;
         ///Ensure the order has been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             LimitOrderBook.LimitOrder memory order0 = orderBook
                 .getLimitOrderById(orderBatch[i]);
-
+            gasCreditsBefore += order0.executionCredit;
             assert(order0.orderId != bytes32(0));
         }
 
         cheatCodes.warp(block.timestamp + 2592000);
-        uint256 gasCreditsBefore = limitOrderExecutor.gasCreditBalance(
-            address(this)
-        );
+
         limitOrderRouter.refreshOrder(orderBatch);
 
         //Ensure the order was not canceled and lastRefresh timestamp is updated to block.timestamp
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             LimitOrderBook.LimitOrder memory order0 = orderBook
                 .getLimitOrderById(orderBatch[i]);
-            assert(
-                limitOrderExecutor.gasCreditBalance(address(this)) ==
-                    gasCreditsBefore - REFRESH_FEE
-            );
+            assert(order0.executionCredit == gasCreditsBefore - REFRESH_FEE);
             assert(order0.lastRefreshTimestamp == block.timestamp);
         }
     }
 
     ///Test refresh order, cancel order since order has expired test
     function testRefreshOrder_CancelOrderOrderExpired() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
@@ -412,8 +378,6 @@ contract LimitOrderRouterTest is DSTest {
     //block 15233771
     ///Test refresh order, Order not refreshable since last refresh timestamp isn't beyond the refresh threshold from the current block.timestamp
     function testFailRefreshOrder_OrderNotEligibleForRefresh() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(MAX_UINT);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
@@ -480,6 +444,7 @@ contract LimitOrderRouterTest is DSTest {
             feeOut: feeOut,
             taxIn: taxIn,
             price: price,
+            executionCredit: 0,
             amountOutMin: amountOutMin,
             quantity: quantity,
             owner: msg.sender,
@@ -511,6 +476,7 @@ contract LimitOrderRouterTest is DSTest {
             lastRefreshTimestamp: lastRefreshTimestamp,
             expirationTimestamp: expirationTimestamp,
             feeIn: feeIn,
+            executionCredit: 0,
             feeOut: feeOut,
             taxIn: taxIn,
             price: price,
@@ -532,28 +498,27 @@ contract LimitOrderRouterTest is DSTest {
             memory orderGroup = new LimitOrderBook.LimitOrder[](1);
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
-
+        cheatCodes.deal(address(this), type(uint64).max);
+        order.executionCredit = type(uint64).max;
         //place order
-        bytes32[] memory orderIds = orderBook.placeLimitOrder(orderGroup);
+        bytes32[] memory orderIds = orderBook.placeLimitOrder{
+            value: type(uint64).max
+        }(orderGroup);
 
         orderId = orderIds[0];
     }
 
     function placeMultipleMockOrder(
         LimitOrderBook.LimitOrder[] memory orderGroup
-    ) internal returns (bytes32[] memory) {
+    ) internal returns (bytes32[] memory orderIds) {
+        cheatCodes.deal(address(this), type(uint32).max * orderGroup.length);
+        for (uint256 i = 0; i < orderGroup.length; i++) {
+            orderGroup[i].executionCredit = type(uint32).max;
+        }
         //place order
-        bytes32[] memory orderIds = orderBook.placeLimitOrder(orderGroup);
-
-        return orderIds;
-    }
-
-    function depositGasCreditsForMockOrders(uint256 _amount) public {
-        (bool depositSuccess, ) = address(limitOrderExecutor).call{
-            value: _amount
-        }(abi.encodeWithSignature("depositGasCredits()"));
-
-        require(depositSuccess, "error when depositing gas credits");
+        orderIds = orderBook.placeLimitOrder{
+            value: type(uint32).max * orderGroup.length
+        }(orderGroup);
     }
 
     function placeNewMockTokenToWethBatch()
@@ -1874,6 +1839,7 @@ contract LimitOrderRouterTest is DSTest {
             feeIn: 0,
             feeOut: 0,
             taxIn: 0,
+            executionCredit: 0,
             price: price,
             amountOutMin: amountOutMin,
             quantity: quantity,
@@ -1889,19 +1855,12 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
     LimitOrderRouter limitorderRouter;
 
     constructor(
-        address _gasOracle,
         address _weth,
         address _usdc,
         address _limitOrderExecutor,
-        uint256 _limitOrderExecutionGasCost
+        uint256 _minExecutionCredit
     )
-        LimitOrderRouter(
-            _gasOracle,
-            _weth,
-            _usdc,
-            _limitOrderExecutor,
-            _limitOrderExecutionGasCost
-        )
+        LimitOrderRouter(_weth, _usdc, _limitOrderExecutor, _minExecutionCredit)
     {}
 
     function invokeOnlyEOA() public onlyEOA {}

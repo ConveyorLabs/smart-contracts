@@ -128,18 +128,15 @@ contract SandboxLimitOrderRouterTest is DSTest {
             _hexDems,
             _dexFactories,
             _isUniV2,
-            aggregatorV3Address,
-            300000,
-            SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST
+            1
         );
 
         //Wrapper contract to test internal functions
         sandboxLimitOrderBookWrapper = new SandboxLimitOrderBookWrapper(
-            aggregatorV3Address,
             address(limitOrderExecutor),
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
-            250000
+            1
         );
 
         sandboxRouter = ISandboxLimitOrderRouter(
@@ -149,59 +146,6 @@ contract SandboxLimitOrderRouterTest is DSTest {
         orderBook = ISandboxLimitOrderBook(
             limitOrderExecutor.SANDBOX_LIMIT_ORDER_BOOK()
         );
-
-        {
-            cheatCodes.deal(mockOwner1, type(uint128).max);
-            depositGasCreditsForMockOrdersCustomOwner(
-                type(uint128).max,
-                mockOwner1
-            );
-            cheatCodes.deal(mockOwner2, type(uint128).max);
-            depositGasCreditsForMockOrdersCustomOwner(
-                type(uint128).max,
-                mockOwner2
-            );
-            cheatCodes.deal(mockOwner3, type(uint128).max);
-            depositGasCreditsForMockOrdersCustomOwner(
-                type(uint128).max,
-                mockOwner3
-            );
-            cheatCodes.deal(mockOwner4, type(uint128).max);
-            depositGasCreditsForMockOrdersCustomOwner(
-                type(uint128).max,
-                mockOwner4
-            );
-            cheatCodes.deal(mockOwner5, type(uint128).max);
-            depositGasCreditsForMockOrdersCustomOwner(
-                type(uint128).max,
-                mockOwner5
-            );
-            cheatCodes.deal(mockOwner6, type(uint128).max);
-            depositGasCreditsForMockOrdersCustomOwner(
-                type(uint128).max,
-                mockOwner6
-            );
-            cheatCodes.deal(mockOwner7, type(uint128).max);
-            depositGasCreditsForMockOrdersCustomOwner(
-                type(uint128).max,
-                mockOwner7
-            );
-            cheatCodes.deal(mockOwner8, type(uint128).max);
-            depositGasCreditsForMockOrdersCustomOwner(
-                type(uint128).max,
-                mockOwner8
-            );
-            cheatCodes.deal(mockOwner9, type(uint128).max);
-            depositGasCreditsForMockOrdersCustomOwner(
-                type(uint128).max,
-                mockOwner9
-            );
-            cheatCodes.deal(mockOwner10, type(uint128).max);
-            depositGasCreditsForMockOrdersCustomOwner(
-                type(uint128).max,
-                mockOwner10
-            );
-        }
     }
 
     //================================================================
@@ -212,11 +156,8 @@ contract SandboxLimitOrderRouterTest is DSTest {
 
     ///@notice ExecuteMulticallOrder Sandbox Router test
     function testExecuteMulticallOrderSingleV2() public {
-        ///@notice Deal funds to all of the necessary receivers
-        cheatCodes.deal(address(this), type(uint128).max);
         cheatCodes.deal(address(swapHelper), type(uint256).max);
-        ///@notice Deposit Gas Credits to cover order execution.
-        depositGasCreditsForMockOrders(type(uint128).max);
+
         ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         ///@notice Max approve the executor on the input token.
@@ -224,7 +165,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
 
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 10000 DAI amountOutRemaining 1 WETH
-        SandboxLimitOrderBook.SandboxLimitOrder memory order = newMockSandboxOrder(
+        SandboxLimitOrderBook.SandboxLimitOrder memory order = newSandboxLimitOrder(
             false,
             100000000000000000000,
             10000000000000000, //Exact amountOutRequired.
@@ -330,11 +271,8 @@ contract SandboxLimitOrderRouterTest is DSTest {
 
     ///@notice ExecuteMulticallOrder Sandbox Router test
     function testExecuteMulticallOrderSingleV3() public {
-        ///@notice Deal funds to all of the necessary receivers
-        cheatCodes.deal(address(this), type(uint128).max);
         cheatCodes.deal(address(swapHelper), type(uint256).max);
-        ///@notice Deposit Gas Credits to cover order execution.
-        depositGasCreditsForMockOrders(type(uint128).max);
+
         ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         ///@notice Max approve the executor on the input token.
@@ -344,7 +282,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order = newMockSandboxOrder(
+            memory order = newSandboxLimitOrder(
                 false,
                 100000000000000000000,
                 10000000000000000,
@@ -457,8 +395,6 @@ contract SandboxLimitOrderRouterTest is DSTest {
 
     ///@notice ExecuteMulticallOrder Sandbox Router test
     function testExecuteMulticallOrderBatch() public {
-        ///@notice Deal funds to all of the necessary receivers
-        cheatCodes.deal(address(this), type(uint128).max);
         cheatCodes.deal(address(swapHelper), type(uint256).max);
 
         // IERC20(DAI).approve(address(sandboxRouter), type(uint256).max);
@@ -539,11 +475,8 @@ contract SandboxLimitOrderRouterTest is DSTest {
 
     ///@notice ExecuteMulticallOrder Sandbox Router test
     function testExecuteMulticallOrdersSameOwnerBundleInputToken() public {
-        ///@notice Deal funds to all of the necessary receivers
-        cheatCodes.deal(address(this), type(uint128).max);
         cheatCodes.deal(address(swapHelper), type(uint256).max);
-        ///@notice Deposit Gas Credits to cover order execution.
-        depositGasCreditsForMockOrders(type(uint128).max);
+
         ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         ///@notice Max approve the executor on the input token.
@@ -686,7 +619,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order0 = newMockSandboxOrder(
+            memory order0 = newSandboxLimitOrder(
                 false,
                 100000000000000000000,
                 10000000000000000,
@@ -696,7 +629,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order1 = newMockSandboxOrder(
+            memory order1 = newSandboxLimitOrder(
                 false,
                 100000000000000000000,
                 10000000000000000,
@@ -726,11 +659,8 @@ contract SandboxLimitOrderRouterTest is DSTest {
     function testFailExecuteMulticallOrder_FillAmountSpecifiedGreaterThanAmountRemaining()
         public
     {
-        ///@notice Deal funds to all of the necessary receivers
-        cheatCodes.deal(address(this), type(uint128).max);
         cheatCodes.deal(address(swapHelper), type(uint256).max);
-        ///@notice Deposit Gas Credits to cover order execution.
-        depositGasCreditsForMockOrders(type(uint128).max);
+
         ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         ///@notice Max approve the executor on the input token.
@@ -739,7 +669,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order = newMockSandboxOrder(
+            memory order = newSandboxLimitOrder(
                 false,
                 10000000000000000000,
                 1,
@@ -796,11 +726,8 @@ contract SandboxLimitOrderRouterTest is DSTest {
     function testFailExecuteMulticallOrder_SandboxAmountOutRequiredNotSatisfied()
         public
     {
-        ///@notice Deal funds to all of the necessary receivers
-        cheatCodes.deal(address(this), type(uint128).max);
         cheatCodes.deal(address(swapHelper), type(uint256).max);
-        ///@notice Deposit Gas Credits to cover order execution.
-        depositGasCreditsForMockOrders(type(uint128).max);
+
         ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         ///@notice Max approve the executor on the input token.
@@ -809,7 +736,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order = newMockSandboxOrder(
+            memory order = newSandboxLimitOrder(
                 false,
                 10000000000000000000,
                 100000000000000000,
@@ -865,11 +792,8 @@ contract SandboxLimitOrderRouterTest is DSTest {
     }
 
     function testFailExecuteMulticallOrder_ConveyorFeesNotPaid() public {
-        ///@notice Deal funds to all of the necessary receivers
-        cheatCodes.deal(address(this), type(uint128).max);
         cheatCodes.deal(address(swapHelper), type(uint256).max);
-        ///@notice Deposit Gas Credits to cover order execution.
-        depositGasCreditsForMockOrders(type(uint128).max);
+
         ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         ///@notice Max approve the executor on the input token.
@@ -878,7 +802,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order = newMockSandboxOrder(
+            memory order = newSandboxLimitOrder(
                 false,
                 10000000000000000000,
                 1,
@@ -936,11 +860,8 @@ contract SandboxLimitOrderRouterTest is DSTest {
     function testFailExecuteMulticallOrder_InvalidTransferAddressArray()
         public
     {
-        ///@notice Deal funds to all of the necessary receivers
-        cheatCodes.deal(address(this), type(uint128).max);
         cheatCodes.deal(address(swapHelper), type(uint256).max);
-        ///@notice Deposit Gas Credits to cover order execution.
-        depositGasCreditsForMockOrders(type(uint128).max);
+
         ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         ///@notice Max approve the executor on the input token.
@@ -949,7 +870,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order = newMockSandboxOrder(
+            memory order = newSandboxLimitOrder(
                 false,
                 10000000000000000000,
                 1,
@@ -1022,11 +943,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
             )
         }
         if (run) {
-            ///@notice Deal funds to all of the necessary receivers
-            cheatCodes.deal(address(this), type(uint128).max);
             cheatCodes.deal(address(swapHelper), type(uint128).max);
-            ///@notice Deposit Gas Credits to cover order execution.
-            depositGasCreditsForMockOrdersWrapper(type(uint128).max);
 
             cheatCodes.deal(address(this), wethQuantity);
 
@@ -1040,7 +957,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
             ///@notice Dai/Weth sell limit order
             ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
             SandboxLimitOrderBook.SandboxLimitOrder
-                memory orderWeth = newMockSandboxOrder(
+                memory orderWeth = newSandboxLimitOrder(
                     false,
                     wethQuantity,
                     1,
@@ -1147,7 +1064,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
                     {
                         ///@notice Dai/Weth sell limit order
                         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
-                        orders[0] = newMockSandboxOrder(
+                        orders[0] = newSandboxLimitOrder(
                             false,
                             wethQuantity,
                             amountOutRemaining,
@@ -1320,35 +1237,6 @@ contract SandboxLimitOrderRouterTest is DSTest {
     //=========== Sandbox Execution State Assertion Helpers ==========
     //================================================================
 
-    ///@notice Helper function to Cache the order owners token balances and gas credit balances
-    function initializePreExecutionOwnerBalances(
-        address[] memory owners,
-        address[] memory tokenIn,
-        address[] memory tokenOut
-    )
-        internal
-        view
-        returns (
-            uint256[] memory,
-            uint256[] memory,
-            uint256[] memory
-        )
-    {
-        uint256[] memory tokenInBalances = new uint256[](owners.length);
-        uint256[] memory tokenOutBalances = new uint256[](owners.length);
-        uint256[] memory gasCreditBalances = new uint256[](owners.length);
-
-        for (uint256 i = 0; i < owners.length; ++i) {
-            tokenInBalances[i] = IERC20(tokenIn[i]).balanceOf(owners[i]);
-            tokenOutBalances[i] = IERC20(tokenOut[i]).balanceOf(owners[i]);
-            gasCreditBalances[i] = limitOrderExecutor.gasCreditBalance(
-                owners[i]
-            );
-        }
-
-        return (tokenInBalances, tokenOutBalances, gasCreditBalances);
-    }
-
     ///@notice Helper to get the txOrigin balance and upper limit on gas compensation prior to execution
     function initializePreSandboxExecutionTxOriginGasCompensationState(
         bytes32[] memory orderIds,
@@ -1360,14 +1248,11 @@ contract SandboxLimitOrderRouterTest is DSTest {
             uint256 gasCompensationUpperBound
         )
     {
-        gasCompensationUpperBound =
-            sandboxLimitOrderBookWrapper.getGasPrice() *
-            orderIds.length *
-            SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
         txOriginBalanceBefore = address(txOrigin).balance;
         for (uint256 i = 0; i < orderIds.length; ++i) {
             SandboxLimitOrderBook.SandboxLimitOrder memory order = orderBook
                 .getSandboxLimitOrderById(orderIds[i]);
+            gasCompensationUpperBound += order.executionCreditRemaining;
             ///@notice The order has been placed so it should have an orderId
             assert(order.orderId != bytes32(0));
         }
@@ -1403,13 +1288,8 @@ contract SandboxLimitOrderRouterTest is DSTest {
     //====================== Misc Helpers ============================
     //================================================================
     function initializeTestBalanceState(uint128 wethQuantity) internal {
-        ///@notice Deal funds to all of the necessary receivers
-        cheatCodes.deal(address(this), type(uint128).max);
         cheatCodes.deal(address(swapHelper), type(uint128).max);
-        ///@notice Deposit Gas Credits to cover order execution.
-        depositGasCreditsForMockOrdersWrapper(type(uint128).max);
         cheatCodes.deal(address(this), wethQuantity);
-
         ///@notice Wrap the weth to send from the sandboxRouter to the executor in a call.
         (bool depositSuccess, ) = address(WETH).call{value: wethQuantity}(
             abi.encodeWithSignature("deposit()")
@@ -1740,8 +1620,28 @@ contract SandboxLimitOrderRouterTest is DSTest {
             });
     }
 
-    ///@notice Helper function to initialize a mock sandbox limit order
-    function newMockSandboxOrder(
+    ///@notice Helper function to place a single sandbox limit order
+    function placeMockOrderWrapper(
+        SandboxLimitOrderBook.SandboxLimitOrder memory order
+    ) internal returns (bytes32 orderId) {
+        //create a new array of orders
+        SandboxLimitOrderBook.SandboxLimitOrder[]
+            memory orderGroup = new SandboxLimitOrderBook.SandboxLimitOrder[](
+                1
+            );
+        cheatCodes.deal(address(this), type(uint64).max);
+        order.executionCreditRemaining = type(uint64).max;
+        //add the order to the arrOrder and add the arrOrder to the orderGroup
+        orderGroup[0] = order;
+
+        //place order
+        bytes32[] memory orderIds = sandboxLimitOrderBookWrapper
+            .placeSandboxLimitOrder{value: type(uint64).max}(orderGroup);
+
+        orderId = orderIds[0];
+    }
+
+    function newSandboxLimitOrder(
         bool buy,
         uint128 amountInRemaining,
         uint128 amountOutRemaining,
@@ -1756,50 +1656,20 @@ contract SandboxLimitOrderRouterTest is DSTest {
         order = SandboxLimitOrderBook.SandboxLimitOrder({
             buy: buy,
             fillPercent: 0,
-            amountOutRemaining: amountOutRemaining,
-            amountInRemaining: amountInRemaining,
             lastRefreshTimestamp: 0,
             expirationTimestamp: type(uint32).max,
             feeRemaining: 0,
-            owner: msg.sender,
+            executionCreditRemaining: 0,
+            amountInRemaining: amountInRemaining,
+            amountOutRemaining: amountOutRemaining,
+            owner: address(this),
             tokenIn: tokenIn,
             tokenOut: tokenOut,
             orderId: bytes32(0)
         });
     }
 
-    ///@notice Gas credit deposit helper function.
-    function depositGasCreditsForMockOrders(uint256 _amount) public {
-        (bool depositSuccess, ) = address(limitOrderExecutor).call{
-            value: _amount
-        }(abi.encodeWithSignature("depositGasCredits()"));
-
-        require(depositSuccess, "error when depositing gas credits");
-    }
-
-    function depositGasCreditsForMockOrdersWrapper(uint256 _amount) public {
-        (bool depositSuccess, ) = address(limitOrderExecutor).call{
-            value: _amount
-        }(abi.encodeWithSignature("depositGasCredits()"));
-
-        require(depositSuccess, "error when depositing gas credits");
-    }
-
-    ///@notice Gas credit deposit helper function.
-    function depositGasCreditsForMockOrdersCustomOwner(
-        uint256 _amount,
-        address owner
-    ) public {
-        cheatCodes.prank(owner);
-        (bool depositSuccess, ) = address(limitOrderExecutor).call{
-            value: _amount
-        }(abi.encodeWithSignature("depositGasCredits()"));
-
-        require(depositSuccess, "error when depositing gas credits");
-    }
-
-    ///@notice Helper function to place a single sandbox limit order
-    function placeMockOrder(
+    function placeMockSandboxLimitOrder(
         SandboxLimitOrderBook.SandboxLimitOrder memory order
     ) internal returns (bytes32 orderId) {
         //create a new array of orders
@@ -1809,44 +1679,27 @@ contract SandboxLimitOrderRouterTest is DSTest {
             );
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
-
+        cheatCodes.deal(address(this), type(uint64).max);
+        order.executionCreditRemaining = type(uint64).max;
         //place order
-        bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
-            orderGroup
-        );
+        bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder{
+            value: type(uint64).max
+        }(orderGroup);
 
         orderId = orderIds[0];
     }
 
-    ///@notice Helper function to place a single sandbox limit order
-    function placeMockOrderWrapper(
-        SandboxLimitOrderBook.SandboxLimitOrder memory order
-    ) internal returns (bytes32 orderId) {
-        //create a new array of orders
-        SandboxLimitOrderBook.SandboxLimitOrder[]
-            memory orderGroup = new SandboxLimitOrderBook.SandboxLimitOrder[](
-                1
-            );
-        //add the order to the arrOrder and add the arrOrder to the orderGroup
-        orderGroup[0] = order;
-
-        //place order
-        bytes32[] memory orderIds = sandboxLimitOrderBookWrapper
-            .placeSandboxLimitOrder(orderGroup);
-
-        orderId = orderIds[0];
-    }
-
-    ///@notice helper function to place multiple sandbox orders
     function placeMultipleMockOrder(
         SandboxLimitOrderBook.SandboxLimitOrder[] memory orderGroup
-    ) internal returns (bytes32[] memory) {
+    ) internal returns (bytes32[] memory orderIds) {
+        cheatCodes.deal(address(this), type(uint32).max * orderGroup.length);
+        for (uint256 i = 0; i < orderGroup.length; i++) {
+            orderGroup[i].executionCreditRemaining = type(uint32).max;
+        }
         //place order
-        bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder(
-            orderGroup
-        );
-
-        return orderIds;
+        orderIds = orderBook.placeSandboxLimitOrder{
+            value: type(uint32).max * orderGroup.length
+        }(orderGroup);
     }
 
     function placeNewMockMultiOrderMultiCall()
@@ -1861,7 +1714,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order1 = newMockSandboxOrder(
+            memory order1 = newSandboxLimitOrder(
                 false,
                 120000000000000000000000,
                 100000000000000000000,
@@ -1875,7 +1728,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order2 = newMockSandboxOrder(
+            memory order2 = newSandboxLimitOrder(
                 false,
                 120000000000000000000000,
                 100000000000000000000,
@@ -1889,7 +1742,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order3 = newMockSandboxOrder(
+            memory order3 = newSandboxLimitOrder(
                 false,
                 100000000000000000000,
                 10000000000000000,
@@ -1903,7 +1756,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order4 = newMockSandboxOrder(
+            memory order4 = newSandboxLimitOrder(
                 false,
                 100000000000000000000,
                 10000000000000000,
@@ -1917,7 +1770,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice Dai/Weth sell limit order
         ///@dev amountInRemaining 1000 DAI amountOutRemaining 1 Wei
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order5 = newMockSandboxOrder(
+            memory order5 = newSandboxLimitOrder(
                 false,
                 100000000000000000000,
                 10000000000000000,
@@ -1932,7 +1785,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice USDC/Weth sell limit order
         ///@dev amountInRemaining 10000 USDC amountOutRemaining 1 Wei
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order6 = newMockSandboxOrder(
+            memory order6 = newSandboxLimitOrder(
                 false,
                 10000000000,
                 10000000000000000,
@@ -1946,7 +1799,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice USDC/Weth sell limit order
         ///@dev amountInRemaining 10000 USDC amountOutRemaining 1 Wei
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order7 = newMockSandboxOrder(
+            memory order7 = newSandboxLimitOrder(
                 false,
                 10000000000,
                 10000000000000000,
@@ -1962,7 +1815,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice USDC/Weth sell limit order
         ///@dev amountInRemaining 10000 USDC amountOutRemaining 1 Wei
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order8 = newMockSandboxOrder(
+            memory order8 = newSandboxLimitOrder(
                 false,
                 10000000000,
                 10000000000000000,
@@ -1984,7 +1837,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice Weth/Dai sell limit order
         ///@dev amountInRemaining 1000 WETH amountOutRemaining 120000.0 DAI
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order9 = newMockSandboxOrder(
+            memory order9 = newSandboxLimitOrder(
                 true,
                 100000000000000000000,
                 120000000000000000000000,
@@ -2006,7 +1859,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         ///@notice Weth/Dai sell limit order
         ///@dev amountInRemaining 1000 WETH amountOutRemaining 120000.0 DAI
         SandboxLimitOrderBook.SandboxLimitOrder
-            memory order10 = newMockSandboxOrder(
+            memory order10 = newSandboxLimitOrder(
                 true,
                 100000000000000000000,
                 120000000000000000000000,
@@ -2014,28 +1867,63 @@ contract SandboxLimitOrderRouterTest is DSTest {
                 DAI
             );
         {
-            cheatCodes.prank(mockOwner1);
-            orderIds[0] = placeMockOrder(order1);
-            cheatCodes.prank(mockOwner2);
-            orderIds[1] = placeMockOrder(order2);
-            cheatCodes.prank(mockOwner3);
-            orderIds[2] = placeMockOrder(order3);
-            cheatCodes.prank(mockOwner4);
-            orderIds[3] = placeMockOrder(order4);
-            cheatCodes.prank(mockOwner5);
-            orderIds[4] = placeMockOrder(order5);
-            cheatCodes.prank(mockOwner6);
-            orderIds[5] = placeMockOrder(order6);
-            cheatCodes.prank(mockOwner7);
-            orderIds[6] = placeMockOrder(order7);
-            cheatCodes.prank(mockOwner8);
-            orderIds[7] = placeMockOrder(order8);
-            cheatCodes.prank(mockOwner9);
-            orderIds[8] = placeMockOrder(order9);
-            cheatCodes.prank(mockOwner10);
-            orderIds[9] = placeMockOrder(order10);
+            orderIds[0] = placeMockOrderCustomOwner(order1, mockOwner1);
+            orderIds[1] = placeMockOrderCustomOwner(order2, mockOwner2);
+            orderIds[2] = placeMockOrderCustomOwner(order3, mockOwner3);
+            orderIds[3] = placeMockOrderCustomOwner(order4, mockOwner4);
+            orderIds[4] = placeMockOrderCustomOwner(order5, mockOwner5);
+            orderIds[5] = placeMockOrderCustomOwner(order6, mockOwner6);
+            orderIds[6] = placeMockOrderCustomOwner(order7, mockOwner7);
+            orderIds[7] = placeMockOrderCustomOwner(order8, mockOwner8);
+            orderIds[8] = placeMockOrderCustomOwner(order9, mockOwner9);
+            orderIds[9] = placeMockOrderCustomOwner(order10, mockOwner10);
         }
         return orderIds;
+    }
+
+    function placeMockOrderCustomOwner(
+        SandboxLimitOrderBook.SandboxLimitOrder memory order,
+        address owner
+    ) internal returns (bytes32 orderId) {
+        //create a new array of orders
+        SandboxLimitOrderBook.SandboxLimitOrder[]
+            memory orderGroup = new SandboxLimitOrderBook.SandboxLimitOrder[](
+                1
+            );
+        //add the order to the arrOrder and add the arrOrder to the orderGroup
+        orderGroup[0] = order;
+        cheatCodes.deal(address(owner), type(uint64).max);
+
+        order.executionCreditRemaining = type(uint64).max;
+        cheatCodes.prank(owner);
+        //place order
+        bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder{
+            value: type(uint64).max
+        }(orderGroup);
+
+        orderId = orderIds[0];
+    }
+
+    function placeMockOrder(
+        SandboxLimitOrderBook.SandboxLimitOrder memory order
+    ) internal returns (bytes32 orderId) {
+        //create a new array of orders
+        SandboxLimitOrderBook.SandboxLimitOrder[]
+            memory orderGroup = new SandboxLimitOrderBook.SandboxLimitOrder[](
+                1
+            );
+        //add the order to the arrOrder and add the arrOrder to the orderGroup
+        orderGroup[0] = order;
+        cheatCodes.deal(address(this), type(uint64).max);
+
+        order.executionCreditRemaining = type(uint64).max;
+
+        //place order
+        bytes32[] memory orderIds = orderBook.placeSandboxLimitOrder{
+            value: type(uint64).max
+        }(orderGroup);
+
+        orderId = orderIds[0];
     }
 }
 
@@ -2048,9 +1936,7 @@ contract LimitOrderExecutorWrapper is ConveyorExecutor {
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
-        address _gasOracle,
-        uint256 _limitOrderExecutionGasCost,
-        uint256 _sandboxLimitOrderExecutionGasCost
+        uint256 _executionCredit
     )
         ConveyorExecutor(
             _weth,
@@ -2059,9 +1945,7 @@ contract LimitOrderExecutorWrapper is ConveyorExecutor {
             _initBytecodes,
             _dexFactories,
             _isUniV2,
-            _gasOracle,
-            _limitOrderExecutionGasCost,
-            _sandboxLimitOrderExecutionGasCost
+            _executionCredit
         )
     {}
 
@@ -2078,18 +1962,16 @@ contract LimitOrderExecutorWrapper is ConveyorExecutor {
 
 contract SandboxLimitOrderBookWrapper is SandboxLimitOrderBook {
     constructor(
-        address _conveyorGasOracle,
         address _limitOrderExecutor,
         address _weth,
         address _usdc,
-        uint256 _sandboxLimitOrderExecutionGasCost
+        uint256 _minExecutionCredit
     )
         SandboxLimitOrderBook(
-            _conveyorGasOracle,
             _limitOrderExecutor,
             _weth,
             _usdc,
-            _sandboxLimitOrderExecutionGasCost
+            _minExecutionCredit
         )
     {}
 

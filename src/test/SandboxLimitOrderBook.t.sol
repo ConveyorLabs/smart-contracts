@@ -98,16 +98,14 @@ contract SandboxLimitOrderBookTest is DSTest {
             _hexDems,
             _dexFactories,
             _isUniV2,
-            aggregatorV3Address,
-            300000,
-            250000
+            1
         );
         sandboxLimitOrderBookWrapper = new SandboxLimitOrderBookWrapper(
             aggregatorV3Address,
             address(limitOrderExecutor),
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
-            250000
+            1
         );
 
         sandboxLimitOrderBook = ISandboxLimitOrderBook(
@@ -118,8 +116,6 @@ contract SandboxLimitOrderBookTest is DSTest {
         cheatCodes.makePersistent(address(limitOrderQuoter));
         cheatCodes.makePersistent(address(swapHelper));
         cheatCodes.makePersistent(address(sandboxLimitOrderBook));
-        cheatCodes.deal(address(this), type(uint128).max);
-        depositGasCreditsForMockOrders(type(uint64).max);
     }
 
     function testFrom64XToX16() public view {
@@ -156,7 +152,6 @@ contract SandboxLimitOrderBookTest is DSTest {
     }
 
     function testGetOrderIds() public {
-        cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
         //if the fuzzed amount is enough to complete the swap
         swapHelper.swapEthForTokenWithUniV2(1000 ether, swapToken);
@@ -200,8 +195,6 @@ contract SandboxLimitOrderBookTest is DSTest {
 
     ///@notice Refresh order test
     function testRefreshOrder() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(type(uint128).max);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, swapToken);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
@@ -214,20 +207,20 @@ contract SandboxLimitOrderBookTest is DSTest {
         bytes32[] memory orderBatch = new bytes32[](1);
 
         orderBatch[0] = orderId;
+        uint256 gasCreditsBefore;
         ///Ensure the order has been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             SandboxLimitOrderBook.SandboxLimitOrder
                 memory order0 = sandboxLimitOrderBook.getSandboxLimitOrderById(
                     orderBatch[i]
                 );
+            gasCreditsBefore += order0.executionCreditRemaining;
 
             assert(order0.orderId != bytes32(0));
         }
 
         cheatCodes.warp(block.timestamp + 2592000);
-        uint256 gasCreditsBefore = limitOrderExecutor.gasCreditBalance(
-            address(this)
-        );
+
         sandboxLimitOrderBook.refreshOrder(orderBatch);
 
         //Ensure the order was not canceled and lastRefresh timestamp is updated to block.timestamp
@@ -236,7 +229,7 @@ contract SandboxLimitOrderBookTest is DSTest {
                 memory orderPostRefresh = sandboxLimitOrderBook
                     .getSandboxLimitOrderById(orderBatch[i]);
             assert(
-                limitOrderExecutor.gasCreditBalance(address(this)) ==
+                orderPostRefresh.executionCreditRemaining ==
                     gasCreditsBefore - REFRESH_FEE
             );
             assert(orderPostRefresh.lastRefreshTimestamp == block.timestamp);
@@ -245,8 +238,6 @@ contract SandboxLimitOrderBookTest is DSTest {
 
     ///Test refresh order, cancel order since order has expired test
     function testRefreshOrder_CancelOrderOrderExpired() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(type(uint128).max);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, swapToken);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
@@ -286,8 +277,6 @@ contract SandboxLimitOrderBookTest is DSTest {
     //block 15233771
     ///Test refresh order, Order not refreshable since last refresh timestamp isn't beyond the refresh threshold from the current block.timestamp
     function testFailRefreshOrder_OrderNotEligibleForRefresh() public {
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(type(uint128).max);
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, swapToken);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
@@ -321,7 +310,6 @@ contract SandboxLimitOrderBookTest is DSTest {
         uint8 amountOutDivisor
     ) public {
         if (!(amountInDivisor == 0 || amountOutDivisor == 0)) {
-            cheatCodes.deal(address(this), MAX_UINT);
             IERC20(swapToken).approve(
                 address(limitOrderExecutor),
                 type(uint128).max
@@ -346,12 +334,16 @@ contract SandboxLimitOrderBookTest is DSTest {
                     memory orderGroup = new SandboxLimitOrderBook.SandboxLimitOrder[](
                         1
                     );
+                cheatCodes.deal(address(this), type(uint64).max);
+                order.executionCreditRemaining = type(uint64).max;
                 //add the order to the arrOrder and add the arrOrder to the orderGroup
                 orderGroup[0] = order;
 
                 //place order
                 bytes32[] memory orderIds = sandboxLimitOrderBookWrapper
-                    .placeSandboxLimitOrder(orderGroup);
+                    .placeSandboxLimitOrder{value: type(uint64).max}(
+                    orderGroup
+                );
                 bytes32 orderId = orderIds[0];
                 uint256 totalQuantityBefore = sandboxLimitOrderBookWrapper
                     .getTotalOrdersValue(swapToken);
@@ -375,11 +367,9 @@ contract SandboxLimitOrderBookTest is DSTest {
 
                 assertEq(
                     orderPostPartialFill.fillPercent,
-                    ConveyorMath.fromX64ToX16(
-                        ConveyorMath.divUU(
-                            uint128(amountOutTokenIn / amountInDivisor),
-                            uint128(amountOutTokenIn)
-                        )
+                    ConveyorMath.divUU(
+                        uint128(amountOutTokenIn / amountInDivisor),
+                        uint128(amountOutTokenIn)
                     )
                 );
 
@@ -402,7 +392,6 @@ contract SandboxLimitOrderBookTest is DSTest {
         uint112 amountInRemaining,
         uint112 amountOutRemaining
     ) public {
-        cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
         if (!(amountInRemaining < 10e21)) {
             //if the fuzzed amount is enough to complete the swap
@@ -425,12 +414,16 @@ contract SandboxLimitOrderBookTest is DSTest {
                     memory orderGroup = new SandboxLimitOrderBook.SandboxLimitOrder[](
                         1
                     );
+                cheatCodes.deal(address(this), type(uint64).max);
+                order.executionCreditRemaining = type(uint64).max;
                 //add the order to the arrOrder and add the arrOrder to the orderGroup
                 orderGroup[0] = order;
 
                 //place order
                 bytes32[] memory orderIds = sandboxLimitOrderBook
-                    .placeSandboxLimitOrder(orderGroup);
+                    .placeSandboxLimitOrder{value: type(uint64).max}(
+                    orderGroup
+                );
                 bytes32 orderId = orderIds[0];
 
                 //check that the orderId is not zero value
@@ -461,7 +454,6 @@ contract SandboxLimitOrderBookTest is DSTest {
     ) public {
         uint256 amountInRemaining = 1000000000000000000;
 
-        cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
         //if the fuzzed amount is enough to complete the swap
 
@@ -490,8 +482,6 @@ contract SandboxLimitOrderBookTest is DSTest {
     ) public {
         uint256 amountInRemaining = 1000000000000000000;
 
-        cheatCodes.deal(address(this), MAX_UINT);
-
         //if the fuzzed amount is enough to complete the swap
         try
             swapHelper.swapEthForTokenWithUniV2(amountInRemaining, swapToken)
@@ -519,7 +509,6 @@ contract SandboxLimitOrderBookTest is DSTest {
     function testCancelSandboxLimitOrder(uint256 amountOutRemaining) public {
         uint256 amountInRemaining = 1000000000000000000;
 
-        cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(
             address(limitOrderExecutor),
             type(uint128).max
@@ -542,12 +531,14 @@ contract SandboxLimitOrderBookTest is DSTest {
                 memory orderGroup = new SandboxLimitOrderBook.SandboxLimitOrder[](
                     1
                 );
+            cheatCodes.deal(address(this), type(uint64).max);
+            order.executionCreditRemaining = type(uint64).max;
             //add the order to the arrOrder and add the arrOrder to the orderGroup
             orderGroup[0] = order;
 
             //place order
             bytes32[] memory orderIds = sandboxLimitOrderBook
-                .placeSandboxLimitOrder(orderGroup);
+                .placeSandboxLimitOrder{value: type(uint64).max}(orderGroup);
             bytes32 orderId = orderIds[0];
 
             //check that the orderId is not zero value
@@ -590,7 +581,6 @@ contract SandboxLimitOrderBookTest is DSTest {
         uint128 newAmountInRemaining,
         uint128 newAmountOutRemaining
     ) public {
-        cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
         cheatCodes.deal(address(swapHelper), MAX_UINT);
@@ -639,9 +629,7 @@ contract SandboxLimitOrderBookTest is DSTest {
         SandboxLimitOrderBook.SandboxLimitOrder
             memory order = newSandboxLimitOrder(WETH, swapToken, 1 ether, 0);
 
-        depositGasCreditsForMockOrders(type(uint128).max);
-
-        cheatCodes.deal(address(this), type(uint128).max);
+        cheatCodes.deal(address(this), 1 ether);
 
         (bool depositSuccess, ) = address(WETH).call{value: 1 ether}(
             abi.encodeWithSignature("deposit()")
@@ -670,12 +658,9 @@ contract SandboxLimitOrderBookTest is DSTest {
         SandboxLimitOrderBook.SandboxLimitOrder
             memory order = newSandboxLimitOrder(WETH, swapToken, 10e16, 0);
 
-        cheatCodes.deal(address(this), MAX_UINT);
-
         IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
 
-        depositGasCreditsForMockOrders(type(uint128).max);
-
+        cheatCodes.deal(address(this), 1 ether);
         (bool depositSuccess, ) = address(WETH).call{value: 1 ether}(
             abi.encodeWithSignature("deposit()")
         );
@@ -714,6 +699,7 @@ contract SandboxLimitOrderBookTest is DSTest {
             lastRefreshTimestamp: 0,
             expirationTimestamp: uint32(MAX_UINT),
             feeRemaining: 0,
+            executionCreditRemaining: 0,
             amountInRemaining: amountInRemaining,
             amountOutRemaining: amountOutRemaining,
             owner: address(this),
@@ -733,21 +719,26 @@ contract SandboxLimitOrderBookTest is DSTest {
             );
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
-
+        cheatCodes.deal(address(this), type(uint64).max);
+        order.executionCreditRemaining = type(uint64).max;
         //place order
         bytes32[] memory orderIds = sandboxLimitOrderBook
-            .placeSandboxLimitOrder(orderGroup);
+            .placeSandboxLimitOrder{value: type(uint64).max}(orderGroup);
 
         orderId = orderIds[0];
     }
 
-    function depositGasCreditsForMockOrders(uint256 _amount) public {
-        cheatCodes.deal(address(this), _amount);
-        (bool depositSuccess, ) = address(limitOrderExecutor).call{
-            value: _amount
-        }(abi.encodeWithSignature("depositGasCredits()"));
-
-        require(depositSuccess, "error when depositing gas credits");
+    function placeMultipleMockOrder(
+        SandboxLimitOrderBook.SandboxLimitOrder[] memory orderGroup
+    ) internal returns (bytes32[] memory orderIds) {
+        cheatCodes.deal(address(this), type(uint32).max * orderGroup.length);
+        for (uint256 i = 0; i < orderGroup.length; i++) {
+            orderGroup[i].executionCreditRemaining = type(uint32).max;
+        }
+        //place order
+        orderIds = sandboxLimitOrderBook.placeSandboxLimitOrder{
+            value: type(uint32).max * orderGroup.length
+        }(orderGroup);
     }
 
     receive() external payable {}
@@ -759,14 +750,13 @@ contract SandboxLimitOrderBookWrapper is SandboxLimitOrderBook {
         address _limitOrderExecutor,
         address _weth,
         address _usdc,
-        uint256 _sandboxLimitOrderExecutionGasCost
+        uint256 _minExecutionCredit
     )
         SandboxLimitOrderBook(
-            _conveyorGasOracle,
             _limitOrderExecutor,
             _weth,
             _usdc,
-            _sandboxLimitOrderExecutionGasCost
+            _minExecutionCredit
         )
     {}
 

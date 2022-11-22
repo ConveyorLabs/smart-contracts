@@ -23,8 +23,6 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
     address public immutable LIMIT_ORDER_ROUTER;
     address public immutable SANDBOX_LIMIT_ORDER_BOOK;
     address public immutable SANDBOX_LIMIT_ORDER_ROUTER;
-    uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
-    uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 
     ///====================================Constants==============================================//
     ///@notice The Maximum Reward a beacon can receive from stoploss execution.
@@ -33,17 +31,6 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
      * The maximum reward a beacon can receive from stoploss execution is 0.05 ETH for stoploss orders as a preventative measure for artificial price manipulation.
      */
     uint128 private constant STOP_LOSS_MAX_BEACON_REWARD = 50000000000000000;
-
-    ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
-    ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
-    uint256 private constant GAS_CREDIT_BUFFER = 150;
-    uint256 private constant ONE_HUNDRED = 100;
-
-    ///@notice Mapping to hold gas credit balances for accounts.
-    mapping(address => uint256) public gasCreditBalance;
-
-    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
-    event GasCreditEvent(address indexed sender, uint256 indexed balance);
 
     //----------------------Modifiers------------------------------------//
 
@@ -114,7 +101,6 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
     ///@param _deploymentByteCodes The deployment bytecodes of all dex factory contracts.
     ///@param _dexFactories The Dex factory addresses.
     ///@param _isUniV2 Array of booleans indication whether the Dex is V2 architecture.
-    ///@param _chainLinkGasOracle Address for the chainlink fast gas oracle.
     constructor(
         address _weth,
         address _usdc,
@@ -122,15 +108,8 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
-        address _chainLinkGasOracle,
-        uint256 _limitOrderExecutionGasCost,
-        uint256 _sandboxLimitOrderExecutionGasCost
+        uint256 _minExecutionCredit
     ) LimitOrderSwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
-        require(
-            _chainLinkGasOracle != address(0),
-            "Invalid gas oracle address"
-        );
-
         require(_weth != address(0), "Invalid weth address");
         require(_usdc != address(0), "Invalid usdc address");
         require(
@@ -141,16 +120,13 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
         USDC = _usdc;
         WETH = _weth;
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
-        LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
-        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
 
         SANDBOX_LIMIT_ORDER_BOOK = address(
             new SandboxLimitOrderBook(
-                _chainLinkGasOracle,
                 address(this),
                 _weth,
                 _usdc,
-                _sandboxLimitOrderExecutionGasCost
+                _minExecutionCredit
             )
         );
 
@@ -161,173 +137,15 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
 
         LIMIT_ORDER_ROUTER = address(
             new LimitOrderRouter(
-                SANDBOX_LIMIT_ORDER_BOOK, ///@notice The SandboxLimitOrderBook inherits the conveyor gas oracle.
                 _weth,
                 _usdc,
                 address(this),
-                _limitOrderExecutionGasCost
+                _minExecutionCredit
             )
         );
 
         ///@notice assign the owner address
         owner = msg.sender;
-    }
-
-    //------------Gas Credit Functions------------------------
-
-    /// @notice Function to deposit gas credits.
-    /// @return success - Boolean that indicates if the deposit completed successfully.
-    function depositGasCredits() public payable returns (bool success) {
-        if (msg.value == 0) {
-            revert InsufficientMsgValue();
-        }
-        ///@notice Increment the gas credit balance for the user by the msg.value
-        uint256 newBalance = gasCreditBalance[msg.sender] + msg.value;
-
-        ///@notice Set the gas credit balance of the sender to the new balance.
-        gasCreditBalance[msg.sender] = newBalance;
-
-        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
-        emit GasCreditEvent(msg.sender, newBalance);
-
-        return true;
-    }
-
-    /**@notice Function to withdraw gas credits from an account's balance. If the withdraw results in the account's gas credit
-    balance required to execute existing orders, those orders must be canceled before the gas credits can be withdrawn.
-    */
-    /// @param value - The amount to withdraw from the gas credit balance.
-    /// @return success - Boolean that indicates if the withdraw completed successfully.
-    function withdrawGasCredits(uint256 value)
-        public
-        nonReentrant
-        returns (bool success)
-    {
-        uint256 userGasCreditBalance = gasCreditBalance[msg.sender];
-        ///@notice Require that account's credit balance is larger than withdraw amount
-        if (userGasCreditBalance < value) {
-            revert InsufficientGasCreditBalance(
-                msg.sender,
-                userGasCreditBalance,
-                value
-            );
-        }
-
-        ///@notice Get the current gas price from the v3 Aggregator.
-        uint256 gasPrice = IConveyorGasOracle(SANDBOX_LIMIT_ORDER_BOOK)
-            .getGasPrice();
-
-        ///@notice Require that account has enough gas for order execution after the gas credit withdrawal.
-        if (
-            !(
-                _hasMinGasCredits(
-                    gasPrice,
-                    msg.sender,
-                    userGasCreditBalance - value,
-                    GAS_CREDIT_BUFFER
-                )
-            )
-        ) {
-            uint256 minGasCredits = _calculateMinGasCredits(
-                gasPrice,
-                msg.sender,
-                GAS_CREDIT_BUFFER
-            );
-
-            revert InsufficientGasCreditBalance(
-                msg.sender,
-                userGasCreditBalance,
-                minGasCredits
-            );
-        }
-
-        ///@notice Decrease the account's gas credit balance
-        uint256 newBalance = gasCreditBalance[msg.sender] - value;
-
-        ///@notice Set the senders new gas credit balance.
-        gasCreditBalance[msg.sender] = newBalance;
-
-        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
-        emit GasCreditEvent(msg.sender, newBalance);
-
-        ///@notice Transfer the withdraw amount to the account.
-        _safeTransferETH(msg.sender, value);
-
-        return true;
-    }
-
-    ///@notice Function to update a orderOwners Gas credit balance.
-    ///@dev This function is only externally callable from the SandboxLimitOrderBook & LimitOrderRouter contract.
-    ///@param orderOwner The address of the order owner.
-    ///@param newBalance The the new gas credit balance for the order owner.
-    function updateGasCreditBalance(address orderOwner, uint256 newBalance)
-        external
-        onlyOrderBook
-    {
-        gasCreditBalance[orderOwner] = newBalance;
-    }
-
-    ///@notice Function to transfer the execution fee to the off-chain executor.
-    ///@dev updateGasCreditBalance must be called before this function.
-    ///@param receiver - The address of the off-chain executor.
-    ///@param value - The amount to transfer to the off-chain executor.
-    function transferGasCreditFees(address receiver, uint256 value)
-        external
-        onlyOrderBook
-    {
-        ///@notice Transfer the withdraw amount to the account.
-        _safeTransferETH(receiver, value);
-    }
-
-    /// @notice Internal helper function to approximate the minimum gas credits needed for order execution.
-    /// @param gasPrice - The Current gas price in gwei
-    /// @param userAddress - The account address that will be checked for minimum gas credits.
-    /** @param multiplier - Multiplier value represented in e^3 to adjust the minimum gas requirement to 
-        fulfill an order, accounting for potential fluctuations in gas price. For example, a multiplier of `1.5` 
-        will be represented as `150` in the contract. **/
-    /// @return minGasCredits - Total ETH required to cover the minimum gas credits for order execution.
-    function _calculateMinGasCredits(
-        uint256 gasPrice,
-        address userAddress,
-        uint256 multiplier
-    ) internal view returns (uint256 minGasCredits) {
-        ///@notice Get the total amount of active orders for the userAddress
-        uint256 totalLimitOrdersCount = ILimitOrderBook(LIMIT_ORDER_ROUTER)
-            .totalOrdersPerAddress(userAddress);
-
-        uint256 totalSandboxLimitOrdersCound = ISandboxLimitOrderBook(
-            SANDBOX_LIMIT_ORDER_BOOK
-        ).totalOrdersPerAddress(userAddress);
-
-        ///@notice Calculate the minimum gas credits needed for execution of all active orders for the userAddress.
-        uint256 minimumLimitGasCredits = totalLimitOrdersCount *
-            gasPrice *
-            LIMIT_ORDER_EXECUTION_GAS_COST;
-        uint256 minimumSandboxLimitGasCredits = totalSandboxLimitOrdersCound *
-            gasPrice *
-            SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
-
-        uint256 minimumGasCredits = ((minimumLimitGasCredits +
-            minimumSandboxLimitGasCredits) * multiplier) / ONE_HUNDRED;
-
-        ///@notice Divide by 100 to adjust the minimumGasCredits to totalOrderCount*gasPrice*executionCost*1.5.
-        return minimumGasCredits;
-    }
-
-    /// @notice Internal helper function to check if user has the minimum gas credit requirement for all current orders.
-    /// @param gasPrice - The current gas price in gwei.
-    /// @param userAddress - The account address that will be checked for minimum gas credits.
-    /// @param userGasCreditBalance - The current gas credit balance of the userAddress.
-    /// @return bool - Indicates whether the user has the minimum gas credit requirements.
-    function _hasMinGasCredits(
-        uint256 gasPrice,
-        address userAddress,
-        uint256 userGasCreditBalance,
-        uint256 multipler
-    ) internal view returns (bool) {
-        return
-            userGasCreditBalance >=
-            _calculateMinGasCredits(gasPrice, userAddress, multipler);
     }
 
     ///@notice Function to execute a batch of Token to Weth Orders.

@@ -28,6 +28,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
 
     Swap swapHelper;
     CheatCodes cheatCodes;
+    uint256 forkId;
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
@@ -41,6 +42,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         conveyorSwapAggregator = IConveyorSwapAggregator(
             address(new ConveyorSwapAggregator())
         );
+        forkId = cheatCodes.activeFork();
         cheatCodes.makePersistent(address(conveyorSwapAggregator));
         cheatCodes.makePersistent(address(this));
         cheatCodes.makePersistent(
@@ -49,10 +51,11 @@ contract ConveyorSwapAggregatorTest is DSTest {
         cheatCodes.makePersistent(
             address(conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR())
         );
+        cheatCodes.makePersistent(address(swapHelper));
     }
 
     function testSwapUniv2SingleLP() public {
-        // cheatCodes.createSelectFork("mainnet", 16000200);
+        cheatCodes.rollFork(forkId, 16000200);
 
         cheatCodes.deal(address(this), type(uint128).max);
         address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
@@ -88,7 +91,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
     }
 
     function testSwapUniv2MultiLP() public {
-        // cheatCodes.createSelectFork("mainnet", 16000233);
+        cheatCodes.rollFork(forkId, 16000233);
 
         cheatCodes.deal(address(this), type(uint128).max);
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -169,7 +172,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         );
         console.log(IERC20(tokenIn).balanceOf(address(this)));
 
-        uint256 forkId = cheatCodes.activeFork();
+        forkId = cheatCodes.activeFork();
         cheatCodes.rollFork(forkId, 16000218);
         console.log(IERC20(tokenIn).balanceOf(address(this)));
         ConveyorSwapAggregator.SwapAggregatorMulticall

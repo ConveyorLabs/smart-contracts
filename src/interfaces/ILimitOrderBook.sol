@@ -10,13 +10,14 @@ interface ILimitOrderBook {
 
     function placeLimitOrder(LimitOrderBook.LimitOrder[] calldata orderGroup)
         external
+        payable
         returns (bytes32[] memory);
 
     function updateOrder(
         bytes32 orderId,
         uint128 price,
         uint128 quantity
-    ) external;
+    ) external payable;
 
     function cancelOrder(bytes32 orderId) external;
 
