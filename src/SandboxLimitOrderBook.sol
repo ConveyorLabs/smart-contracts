@@ -515,7 +515,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
             revert OrderDoesNotExist(orderId);
         }
 
-        if (order.owner == msg.sender) {
+        if (order.owner != msg.sender) {
             revert MsgSenderIsNotOrderOwner();
         }
 

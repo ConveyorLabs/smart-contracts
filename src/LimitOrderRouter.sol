@@ -343,7 +343,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
         ///@notice Calculate the execution gas compensation.
         uint256 executionGasCompensation;
-        for (uint256 i = 0; i < orderIds.length; ) {
+        for (uint256 i = 0; i < orders.length; ) {
             executionGasCompensation += orders[i].executionCredit;
             unchecked {
                 ++i;
