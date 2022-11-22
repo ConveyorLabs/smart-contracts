@@ -668,7 +668,7 @@ contract LimitOrderBook {
         uint256 orderOffset,
         uint256 length
     ) public view returns (bytes32[] memory) {
-        bytes32[] memory allOrderIds = addressToAllOrderIds[owner];
+        bytes32[] memory allOrderIds = addressToAllOrderIds[_owner];
 
         uint256 orderIdIndex = 0;
         bytes32[] memory orderIds = new bytes32[](allOrderIds.length);
