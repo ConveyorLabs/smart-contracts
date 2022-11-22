@@ -759,11 +759,13 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         );
 
         ///@notice Post execution, assert that all of the order owners have received >= their exact amount out
-        _validateSandboxExecutionAndFillOrders(
+        uint256 executionGasCompensation=_validateSandboxExecutionAndFillOrders(
             sandboxMulticall.orderIdBundles,
             sandboxMulticall.fillAmounts,
             preSandboxExecutionState
         );
+
+        _safeTransferETH(tx.origin, executionGasCompensation);
 
         
     }
@@ -873,7 +875,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         bytes32[][] calldata orderIdBundles,
         uint128[] calldata fillAmounts,
         PreSandboxExecutionState memory preSandboxExecutionState
-    ) internal {
+    ) internal returns (uint256 cumulativeExecutionCreditCompensation) {
         ///@notice Initialize the orderIdIndex to 0.
         ///@dev orderIdIndex is used to track the current index of the sandboxLimitOrders array in the preSandboxExecutionState.
         uint256 orderIdIndex = 0;
@@ -882,7 +884,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
             bytes32[] memory orderIdBundle = orderIdBundles[i];
             ///@notice If the bundle length is greater than 1, then the validate a multi-order bundle.
             if (orderIdBundle.length > 1) {
-                _validateMultiOrderBundle(
+                cumulativeExecutionCreditCompensation+=_validateMultiOrderBundle(
                     orderIdIndex,
                     orderIdBundle.length,
                     fillAmounts,
@@ -892,7 +894,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
                 orderIdIndex += orderIdBundle.length - 1;
                 ///@notice Else validate a single order bundle.
             } else {
-                _validateSingleOrderBundle(
+                cumulativeExecutionCreditCompensation+=_validateSingleOrderBundle(
                     preSandboxExecutionState.sandboxLimitOrders[orderIdIndex],
                     fillAmounts[orderIdIndex],
                     preSandboxExecutionState.initialTokenInBalances[
@@ -922,7 +924,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         uint128 fillAmount,
         uint256 initialTokenInBalance,
         uint256 initialTokenOutBalance
-    ) internal {
+    ) internal returns (uint256 executionCompensation){
         ///@notice Cache values for post execution assertions
         uint128 amountOutRequired = uint128(
             ConveyorMath.mul64U(
@@ -1127,9 +1129,10 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
             ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
             if (prevOrder.amountInRemaining == fillAmounts[offset - 1]) {
                 _resolveCompletedOrder(prevOrder.orderId);
+                cumulativeExecutionCompensation += prevOrder.executionCredit
             } else {
                 ///@notice Update the state of the order to parial filled quantities.
-                _partialFillSandboxLimitOrder(
+                cumulativeExecutionCompensation+=_partialFillSandboxLimitOrder(
                     uint128(fillAmounts[offset - 1]),
                     uint128(
                         ConveyorMath.mul64U(
@@ -1137,7 +1140,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
                                 prevOrder.amountOutRemaining,
                                 prevOrder.amountInRemaining
                             ),
-                            fillAmounts[offset]
+                            fillAmounts[offset-1]
                         )
                     ),
                     prevOrder.orderId
@@ -1158,7 +1161,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         uint128 amountInFilled,
         uint128 amountOutFilled,
         bytes32 orderId
-    ) internal returns  {
+    ) internal returns (uint256)  {
         SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
 
         ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
@@ -1172,15 +1175,12 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         uint128 amountInRemaining = order.amountInRemaining;
         ///@notice Cache the Orders feeRemaining.
         uint128 feeRemaining = order.feeRemaining;
-        uint32 percentFilled = order.fillPercent !=0 ? (uint64(order.fillPercent)*ConveyorMath
-            .fromX64ToX16(
+        uint32 percentFilled = order.fillPercent !=0 ? ConveyorMath.mul64x64(
                 ConveyorMath.divUU(amountInFilled, amountInRemaining)
-            ))>>16 : ConveyorMath
-            .fromX64ToX16(
-                ConveyorMath.divUU(amountInFilled, amountInRemaining)
-            );
+            ) : ConveyorMath.divUU(amountInFilled, amountInRemaining);
         ///@notice Update the orders fillPercent to amountInFilled/amountInRemaining as 16.16 fixed point
         orderIdToSandboxLimitOrder[orderId].fillPercent += fillPercent;
+
         ///@notice Update the orders amountInRemaining to amountInRemaining - amountInFilled.
         orderIdToSandboxLimitOrder[orderId].amountInRemaining =
             order.amountInRemaining -
@@ -1203,6 +1203,11 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
                     feeRemaining
                 )
             );
+        uint256 executionCreditCompensation=ConveyorMath.mul64U(percentFilled, order.executionCredit);
+        
+        ///@notice Decrement the execution credit by the proportion of the fillAmount/amountInRemaining(at placement time)
+        orderIdToSandboxLimitOrder[order.orderId].executionCredit-= executionCreditCompensation;
+        return executionCreditCompensation
     }
 
     ///@notice Function to remove an order from the system.
