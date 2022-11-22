@@ -17,7 +17,7 @@ interface ILimitOrderBook {
         bytes32 orderId,
         uint128 price,
         uint128 quantity
-    ) external;
+    ) external payable;
 
     function cancelOrder(bytes32 orderId) external;
 
