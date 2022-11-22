@@ -714,6 +714,7 @@ contract SandboxLimitOrderBookTest is DSTest {
             lastRefreshTimestamp: 0,
             expirationTimestamp: uint32(MAX_UINT),
             feeRemaining: 0,
+            executionCreditRemaining: 0,
             amountInRemaining: amountInRemaining,
             amountOutRemaining: amountOutRemaining,
             owner: address(this),
@@ -759,14 +760,14 @@ contract SandboxLimitOrderBookWrapper is SandboxLimitOrderBook {
         address _limitOrderExecutor,
         address _weth,
         address _usdc,
-        uint256 _sandboxLimitOrderExecutionGasCost
+        uint256 _minExecutionCredit
     )
         SandboxLimitOrderBook(
             _conveyorGasOracle,
             _limitOrderExecutor,
             _weth,
             _usdc,
-            _sandboxLimitOrderExecutionGasCost
+            _minExecutionCredit
         )
     {}
 

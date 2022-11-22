@@ -173,76 +173,76 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
         }
     }
 
-    /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation.
-    /// @dev amountIn must be in WETH represented in 18 decimal form.
-    /// @dev This calculation assumes that all values are in a 64x64 fixed point uint128 representation.
-    /** @param amountIn - Amount of Weth represented as a 64x64 fixed point value to calculate the fee that will be applied 
-    to the amountOut of an executed order. */
-    ///@param usdc - Address of USDC
-    ///@param weth - Address of Weth
-    /// @return calculated_fee_64x64 -  Returns the fee percent that is applied to the amountOut realized from an executed.
-    function calculateFeeNew(
-        uint128 amountIn,
-        address usdc,
-        address weth
-    ) public view returns (uint128) {
-        uint128 calculated_fee_64x64;
-        if (amountIn == 0) {
-            revert AmountInIsZero();
-        }
+    // /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation.
+    // /// @dev amountIn must be in WETH represented in 18 decimal form.
+    // /// @dev This calculation assumes that all values are in a 64x64 fixed point uint128 representation.
+    // /** @param amountIn - Amount of Weth represented as a 64x64 fixed point value to calculate the fee that will be applied
+    // to the amountOut of an executed order. */
+    // ///@param usdc - Address of USDC
+    // ///@param weth - Address of Weth
+    // /// @return calculated_fee_64x64 -  Returns the fee percent that is applied to the amountOut realized from an executed.
+    // function calculateFeeNew(
+    //     uint128 amountIn,
+    //     address usdc,
+    //     address weth
+    // ) public view returns (uint128) {
+    //     uint128 calculated_fee_64x64;
+    //     if (amountIn == 0) {
+    //         revert AmountInIsZero();
+    //     }
 
-        ///@notice Initialize spot reserve structure to retrive the spot price from uni v2
-        (SpotReserve memory _spRes, ) = _calculateV2SpotPrice(
-            weth,
-            usdc,
-            dexes[0].factoryAddress,
-            dexes[0].initBytecode
-        );
+    //     ///@notice Initialize spot reserve structure to retrive the spot price from uni v2
+    //     (SpotReserve memory _spRes, ) = _calculateV2SpotPrice(
+    //         weth,
+    //         usdc,
+    //         dexes[0].factoryAddress,
+    //         dexes[0].initBytecode
+    //     );
 
-        ///@notice Cache the spot price
-        uint256 spotPrice = _spRes.spotPrice;
+    //     ///@notice Cache the spot price
+    //     uint256 spotPrice = _spRes.spotPrice;
 
-        ///@notice The SpotPrice is represented as a 128x128 fixed point value. To derive the amount in USDC, multiply spotPrice*amountIn and adjust to base 10
-        uint256 amountInUSDCDollarValue = ConveyorMath.mul128U(
-            spotPrice,
-            amountIn
-        ) / uint256(10**18);
+    //     ///@notice The SpotPrice is represented as a 128x128 fixed point value. To derive the amount in USDC, multiply spotPrice*amountIn and adjust to base 10
+    //     uint256 amountInUSDCDollarValue = ConveyorMath.mul128U(
+    //         spotPrice,
+    //         amountIn
+    //     ) / uint256(10**18);
 
-        ///@notice if usdc value of trade is >= 1,000,000 set static fee of 0.001
-        if (amountInUSDCDollarValue >= 1000000) {
-            return MIN_FEE_64x64;
-        }
+    //     ///@notice if usdc value of trade is >= 1,000,000 set static fee of 0.001
+    //     if (amountInUSDCDollarValue >= 1000000) {
+    //         return MIN_FEE_64x64;
+    //     }
 
-        uint256 numerator = 4611686018427388000;
+    //     uint256 numerator = 4611686018427388000;
 
-        ///@notice 0.9 represented as 128.128 fixed point
-        // uint256 numerator = ZERO_POINT_NINE;
+    //     ///@notice 0.9 represented as 128.128 fixed point
+    //     // uint256 numerator = ZERO_POINT_NINE;
 
-        ///@notice Exponent= usdAmount/750000
-        uint128 exponent = uint128(
-            ConveyorMath.divUU(amountInUSDCDollarValue, 100000)
-        );
+    //     ///@notice Exponent= usdAmount/750000
+    //     uint128 exponent = uint128(
+    //         ConveyorMath.divUU(amountInUSDCDollarValue, 100000)
+    //     );
 
-        // ///@notice This is to prevent overflow, and order is of sufficient size to receive 0.001 fee
-        if (exponent >= 0x400000000000000000) {
-            return MIN_FEE_64x64;
-        }
+    //     // ///@notice This is to prevent overflow, and order is of sufficient size to receive 0.001 fee
+    //     if (exponent >= 0x400000000000000000) {
+    //         return MIN_FEE_64x64;
+    //     }
 
-        ///@notice denominator = ( e^(exponent))
-        uint128 denominator = 
-            ONE_POINT_TWO_FIVE,
-            onveyorMath.exp(exponent);
+    //     ///@notice denominator = ( e^(exponent))
+    //     uint128 denominator =
+    //         ONE_POINT_TWO_FIVE,
+    //         onveyorMath.exp(exponent);
 
-        // ///@notice divide numerator by denominator
-        uint256 rationalFraction = ConveyorMath.div64x64(
-            numerator,
-            denominator
-        );
+    //     // ///@notice divide numerator by denominator
+    //     uint256 rationalFraction = ConveyorMath.div64x64(
+    //         numerator,
+    //         denominator
+    //     );
 
-        uint128 calculated_fee_64x64 = ConveyorMath.add64x64(rationalFraction,4611686018427388000);
+    //     uint128 calculated_fee_64x64 = ConveyorMath.add64x64(rationalFraction,4611686018427388000);
 
-        return calculated_fee_64x64;
-    }
+    //     return calculated_fee_64x64;
+    // }
 
     /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation.
     /// @dev amountIn must be in WETH represented in 18 decimal form.

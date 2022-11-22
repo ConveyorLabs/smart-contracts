@@ -29,7 +29,7 @@ interface ISandboxLimitOrderBook {
         bytes32 orderId,
         uint128 amountInRemaining,
         uint128 amountOutRemaining
-    ) external;
+    ) external payable;
 
     function validateAndCancelOrder(bytes32 orderId) external returns (bool);
 

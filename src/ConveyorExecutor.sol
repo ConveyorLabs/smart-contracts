@@ -23,8 +23,6 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
     address public immutable LIMIT_ORDER_ROUTER;
     address public immutable SANDBOX_LIMIT_ORDER_BOOK;
     address public immutable SANDBOX_LIMIT_ORDER_ROUTER;
-    uint256 immutable LIMIT_ORDER_EXECUTION_GAS_COST;
-    uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
 
     ///====================================Constants==============================================//
     ///@notice The Maximum Reward a beacon can receive from stoploss execution.
@@ -33,17 +31,6 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
      * The maximum reward a beacon can receive from stoploss execution is 0.05 ETH for stoploss orders as a preventative measure for artificial price manipulation.
      */
     uint128 private constant STOP_LOSS_MAX_BEACON_REWARD = 50000000000000000;
-
-    ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
-    ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
-    uint256 private constant GAS_CREDIT_BUFFER = 150;
-    uint256 private constant ONE_HUNDRED = 100;
-
-    ///@notice Mapping to hold gas credit balances for accounts.
-    mapping(address => uint256) public gasCreditBalance;
-
-    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
-    event GasCreditEvent(address indexed sender, uint256 indexed balance);
 
     //----------------------Modifiers------------------------------------//
 
@@ -114,7 +101,6 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
     ///@param _deploymentByteCodes The deployment bytecodes of all dex factory contracts.
     ///@param _dexFactories The Dex factory addresses.
     ///@param _isUniV2 Array of booleans indication whether the Dex is V2 architecture.
-    ///@param _chainLinkGasOracle Address for the chainlink fast gas oracle.
     constructor(
         address _weth,
         address _usdc,
@@ -122,15 +108,8 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
-        address _chainLinkGasOracle,
-        uint256 _limitOrderExecutionGasCost,
-        uint256 _sandboxLimitOrderExecutionGasCost
+        uint256 _minExecutionCredit
     ) LimitOrderSwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
-        require(
-            _chainLinkGasOracle != address(0),
-            "Invalid gas oracle address"
-        );
-
         require(_weth != address(0), "Invalid weth address");
         require(_usdc != address(0), "Invalid usdc address");
         require(
@@ -141,16 +120,13 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
         USDC = _usdc;
         WETH = _weth;
         LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
-        LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
-        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
 
         SANDBOX_LIMIT_ORDER_BOOK = address(
             new SandboxLimitOrderBook(
-                _chainLinkGasOracle,
                 address(this),
                 _weth,
                 _usdc,
-                _sandboxLimitOrderExecutionGasCost
+                _minExecutionCredit
             )
         );
 
@@ -165,7 +141,7 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
                 _weth,
                 _usdc,
                 address(this),
-                _limitOrderExecutionGasCost
+                _minExecutionCredit
             )
         );
 

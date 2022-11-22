@@ -25,26 +25,6 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         _;
     }
 
-    ///@notice Modifier function to only allow the owner of the contract to call specific functions
-    ///@dev Functions with onlyOwner: withdrawConveyorFees, transferOwnership.
-    modifier onlyOwner() {
-        if (msg.sender != owner) {
-            revert MsgSenderIsNotOwner();
-        }
-
-        _;
-    }
-
-    ///@notice Modifier to restrict reentrancy into a function.
-    modifier nonReentrant() {
-        if (reentrancyStatus) {
-            revert Reentrancy();
-        }
-        reentrancyStatus = true;
-        _;
-        reentrancyStatus = false;
-    }
-
     ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlyLimitOrderExecutor() {
         if (msg.sender != LIMIT_ORDER_EXECUTOR) {
@@ -64,38 +44,18 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
     // ========================================= State Variables =============================================
 
-    ///@notice Boolean responsible for indicating if a function has been entered when the nonReentrant modifier is used.
-    bool reentrancyStatus = false;
-
-    ///@notice Temporary owner storage variable when transferring ownership of the contract.
-    address tempOwner;
-
-    ///@notice The owner of the Order Router contract
-    ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
-    address owner;
-
     // ========================================= Constructor =============================================
 
-    ///@param _gasOracle - Address of the ChainLink fast gas oracle.
     ///@param _weth - Address of the wrapped native token for the chain.
     ///@param _usdc - Address of the USD pegged token for the chain.
     ///@param _limitOrderExecutor - Address of the limit order executor contract
-    ///@param _limitOrderExecutionGasCost - The amount of gas required to execute a limit order.
+    ///@param _minExecutionCredit - Minimum amount of credit that must be provided to the limit order executor contract.
     constructor(
-        address _gasOracle,
         address _weth,
         address _usdc,
         address _limitOrderExecutor,
-        uint256 _limitOrderExecutionGasCost
-    )
-        LimitOrderBook(
-            _gasOracle,
-            _limitOrderExecutor,
-            _weth,
-            _usdc,
-            _limitOrderExecutionGasCost
-        )
-    {
+        uint256 _minExecutionCredit
+    ) LimitOrderBook(_limitOrderExecutor, _weth, _usdc, _minExecutionCredit) {
         ///@notice Require that deployment addresses are not zero
         ///@dev All other addresses are being asserted in the limit order executor, which deploys the limit order router
         require(
@@ -104,12 +64,9 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         );
 
         ///@notice Set the owner of the contract
+        ///TODO:Revisit
         owner = msg.sender;
     }
-
-    /**@notice Event that is emitted when the minExecutionCredit Storage variable is changed by the contract owner. 
-     */
-    event MinExecutionCreditUpdated(uint256 newMinExecutionCredit, uint256 oldMinExecutionCredit);
 
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
@@ -131,7 +88,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
             }
         }
 
-        _safeTransferETH(msg.sender,totalRefreshFees);
+        _safeTransferETH(msg.sender, totalRefreshFees);
     }
 
     ///@notice Internal helper function to refresh a Limit Order.
@@ -151,9 +108,9 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
         if (executionCreditBalance < REFRESH_FEE) {
             return _cancelLimitOrderViaExecutor(order);
-        }else{
-            if(executionCreditBalance-REFRESH_FEE < minExecutionCredit){
-                return _cancelSandboxLimitOrderViaExecutor(order);
+        } else {
+            if (executionCreditBalance - REFRESH_FEE < minExecutionCredit) {
+                return _cancelLimitOrderViaExecutor(order);
             }
         }
 
@@ -166,9 +123,11 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
             revert OrderNotEligibleForRefresh(order.orderId);
         }
 
-        
         orderIdToLimitOrder[order.orderId].executionCredit -= REFRESH_FEE;
-        emit OrderExecutionCreditUpdated(order.orderId,executionCreditBalance-REFRESH_FEE);
+        emit OrderExecutionCreditUpdated(
+            order.orderId,
+            executionCreditBalance - REFRESH_FEE
+        );
         ///@notice update the order's last refresh timestamp
         ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
         orderIdToLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
@@ -198,10 +157,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
         if (IERC20(order.tokenIn).balanceOf(order.owner) < order.quantity) {
             ///@notice Remove the order from the limit order system.
-            _safeTransferETH(
-                msg.sender,
-                _cancelLimitOrderViaExecutor(order)
-            );
+            _safeTransferETH(msg.sender, _cancelLimitOrderViaExecutor(order));
 
             return true;
         }
@@ -223,17 +179,17 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         addressToOrderIds[msg.sender][order.orderId] = OrderType
             .CanceledLimitOrder;
 
-        uint256 executionCredits = order.executionCredit;
+        uint256 executionCredit = order.executionCredit;
 
         ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
-        if (executionCredits > REFRESH_FEE) {
+        if (executionCredit > REFRESH_FEE) {
             ///@notice Decrement from the order owner's gas credit balance.
-            orderIdToLimitOrder[order.orderId]-= REFRESH_FEE;
+            orderIdToLimitOrder[order.orderId] -= REFRESH_FEE;
             executorFee = REFRESH_FEE;
             _safeTransferETH(order.owner, executionCredit - REFRESH_FEE);
         } else {
             ///@notice Otherwise, decrement the entire gas credit balance.
-            orderIdToLimitOrder[order.orderId]= 0;
+            orderIdToLimitOrder[order.orderId] = 0;
             executorFee = order.executionCredit;
         }
 
@@ -318,7 +274,6 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         nonReentrant
         onlyEOA
     {
-        
         ///@notice Revert if the length of the orderIds array is 0.
         if (orderIds.length == 0) {
             revert InvalidCalldata();
@@ -368,8 +323,6 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
             ).executeTokenToTokenOrders(orders);
         }
 
-        
-
         ///@notice Iterate through all orderIds in the batch and delete the orders from queue post execution.
         for (uint256 i = 0; i < orderIds.length; ) {
             bytes32 orderId = orderIds[i];
@@ -386,7 +339,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
         ///@notice Calculate the execution gas compensation.
         uint256 executionGasCompensation;
-        for(uint256 i=0; i<orderIds.length;){
+        for (uint256 i = 0; i < orderIds.length; ) {
             executionGasCompensation += orders[i].executionCredit;
             unchecked {
                 ++i;
@@ -395,7 +348,6 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
         _safeTransferETH(tx.origin, executionGasCompensation);
     }
-
 
     ///@notice Function to confirm ownership transfer of the contract.
     function confirmTransferOwnership() external {
@@ -412,11 +364,5 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
             revert InvalidAddress();
         }
         tempOwner = newOwner;
-    }
-
-    function setMinExecutionCredit(uint256 newMinExecutionCredit) external onlyOwner {
-        uint256 oldMinExecutionCredit = minExecutionCredit;
-        minExecutionCredit= newMinExecutionCredit;
-        emit MinExecutionCreditUpdated(newMinCredit, oldMinExecutionCredit)
     }
 }

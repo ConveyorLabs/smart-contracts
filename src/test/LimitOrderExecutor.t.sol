@@ -102,10 +102,7 @@ contract LimitOrderExecutorTest is DSTest {
             address(limitOrderQuoter),
             _hexDems,
             _dexFactories,
-            _isUniV2,
-            aggregatorV3Address,
-            300000,
-            250000
+            _isUniV2
         );
 
         conveyorGasOracle = IConveyorGasOracle(
@@ -117,157 +114,12 @@ contract LimitOrderExecutorTest is DSTest {
         );
         //Wrapper contract to test internal functions
         limitOrderRouterWrapper = new LimitOrderRouter(
-            aggregatorV3Address,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
-            address(limitOrderExecutor),
-            300000
+            address(limitOrderExecutor)
         );
 
         orderBook = ILimitOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
-    }
-
-    ///@notice Test min gas credits
-    function testMinGasCredits() public {
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
-
-        //swap 20 ether for the swap token
-        swapHelper.swapEthForTokenWithUniV2(2000 ether, DAI);
-
-        //Create a new mock order
-        LimitOrderBook.LimitOrder memory order = newMockOrder(
-            DAI,
-            WETH,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 WETH
-            3000,
-            0,
-            0,
-            MAX_U32
-        );
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(type(uint128).max);
-
-        placeMockOrder(order);
-
-        //Pass in a sample min gas credits that is sufficiently above the threshold
-        bool hasMinGasCredits = limitOrderExecutor.hasMinGasCredits(
-            50000000000,
-            address(this),
-            type(uint128).max,
-            150
-        );
-
-        assert(hasMinGasCredits);
-    }
-
-    function testFailMinGasCredits() public {
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
-
-        //swap 20 ether for the swap token
-        swapHelper.swapEthForTokenWithUniV2(2000 ether, DAI);
-
-        //Create a new mock order
-        LimitOrderBook.LimitOrder memory order = newMockOrder(
-            DAI,
-            WETH,
-            1,
-            false,
-            false,
-            0,
-            1,
-            5000000000000000000000, //5000 WETH
-            3000,
-            0,
-            0,
-            MAX_U32
-        );
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(type(uint128).max);
-
-        placeMockOrder(order);
-
-        //Pass in a sample min gas credits that is sufficiently above the threshold
-        bool hasMinGasCredits = limitOrderExecutor.hasMinGasCredits(
-            50000000000,
-            address(this),
-            1,
-            150
-        );
-
-        assertTrue(hasMinGasCredits);
-    }
-
-    ///@notice Test calculate min gas credits
-    function testCalculateMinGasCredits(uint128 _amount) public {
-        cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(20000 ether, swapToken);
-        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
-
-        //create a new order
-        LimitOrderBook.LimitOrder memory order = newOrder(
-            swapToken,
-            WETH,
-            245000000000000000000,
-            5,
-            5
-        );
-
-        //create a new order
-        LimitOrderBook.LimitOrder memory order1 = newOrder(
-            swapToken,
-            WETH,
-            245000000000000000000,
-            5,
-            5
-        );
-
-        cheatCodes.deal(address(this), MAX_UINT);
-        depositGasCreditsForMockOrders(type(uint128).max);
-        //place a mock order
-        placeMockOrder(order);
-        placeMockOrder(order1);
-        bool overflow;
-        assembly {
-            overflow := lt(_amount, add(_amount, 1))
-        }
-
-        uint256 totalOrdersCount = 2;
-        uint256 executionCost = 300000;
-        uint256 multiplier = 150;
-
-        if (!overflow) {
-            if (_amount > 0) {
-                unchecked {
-                    if (
-                        totalOrdersCount *
-                            multiplier *
-                            executionCost *
-                            _amount <
-                        MAX_UINT
-                    ) {
-                        uint256 minGasCredits = limitOrderExecutor
-                            .calculateMinGasCredits(
-                                _amount,
-                                address(this),
-                                multiplier
-                            );
-
-                        uint256 expected = totalOrdersCount *
-                            _amount *
-                            executionCost *
-                            multiplier;
-                        assertEq(expected / 100, minGasCredits);
-                    }
-                }
-            }
-        }
     }
 
     //================================================================
@@ -395,8 +247,10 @@ contract LimitOrderExecutorTest is DSTest {
             IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
 
             ///@notice Get the spot price of DAI/WETH
-            (LimitOrderSwapRouter.SpotReserve memory spRes, ) = limitOrderExecutor
-                .calculateV3SpotPrice(
+            (
+                LimitOrderSwapRouter.SpotReserve memory spRes,
+
+            ) = limitOrderExecutor.calculateV3SpotPrice(
                     DAI,
                     WETH,
                     500,
@@ -571,8 +425,10 @@ contract LimitOrderExecutorTest is DSTest {
             swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
             IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
             ///@notice Get the spot price of DAI/WETH
-            (LimitOrderSwapRouter.SpotReserve memory spRes, ) = limitOrderExecutor
-                .calculateV3SpotPrice(
+            (
+                LimitOrderSwapRouter.SpotReserve memory spRes,
+
+            ) = limitOrderExecutor.calculateV3SpotPrice(
                     DAI,
                     UNI,
                     500,
@@ -747,8 +603,10 @@ contract LimitOrderExecutorTest is DSTest {
             IERC20(WETH).approve(address(limitOrderExecutor), MAX_UINT);
 
             ///@notice Get the spot price of DAI/WETH
-            (LimitOrderSwapRouter.SpotReserve memory spRes, ) = limitOrderExecutor
-                .calculateV2SpotPrice(
+            (
+                LimitOrderSwapRouter.SpotReserve memory spRes,
+
+            ) = limitOrderExecutor.calculateV2SpotPrice(
                     WETH,
                     TAXED_TOKEN,
                     _uniV2FactoryAddress,
@@ -3123,10 +2981,7 @@ contract LimitOrderExecutorWrapper is ConveyorExecutor {
         address _limitOrderQuoter,
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
-        bool[] memory _isUniV2,
-        address _gasOracle,
-        uint256 _limitOrderExecutionGasCost,
-        uint256 _sandboxLimitOrderExecutionGasCost
+        bool[] memory _isUniV2
     )
         ConveyorExecutor(
             _weth,
@@ -3134,20 +2989,9 @@ contract LimitOrderExecutorWrapper is ConveyorExecutor {
             _limitOrderQuoter,
             _initBytecodes,
             _dexFactories,
-            _isUniV2,
-            _gasOracle,
-            _limitOrderExecutionGasCost,
-            _sandboxLimitOrderExecutionGasCost
+            _isUniV2
         )
     {}
-
-    function calculateMinGasCredits(
-        uint256 gasPrice,
-        address userAddress,
-        uint256 multiplier
-    ) public view returns (uint256) {
-        return _calculateMinGasCredits(gasPrice, userAddress, multiplier);
-    }
 
     function getV3PoolFee(address pairAddress)
         public
@@ -3181,21 +3025,6 @@ contract LimitOrderExecutorWrapper is ConveyorExecutor {
                 _amountOutMin,
                 _receiver,
                 _sender
-            );
-    }
-
-    function hasMinGasCredits(
-        uint256 gasPrice,
-        address userAddress,
-        uint256 gasCreditBalance,
-        uint256 multiplier
-    ) public view returns (bool) {
-        return
-            _hasMinGasCredits(
-                gasPrice,
-                userAddress,
-                gasCreditBalance,
-                multiplier
             );
     }
 
@@ -3266,11 +3095,9 @@ contract LimitOrderExecutorWrapper is ConveyorExecutor {
 
 contract LimitOrderRouterWrapper is LimitOrderRouter {
     constructor(
-        address _gasOracle,
         address _weth,
         address _usdc,
-        address _limitOrderExecutor,
-        uint256 _limitOrderExecutionGasCost
+        address _limitOrderExecutor
     )
         LimitOrderRouter(
             _gasOracle,

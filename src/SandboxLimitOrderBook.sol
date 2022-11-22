@@ -9,33 +9,25 @@ import "./lib/ConveyorMath.sol";
 import "./interfaces/IConveyorExecutor.sol";
 import "./test/utils/Console.sol";
 import "./SandboxLimitOrderRouter.sol";
-import "./ConveyorGasOracle.sol";
 
 /// @title SandboxLimitOrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
 
-contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
+contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     // ========================================= Immutables =============================================
 
     ///@notice The address of the ConveyorExecutor contract.
     address immutable LIMIT_ORDER_EXECUTOR;
     ///@notice The address of the SandboxLimitOrderRouter contract.
     address public immutable SANDBOX_LIMIT_ORDER_ROUTER;
-    ///@notice The address of the chainlink gas oracle.
-    address immutable CONVEYOR_GAS_ORACLE;
-    ///@notice The execution cost of fufilling a SandboxLimitOrder with a standard ERC20 swap from tokenIn to tokenOut
-    uint256 immutable SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST;
+
     ///@notice The wrapped native token address.
     address immutable WETH;
     ///@notice The wrapped pegged token address.
     address immutable USDC;
 
     // ========================================= Constants =============================================
-
-    ///@notice The gas credit buffer is the multiplier applied to the minimum gas credits necessary to place an order. This ensures that the gas credits stored for an order have a buffer in case of gas price volatility.
-    ///@notice The gas credit buffer is divided by 100, making the GAS_CREDIT_BUFFER a multiplier of 1.5x,
-    uint256 private constant GAS_CREDIT_BUFFER = 150;
 
     ///@notice Interval that determines when an order is eligible for refresh. The interval is set to 30 days represented in Unix time.
     uint256 private constant REFRESH_INTERVAL = 2592000;
@@ -46,12 +38,10 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
     ///@notice The refresh fee is 0.02 ETH
     uint256 private constant REFRESH_FEE = 20000000000000000;
 
-    uint256 minimumExecutionCredit;
-
     // ========================================= Storage =============================================
 
     ///@notice State variable to track the amount of gas initally alloted during executeLimitOrders.
-    uint256 initialTxGas;
+    uint256 minExecutionCredit;
 
     // ========================================= Modifiers =============================================
 
@@ -74,29 +64,40 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         reentrancyStatus = false;
     }
 
+    ///@notice Temporary owner storage variable when transferring ownership of the contract.
+    address tempOwner;
+
+    ///@notice The owner of the Order Router contract
+    ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
+    address owner;
+
+    ///@notice Modifier function to only allow the owner of the contract to call specific functions
+    ///@dev Functions with onlyOwner: withdrawConveyorFees, transferOwnership.
+    modifier onlyOwner() {
+        if (msg.sender != owner) {
+            revert MsgSenderIsNotOwner();
+        }
+
+        _;
+    }
+
     // ========================================= Constructor =============================================
 
     constructor(
-        address _conveyorGasOracle,
         address _limitOrderExecutor,
         address _weth,
         address _usdc,
-        uint256 _sandboxLimitOrderExecutionGasCost,
         uint256 _minExecutionCredit
-    ) ConveyorGasOracle(_conveyorGasOracle) {
+    ) {
         require(
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"
         );
-        require(
-            _minExecutionCredit !=0, "Minimum Execution Credit is 0"
-        );
-        minExecutionCredit=_minExecutionCredit;
+        require(_minExecutionCredit != 0, "Minimum Execution Credit is 0");
+        minExecutionCredit = _minExecutionCredit;
         WETH = _weth;
         USDC = _usdc;
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
-        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
-        CONVEYOR_GAS_ORACLE = _conveyorGasOracle;
 
         SANDBOX_LIMIT_ORDER_ROUTER = address(
             new SandboxLimitOrderRouter(_limitOrderExecutor, address(this))
@@ -130,6 +131,20 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         bytes32 indexed orderId,
         uint32 indexed lastRefreshTimestamp,
         uint32 indexed expirationTimestamp
+    );
+
+    /**@notice Event that is emitted when a an orders execution credits are updated.
+     */
+    event OrderExecutionCreditUpdated(
+        bytes32 orderId,
+        uint256 newExecutionCredit
+    );
+
+    /**@notice Event that is emitted when the minExecutionCredit Storage variable is changed by the contract owner.
+     */
+    event MinExecutionCreditUpdated(
+        uint256 newMinExecutionCredit,
+        uint256 oldMinExecutionCredit
     );
 
     ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
@@ -215,52 +230,70 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
     //===========================================================================
     //====================== Order State Functions ==============================
     //===========================================================================
-    function decreaseExecutionCredit(bytes32 orderId, uint256 amount) external nonReentrant {
-        LimitOrder memory order = orderIdToLimitOrder[orderId];
+    function decreaseExecutionCredit(bytes32 orderId, uint128 amount)
+        external
+        nonReentrant
+    {
+        SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
 
-        if(order.orderId == bytes32(0)){
+        if (order.orderId == bytes32(0)) {
             revert OrderDoesNotExist(order.orderId);
         }
-        if(order.owner != msg.sender){
+        if (order.owner != msg.sender) {
             revert MsgSenderIsNotOrderOwner();
         }
         ///@notice Cache the credits.
-        uint128 executionCredit = order.executionCredit;
-        if(executionCredit < amount){
-            revert WithdrawAmountExceedsExecutionCredit(amount, executionCredit);
-        }else{
-            if(executionCredit-amount < minExecutionCredit){
-                revert InsufficientExecutionCredit(executionCredit-amount, minExecutionCredit);
+        uint128 executionCreditRemaining = order.executionCreditRemaining;
+        if (executionCreditRemaining < amount) {
+            revert WithdrawAmountExceedsExecutionCredit(
+                amount,
+                executionCreditRemaining
+            );
+        } else {
+            if (executionCreditRemaining - amount < minExecutionCredit) {
+                revert InsufficientExecutionCredit(
+                    executionCreditRemaining - amount,
+                    minExecutionCredit
+                );
             }
         }
         ///@notice Update the order execution Credit state.
-        orderIdToOrder[orderId].executionCredit = executionCredit-amount;
-        ///@notice Pay the sender the amount withdrawed. 
-        _safeTransferETH(msg.sender amount);
-        emit OrderExecutionCreditUpdated(borderId, executionCredit-amount);
+        orderIdToSandboxLimitOrder[orderId].executionCreditRemaining =
+            executionCreditRemaining -
+            amount;
+        ///@notice Pay the sender the amount withdrawed.
+        _safeTransferETH(msg.sender, amount);
+        emit OrderExecutionCreditUpdated(
+            orderId,
+            executionCreditRemaining - amount
+        );
     }
 
-    function increaseExecutionCredit(bytes32 orderId) external payable nonReentrant {
-        LimitOrder memory order = orderIdToLimitOrder[orderId];
-        if(msg.value==0){
+    function increaseExecutionCredit(bytes32 orderId)
+        external
+        payable
+        nonReentrant
+    {
+        SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
+        if (msg.value == 0) {
             revert InsufficientMsgValue();
         }
-        if(order.orderId == bytes32(0)){
+        if (order.orderId == bytes32(0)) {
             revert OrderDoesNotExist(order.orderId);
         }
-        if(order.owner != msg.sender){
+        if (order.owner != msg.sender) {
             revert MsgSenderIsNotOrderOwner();
         }
 
-        uint256 newExecutionCreditBalance = orderIdToOrder[orderId].executionCredit+msg.value;
+        uint128 newExecutionCreditBalance = orderIdToSandboxLimitOrder[orderId]
+            .executionCreditRemaining + uint128(msg.value);
         ///@notice Update the order execution Credit state.
-        orderIdToOrder[orderId].executionCredit = newExecutionCreditBalance;
-        ///@notice Pay the sender the amount withdrawed. 
-        _safeTransferETH(msg.sender amount);
+        orderIdToSandboxLimitOrder[orderId]
+            .executionCreditRemaining = newExecutionCreditBalance;
 
-        emit OrderExecutionCreditUpdated(borderId, newExecutionCreditBalance);
+        emit OrderExecutionCreditUpdated(orderId, newExecutionCreditBalance);
     }
- 
+
     ///@notice Places a new order of multicall type (or group of orders) into the system.
     ///@param orderGroup - List of newly created orders to be placed.
     /// @return orderIds - Returns a list of orderIds corresponding to the newly placed orders.
@@ -269,14 +302,17 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         payable
         returns (bytes32[] memory)
     {
-        
-         ///@notice Set the minimum credits for placement to minimumExecutionCredit * # of Orders
-        uint256 minimumExecutionCreditForOrderGroup = minExecutionCredit * orderGroup.length;
+        ///@notice Set the minimum credits for placement to minimumExecutionCredit * # of Orders
+        uint256 minimumExecutionCreditForOrderGroup = minExecutionCredit *
+            orderGroup.length;
         ///@notice Revert if the msg.value is under the minimumExecutionCreditForOrderGroup.
-        if(msg.value < minimumExecutionCreditForOrderGroup){
-            revert InsufficientExecutionCredit(msg.value, minimumExecutionCreditForOrderGroup);
+        if (msg.value < minimumExecutionCreditForOrderGroup) {
+            revert InsufficientExecutionCredit(
+                msg.value,
+                minimumExecutionCreditForOrderGroup
+            );
         }
-        ///@notice Initialize cumulativeExecutionCredit to store the total executionCredit set through the order group. 
+        ///@notice Initialize cumulativeExecutionCredit to store the total executionCreditRemaining set through the order group.
         uint256 cumulativeExecutionCredit;
         ///@notice Initialize a new list of bytes32 to store the newly created orderIds.
         bytes32[] memory orderIds = new bytes32[](orderGroup.length);
@@ -404,8 +440,8 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
             ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
             newOrder.lastRefreshTimestamp = uint32(block.timestamp);
 
-            ///@notice Increment the cumulative execution credit by the current orders execution. 
-            cumulativeExecutionCredit += newOrder.executionCredit;
+            ///@notice Increment the cumulative execution credit by the current orders execution.
+            cumulativeExecutionCredit += newOrder.executionCreditRemaining;
 
             ///@notice Add the newly created order to the orderIdToOrder mapping
             orderIdToSandboxLimitOrder[orderId] = newOrder;
@@ -429,8 +465,11 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         }
 
         ///@notice Assert that the cumulative execution credits == msg.value;
-        if(cumulativeExecutionCredit != msg.value){
-            revert MsgValueIsNotCumulativeExecutionCredit(msg.value, cumulativeExecutionCredit);
+        if (cumulativeExecutionCredit != msg.value) {
+            revert MsgValueIsNotCumulativeExecutionCredit(
+                msg.value,
+                cumulativeExecutionCredit
+            );
         }
 
         ///@notice Update the total orders value on the orderToken for the msg.sender.
@@ -476,15 +515,18 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
             revert OrderDoesNotExist(orderId);
         }
 
-        if(order.owner == msg.sender){
+        if (order.owner == msg.sender) {
             revert MsgSenderIsNotOrderOwner();
         }
 
-         ///@notice Update the executionCredits if msg.value !=0.
-        if(msg.value !=0){
-            uint256 newExecutionCredit= orderIdToSandboxLimitOrder[order.orderId].executionCredit + msg.value;
-            orderIdToSandboxLimitOrder[order.orderId].executionCredit= newExecutionCredit;
-            emit OrderExecutionCreditUpdated(order.orderId,newExecutionCredit);
+        ///@notice Update the executionCredits if msg.value !=0.
+        if (msg.value != 0) {
+            uint128 newExecutionCredit = orderIdToSandboxLimitOrder[
+                order.orderId
+            ].executionCreditRemaining + uint128(msg.value);
+            orderIdToSandboxLimitOrder[order.orderId]
+                .executionCreditRemaining = newExecutionCredit;
+            emit OrderExecutionCreditUpdated(order.orderId, newExecutionCredit);
         }
 
         ///@notice Get the total orders value for the msg.sender on the tokenIn
@@ -618,36 +660,38 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
     ///@param order - The order to cancel.
     function _cancelSandboxLimitOrderViaExecutor(SandboxLimitOrder memory order)
         internal
-        returns (uint256)
+        returns (uint256 executorFee)
     {
-    
         ///@notice Remove the order from the limit order system.
         _removeOrderFromSystem(order.orderId);
 
         addressToOrderIds[msg.sender][order.orderId] = OrderType
             .CanceledSandboxLimitOrder;
 
-        uint256 executionCredit = order.executionCredit;
+        uint128 executionCreditRemaining = order.executionCreditRemaining;
 
         ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
-        if (executionCredit > REFRESH_FEE) {
+        if (executionCreditRemaining > REFRESH_FEE) {
             ///@notice Decrement from the order owner's gas credit balance.
-            orderIdToSandboxLimitOrder[order.orderId]-= REFRESH_FEE;
-            executorFee=REFRESH_FEE;
-           _safeTransferETH(order.owner, executionCredit - REFRESH_FEE);
-            
+            orderIdToSandboxLimitOrder[order.orderId].executionCreditRemaining =
+                executionCreditRemaining -
+                uint128(REFRESH_FEE);
+            executorFee = REFRESH_FEE;
+            _safeTransferETH(
+                order.owner,
+                executionCreditRemaining - REFRESH_FEE
+            );
         } else {
             ///@notice Otherwise, decrement the entire gas credit balance.
-            orderIdToSandboxLimitOrder[order.orderId]= 0;
-            executorFee = executionCredit;
+            orderIdToSandboxLimitOrder[order.orderId]
+                .executionCreditRemaining = 0;
+            executorFee = executionCreditRemaining;
         }
 
         ///@notice Emit an order canceled event to notify the off-chain exectors.
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = order.orderId;
         emit OrderCanceled(orderIds);
-        
-        return executorFee;
     }
 
     /// @notice Function to refresh an order for another 30 days.
@@ -682,19 +726,17 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         internal
         returns (uint256)
     {
-        uint256 executionCreditBalance = order.executionCredit;
+        uint128 executionCreditBalance = order.executionCreditRemaining;
         ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
         if (block.timestamp > order.expirationTimestamp) {
             return _cancelSandboxLimitOrderViaExecutor(order);
         }
 
         ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
-        if (
-            executionCreditBalance < REFRESH_FEE
-        ) {
+        if (executionCreditBalance < REFRESH_FEE) {
             return _cancelSandboxLimitOrderViaExecutor(order);
-        }else{
-            if(executionCreditBalance-REFRESH_FEE < minExecutionCredit){
+        } else {
+            if (executionCreditBalance - REFRESH_FEE < minExecutionCredit) {
                 return _cancelSandboxLimitOrderViaExecutor(order);
             }
         }
@@ -711,9 +753,13 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
             revert OrderNotEligibleForRefresh(order.orderId);
         }
 
-     
-        orderIdToSandboxLimitOrder[order.orderId]-= REFRESH_FEE;
-        emit OrderExecutionCreditUpdated(order.orderId,executionCreditBalance-REFRESH_FEE);
+        orderIdToSandboxLimitOrder[order.orderId].executionCreditRemaining =
+            executionCreditBalance -
+            uint128(REFRESH_FEE);
+        emit OrderExecutionCreditUpdated(
+            order.orderId,
+            executionCreditBalance - REFRESH_FEE
+        );
         ///@notice update the order's last refresh timestamp
         ///@dev uint32(block.timestamp).
         orderIdToSandboxLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
@@ -743,8 +789,6 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
     function executeOrdersViaSandboxMulticall(
         SandboxLimitOrderRouter.SandboxMulticall calldata sandboxMulticall
     ) external onlySandboxLimitOrderRouter nonReentrant {
-       
-
         ///@notice Initialize arrays to hold pre execution validation state.
         PreSandboxExecutionState
             memory preSandboxExecutionState = _initializePreSandboxExecutionState(
@@ -759,15 +803,13 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         );
 
         ///@notice Post execution, assert that all of the order owners have received >= their exact amount out
-        uint256 executionGasCompensation=_validateSandboxExecutionAndFillOrders(
-            sandboxMulticall.orderIdBundles,
-            sandboxMulticall.fillAmounts,
-            preSandboxExecutionState
-        );
+        uint256 executionGasCompensation = _validateSandboxExecutionAndFillOrders(
+                sandboxMulticall.orderIdBundles,
+                sandboxMulticall.fillAmounts,
+                preSandboxExecutionState
+            );
 
         _safeTransferETH(tx.origin, executionGasCompensation);
-
-        
     }
 
     ///@notice Function to initialize the PreSandboxExecution state prior to sandbox execution.
@@ -884,7 +926,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
             bytes32[] memory orderIdBundle = orderIdBundles[i];
             ///@notice If the bundle length is greater than 1, then the validate a multi-order bundle.
             if (orderIdBundle.length > 1) {
-                cumulativeExecutionCreditCompensation+=_validateMultiOrderBundle(
+                cumulativeExecutionCreditCompensation += _validateMultiOrderBundle(
                     orderIdIndex,
                     orderIdBundle.length,
                     fillAmounts,
@@ -894,7 +936,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
                 orderIdIndex += orderIdBundle.length - 1;
                 ///@notice Else validate a single order bundle.
             } else {
-                cumulativeExecutionCreditCompensation+=_validateSingleOrderBundle(
+                cumulativeExecutionCreditCompensation += _validateSingleOrderBundle(
                     preSandboxExecutionState.sandboxLimitOrders[orderIdIndex],
                     fillAmounts[orderIdIndex],
                     preSandboxExecutionState.initialTokenInBalances[
@@ -924,7 +966,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         uint128 fillAmount,
         uint256 initialTokenInBalance,
         uint256 initialTokenOutBalance
-    ) internal returns (uint256 executionCompensation){
+    ) internal returns (uint256 executionCompensation) {
         ///@notice Cache values for post execution assertions
         uint128 amountOutRequired = uint128(
             ConveyorMath.mul64U(
@@ -990,7 +1032,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         uint256 bundleLength,
         uint128[] memory fillAmounts,
         PreSandboxExecutionState memory preSandboxExecutionState
-    ) internal returns (uint256 cumulativeExecutionCompensation){
+    ) internal returns (uint256 cumulativeExecutionCompensation) {
         ///@notice Cache the first order in the bundle
         SandboxLimitOrder memory prevOrder = preSandboxExecutionState
             .sandboxLimitOrders[orderIdIndex];
@@ -1100,10 +1142,11 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
                 ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
                 if (prevOrder.amountInRemaining == fillAmounts[offset]) {
                     _resolveCompletedOrder(prevOrder.orderId);
-                    cumulativeExecutionCompensation += prevOrder.executionCredit;
+                    cumulativeExecutionCompensation += prevOrder
+                        .executionCreditRemaining;
                 } else {
                     ///@notice Update the state of the order to parial filled quantities.
-                    cumulativeExecutionCompensation+=_partialFillSandboxLimitOrder(
+                    cumulativeExecutionCompensation += _partialFillSandboxLimitOrder(
                         uint128(fillAmounts[offset]),
                         uint128(
                             ConveyorMath.mul64U(
@@ -1129,10 +1172,11 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
             ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
             if (prevOrder.amountInRemaining == fillAmounts[offset - 1]) {
                 _resolveCompletedOrder(prevOrder.orderId);
-                cumulativeExecutionCompensation += prevOrder.executionCredit
+                cumulativeExecutionCompensation += prevOrder
+                    .executionCreditRemaining;
             } else {
                 ///@notice Update the state of the order to parial filled quantities.
-                cumulativeExecutionCompensation+=_partialFillSandboxLimitOrder(
+                cumulativeExecutionCompensation += _partialFillSandboxLimitOrder(
                     uint128(fillAmounts[offset - 1]),
                     uint128(
                         ConveyorMath.mul64U(
@@ -1140,7 +1184,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
                                 prevOrder.amountOutRemaining,
                                 prevOrder.amountInRemaining
                             ),
-                            fillAmounts[offset-1]
+                            fillAmounts[offset - 1]
                         )
                     ),
                     prevOrder.orderId
@@ -1161,9 +1205,9 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         uint128 amountInFilled,
         uint128 amountOutFilled,
         bytes32 orderId
-    ) internal returns (uint256)  {
+    ) internal returns (uint256) {
         SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
-
+        uint128 executionCreditRemaining = order.executionCreditRemaining;
         ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
         decrementTotalOrdersQuantity(
             order.tokenIn,
@@ -1175,11 +1219,14 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         uint128 amountInRemaining = order.amountInRemaining;
         ///@notice Cache the Orders feeRemaining.
         uint128 feeRemaining = order.feeRemaining;
-        uint32 percentFilled = order.fillPercent !=0 ? ConveyorMath.mul64x64(
+        uint128 percentFilled = order.fillPercent != 0
+            ? ConveyorMath.mul64x64(
+                order.fillPercent,
                 ConveyorMath.divUU(amountInFilled, amountInRemaining)
-            ) : ConveyorMath.divUU(amountInFilled, amountInRemaining);
+            )
+            : ConveyorMath.divUU(amountInFilled, amountInRemaining);
         ///@notice Update the orders fillPercent to amountInFilled/amountInRemaining as 16.16 fixed point
-        orderIdToSandboxLimitOrder[orderId].fillPercent += fillPercent;
+        orderIdToSandboxLimitOrder[orderId].fillPercent += percentFilled;
 
         ///@notice Update the orders amountInRemaining to amountInRemaining - amountInFilled.
         orderIdToSandboxLimitOrder[orderId].amountInRemaining =
@@ -1203,11 +1250,16 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
                     feeRemaining
                 )
             );
-        uint256 executionCreditCompensation=ConveyorMath.mul64U(percentFilled, order.executionCredit);
-        
+        uint128 executionCreditCompensation = uint128(
+            ConveyorMath.mul64U(percentFilled, executionCreditRemaining)
+        );
+
         ///@notice Decrement the execution credit by the proportion of the fillAmount/amountInRemaining(at placement time)
-        orderIdToSandboxLimitOrder[order.orderId].executionCredit-= executionCreditCompensation;
-        return executionCreditCompensation
+        orderIdToSandboxLimitOrder[order.orderId].executionCreditRemaining =
+            executionCreditRemaining -
+            executionCreditCompensation;
+
+        return executionCreditCompensation;
     }
 
     ///@notice Function to remove an order from the system.
@@ -1393,5 +1445,34 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook, ConveyorGasOracle {
         }
 
         return orderIds;
+    }
+
+    function setMinExecutionCredit(uint256 newMinExecutionCredit)
+        external
+        onlyOwner
+    {
+        uint256 oldMinExecutionCredit = minExecutionCredit;
+        minExecutionCredit = newMinExecutionCredit;
+        emit MinExecutionCreditUpdated(
+            newMinExecutionCredit,
+            oldMinExecutionCredit
+        );
+    }
+
+    ///@notice Function to confirm ownership transfer of the contract.
+    function confirmTransferOwnership() external {
+        if (msg.sender != tempOwner) {
+            revert MsgSenderIsNotTempOwner();
+        }
+        owner = msg.sender;
+        tempOwner = address(0);
+    }
+
+    ///@notice Function to transfer ownership of the contract.
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) {
+            revert InvalidAddress();
+        }
+        tempOwner = newOwner;
     }
 }

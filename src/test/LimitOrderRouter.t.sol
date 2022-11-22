@@ -103,10 +103,7 @@ contract LimitOrderRouterTest is DSTest {
             address(limitOrderQuoter),
             _hexDems,
             _dexFactories,
-            _isUniV2,
-            aggregatorV3Address,
-            300000,
-            250000
+            _isUniV2
         );
 
         limitOrderRouter = ILimitOrderRouter(
@@ -117,11 +114,9 @@ contract LimitOrderRouterTest is DSTest {
 
         //Wrapper contract to test internal functions
         limitOrderRouterWrapper = new LimitOrderRouterWrapper(
-            aggregatorV3Address,
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
-            address(limitOrderExecutor),
-            300000
+            address(limitOrderExecutor)
         );
     }
 
@@ -1889,11 +1884,9 @@ contract LimitOrderRouterWrapper is LimitOrderRouter {
     LimitOrderRouter limitorderRouter;
 
     constructor(
-        address _gasOracle,
         address _weth,
         address _usdc,
-        address _limitOrderExecutor,
-        uint256 _limitOrderExecutionGasCost
+        address _limitOrderExecutor
     )
         LimitOrderRouter(
             _gasOracle,

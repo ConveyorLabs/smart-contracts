@@ -84,10 +84,7 @@ contract LimitOrderBookTest is DSTest {
             address(limitOrderQuoter),
             _hexDems,
             _dexFactories,
-            _isUniV2,
-            aggregatorV3Address,
-            300000,
-            250000
+            _isUniV2
         );
 
         //Wrapper contract to test internal functions
@@ -565,6 +562,7 @@ contract LimitOrderBookTest is DSTest {
             feeIn: 0,
             feeOut: 0,
             taxIn: 0,
+            executionCredit: 0,
             price: price,
             amountOutMin: amountOutMin,
             quantity: quantity,
