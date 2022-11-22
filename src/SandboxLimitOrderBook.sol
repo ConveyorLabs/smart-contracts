@@ -644,7 +644,8 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         ) {
             ///@notice Remove the order from the limit order system.
 
-            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
+            ///@notice Remove the order from the limit order system.
+            _safeTransferETH(
                 msg.sender,
                 _cancelSandboxLimitOrderViaExecutor(order)
             );
@@ -1012,9 +1013,10 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
         if (currentOrder.amountInRemaining == fillAmount) {
             _resolveCompletedOrder(currentOrder.orderId);
+            executionCompensation = currentOrder.executionCreditRemaining;
         } else {
             ///@notice Update the state of the order to parial filled quantities.
-            _partialFillSandboxLimitOrder(
+            executionCompensation = _partialFillSandboxLimitOrder(
                 uint128(initialTokenInBalance - currentTokenInBalance),
                 uint128(currentTokenOutBalance - initialTokenOutBalance),
                 currentOrder.orderId
@@ -1138,28 +1140,12 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
                     ///@notice Update the cumulativeAmountOutRequired to include the amountOutRequired for the current order.
                     cumulativeAmountOutRequired += amountOutRequired;
                 }
-
-                ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
-                if (prevOrder.amountInRemaining == fillAmounts[offset]) {
-                    _resolveCompletedOrder(prevOrder.orderId);
-                    cumulativeExecutionCompensation += prevOrder
-                        .executionCreditRemaining;
-                } else {
-                    ///@notice Update the state of the order to parial filled quantities.
-                    cumulativeExecutionCompensation += _partialFillSandboxLimitOrder(
-                        uint128(fillAmounts[offset]),
-                        uint128(
-                            ConveyorMath.mul64U(
-                                ConveyorMath.divUU(
-                                    prevOrder.amountOutRemaining,
-                                    prevOrder.amountInRemaining
-                                ),
-                                fillAmounts[offset]
-                            )
-                        ),
-                        prevOrder.orderId
-                    );
-                }
+                _resolveOrPartialFillOrder(
+                    prevOrder,
+                    offset,
+                    fillAmounts,
+                    cumulativeExecutionCompensation
+                );
                 ///@notice Set prevOrder to the currentOrder and increment the offset.
                 prevOrder = currentOrder;
                 ++offset;
@@ -1168,29 +1154,44 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
                     ++i;
                 }
             }
-
-            ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
-            if (prevOrder.amountInRemaining == fillAmounts[offset - 1]) {
-                _resolveCompletedOrder(prevOrder.orderId);
-                cumulativeExecutionCompensation += prevOrder
-                    .executionCreditRemaining;
-            } else {
-                ///@notice Update the state of the order to parial filled quantities.
-                cumulativeExecutionCompensation += _partialFillSandboxLimitOrder(
-                    uint128(fillAmounts[offset - 1]),
-                    uint128(
-                        ConveyorMath.mul64U(
-                            ConveyorMath.divUU(
-                                prevOrder.amountOutRemaining,
-                                prevOrder.amountInRemaining
-                            ),
-                            fillAmounts[offset - 1]
-                        )
-                    ),
-                    prevOrder.orderId
-                );
-            }
+            _resolveOrPartialFillOrder(
+                prevOrder,
+                offset - 1,
+                fillAmounts,
+                cumulativeExecutionCompensation
+            );
         }
+    }
+
+    function _resolveOrPartialFillOrder(
+        SandboxLimitOrder memory prevOrder,
+        uint256 offset,
+        uint128[] memory fillAmounts,
+        uint256 cumulativeExecutionCompensation
+    ) internal returns (uint256) {
+        ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
+        if (prevOrder.amountInRemaining == fillAmounts[offset]) {
+            _resolveCompletedOrder(prevOrder.orderId);
+            cumulativeExecutionCompensation += prevOrder
+                .executionCreditRemaining;
+        } else {
+            ///@notice Update the state of the order to parial filled quantities.
+            cumulativeExecutionCompensation += _partialFillSandboxLimitOrder(
+                uint128(fillAmounts[offset]),
+                uint128(
+                    ConveyorMath.mul64U(
+                        ConveyorMath.divUU(
+                            prevOrder.amountOutRemaining,
+                            prevOrder.amountInRemaining
+                        ),
+                        fillAmounts[offset]
+                    )
+                ),
+                prevOrder.orderId
+            );
+        }
+
+        return cumulativeExecutionCompensation;
     }
 
     //===========================================================================

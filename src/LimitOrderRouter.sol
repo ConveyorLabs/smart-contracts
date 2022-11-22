@@ -98,7 +98,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         internal
         returns (uint256 executorFee)
     {
-        uint256 executionCreditBalance = order.executionCredit;
+        uint128 executionCreditBalance = order.executionCredit;
 
         ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
         if (block.timestamp > order.expirationTimestamp) {
@@ -123,7 +123,9 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
             revert OrderNotEligibleForRefresh(order.orderId);
         }
 
-        orderIdToLimitOrder[order.orderId].executionCredit -= REFRESH_FEE;
+        orderIdToLimitOrder[order.orderId].executionCredit =
+            executionCreditBalance -
+            uint128(REFRESH_FEE);
         emit OrderExecutionCreditUpdated(
             order.orderId,
             executionCreditBalance - REFRESH_FEE
@@ -179,17 +181,19 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         addressToOrderIds[msg.sender][order.orderId] = OrderType
             .CanceledLimitOrder;
 
-        uint256 executionCredit = order.executionCredit;
+        uint128 executionCredit = order.executionCredit;
 
         ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
         if (executionCredit > REFRESH_FEE) {
             ///@notice Decrement from the order owner's gas credit balance.
-            orderIdToLimitOrder[order.orderId] -= REFRESH_FEE;
+            orderIdToLimitOrder[order.orderId].executionCredit =
+                executionCredit -
+                uint128(REFRESH_FEE);
             executorFee = REFRESH_FEE;
             _safeTransferETH(order.owner, executionCredit - REFRESH_FEE);
         } else {
             ///@notice Otherwise, decrement the entire gas credit balance.
-            orderIdToLimitOrder[order.orderId] = 0;
+            orderIdToLimitOrder[order.orderId].executionCredit = 0;
             executorFee = order.executionCredit;
         }
 

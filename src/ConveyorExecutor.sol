@@ -137,7 +137,6 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
 
         LIMIT_ORDER_ROUTER = address(
             new LimitOrderRouter(
-                SANDBOX_LIMIT_ORDER_BOOK, ///@notice The SandboxLimitOrderBook inherits the conveyor gas oracle.
                 _weth,
                 _usdc,
                 address(this),
