@@ -21,23 +21,6 @@ contract LimitOrderBook {
     ///@notice Boolean responsible for indicating if a function has been entered when the nonReentrant modifier is used.
     bool reentrancyStatus = false;
 
-    ///@notice Temporary owner storage variable when transferring ownership of the contract.
-    address tempOwner;
-
-    ///@notice The owner of the Order Router contract
-    ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
-    address owner;
-
-    ///@notice Modifier function to only allow the owner of the contract to call specific functions
-    ///@dev Functions with onlyOwner: withdrawConveyorFees, transferOwnership.
-    modifier onlyOwner() {
-        if (msg.sender != owner) {
-            revert MsgSenderIsNotOwner();
-        }
-
-        _;
-    }
-
     ///@notice Modifier to restrict reentrancy into a function.
     modifier nonReentrant() {
         if (reentrancyStatus) {
@@ -66,7 +49,6 @@ contract LimitOrderBook {
 
         require(_minExecutionCredit != 0, "Minimum Execution Credit is 0");
 
-        owner = tx.origin;
         minExecutionCredit = _minExecutionCredit;
         WETH = _weth;
         USDC = _usdc;
@@ -642,42 +624,46 @@ contract LimitOrderBook {
 
     ///@notice Decrement an owner's total order value on a specific token.
     ///@param token - Token address to decrement the total order value on.
-    ///@param owner - Account address to decrement the total order value from.
+    ///@param _owner - Account address to decrement the total order value from.
     ///@param quantity - Amount to decrement the total order value by.
     function _decrementTotalOrdersQuantity(
         address token,
-        address owner,
+        address _owner,
         uint256 quantity
     ) internal {
-        bytes32 totalOrdersValueKey = keccak256(abi.encode(owner, token));
+        bytes32 totalOrdersValueKey = keccak256(abi.encode(_owner, token));
         totalOrdersQuantity[totalOrdersValueKey] -= quantity;
     }
 
     ///@notice Update an owner's total order value on a specific token.
     ///@param token - Token address to update the total order value on.
-    ///@param owner - Account address to update the total order value from.
+    ///@param _owner - Account address to update the total order value from.
     ///@param newQuantity - Amount set the the new total order value to.
     function _updateTotalOrdersQuantity(
         address token,
-        address owner,
+        address _owner,
         uint256 newQuantity
     ) internal {
-        bytes32 totalOrdersValueKey = keccak256(abi.encode(owner, token));
+        bytes32 totalOrdersValueKey = keccak256(abi.encode(_owner, token));
         totalOrdersQuantity[totalOrdersValueKey] = newQuantity;
     }
 
-    function getAllOrderIdsLength(address owner) public view returns (uint256) {
-        return addressToAllOrderIds[owner].length;
+    function getAllOrderIdsLength(address _owner)
+        public
+        view
+        returns (uint256)
+    {
+        return addressToAllOrderIds[_owner].length;
     }
 
     ///@notice Get all of the order Ids matching the targetOrderType for a given address
-    ///@param owner - Target address to get all order Ids for.
+    ///@param _owner - Target address to get all order Ids for.
     ///@param targetOrderType - Target orderType to retrieve from all orderIds.
     ///@param orderOffset - The first order to start from when checking orderstatus. For example, if order offset is 2, the function will start checking orderId status from the second order.
     ///@param length - The amount of orders to check order status for.
     ///@return - Array of orderIds matching the targetOrderType
     function getOrderIds(
-        address owner,
+        address _owner,
         OrderType targetOrderType,
         uint256 orderOffset,
         uint256 length
@@ -705,7 +691,7 @@ contract LimitOrderBook {
                 orderOffsetSlot := add(orderOffsetSlot, 0x20)
             }
 
-            OrderType orderType = addressToOrderIds[owner][orderId];
+            OrderType orderType = addressToOrderIds[_owner][orderId];
 
             if (orderType == targetOrderType) {
                 orderIds[orderIdIndex] = orderId;
@@ -723,17 +709,5 @@ contract LimitOrderBook {
         }
 
         return orderIds;
-    }
-
-    function setMinExecutionCredit(uint256 newMinExecutionCredit)
-        external
-        onlyOwner
-    {
-        uint256 oldMinExecutionCredit = minExecutionCredit;
-        minExecutionCredit = newMinExecutionCredit;
-        emit MinExecutionCreditUpdated(
-            minExecutionCredit,
-            oldMinExecutionCredit
-        );
     }
 }

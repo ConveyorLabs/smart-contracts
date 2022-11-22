@@ -33,6 +33,16 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         _;
     }
 
+    ///@notice Modifier function to only allow the owner of the contract to call specific functions
+    ///@dev Functions with onlyOwner: withdrawConveyorFees, transferOwnership.
+    modifier onlyOwner() {
+        if (msg.sender != owner) {
+            revert MsgSenderIsNotOwner();
+        }
+
+        _;
+    }
+
     // ========================================= Constants  =============================================
 
     ///@notice Interval that determines when an order is eligible for refresh. The interval is set to 30 days represented in Unix time.
@@ -43,6 +53,8 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
     uint256 private constant REFRESH_FEE = 20000000000000000;
 
     // ========================================= State Variables =============================================
+    address owner;
+    address tempOwner;
 
     // ========================================= Constructor =============================================
 
@@ -64,8 +76,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         );
 
         ///@notice Set the owner of the contract
-        ///TODO:Revisit
-        owner = msg.sender;
+        owner = tx.origin;
     }
 
     /// @notice Function to refresh an order for another 30 days.
@@ -368,5 +379,17 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
             revert InvalidAddress();
         }
         tempOwner = newOwner;
+    }
+
+    function setMinExecutionCredit(uint256 newMinExecutionCredit)
+        external
+        onlyOwner
+    {
+        uint256 oldMinExecutionCredit = minExecutionCredit;
+        minExecutionCredit = newMinExecutionCredit;
+        emit MinExecutionCreditUpdated(
+            minExecutionCredit,
+            oldMinExecutionCredit
+        );
     }
 }
