@@ -101,6 +101,7 @@ contract ConveyorTickMathTest is DSTest {
         //Initialize the v3 quoter
         iQuoter = IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
         //Initialize the Sw
+
         swapRouter = new SwapRouterWrapper(_hexDems, _dexFactories, _isUniV2);
         cheatCodes.makePersistent(address(swapRouter));
         cheatCodes.makePersistent(address(conveyorTickMath));
@@ -147,7 +148,7 @@ contract ConveyorTickMathTest is DSTest {
                     int256(amountOutToValidate);
                 uint256 absErrorAmount = uint256(ConveyorMath.abs(errorAmount));
                 //Ensure they are equal within 10000 wei
-                assert(absErrorAmount < 200000);
+                assert(absErrorAmount < 250000);
             }
         }
     }
