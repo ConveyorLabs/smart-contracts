@@ -9,9 +9,9 @@ interface IConveyorSwapExecutor {
         external;
 }
 
-/// @title LimitOrderSwapRouter
+/// @title ConveyorSwapAggregator
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
-/// @notice Dex aggregator that executes standalone swaps, and fulfills limit orders during execution.
+/// @notice Multicall contract for token Swaps.
 contract ConveyorSwapAggregator {
     address public immutable CONVEYOR_SWAP_EXECUTOR;
 

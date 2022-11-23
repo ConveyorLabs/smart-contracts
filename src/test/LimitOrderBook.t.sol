@@ -243,28 +243,30 @@ contract LimitOrderBookTest is DSTest {
                 assertEq(orderBook.totalOrdersPerAddress(address(this)), 1);
             }
         } catch {
-            cheatCodes.deal(
-                address(this),
-                type(uint256).max > address(this).balance
-                    ? type(uint256).max - address(this).balance
-                    : 0
-            );
-            cheatCodes.expectRevert(
-                abi.encodeWithSelector(
-                    Errors.OrderDoesNotExist.selector,
-                    bytes32(0)
-                )
-            );
+            if (!(executionCreditAmount == 0)) {
+                cheatCodes.deal(
+                    address(this),
+                    type(uint256).max > address(this).balance
+                        ? type(uint256).max - address(this).balance
+                        : 0
+                );
+                cheatCodes.expectRevert(
+                    abi.encodeWithSelector(
+                        Errors.OrderDoesNotExist.selector,
+                        bytes32(0)
+                    )
+                );
 
-            (bool reverted, ) = address(orderBook).call{
-                value: executionCreditAmount
-            }(
-                abi.encodeWithSignature(
-                    "increaseExecutionCredit(bytes32)",
-                    bytes32(0)
-                )
-            );
-            assertTrue(reverted);
+                (bool reverted, ) = address(orderBook).call{
+                    value: executionCreditAmount
+                }(
+                    abi.encodeWithSignature(
+                        "increaseExecutionCredit(bytes32)",
+                        bytes32(0)
+                    )
+                );
+                assertTrue(reverted);
+            }
         }
     }
 

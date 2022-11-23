@@ -173,6 +173,71 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
         }
     }
 
+    /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation.
+    /// @dev amountIn must be in WETH represented in 18 decimal form.
+    /// @dev This calculation assumes that all values are in a 64x64 fixed point uint128 representation.
+    /** @param amountIn - Amount of Weth represented as a 64x64 fixed point value to calculate the fee that will be applied
+    to the amountOut of an executed order. */
+    ///@param usdc - Address of USDC
+    ///@param weth - Address of Weth
+    /// @return calculated_fee_64x64 -  Returns the fee percent that is applied to the amountOut realized from an executed.
+    ///0.225/e^(x/100000)+0.025
+    function calculateFee(
+        uint128 amountIn,
+        address usdc,
+        address weth
+    ) public view returns (uint128) {
+        if (amountIn == 0) {
+            revert AmountInIsZero();
+        }
+
+        ///@notice Initialize spot reserve structure to retrive the spot price from uni v2
+        (SpotReserve memory _spRes, ) = _calculateV2SpotPrice(
+            weth,
+            usdc,
+            dexes[0].factoryAddress,
+            dexes[0].initBytecode
+        );
+
+        ///@notice Cache the spot price
+        uint256 spotPrice = _spRes.spotPrice;
+
+        ///@notice The SpotPrice is represented as a 128x128 fixed point value. To derive the amount in USDC, multiply spotPrice*amountIn and adjust to base 10
+        uint256 amountInUSDCDollarValue = ConveyorMath.mul128U(
+            spotPrice,
+            amountIn
+        ) / uint256(10**18);
+
+        ///@notice if usdc value of trade is >= 1,000,000 set static fee of 0.001
+        if (amountInUSDCDollarValue >= 1000000) {
+            return 4611686018427388;
+        }
+
+        uint128 numerator = 4150517416584649000;
+
+        ///@notice Exponent= usdAmount/100000
+        uint128 exponent = uint128(
+            ConveyorMath.divUU(amountInUSDCDollarValue, 100000)
+        );
+
+        // ///@notice This is to prevent overflow, and order is of sufficient size to receive 0.001 fee
+        if (exponent >= 0x400000000000000000) {
+            return 4611686018427388;
+        }
+
+        ///@notice denominator = ( e^(exponent))
+        uint128 denominator = ConveyorMath.exp(exponent);
+
+        // ///@notice divide numerator by denominator
+        uint128 rationalFraction = ConveyorMath.div64x64(
+            numerator,
+            denominator
+        );
+
+        return
+            ConveyorMath.add64x64(rationalFraction, 461168601842738800) / 10**2;
+    }
+
     // /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation.
     // /// @dev amountIn must be in WETH represented in 18 decimal form.
     // /// @dev This calculation assumes that all values are in a 64x64 fixed point uint128 representation.
@@ -181,7 +246,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     // ///@param usdc - Address of USDC
     // ///@param weth - Address of Weth
     // /// @return calculated_fee_64x64 -  Returns the fee percent that is applied to the amountOut realized from an executed.
-    // function calculateFeeNew(
+    // function calculateFee(
     //     uint128 amountIn,
     //     address usdc,
     //     address weth
@@ -213,113 +278,42 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     //         return MIN_FEE_64x64;
     //     }
 
-    //     uint256 numerator = 4611686018427388000;
-
     //     ///@notice 0.9 represented as 128.128 fixed point
-    //     // uint256 numerator = ZERO_POINT_NINE;
+    //     uint256 numerator = ZERO_POINT_NINE;
 
     //     ///@notice Exponent= usdAmount/750000
     //     uint128 exponent = uint128(
-    //         ConveyorMath.divUU(amountInUSDCDollarValue, 100000)
+    //         ConveyorMath.divUU(amountInUSDCDollarValue, 75000)
     //     );
 
-    //     // ///@notice This is to prevent overflow, and order is of sufficient size to receive 0.001 fee
+    //     ///@notice This is to prevent overflow, and order is of sufficient size to receive 0.001 fee
     //     if (exponent >= 0x400000000000000000) {
     //         return MIN_FEE_64x64;
     //     }
 
-    //     ///@notice denominator = ( e^(exponent))
-    //     uint128 denominator =
+    //     ///@notice denominator = (1.25 + e^(exponent))
+    //     uint256 denominator = ConveyorMath.add128x128(
     //         ONE_POINT_TWO_FIVE,
-    //         onveyorMath.exp(exponent);
+    //         uint256(ConveyorMath.exp(exponent)) << 64
+    //     );
 
-    //     // ///@notice divide numerator by denominator
-    //     uint256 rationalFraction = ConveyorMath.div64x64(
+    //     ///@notice divide numerator by denominator
+    //     uint256 rationalFraction = ConveyorMath.div128x128(
     //         numerator,
     //         denominator
     //     );
 
-    //     uint128 calculated_fee_64x64 = ConveyorMath.add64x64(rationalFraction,4611686018427388000);
+    //     ///@notice add 0.1 buffer and divide by 100 to adjust fee to correct % value in range [0.001-0.005]
+    //     calculated_fee_64x64 = ConveyorMath.div64x64(
+    //         ConveyorMath.add64x64(
+    //             uint128(rationalFraction >> 64),
+    //             ZERO_POINT_ONE
+    //         ),
+    //         uint128(100 << 64)
+    //     );
 
     //     return calculated_fee_64x64;
     // }
-
-    /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation.
-    /// @dev amountIn must be in WETH represented in 18 decimal form.
-    /// @dev This calculation assumes that all values are in a 64x64 fixed point uint128 representation.
-    /** @param amountIn - Amount of Weth represented as a 64x64 fixed point value to calculate the fee that will be applied 
-    to the amountOut of an executed order. */
-    ///@param usdc - Address of USDC
-    ///@param weth - Address of Weth
-    /// @return calculated_fee_64x64 -  Returns the fee percent that is applied to the amountOut realized from an executed.
-    function calculateFee(
-        uint128 amountIn,
-        address usdc,
-        address weth
-    ) public view returns (uint128) {
-        uint128 calculated_fee_64x64;
-        if (amountIn == 0) {
-            revert AmountInIsZero();
-        }
-
-        ///@notice Initialize spot reserve structure to retrive the spot price from uni v2
-        (SpotReserve memory _spRes, ) = _calculateV2SpotPrice(
-            weth,
-            usdc,
-            dexes[0].factoryAddress,
-            dexes[0].initBytecode
-        );
-
-        ///@notice Cache the spot price
-        uint256 spotPrice = _spRes.spotPrice;
-
-        ///@notice The SpotPrice is represented as a 128x128 fixed point value. To derive the amount in USDC, multiply spotPrice*amountIn and adjust to base 10
-        uint256 amountInUSDCDollarValue = ConveyorMath.mul128U(
-            spotPrice,
-            amountIn
-        ) / uint256(10**18);
-
-        ///@notice if usdc value of trade is >= 1,000,000 set static fee of 0.001
-        if (amountInUSDCDollarValue >= 1000000) {
-            return MIN_FEE_64x64;
-        }
-
-        ///@notice 0.9 represented as 128.128 fixed point
-        uint256 numerator = ZERO_POINT_NINE;
-
-        ///@notice Exponent= usdAmount/750000
-        uint128 exponent = uint128(
-            ConveyorMath.divUU(amountInUSDCDollarValue, 75000)
-        );
-
-        ///@notice This is to prevent overflow, and order is of sufficient size to receive 0.001 fee
-        if (exponent >= 0x400000000000000000) {
-            return MIN_FEE_64x64;
-        }
-
-        ///@notice denominator = (1.25 + e^(exponent))
-        uint256 denominator = ConveyorMath.add128x128(
-            ONE_POINT_TWO_FIVE,
-            uint256(ConveyorMath.exp(exponent)) << 64
-        );
-
-        ///@notice divide numerator by denominator
-        uint256 rationalFraction = ConveyorMath.div128x128(
-            numerator,
-            denominator
-        );
-
-        ///@notice add 0.1 buffer and divide by 100 to adjust fee to correct % value in range [0.001-0.005]
-        calculated_fee_64x64 = ConveyorMath.div64x64(
-            ConveyorMath.add64x64(
-                uint128(rationalFraction >> 64),
-                ZERO_POINT_ONE
-            ),
-            uint128(100 << 64)
-        );
-
-        return calculated_fee_64x64;
-    }
 
     ///@notice Helper function to transfer ERC20 tokens out to an order owner address.
     ///@param orderOwner - The address to send the tokens to.
