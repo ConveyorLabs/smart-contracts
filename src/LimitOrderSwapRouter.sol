@@ -181,7 +181,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     ///@param usdc - Address of USDC
     ///@param weth - Address of Weth
     /// @return calculated_fee_64x64 -  Returns the fee percent that is applied to the amountOut realized from an executed.
-    ///0.225/e^(x/100000)+0.025
+    ///NOTE: f(x)=0.225/e^(x/100000)+0.025
     function calculateFee(
         uint128 amountIn,
         address usdc,
