@@ -194,13 +194,12 @@ contract LimitOrderBook {
                 amount,
                 executionCredit
             );
-        } else {
-            if (executionCredit - amount < minExecutionCredit) {
-                revert InsufficientExecutionCredit(
-                    executionCredit - amount,
-                    minExecutionCredit
-                );
-            }
+        }
+        if (executionCredit - amount < minExecutionCredit) {
+            revert InsufficientExecutionCredit(
+                executionCredit - amount,
+                minExecutionCredit
+            );
         }
         ///@notice Update the order execution Credit state.
         orderIdToLimitOrder[orderId].executionCredit = executionCredit - amount;
