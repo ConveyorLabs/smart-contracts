@@ -208,7 +208,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
             amountIn
         ) / uint256(10**18);
 
-        ///@notice if usdc value of trade is >= 1,000,000 set static fee of 0.001
+        ///@notice if usdc value of trade is >= 1,000,000 set static fee of 0.00025
         if (amountInUSDCDollarValue >= 1000000) {
             return 4611686018427388;
         }
@@ -220,7 +220,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
             ConveyorMath.divUU(amountInUSDCDollarValue, 100000)
         );
 
-        // ///@notice This is to prevent overflow, and order is of sufficient size to receive 0.001 fee
+        // ///@notice This is to prevent overflow, and order is of sufficient size to receive 0.00025 fee
         if (exponent >= 0x400000000000000000) {
             return 4611686018427388;
         }
