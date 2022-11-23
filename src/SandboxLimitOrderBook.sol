@@ -82,7 +82,10 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     }
 
     // ========================================= Constructor =============================================
-
+    ///@param _limitOrderExecutor The address of the ConveyorExecutor contract.
+    ///@param _weth The address of the wrapped native token.
+    ///@param _usdc The address of the wrapped pegged token.
+    ///@param _minExecutionCredit The amount of gas initally alloted during executeLimitOrders.
     constructor(
         address _limitOrderExecutor,
         address _weth,
@@ -102,6 +105,8 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         SANDBOX_LIMIT_ORDER_ROUTER = address(
             new SandboxLimitOrderRouter(_limitOrderExecutor, address(this))
         );
+
+        owner = tx.origin;
     }
 
     // ========================================= Events =============================================
