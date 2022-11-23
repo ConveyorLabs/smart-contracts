@@ -85,16 +85,11 @@ contract LimitOrderBookTest is DSTest {
             _hexDems,
             _dexFactories,
             _isUniV2,
-            aggregatorV3Address,
-            300000,
-            250000
+            1
         );
 
         //Wrapper contract to test internal functions
         orderBook = ILimitOrderBook(limitOrderExecutor.LIMIT_ORDER_ROUTER());
-
-        cheatCodes.deal(address(this), type(uint128).max);
-        depositGasCreditsForMockOrders(type(uint64).max);
     }
 
     ///@notice Test get order by id
@@ -148,15 +143,7 @@ contract LimitOrderBookTest is DSTest {
                 uint112(amountOut)
             );
 
-            //create a new array of orders
-            LimitOrderBook.LimitOrder[]
-                memory orderGroup = new LimitOrderBook.LimitOrder[](1);
-            //add the order to the arrOrder and add the arrOrder to the orderGroup
-            orderGroup[0] = order;
-
-            //place order
-            bytes32[] memory orderIds = orderBook.placeLimitOrder(orderGroup);
-            bytes32 orderId = orderIds[0];
+            bytes32 orderId = placeMockOrder(order);
 
             //check that the orderId is not zero value
             assert((orderId != bytes32(0)));
@@ -235,15 +222,7 @@ contract LimitOrderBookTest is DSTest {
                 uint128(amountOut)
             );
 
-            //create a new array of orders
-            LimitOrderBook.LimitOrder[]
-                memory orderGroup = new LimitOrderBook.LimitOrder[](1);
-            //add the order to the arrOrder and add the arrOrder to the orderGroup
-            orderGroup[0] = order;
-
-            //place order
-            bytes32[] memory orderIds = orderBook.placeLimitOrder(orderGroup);
-            bytes32 orderId = orderIds[0];
+            bytes32 orderId = placeMockOrder(order);
 
             //check that the orderId is not zero value
             assert((orderId != bytes32(0)));
@@ -263,6 +242,21 @@ contract LimitOrderBookTest is DSTest {
 
     ///@notice Test fail place order InsufficientWalletBalance
     function testFailPlaceOrder_InsufficientWalletBalance() public {
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+
+        LimitOrderBook.LimitOrder memory order = newOrder(
+            swapToken,
+            WETH,
+            245000000000000000000,
+            5,
+            5
+        );
+
+        placeMockOrder(order);
+    }
+
+    ///@notice Test fail place order InsufficientWalletBalance
+    function testFailPlaceOrder_InsufficientExecutionCredit() public {
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
         LimitOrderBook.LimitOrder memory order = newOrder(
@@ -325,7 +319,7 @@ contract LimitOrderBookTest is DSTest {
                 orderGroup[1] = order2;
 
                 //place order
-                orderBook.placeLimitOrder(orderGroup);
+                placeMultipleMockOrder(orderGroup);
             } catch {
                 require(false, "swap 1 failed");
             }
@@ -383,6 +377,36 @@ contract LimitOrderBookTest is DSTest {
             assertEq(newQuantity, updatedOrder.quantity);
             assertEq(newPrice, updatedOrder.price);
         }
+    }
+
+    ///@notice Test fail update order on invalid sender
+    function testFailUpdateOrder_MsgSenderIsNotOrderOwner(
+        uint128 price,
+        uint64 quantity,
+        uint128 amountOutMin,
+        uint128 newPrice,
+        uint64 newQuantity
+    ) public {
+        cheatCodes.deal(address(this), MAX_UINT);
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+
+        cheatCodes.deal(address(swapHelper), MAX_UINT);
+        swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
+
+        //create a new order
+        LimitOrderBook.LimitOrder memory order = newOrder(
+            swapToken,
+            WETH,
+            price,
+            quantity,
+            amountOutMin
+        );
+
+        //submit the updated order
+
+        bytes32 orderId = placeMockOrder(order);
+        cheatCodes.prank(tx.origin);
+        orderBook.updateOrder(orderId, newPrice, newQuantity);
     }
 
     ///@notice Test fail update order insufficient allowance
@@ -505,7 +529,7 @@ contract LimitOrderBookTest is DSTest {
         orderGroup[1] = order2;
 
         //place order
-        bytes32[] memory orderIds = orderBook.placeLimitOrder(orderGroup);
+        bytes32[] memory orderIds = placeMultipleMockOrder(orderGroup);
 
         //Cancel the orders
         orderBook.cancelOrders(orderIds);
@@ -565,6 +589,7 @@ contract LimitOrderBookTest is DSTest {
             feeIn: 0,
             feeOut: 0,
             taxIn: 0,
+            executionCredit: 0,
             price: price,
             amountOutMin: amountOutMin,
             quantity: quantity,
@@ -584,19 +609,26 @@ contract LimitOrderBookTest is DSTest {
             memory orderGroup = new LimitOrderBook.LimitOrder[](1);
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
-
+        cheatCodes.deal(address(this), type(uint64).max);
+        order.executionCredit = type(uint64).max;
         //place order
-        bytes32[] memory orderIds = orderBook.placeLimitOrder(orderGroup);
+        bytes32[] memory orderIds = orderBook.placeLimitOrder{
+            value: type(uint64).max
+        }(orderGroup);
 
         orderId = orderIds[0];
     }
 
-    function depositGasCreditsForMockOrders(uint256 _amount) public {
-        cheatCodes.deal(address(this), _amount);
-        (bool depositSuccess, ) = address(limitOrderExecutor).call{
-            value: _amount
-        }(abi.encodeWithSignature("depositGasCredits()"));
-
-        require(depositSuccess, "error when depositing gas credits");
+    function placeMultipleMockOrder(
+        LimitOrderBook.LimitOrder[] memory orderGroup
+    ) internal returns (bytes32[] memory orderIds) {
+        cheatCodes.deal(address(this), type(uint32).max * orderGroup.length);
+        for (uint256 i = 0; i < orderGroup.length; i++) {
+            orderGroup[i].executionCredit = type(uint32).max;
+        }
+        //place order
+        orderIds = orderBook.placeLimitOrder{
+            value: type(uint32).max * orderGroup.length
+        }(orderGroup);
     }
 }

@@ -503,6 +503,7 @@ contract SwapRouterTest is DSTest {
             expirationTimestamp: expirationTimestamp,
             feeIn: feeIn,
             feeOut: feeOut,
+            executionCredit: 0,
             taxIn: taxIn,
             price: price,
             amountOutMin: amountOutMin,

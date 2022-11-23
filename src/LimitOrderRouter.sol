@@ -25,6 +25,14 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         _;
     }
 
+    ///@notice Modifier to restrict smart contracts from calling a function.
+    modifier onlyLimitOrderExecutor() {
+        if (msg.sender != LIMIT_ORDER_EXECUTOR) {
+            revert MsgSenderIsNotLimitOrderExecutor();
+        }
+        _;
+    }
+
     ///@notice Modifier function to only allow the owner of the contract to call specific functions
     ///@dev Functions with onlyOwner: withdrawConveyorFees, transferOwnership.
     modifier onlyOwner() {
@@ -32,24 +40,6 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
             revert MsgSenderIsNotOwner();
         }
 
-        _;
-    }
-
-    ///@notice Modifier to restrict reentrancy into a function.
-    modifier nonReentrant() {
-        if (reentrancyStatus) {
-            revert Reentrancy();
-        }
-        reentrancyStatus = true;
-        _;
-        reentrancyStatus = false;
-    }
-
-    ///@notice Modifier to restrict smart contracts from calling a function.
-    modifier onlyLimitOrderExecutor() {
-        if (msg.sender != LIMIT_ORDER_EXECUTOR) {
-            revert MsgSenderIsNotLimitOrderExecutor();
-        }
         _;
     }
 
@@ -63,42 +53,21 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
     uint256 private constant REFRESH_FEE = 20000000000000000;
 
     // ========================================= State Variables =============================================
-
-    ///@notice Boolean responsible for indicating if a function has been entered when the nonReentrant modifier is used.
-    bool reentrancyStatus = false;
-
-    ///@notice State variable to track the amount of gas initally alloted during executeLimitOrders.
-    uint256 initialTxGas;
-
-    ///@notice Temporary owner storage variable when transferring ownership of the contract.
-    address tempOwner;
-
-    ///@notice The owner of the Order Router contract
-    ///@dev The contract owner can remove the owner funds from the contract, and transfer ownership of the contract.
     address owner;
+    address tempOwner;
 
     // ========================================= Constructor =============================================
 
-    ///@param _gasOracle - Address of the ChainLink fast gas oracle.
     ///@param _weth - Address of the wrapped native token for the chain.
     ///@param _usdc - Address of the USD pegged token for the chain.
     ///@param _limitOrderExecutor - Address of the limit order executor contract
-    ///@param _limitOrderExecutionGasCost - The amount of gas required to execute a limit order.
+    ///@param _minExecutionCredit - Minimum amount of credit that must be provided to the limit order executor contract.
     constructor(
-        address _gasOracle,
         address _weth,
         address _usdc,
         address _limitOrderExecutor,
-        uint256 _limitOrderExecutionGasCost
-    )
-        LimitOrderBook(
-            _gasOracle,
-            _limitOrderExecutor,
-            _weth,
-            _usdc,
-            _limitOrderExecutionGasCost
-        )
-    {
+        uint256 _minExecutionCredit
+    ) LimitOrderBook(_limitOrderExecutor, _weth, _usdc, _minExecutionCredit) {
         ///@notice Require that deployment addresses are not zero
         ///@dev All other addresses are being asserted in the limit order executor, which deploys the limit order router
         require(
@@ -107,7 +76,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         );
 
         ///@notice Set the owner of the contract
-        owner = msg.sender;
+        owner = tx.origin;
     }
 
     /// @notice Function to refresh an order for another 30 days.
@@ -130,11 +99,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
             }
         }
 
-        ///@notice Transfer the refresh fee to off-chain executor who called the function.
-        IConveyorExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
-            msg.sender,
-            totalRefreshFees
-        );
+        _safeTransferETH(msg.sender, totalRefreshFees);
     }
 
     ///@notice Internal helper function to refresh a Limit Order.
@@ -144,8 +109,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         internal
         returns (uint256 executorFee)
     {
-        uint256 currentBalance = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
-            .gasCreditBalance(order.owner);
+        uint128 executionCreditBalance = order.executionCredit;
 
         ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
         if (block.timestamp > order.expirationTimestamp) {
@@ -153,8 +117,12 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         }
 
         ///@notice Check that the account has enough gas credits to refresh the order, otherwise, cancel the order and continue the loop.
-        if (currentBalance < REFRESH_FEE) {
+        if (executionCreditBalance < REFRESH_FEE) {
             return _cancelLimitOrderViaExecutor(order);
+        } else {
+            if (executionCreditBalance - REFRESH_FEE < minExecutionCredit) {
+                return _cancelLimitOrderViaExecutor(order);
+            }
         }
 
         if (IERC20(order.tokenIn).balanceOf(order.owner) < order.quantity) {
@@ -166,12 +134,13 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
             revert OrderNotEligibleForRefresh(order.orderId);
         }
 
-        ///@notice Decrement the order.owner's gas credit balance
-        IConveyorExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
-            order.owner,
-            currentBalance - REFRESH_FEE
+        orderIdToLimitOrder[order.orderId].executionCredit =
+            executionCreditBalance -
+            uint128(REFRESH_FEE);
+        emit OrderExecutionCreditUpdated(
+            order.orderId,
+            executionCreditBalance - REFRESH_FEE
         );
-
         ///@notice update the order's last refresh timestamp
         ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
         orderIdToLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
@@ -201,10 +170,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
         if (IERC20(order.tokenIn).balanceOf(order.owner) < order.quantity) {
             ///@notice Remove the order from the limit order system.
-            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
-                msg.sender,
-                _cancelLimitOrderViaExecutor(order)
-            );
+            _safeTransferETH(msg.sender, _cancelLimitOrderViaExecutor(order));
 
             return true;
         }
@@ -219,37 +185,27 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         internal
         returns (uint256)
     {
-        ///@notice Get the current gas price.
-        uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
-            .getGasPrice();
-
-        ///@notice Get the minimum gas credits needed for a single order
-        uint256 executorFee = gasPrice * LIMIT_ORDER_EXECUTION_GAS_COST;
-
+        uint256 executorFee;
         ///@notice Remove the order from the limit order system.
         _removeOrderFromSystem(order.orderId);
 
         addressToOrderIds[msg.sender][order.orderId] = OrderType
             .CanceledLimitOrder;
 
-        uint256 orderOwnerGasCreditBalance = IConveyorExecutor(
-            LIMIT_ORDER_EXECUTOR
-        ).gasCreditBalance(order.owner);
+        uint128 executionCredit = order.executionCredit;
 
         ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
-        if (orderOwnerGasCreditBalance > executorFee) {
+        if (executionCredit > REFRESH_FEE) {
             ///@notice Decrement from the order owner's gas credit balance.
-            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
-                order.owner,
-                orderOwnerGasCreditBalance - executorFee
-            );
+            orderIdToLimitOrder[order.orderId].executionCredit =
+                executionCredit -
+                uint128(REFRESH_FEE);
+            executorFee = REFRESH_FEE;
+            _safeTransferETH(order.owner, executionCredit - REFRESH_FEE);
         } else {
             ///@notice Otherwise, decrement the entire gas credit balance.
-            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).updateGasCreditBalance(
-                order.owner,
-                0
-            );
-            executorFee = orderOwnerGasCreditBalance;
+            orderIdToLimitOrder[order.orderId].executionCredit = 0;
+            executorFee = order.executionCredit;
         }
 
         ///@notice Emit an order canceled event to notify the off-chain exectors.
@@ -331,15 +287,8 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
     function executeLimitOrders(bytes32[] calldata orderIds)
         external
         nonReentrant
+        onlyEOA
     {
-        uint256 gasPrice = IConveyorGasOracle(CONVEYOR_GAS_ORACLE)
-            .getGasPrice();
-
-        //Update the initial gas balance.
-        assembly {
-            sstore(initialTxGas.slot, gas())
-        }
-
         ///@notice Revert if the length of the orderIds array is 0.
         if (orderIds.length == 0) {
             revert InvalidCalldata();
@@ -359,6 +308,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         }
         ///@notice Cache stoploss status for the orders.
         bool isStoplossExecution = orders[0].stoploss;
+
         ///@notice If msg.sender != tx.origin and the stoploss status for the batch is true, revert the transaction.
         ///@dev Stoploss batches strictly require EOA execution.
         if (isStoplossExecution) {
@@ -388,9 +338,6 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
             ).executeTokenToTokenOrders(orders);
         }
 
-        ///@notice Get the array of order owners.
-        address[] memory orderOwners = _getLimitOrderOwners(orders);
-
         ///@notice Iterate through all orderIds in the batch and delete the orders from queue post execution.
         for (uint256 i = 0; i < orderIds.length; ) {
             bytes32 orderId = orderIds[i];
@@ -406,33 +353,15 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         emit OrderFufilled(orderIds);
 
         ///@notice Calculate the execution gas compensation.
-        uint256 executionGasCompensation = _calculateExecutionGasCompensation(
-            gasPrice,
-            orderOwners,
-            OrderType.PendingLimitOrder
-        );
-        ///@notice Transfer the reward to the off-chain executor.
-        IConveyorExecutor(LIMIT_ORDER_EXECUTOR).transferGasCreditFees(
-            msg.sender,
-            executionGasCompensation
-        );
-    }
-
-    ///@notice Function to return an array of limit order owners.
-    ///@param orders - Array of LimitOrders.
-    ///@return orderOwners - An array of order owners in the orders array.
-    function _getLimitOrderOwners(LimitOrder[] memory orders)
-        internal
-        pure
-        returns (address[] memory orderOwners)
-    {
-        orderOwners = new address[](orders.length);
+        uint256 executionGasCompensation;
         for (uint256 i = 0; i < orders.length; ) {
-            orderOwners[i] = orders[i].owner;
+            executionGasCompensation += orders[i].executionCredit;
             unchecked {
                 ++i;
             }
         }
+
+        _safeTransferETH(tx.origin, executionGasCompensation);
     }
 
     ///@notice Function to confirm ownership transfer of the contract.
@@ -452,75 +381,15 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         tempOwner = newOwner;
     }
 
-    ///@notice Function to calculate the execution gas consumed during executeLimitOrders
-    ///@return executionGasConsumed - The amount of gas consumed.
-    function _calculateExecutionGasConsumed(
-        uint256 gasPrice,
-        uint256 numberOfOrders,
-        OrderType orderType
-    ) internal view returns (uint256 executionGasConsumed) {
-        assembly {
-            executionGasConsumed := mul(
-                gasPrice,
-                sub(sload(initialTxGas.slot), gas())
-            )
-        }
-
-        if (orderType == OrderType.PendingLimitOrder) {
-            ///@notice If the execution gas is greater than the max compensation, set the compensation to the max
-            uint256 maxExecutionCompensation = LIMIT_ORDER_EXECUTION_GAS_COST *
-                numberOfOrders *
-                gasPrice;
-            if (executionGasConsumed > maxExecutionCompensation) {
-                executionGasConsumed = maxExecutionCompensation;
-            }
-        }
-    }
-
-    ///@notice Function to adjust order owner's gas credit balance and calaculate the compensation to be paid to the executor.
-    ///@param orderOwners - The order owners in the batch.
-    ///@return gasExecutionCompensation - The amount to be paid to the off-chain executor for execution gas.
-    function _calculateExecutionGasCompensation(
-        uint256 gasPrice,
-        address[] memory orderOwners,
-        OrderType orderType
-    ) internal returns (uint256 gasExecutionCompensation) {
-        uint256 orderOwnersLength = orderOwners.length;
-
-        ///@notice Decrement gas credit balances for each order owner
-        uint256 executionGasConsumed = _calculateExecutionGasConsumed(
-            gasPrice,
-            orderOwners.length,
-            orderType
+    function setMinExecutionCredit(uint256 newMinExecutionCredit)
+        external
+        onlyOwner
+    {
+        uint256 oldMinExecutionCredit = minExecutionCredit;
+        minExecutionCredit = newMinExecutionCredit;
+        emit MinExecutionCreditUpdated(
+            minExecutionCredit,
+            oldMinExecutionCredit
         );
-
-        uint256 gasDecrementValue = executionGasConsumed / orderOwnersLength;
-
-        ///@notice Unchecked for gas efficiency
-        unchecked {
-            for (uint256 i = 0; i < orderOwnersLength; ) {
-                ///@notice Adjust the order owner's gas credit balance
-                uint256 ownerGasCreditBalance = IConveyorExecutor(
-                    LIMIT_ORDER_EXECUTOR
-                ).gasCreditBalance(orderOwners[i]);
-
-                if (ownerGasCreditBalance >= gasDecrementValue) {
-                    IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
-                        .updateGasCreditBalance(
-                            orderOwners[i],
-                            ownerGasCreditBalance - gasDecrementValue
-                        );
-
-                    gasExecutionCompensation += gasDecrementValue;
-                } else {
-                    IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
-                        .updateGasCreditBalance(orderOwners[i], 0);
-
-                    gasExecutionCompensation += ownerGasCreditBalance;
-                }
-
-                ++i;
-            }
-        }
     }
 }
