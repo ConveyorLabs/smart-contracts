@@ -153,7 +153,6 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     // ========================================= Structs =============================================
 
     ///@notice Struct containing Order details for any limit order
-    ///@param buy - Indicates if the order is a buy or sell
     ///@param lastRefreshTimestamp - Unix timestamp representing the last time the order was refreshed.
     ///@param expirationTimestamp - Unix timestamp representing when the order should expire.
     ///@param fillPercent - The percentage filled on the initial amountInRemaining represented as 16.16 fixed point.
@@ -166,7 +165,6 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     ///@param tokenOut - The tokenOut for the order.
     ///@param orderId - Unique identifier for the order.
     struct SandboxLimitOrder {
-        bool buy;
         uint32 lastRefreshTimestamp;
         uint32 expirationTimestamp;
         uint128 fillPercent;

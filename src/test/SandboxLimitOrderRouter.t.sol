@@ -1654,7 +1654,6 @@ contract SandboxLimitOrderRouterTest is DSTest {
     {
         //Initialize mock order
         order = SandboxLimitOrderBook.SandboxLimitOrder({
-            buy: buy,
             fillPercent: 0,
             lastRefreshTimestamp: 0,
             expirationTimestamp: type(uint32).max,
