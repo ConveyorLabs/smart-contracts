@@ -5,7 +5,7 @@ import "./LimitOrderSwapRouter.sol";
 import "./lib/ConveyorTickMath.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 
-/// @title ConveyorExecutor
+/// @title LimitOrderQuoter
 /// @author 0xOsiris, 0xKitsune
 /// @notice This contract handles all CFMM quoting logic.
 contract LimitOrderQuoter is ILimitOrderQuoter, ConveyorTickMath {

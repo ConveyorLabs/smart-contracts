@@ -179,33 +179,37 @@ contract LimitOrderBook {
         external
         nonReentrant
     {
+        ///@notice Load the order into memory from storage.
         LimitOrder memory order = orderIdToLimitOrder[orderId];
-
+        ///@notice Ensure that the order exists.
         if (order.orderId == bytes32(0)) {
             revert OrderDoesNotExist(order.orderId);
         }
+        ///@notice Ensure the caller is the order owner.
         if (order.owner != msg.sender) {
             revert MsgSenderIsNotOrderOwner();
         }
         ///@notice Cache the credits.
         uint128 executionCredit = order.executionCredit;
+        ///@notice Ensure that the order has enough execution credit to decrement by amount.
         if (executionCredit < amount) {
             revert WithdrawAmountExceedsExecutionCredit(
                 amount,
                 executionCredit
             );
-        } else {
-            if (executionCredit - amount < minExecutionCredit) {
-                revert InsufficientExecutionCredit(
-                    executionCredit - amount,
-                    minExecutionCredit
-                );
-            }
+        }
+        ///@notice Ensure that the executionCredit will not fall below the minExecutionCredit threshold.
+        if (executionCredit - amount < minExecutionCredit) {
+            revert InsufficientExecutionCredit(
+                executionCredit - amount,
+                minExecutionCredit
+            );
         }
         ///@notice Update the order execution Credit state.
         orderIdToLimitOrder[orderId].executionCredit = executionCredit - amount;
         ///@notice Pay the sender the amount withdrawed.
         _safeTransferETH(msg.sender, amount);
+
         emit OrderExecutionCreditUpdated(orderId, executionCredit - amount);
     }
 
@@ -216,17 +220,21 @@ contract LimitOrderBook {
         payable
         nonReentrant
     {
+        ///@notice Load the order into memory from storage.
         LimitOrder memory order = orderIdToLimitOrder[orderId];
+        ///@notice Ensure the msg.value is greater than 0.
         if (msg.value == 0) {
             revert InsufficientMsgValue();
         }
+        ///@notice Ensure that the order exists.
         if (order.orderId == bytes32(0)) {
             revert OrderDoesNotExist(order.orderId);
         }
+        ///@notice Ensure the caller is the order owner.
         if (order.owner != msg.sender) {
             revert MsgSenderIsNotOrderOwner();
         }
-
+        ///@notice  Cache the new balance.
         uint128 newExecutionCreditBalance = orderIdToLimitOrder[orderId]
             .executionCredit + uint128(msg.value);
         ///@notice Update the order execution Credit state.

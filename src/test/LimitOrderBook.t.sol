@@ -25,6 +25,22 @@ interface CheatCodes {
         bool,
         bool
     ) external;
+
+    function expectRevert(bytes memory) external;
+}
+
+interface Errors {
+    error WithdrawAmountExceedsExecutionCredit(
+        uint256 withdrawAmount,
+        uint256 executionCredit
+    );
+
+    error InsufficientExecutionCredit(
+        uint256 executionCredit,
+        uint256 minExecutionCredit
+    );
+    error InsufficientMsgValue();
+    error OrderDoesNotExist(bytes32 orderId);
 }
 
 contract LimitOrderBookTest is DSTest {
@@ -67,6 +83,7 @@ contract LimitOrderBookTest is DSTest {
     address[] _dexFactories = [_uniV2FactoryAddress, _uniV3FactoryAddress];
     bool[] _isUniV2 = [true, false];
     uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000000;
+    uint256 minExecutionCredit = 100000000;
 
     function setUp() public {
         cheatCodes = CheatCodes(HEVM_ADDRESS);
@@ -85,7 +102,7 @@ contract LimitOrderBookTest is DSTest {
             _hexDems,
             _dexFactories,
             _isUniV2,
-            1
+            minExecutionCredit
         );
 
         //Wrapper contract to test internal functions
@@ -161,6 +178,207 @@ contract LimitOrderBookTest is DSTest {
 
             assertEq(orderBook.totalOrdersPerAddress(address(this)), 1);
         } catch {}
+    }
+
+    ///@notice Test palce order fuzz test
+    function testIncreaseExecutionCredit(
+        uint256 swapAmount,
+        uint256 executionPrice,
+        uint64 executionCreditAmount
+    ) public {
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+
+        //if the fuzzed amount is enough to complete the swap
+        try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
+            uint256 amountOut
+        ) {
+            LimitOrderBook.LimitOrder memory order = newOrder(
+                swapToken,
+                WETH,
+                uint128(executionPrice),
+                uint112(amountOut),
+                uint112(amountOut)
+            );
+
+            bytes32 orderId = placeMockOrder(order);
+            if (executionCreditAmount == 0) {
+                cheatCodes.expectRevert(
+                    abi.encodeWithSelector(Errors.InsufficientMsgValue.selector)
+                );
+                (bool reverted, ) = address(orderBook).call(
+                    abi.encodeWithSignature(
+                        "increaseExecutionCredit(bytes32)",
+                        orderId
+                    )
+                );
+                assertTrue(reverted);
+            } else {
+                cheatCodes.deal(
+                    address(this),
+                    executionCreditAmount > address(this).balance
+                        ? executionCreditAmount - address(this).balance
+                        : 0
+                );
+                orderBook.increaseExecutionCredit{value: executionCreditAmount}(
+                    orderId
+                );
+                //check that the orderId is not zero value
+                assert((orderId != bytes32(0)));
+                LimitOrderBook.OrderType orderType = orderBook
+                    .addressToOrderIds(address(this), orderId);
+                LimitOrderBook.LimitOrder memory returnedOrder = orderBook
+                    .getLimitOrderById(orderId);
+                assert(
+                    returnedOrder.executionCredit ==
+                        uint128(executionCreditAmount) + type(uint64).max
+                );
+                assert(orderType == LimitOrderBook.OrderType.PendingLimitOrder);
+                assertEq(
+                    orderBook.totalOrdersQuantity(
+                        keccak256(abi.encode(address(this), swapToken))
+                    ),
+                    amountOut
+                );
+
+                assertEq(orderBook.totalOrdersPerAddress(address(this)), 1);
+            }
+        } catch {
+            if (!(executionCreditAmount == 0)) {
+                cheatCodes.deal(
+                    address(this),
+                    type(uint256).max > address(this).balance
+                        ? type(uint256).max - address(this).balance
+                        : 0
+                );
+                cheatCodes.expectRevert(
+                    abi.encodeWithSelector(
+                        Errors.OrderDoesNotExist.selector,
+                        bytes32(0)
+                    )
+                );
+
+                (bool reverted, ) = address(orderBook).call{
+                    value: executionCreditAmount
+                }(
+                    abi.encodeWithSignature(
+                        "increaseExecutionCredit(bytes32)",
+                        bytes32(0)
+                    )
+                );
+                assertTrue(reverted);
+            }
+        }
+    }
+
+    ///@notice Test palce order fuzz test
+    function testDecreaseExecutionCredit(
+        uint128 swapAmount,
+        uint128 executionPrice,
+        uint128 executionCreditAmount
+    ) public {
+        IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
+
+        //if the fuzzed amount is enough to complete the swap
+        try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
+            uint256 amountOut
+        ) {
+            LimitOrderBook.LimitOrder memory order = newOrder(
+                swapToken,
+                WETH,
+                uint128(executionPrice),
+                uint112(amountOut),
+                uint112(amountOut)
+            );
+
+            bytes32 orderId = placeMockOrder(order);
+            uint128 executionCreditStateBefore = orderBook
+                .getLimitOrderById(orderId)
+                .executionCredit;
+            if (executionCreditAmount > executionCreditStateBefore) {
+                cheatCodes.expectRevert(
+                    abi.encodeWithSelector(
+                        Errors.WithdrawAmountExceedsExecutionCredit.selector,
+                        executionCreditAmount,
+                        executionCreditStateBefore
+                    )
+                );
+                (bool reverted1, ) = address(orderBook).call(
+                    abi.encodeWithSignature(
+                        "decreaseExecutionCredit(bytes32,uint128)",
+                        orderId,
+                        executionCreditAmount
+                    )
+                );
+                assertTrue(reverted1);
+            } else {
+                if (
+                    executionCreditStateBefore - executionCreditAmount <
+                    minExecutionCredit
+                ) {
+                    cheatCodes.expectRevert(
+                        abi.encodeWithSelector(
+                            Errors.InsufficientExecutionCredit.selector,
+                            uint256(
+                                executionCreditStateBefore -
+                                    executionCreditAmount
+                            ),
+                            uint256(minExecutionCredit)
+                        )
+                    );
+                    (bool reverted2, ) = address(orderBook).call(
+                        abi.encodeWithSignature(
+                            "decreaseExecutionCredit(bytes32,uint128)",
+                            orderId,
+                            executionCreditAmount
+                        )
+                    );
+                    assertTrue(reverted2);
+                } else {
+                    orderBook.decreaseExecutionCredit(
+                        orderId,
+                        executionCreditAmount
+                    );
+                    //check that the orderId is not zero value
+                    assert((orderId != bytes32(0)));
+                    LimitOrderBook.OrderType orderType = orderBook
+                        .addressToOrderIds(address(this), orderId);
+                    LimitOrderBook.LimitOrder memory returnedOrder = orderBook
+                        .getLimitOrderById(orderId);
+                    assert(
+                        returnedOrder.executionCredit ==
+                            uint128(executionCreditStateBefore) -
+                                uint128(executionCreditAmount)
+                    );
+                    assert(
+                        orderType == LimitOrderBook.OrderType.PendingLimitOrder
+                    );
+                    assertEq(
+                        orderBook.totalOrdersQuantity(
+                            keccak256(abi.encode(address(this), swapToken))
+                        ),
+                        amountOut
+                    );
+
+                    assertEq(orderBook.totalOrdersPerAddress(address(this)), 1);
+                }
+            }
+        } catch {
+            cheatCodes.expectRevert(
+                abi.encodeWithSelector(
+                    Errors.OrderDoesNotExist.selector,
+                    bytes32(0)
+                )
+            );
+
+            (bool reverted, ) = address(orderBook).call(
+                abi.encodeWithSignature(
+                    "decreaseExecutionCredit(bytes32,uint128)",
+                    bytes32(0),
+                    executionCreditAmount
+                )
+            );
+            assertTrue(reverted);
+        }
     }
 
     function testGetOrderIds() public {
@@ -618,6 +836,8 @@ contract LimitOrderBookTest is DSTest {
 
         orderId = orderIds[0];
     }
+
+    receive() external payable {}
 
     function placeMultipleMockOrder(
         LimitOrderBook.LimitOrder[] memory orderGroup

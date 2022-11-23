@@ -25,6 +25,7 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
     address public immutable SANDBOX_LIMIT_ORDER_ROUTER;
 
     ///====================================Constants==============================================//
+
     ///@notice The Maximum Reward a beacon can receive from stoploss execution.
     ///Note:
     /*

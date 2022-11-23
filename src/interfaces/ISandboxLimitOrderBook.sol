@@ -59,4 +59,8 @@ interface ISandboxLimitOrderBook {
     function refreshOrder(bytes32[] memory orderIds) external;
 
     function getTotalOrdersValue(address token) external view returns (uint256);
+
+    function decreaseExecutionCredit(bytes32 orderId, uint128 amount) external;
+
+    function increaseExecutionCredit(bytes32 orderId) external payable;
 }
