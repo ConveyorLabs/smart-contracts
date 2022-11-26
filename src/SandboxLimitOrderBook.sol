@@ -131,6 +131,17 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
      */
     event OrderFufilled(bytes32[] orderIds);
 
+    /**@notice Event that is emitted when an order is partially filled. For each order that is parital filled, the corresponding orderId is added
+    to the orderIds param. 
+     */
+    event OrderPartialFilled(
+        bytes32 indexed orderId,
+        uint128 indexed amountInRemaining,
+        uint128 indexed amountOutRemaining,
+        uint128 executionCreditRemaining,
+        uint128 feeRemaining
+    );
+
     ///@notice Event that notifies off-chain executors when an order has been refreshed.
     event OrderRefreshed(
         bytes32 indexed orderId,
@@ -151,9 +162,6 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         uint256 newMinExecutionCredit,
         uint256 oldMinExecutionCredit
     );
-
-    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
-    event GasCreditEvent(address indexed sender, uint256 indexed balance);
 
     // ========================================= Structs =============================================
 
@@ -674,7 +682,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
 
         uint128 executionCreditRemaining = order.executionCreditRemaining;
 
-        ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
+        ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the REFRESH_FEE.
         if (executionCreditRemaining > REFRESH_FEE) {
             ///@notice Decrement from the order owner's gas credit balance.
             orderIdToSandboxLimitOrder[order.orderId].executionCreditRemaining =
@@ -1245,23 +1253,35 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         addressToOrderIds[order.owner][order.orderId] = OrderType
             .PartialFilledSandboxLimitOrder;
 
-        ///@notice Update the orders feeRemaining to feeRemaining - feeRemaining * amountInFilled/amountInRemaining.
-        orderIdToSandboxLimitOrder[orderId].feeRemaining =
-            feeRemaining -
+        uint128 updatedFeeRemaining = feeRemaining -
             uint128(
                 ConveyorMath.mul64U(
                     ConveyorMath.divUU(amountInFilled, amountInRemaining),
                     feeRemaining
                 )
             );
+
+        ///@notice Update the orders feeRemaining to feeRemaining - feeRemaining * amountInFilled/amountInRemaining.
+        orderIdToSandboxLimitOrder[orderId].feeRemaining = updatedFeeRemaining;
+
         uint128 executionCreditCompensation = uint128(
             ConveyorMath.mul64U(percentFilled, executionCreditRemaining)
         );
 
-        ///@notice Decrement the execution credit by the proportion of the fillAmount/amountInRemaining(at placement time)
-        orderIdToSandboxLimitOrder[order.orderId].executionCreditRemaining =
-            executionCreditRemaining -
+        uint128 updatedExecutionCreditRemaining = executionCreditRemaining -
             executionCreditCompensation;
+
+        ///@notice Decrement the execution credit by the proportion of the fillAmount/amountInRemaining(at placement time)
+        orderIdToSandboxLimitOrder[order.orderId]
+            .executionCreditRemaining = updatedExecutionCreditRemaining;
+
+        emit OrderPartialFilled(
+            order.orderId,
+            order.amountInRemaining - amountInFilled,
+            order.amountOutRemaining - amountOutFilled,
+            updatedExecutionCreditRemaining,
+            updatedFeeRemaining
+        );
 
         return executionCreditCompensation;
     }

@@ -224,14 +224,14 @@ contract SandboxLimitOrderBookTest is DSTest {
         bytes32[] memory orderBatch = new bytes32[](1);
 
         orderBatch[0] = orderId;
-        uint256 gasCreditsBefore;
+        uint256 executionCreditBefore;
         ///Ensure the order has been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             SandboxLimitOrderBook.SandboxLimitOrder
                 memory order0 = sandboxLimitOrderBook.getSandboxLimitOrderById(
                     orderBatch[i]
                 );
-            gasCreditsBefore += order0.executionCreditRemaining;
+            executionCreditBefore += order0.executionCreditRemaining;
 
             assert(order0.orderId != bytes32(0));
         }
@@ -247,7 +247,7 @@ contract SandboxLimitOrderBookTest is DSTest {
                     .getSandboxLimitOrderById(orderBatch[i]);
             assert(
                 orderPostRefresh.executionCreditRemaining ==
-                    gasCreditsBefore - REFRESH_FEE
+                    executionCreditBefore - REFRESH_FEE
             );
             assert(orderPostRefresh.lastRefreshTimestamp == block.timestamp);
         }

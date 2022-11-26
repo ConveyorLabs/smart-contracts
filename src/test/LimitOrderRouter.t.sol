@@ -305,12 +305,12 @@ contract LimitOrderRouterTest is DSTest {
         bytes32[] memory orderBatch = new bytes32[](1);
 
         orderBatch[0] = orderId;
-        uint256 gasCreditsBefore;
+        uint256 executionCreditBefore;
         ///Ensure the order has been placed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             LimitOrderBook.LimitOrder memory order0 = orderBook
                 .getLimitOrderById(orderBatch[i]);
-            gasCreditsBefore += order0.executionCredit;
+            executionCreditBefore += order0.executionCredit;
             assert(order0.orderId != bytes32(0));
         }
 
@@ -322,7 +322,9 @@ contract LimitOrderRouterTest is DSTest {
         for (uint256 i = 0; i < orderBatch.length; ++i) {
             LimitOrderBook.LimitOrder memory order0 = orderBook
                 .getLimitOrderById(orderBatch[i]);
-            assert(order0.executionCredit == gasCreditsBefore - REFRESH_FEE);
+            assert(
+                order0.executionCredit == executionCreditBefore - REFRESH_FEE
+            );
             assert(order0.lastRefreshTimestamp == block.timestamp);
         }
     }

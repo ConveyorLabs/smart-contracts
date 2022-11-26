@@ -194,7 +194,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
         uint128 executionCredit = order.executionCredit;
 
-        ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the minimumGasCreditsForSingleOrder.
+        ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the REFRESH_FEE.
         if (executionCredit > REFRESH_FEE) {
             ///@notice Decrement from the order owner's gas credit balance.
             orderIdToLimitOrder[order.orderId].executionCredit =

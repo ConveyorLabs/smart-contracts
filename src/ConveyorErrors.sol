@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-error InsufficientGasCreditBalance(
-    address account,
-    uint256 gasCreditBalance,
-    uint256 gasCreditBalanceNeeded
-);
 error InsufficientWalletBalance(
     address account,
     uint256 balance,
@@ -91,5 +86,11 @@ error InsufficientFillAmountSpecified(
     uint128 amountInRemaining
 );
 error InsufficientExecutionCredit(uint256 msgValue, uint256 minExecutionCredit);
-error WithdrawAmountExceedsExecutionCredit(uint256 amount, uint256 executionCredit);
-error MsgValueIsNotCumulativeExecutionCredit(uint256 msgValue, uint256 cumulativeExecutionCredit);
+error WithdrawAmountExceedsExecutionCredit(
+    uint256 amount,
+    uint256 executionCredit
+);
+error MsgValueIsNotCumulativeExecutionCredit(
+    uint256 msgValue,
+    uint256 cumulativeExecutionCredit
+);

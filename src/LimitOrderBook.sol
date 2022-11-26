@@ -97,9 +97,6 @@ contract LimitOrderBook {
         uint256 oldMinExecutionCredit
     );
 
-    ///@notice Event that notifies off-chain executors when gas credits are added or withdrawn from an account's balance.
-    event GasCreditEvent(address indexed sender, uint256 indexed balance);
-
     //----------------------Structs------------------------------------//
 
     ///@notice Struct containing Order details for any limit order

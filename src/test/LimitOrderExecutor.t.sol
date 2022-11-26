@@ -356,7 +356,7 @@ contract LimitOrderExecutorTest is DSTest {
         );
 
         //require that the deposit was a success
-        require(depositSuccess, "testDepositGasCredits: deposit failed");
+        require(depositSuccess, "weth deposit failed");
 
         IERC20(WETH).approve(address(limitOrderExecutor), 5000000000 ether);
 
