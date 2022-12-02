@@ -466,9 +466,9 @@ contract SwapRouterTest is DSTest {
         uint16 feeOut,
         uint32 lastRefreshTimestamp,
         uint32 expirationTimestamp
-    ) internal view returns (OrderBook.LimitOrder memory order) {
+    ) internal view returns (OrderBook.Order memory order) {
         //Initialize mock order
-        order = OrderBook.LimitOrder({
+        order = OrderBook.Order({
             stoploss: false,
             buy: buy,
             taxed: taxed,

@@ -90,7 +90,7 @@ contract LimitOrderRouter is ILimitOrderRouter, OrderBook {
             ///@notice Get the current orderId.
             bytes32 orderId = orderIds[i];
 
-            LimitOrder memory order = getLimitOrderById(orderId);
+            Order memory order = getLimitOrderById(orderId);
 
             totalRefreshFees += _refreshLimitOrder(order);
 
@@ -105,7 +105,7 @@ contract LimitOrderRouter is ILimitOrderRouter, OrderBook {
     ///@notice Internal helper function to refresh a Limit Order.
     ///@param order - The Limit Order to be refreshed.
     ///@return executorFee - The fee to be compensated to the off-chain executor.
-    function _refreshLimitOrder(LimitOrder memory order)
+    function _refreshLimitOrder(Order memory order)
         internal
         returns (uint256 executorFee)
     {
@@ -166,7 +166,7 @@ contract LimitOrderRouter is ILimitOrderRouter, OrderBook {
         nonReentrant
         returns (bool success)
     {
-        LimitOrder memory order = getLimitOrderById(orderId);
+        Order memory order = getLimitOrderById(orderId);
 
         if (IERC20(order.tokenIn).balanceOf(order.owner) < order.quantity) {
             ///@notice Remove the order from the limit order system.
@@ -181,7 +181,7 @@ contract LimitOrderRouter is ILimitOrderRouter, OrderBook {
     /// @notice Internal helper function to cancel an order. This function is only called after cancel order validation.
     /// @param order - The order to cancel.
     /// @return success - Boolean to indicate if the order was successfully canceled.
-    function _cancelLimitOrderViaExecutor(LimitOrder memory order)
+    function _cancelLimitOrderViaExecutor(Order memory order)
         internal
         returns (uint256)
     {
@@ -218,15 +218,15 @@ contract LimitOrderRouter is ILimitOrderRouter, OrderBook {
 
     ///@notice Function to validate the congruency of an array of orders.
     ///@param orders Array of orders to be validated
-    function _validateOrderSequencing(LimitOrder[] memory orders)
+    function _validateOrderSequencing(Order[] memory orders)
         internal
         pure
     {
         ///@notice Iterate through the length of orders -1.
         for (uint256 i = 0; i < orders.length - 1; ) {
             ///@notice Cache order at index i, and i+1
-            LimitOrder memory currentOrder = orders[i];
-            LimitOrder memory nextOrder = orders[i + 1];
+            Order memory currentOrder = orders[i];
+            Order memory nextOrder = orders[i + 1];
 
             ///@notice Check if the current order is less than or equal to the next order
             if (currentOrder.quantity > nextOrder.quantity) {
@@ -295,7 +295,7 @@ contract LimitOrderRouter is ILimitOrderRouter, OrderBook {
         }
 
         ///@notice Get all of the orders by orderId and add them to a temporary orders array
-        LimitOrder[] memory orders = new LimitOrder[](orderIds.length);
+        Order[] memory orders = new Order[](orderIds.length);
 
         for (uint256 i = 0; i < orderIds.length; ) {
             orders[i] = getLimitOrderById(orderIds[i]);

@@ -116,7 +116,7 @@ contract OrderBookTest is DSTest {
         swapHelper.swapEthForTokenWithUniV2(20 ether, swapToken);
 
         //create a new order
-        OrderBook.LimitOrder memory order = newOrder(
+        OrderBook.Order memory order = newOrder(
             swapToken,
             WETH,
             245000000000000000000,
@@ -126,7 +126,7 @@ contract OrderBookTest is DSTest {
         //place a mock order
         bytes32 orderId = placeMockOrder(order);
 
-        OrderBook.LimitOrder memory returnedOrder = orderBook.getLimitOrderById(
+        OrderBook.Order memory returnedOrder = orderBook.getLimitOrderById(
             orderId
         );
         (orderId);
@@ -153,7 +153,7 @@ contract OrderBookTest is DSTest {
         try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
             uint256 amountOut
         ) {
-            OrderBook.LimitOrder memory order = newOrder(
+            OrderBook.Order memory order = newOrder(
                 swapToken,
                 WETH,
                 uint128(executionPrice),
@@ -193,7 +193,7 @@ contract OrderBookTest is DSTest {
         try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
             uint256 amountOut
         ) {
-            OrderBook.LimitOrder memory order = newOrder(
+            OrderBook.Order memory order = newOrder(
                 swapToken,
                 WETH,
                 uint128(executionPrice),
@@ -229,7 +229,7 @@ contract OrderBookTest is DSTest {
                     address(this),
                     orderId
                 );
-                OrderBook.LimitOrder memory returnedOrder = orderBook
+                OrderBook.Order memory returnedOrder = orderBook
                     .getLimitOrderById(orderId);
                 assert(
                     returnedOrder.executionCredit ==
@@ -285,7 +285,7 @@ contract OrderBookTest is DSTest {
         try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
             uint256 amountOut
         ) {
-            OrderBook.LimitOrder memory order = newOrder(
+            OrderBook.Order memory order = newOrder(
                 swapToken,
                 WETH,
                 uint128(executionPrice),
@@ -347,7 +347,7 @@ contract OrderBookTest is DSTest {
                         address(this),
                         orderId
                     );
-                    OrderBook.LimitOrder memory returnedOrder = orderBook
+                    OrderBook.Order memory returnedOrder = orderBook
                         .getLimitOrderById(orderId);
                     assert(
                         returnedOrder.executionCredit ==
@@ -435,7 +435,7 @@ contract OrderBookTest is DSTest {
         try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
             uint256 amountOut
         ) {
-            OrderBook.LimitOrder memory order = newOrder(
+            OrderBook.Order memory order = newOrder(
                 swapToken,
                 WETH,
                 uint128(executionPrice),
@@ -465,7 +465,7 @@ contract OrderBookTest is DSTest {
     function testFailPlaceOrder_InsufficientWalletBalance() public {
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
-        OrderBook.LimitOrder memory order = newOrder(
+        OrderBook.Order memory order = newOrder(
             swapToken,
             WETH,
             245000000000000000000,
@@ -480,7 +480,7 @@ contract OrderBookTest is DSTest {
     function testFailPlaceOrder_InsufficientExecutionCredit() public {
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
-        OrderBook.LimitOrder memory order = newOrder(
+        OrderBook.Order memory order = newOrder(
             swapToken,
             WETH,
             245000000000000000000,
@@ -489,7 +489,7 @@ contract OrderBookTest is DSTest {
         );
 
         //create a new array of orders
-        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](
+        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](
             1
         );
         //add the order to the arrOrder and add the arrOrder to the orderGroup
@@ -514,7 +514,7 @@ contract OrderBookTest is DSTest {
         try swapHelper.swapEthForTokenWithUniV2(swapAmount, swapToken) returns (
             uint256 amountOut
         ) {
-            OrderBook.LimitOrder memory order1 = newOrder(
+            OrderBook.Order memory order1 = newOrder(
                 swapToken,
                 WETH,
                 uint128(executionPrice),
@@ -525,7 +525,7 @@ contract OrderBookTest is DSTest {
             try
                 swapHelper.swapEthForTokenWithUniV2(swapAmount1, swapToken1)
             returns (uint256 amountOut1) {
-                OrderBook.LimitOrder memory order2 = newOrder(
+                OrderBook.Order memory order2 = newOrder(
                     swapToken1,
                     WETH,
                     uint128(executionPrice1),
@@ -534,8 +534,8 @@ contract OrderBookTest is DSTest {
                 );
 
                 //create a new array of orders
-                OrderBook.LimitOrder[]
-                    memory orderGroup = new OrderBook.LimitOrder[](2);
+                OrderBook.Order[]
+                    memory orderGroup = new OrderBook.Order[](2);
                 //add the order to the arrOrder and add the arrOrder to the orderGroup
                 orderGroup[0] = order1;
                 orderGroup[1] = order2;
@@ -572,7 +572,7 @@ contract OrderBookTest is DSTest {
             swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
 
             //create a new order
-            OrderBook.LimitOrder memory order = newOrder(
+            OrderBook.Order memory order = newOrder(
                 swapToken,
                 WETH,
                 price,
@@ -586,7 +586,7 @@ contract OrderBookTest is DSTest {
             //submit the updated order
             orderBook.updateOrder(orderId, newPrice, newQuantity);
 
-            OrderBook.LimitOrder memory updatedOrder = orderBook
+            OrderBook.Order memory updatedOrder = orderBook
                 .getLimitOrderById(orderId);
 
             //Cache the total orders value after the update
@@ -616,7 +616,7 @@ contract OrderBookTest is DSTest {
         swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
 
         //create a new order
-        OrderBook.LimitOrder memory order = newOrder(
+        OrderBook.Order memory order = newOrder(
             swapToken,
             WETH,
             price,
@@ -645,7 +645,7 @@ contract OrderBookTest is DSTest {
         swapHelper.swapEthForTokenWithUniV2(100000000000 ether, swapToken);
 
         //create a new order
-        OrderBook.LimitOrder memory order = newOrder(
+        OrderBook.Order memory order = newOrder(
             swapToken,
             WETH,
             price,
@@ -672,7 +672,7 @@ contract OrderBookTest is DSTest {
             uint256 amountOut
         ) {
             //create a new order
-            OrderBook.LimitOrder memory order = newOrder(
+            OrderBook.Order memory order = newOrder(
                 swapToken,
                 WETH,
                 uint128(amountOut),
@@ -698,7 +698,7 @@ contract OrderBookTest is DSTest {
             swapToken
         );
         //create a new order
-        OrderBook.LimitOrder memory order = newOrder(
+        OrderBook.Order memory order = newOrder(
             swapToken,
             WETH,
             uint128(amountOut),
@@ -727,7 +727,7 @@ contract OrderBookTest is DSTest {
             swapToken
         );
         //Create a new order
-        OrderBook.LimitOrder memory order1 = newOrder(
+        OrderBook.Order memory order1 = newOrder(
             swapToken,
             WETH,
             uint128(amountOut / 2),
@@ -735,7 +735,7 @@ contract OrderBookTest is DSTest {
             uint128(1)
         );
         //Create a second order
-        OrderBook.LimitOrder memory order2 = newOrder(
+        OrderBook.Order memory order2 = newOrder(
             swapToken,
             WETH,
             uint128((amountOut / 2) - 1),
@@ -744,7 +744,7 @@ contract OrderBookTest is DSTest {
         );
 
         //create a new array of orders
-        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](
+        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](
             2
         );
         //add the order to the arrOrder and add the arrOrder to the orderGroup
@@ -778,7 +778,7 @@ contract OrderBookTest is DSTest {
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
 
         //create a new order
-        OrderBook.LimitOrder memory order = newOrder(
+        OrderBook.Order memory order = newOrder(
             swapToken,
             WETH,
             245000000000000000000,
@@ -801,9 +801,9 @@ contract OrderBookTest is DSTest {
         uint128 price,
         uint128 quantity,
         uint128 amountOutMin
-    ) internal view returns (OrderBook.LimitOrder memory order) {
+    ) internal view returns (OrderBook.Order memory order) {
         //Initialize mock order
-        order = OrderBook.LimitOrder({
+        order = OrderBook.Order({
             stoploss: false,
             buy: false,
             taxed: false,
@@ -823,12 +823,12 @@ contract OrderBookTest is DSTest {
         });
     }
 
-    function placeMockOrder(OrderBook.LimitOrder memory order)
+    function placeMockOrder(OrderBook.Order memory order)
         internal
         returns (bytes32 orderId)
     {
         //create a new array of orders
-        OrderBook.LimitOrder[] memory orderGroup = new OrderBook.LimitOrder[](
+        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](
             1
         );
         //add the order to the arrOrder and add the arrOrder to the orderGroup
@@ -845,7 +845,7 @@ contract OrderBookTest is DSTest {
 
     receive() external payable {}
 
-    function placeMultipleMockOrder(OrderBook.LimitOrder[] memory orderGroup)
+    function placeMultipleMockOrder(OrderBook.Order[] memory orderGroup)
         internal
         returns (bytes32[] memory orderIds)
     {

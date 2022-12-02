@@ -8,7 +8,7 @@ interface IOrderBook {
         view
         returns (uint256);
 
-    function placeLimitOrder(OrderBook.LimitOrder[] calldata orderGroup)
+    function placeLimitOrder(OrderBook.Order[] calldata orderGroup)
         external
         payable
         returns (bytes32[] memory);
@@ -36,7 +36,7 @@ interface IOrderBook {
     function getLimitOrderById(bytes32 orderId)
         external
         view
-        returns (OrderBook.LimitOrder memory);
+        returns (OrderBook.Order memory);
 
     function totalOrdersQuantity(bytes32 owner) external view returns (uint256);
 
