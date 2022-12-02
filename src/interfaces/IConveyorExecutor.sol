@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import "../LimitOrderBook.sol";
+import "../OrderBook.sol";
 
 interface IConveyorExecutor {
-    function executeTokenToWethOrders(LimitOrderBook.LimitOrder[] memory orders)
+    function executeTokenToWethOrders(OrderBook.LimitOrder[] memory orders)
         external
         returns (uint256, uint256);
 
     function executeTokenToTokenOrders(
-        LimitOrderBook.LimitOrder[] memory orders
+        OrderBook.LimitOrder[] memory orders
     ) external returns (uint256, uint256);
 }

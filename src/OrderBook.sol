@@ -3,14 +3,14 @@ pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
-import "./interfaces/ILimitOrderSwapRouter.sol";
+import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 import "./interfaces/IConveyorExecutor.sol";
 
-/// @title LimitOrderBook
+/// @title OrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
-contract LimitOrderBook {
+contract OrderBook {
     address immutable LIMIT_ORDER_EXECUTOR;
 
     address immutable WETH;
@@ -166,7 +166,7 @@ contract LimitOrderBook {
     mapping(address => bytes32[]) public addressToAllOrderIds;
 
     ///@notice The orderNonce is a unique value is used to create orderIds and increments every time a new order is placed.
-    ///@dev The orderNonce is set to 1 intially, and is always incremented by 2, so that the nonce is always odd, ensuring that there are not collisions with the orderIds from the SandboxLimitOrderBook
+    ///@dev The orderNonce is set to 1 intially, and is always incremented by 2, so that the nonce is always odd, ensuring that there are not collisions with the orderIds from the SandboxOrderBook
     uint256 orderNonce = 1;
 
     ///@notice Function to decrease the execution credit for an order.

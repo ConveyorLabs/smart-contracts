@@ -1,11 +1,11 @@
 # Updated Scope
 - `src/ConveyorExecutor.sol`
-- `src/LimitOrderSwapRouter.sol`
+- `src/SwapRouter.sol`
 - `src/LimitOrderRouter.sol`
 - `src/LimitOrderBook.sol`
 - `src/SandboxLimitOrderRouter.sol`
 - `src/SandboxLimitOrderBook.sol`
-- `src/LimitOrderQuoter.sol`
+- `src/LimitOrderBatcher.sol`
 - `src/ConveyorGasOracle.sol`
 - `src/ConveyorSwapAggregator.sol`
 - `src/ConveyorErrors.sol`
@@ -13,9 +13,9 @@
 - `src/interfaces/IConveyorGasOracle.sol`
 - `src/interfaces/IConveyorSwapAggregator.sol`
 - `src/interfaces/ILimitOrderBook.sol`
-- `src/interfaces/ILimitOrderQuoter.sol`
+- `src/interfaces/ILimitOrderBatcher.sol`
 - `src/interfaces/ILimitOrderRouter.sol`
-- `src/interfaces/ILimitOrderSwapRouter.sol`
+- `src/interfaces/ISwapRouter.sol`
 - `src/interfaces/ISandboxLimitOrderBook.sol`
 - `src/interfaces/ISandboxLimitOrderRouter.sol`
 - `src/lib/ConveyorTickMath.sol`
@@ -34,7 +34,7 @@ The following contracts are part of the LimitOrder system.
 
 `LimitOrderBook.sol`, Previously `OrderBook.sol` </br>
 `LimitOrderRouter.sol` </br>
-`LimitOrderQuoter.sol`, Previously `LimitOrderBatcher.sol` </br>
+`LimitOrderBatcher.sol`, Previously `LimitOrderBatcher.sol` </br>
 `lib/ConveyorTickMath.sol`, Replaces V3 Quoter Logic for V3 price simulation + Q96.64-> X128 Conversion logic </br>
 `lib/ConveyorFeeMath` </br>
 `SwapRouter` </br>
@@ -55,10 +55,10 @@ The following contracts are part of the SandboxLimitOrder system.
 We eliminated the use of the v3 Quoter in the contract. Our quoting logic was modeled after: (https://github.com/Uniswap/v3-core/blob/main/contracts/UniswapV3Pool.sol#L596).
 
 The implementation is located in `src/lib/ConveyorTickMath.sol` within the function `simulateAmountOutOnSqrtPriceX96`. 
-This function is called in `src/LimitOrderQuoter.sol` within `calculateAmountOutMinAToWeth` </br>
+This function is called in `src/LimitOrderBatcher.sol` within `calculateAmountOutMinAToWeth` </br>
 
 Tests:<br />
-Reference `src/test/LimitOrderQuoter.t.sol` for `calculateAmountOutMinAToWeth` tests.<br />
+Reference `src/test/LimitOrderBatcher.t.sol` for `calculateAmountOutMinAToWeth` tests.<br />
 Reference `src/test/ConveyorTickMath.t.sol` for `simulateAmountOutOnSqrtPriceX96` tests. <br />
 
 #### Function `_calculateV3SpotPrice`
@@ -610,7 +610,7 @@ constructor(
 constructor(
         address _weth,
         address _usdc,
-        address _limitOrderQuoterAddress,
+        address _LimitOrderBatcherAddress,
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
@@ -626,13 +626,13 @@ constructor(
         require(_weth != address(0), "Invalid weth address");
         require(_usdc != address(0), "Invalid usdc address");
         require(
-            _limitOrderQuoterAddress != address(0),
-            "Invalid LimitOrderQuoter address"
+            _LimitOrderBatcherAddress != address(0),
+            "Invalid LimitOrderBatcher address"
         );
 
         USDC = _usdc;
         WETH = _weth;
-        LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
+        LIMIT_ORDER_QUOTER = _LimitOrderBatcherAddress;
         LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
         SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
 
@@ -982,7 +982,7 @@ Relevant Gas Snapshot Post Changes:
 │ uniswapV3SwapCallback                                        ┆ 815             ┆ 22480  ┆ 32084  ┆ 35159  ┆ 5       │
 ╰──────────────────────────────────────────────────────────────┴─────────────────┴────────┴────────┴────────┴─────────╯
 ╭────────────────────────────────────────────────────┬─────────────────┬───────┬────────┬───────┬─────────╮
-│ src/LimitOrderQuoter.sol:LimitOrderQuoter contract ┆                 ┆       ┆        ┆       ┆         │
+│ src/LimitOrderBatcher.sol:LimitOrderBatcher contract ┆                 ┆       ┆        ┆       ┆         │
 ╞════════════════════════════════════════════════════╪═════════════════╪═══════╪════════╪═══════╪═════════╡
 │ Deployment Cost                                    ┆ Deployment Size ┆       ┆        ┆       ┆         │
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤

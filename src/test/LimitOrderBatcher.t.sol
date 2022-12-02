@@ -10,9 +10,9 @@ import "../../lib/interfaces/token/IERC20.sol";
 import "./utils/Swap.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "./utils/ScriptRunner.sol";
-import "../LimitOrderBook.sol";
+import "../OrderBook.sol";
 import "../LimitOrderRouter.sol";
-import "../LimitOrderQuoter.sol";
+import "../LimitOrderBatcher.sol";
 import "../../lib/interfaces/uniswap-v3/IQuoter.sol";
 
 interface CheatCodes {
@@ -36,14 +36,14 @@ interface CheatCodes {
     function rollFork(uint256 forkId, uint256 blockNumber) external;
 }
 
-contract LimitOrderQuoterTest is DSTest {
+contract LimitOrderBatcherTest is DSTest {
     //Initialize limit-v0 contract for testing
     LimitOrderRouter limitOrderRouter;
-    ExecutionWrapper limitOrderQuoter;
+    ExecutionWrapper limitOrderBatcher;
 
-    LimitOrderSwapRouter orderRouter;
+    SwapRouter orderRouter;
     //Initialize OrderBook
-    LimitOrderBook orderBook;
+    OrderBook orderBook;
     IQuoter iQuoter;
     ScriptRunner scriptRunner;
 
@@ -113,10 +113,10 @@ contract LimitOrderQuoterTest is DSTest {
         swapHelper = new Swap(_sushiSwapRouterAddress, WETH);
         swapHelperUniV2 = new Swap(uniV2Addr, WETH);
 
-        limitOrderQuoter = new ExecutionWrapper(
+        limitOrderBatcher = new ExecutionWrapper(
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
-        cheatCodes.makePersistent(address(limitOrderQuoter));
+        cheatCodes.makePersistent(address(limitOrderBatcher));
         iQuoter = IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
     }
 
@@ -128,8 +128,8 @@ contract LimitOrderQuoterTest is DSTest {
         decimals[0] = 18;
         decimals[1] = 18;
 
-        LimitOrderSwapRouter.TokenToTokenExecutionPrice
-            memory tokenToTokenExecutionPrice = LimitOrderSwapRouter
+        SwapRouter.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice = SwapRouter
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
@@ -140,8 +140,8 @@ contract LimitOrderQuoterTest is DSTest {
                     lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
                 });
 
-        LimitOrderSwapRouter.TokenToTokenExecutionPrice
-            memory tokenToTokenExecutionPrice1 = LimitOrderSwapRouter
+        SwapRouter.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice1 = SwapRouter
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
@@ -152,16 +152,16 @@ contract LimitOrderQuoterTest is DSTest {
                     lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
                 });
 
-        LimitOrderSwapRouter.TokenToTokenExecutionPrice[]
-            memory executionPrices = new LimitOrderSwapRouter.TokenToTokenExecutionPrice[](
+        SwapRouter.TokenToTokenExecutionPrice[]
+            memory executionPrices = new SwapRouter.TokenToTokenExecutionPrice[](
                 2
             );
         executionPrices[0] = tokenToTokenExecutionPrice;
         executionPrices[1] = tokenToTokenExecutionPrice1;
 
-        uint256 bestPriceIndexBuy = limitOrderQuoter
+        uint256 bestPriceIndexBuy = limitOrderBatcher
             .findBestTokenToTokenExecutionPrice(executionPrices, true);
-        uint256 bestPriceIndexSell = limitOrderQuoter
+        uint256 bestPriceIndexSell = limitOrderBatcher
             .findBestTokenToTokenExecutionPrice(executionPrices, false);
 
         assertEq(bestPriceIndexBuy, 0);
@@ -183,7 +183,7 @@ contract LimitOrderQuoterTest is DSTest {
 
         if (!underflow) {
             if (_amountIn != 0) {
-                (, uint128 reserveA, uint128 reserveB, ) = limitOrderQuoter
+                (, uint128 reserveA, uint128 reserveB, ) = limitOrderBatcher
                     .simulateAToBPriceChange(
                         _amountIn,
                         reserveAIn,
@@ -225,7 +225,7 @@ contract LimitOrderQuoterTest is DSTest {
 
         if (!underflow) {
             if (_amountIn != 0) {
-                (uint256 spotPrice, , , ) = limitOrderQuoter
+                (uint256 spotPrice, , , ) = limitOrderBatcher
                     .simulateAToBPriceChange(
                         _amountIn,
                         reserveAIn,
@@ -274,7 +274,7 @@ contract LimitOrderQuoterTest is DSTest {
                 _alphaX,
                 sqrtPriceLimitX96
             );
-            uint256 amountOutMin = limitOrderQuoter
+            uint256 amountOutMin = limitOrderBatcher
                 .calculateAmountOutMinAToWeth(
                     poolAddress,
                     _alphaX,
@@ -315,7 +315,7 @@ contract LimitOrderQuoterTest is DSTest {
                 _alphaX,
                 sqrtPriceLimitX96
             );
-            uint256 amountOutMin = limitOrderQuoter
+            uint256 amountOutMin = limitOrderBatcher
                 .calculateAmountOutMinAToWeth(
                     poolAddress,
                     _alphaX,
@@ -335,8 +335,8 @@ contract LimitOrderQuoterTest is DSTest {
         decimals[0] = 18;
         decimals[1] = 18;
         //Weth/Uni
-        LimitOrderSwapRouter.TokenToTokenExecutionPrice
-            memory tokenToTokenExecutionPrice = LimitOrderSwapRouter
+        SwapRouter.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice = SwapRouter
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
@@ -347,7 +347,7 @@ contract LimitOrderQuoterTest is DSTest {
                     lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
                 });
 
-        (uint256 newSpotPriceB, , ) = limitOrderQuoter
+        (uint256 newSpotPriceB, , ) = limitOrderBatcher
             .simulateWethToBPriceChange(
                 5000000000000000000,
                 tokenToTokenExecutionPrice
@@ -362,8 +362,8 @@ contract LimitOrderQuoterTest is DSTest {
         decimals[0] = 18;
         decimals[1] = 18;
         //Weth/Uni
-        LimitOrderSwapRouter.TokenToTokenExecutionPrice
-            memory tokenToTokenExecutionPrice = LimitOrderSwapRouter
+        SwapRouter.TokenToTokenExecutionPrice
+            memory tokenToTokenExecutionPrice = SwapRouter
                 .TokenToTokenExecutionPrice({
                     aToWethReserve0: 8014835235973799779324680,
                     aToWethReserve1: 4595913824638810919416,
@@ -374,7 +374,7 @@ contract LimitOrderQuoterTest is DSTest {
                     lpAddressWethToB: 0xd3d2E2692501A5c9Ca623199D38826e513033a17
                 });
 
-        (uint256 newSpotPriceA, , , uint128 amountOut) = limitOrderQuoter
+        (uint256 newSpotPriceA, , , uint128 amountOut) = limitOrderBatcher
             .simulateAToWethPriceChange(
                 50000000000000000000000,
                 tokenToTokenExecutionPrice
@@ -417,8 +417,8 @@ contract LimitOrderQuoterTest is DSTest {
     }
 }
 
-contract ExecutionWrapper is LimitOrderQuoter {
-    constructor(address _weth) LimitOrderQuoter(_weth) {}
+contract ExecutionWrapper is LimitOrderBatcher {
+    constructor(address _weth) LimitOrderBatcher(_weth) {}
 
     function simulateAToBPriceChange(
         uint128 alphaX,
@@ -447,7 +447,7 @@ contract ExecutionWrapper is LimitOrderQuoter {
 
     function simulateAToWethPriceChange(
         uint128 alphaX,
-        LimitOrderSwapRouter.TokenToTokenExecutionPrice memory executionPrice
+        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
     )
         public
         returns (
@@ -462,7 +462,7 @@ contract ExecutionWrapper is LimitOrderQuoter {
 
     function simulateWethToBPriceChange(
         uint128 alphaX,
-        LimitOrderSwapRouter.TokenToTokenExecutionPrice memory executionPrice
+        SwapRouter.TokenToTokenExecutionPrice memory executionPrice
     )
         public
         returns (

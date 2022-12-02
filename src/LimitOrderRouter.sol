@@ -2,18 +2,18 @@
 pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
-import "./LimitOrderBook.sol";
+import "./OrderBook.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/token/IWETH.sol";
-import "./LimitOrderSwapRouter.sol";
-import "./interfaces/ILimitOrderQuoter.sol";
+import "./SwapRouter.sol";
+import "./interfaces/ILimitOrderBatcher.sol";
 import "./interfaces/IConveyorExecutor.sol";
 import "./interfaces/ILimitOrderRouter.sol";
 
 /// @title LimitOrderRouter
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
-/// @notice Limit Order contract to execute existing limit orders within the LimitOrderBook contract.
-contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
+/// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
+contract LimitOrderRouter is ILimitOrderRouter, OrderBook {
     using SafeERC20 for IERC20;
     // ========================================= Modifiers =============================================
 
@@ -67,7 +67,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         address _usdc,
         address _limitOrderExecutor,
         uint256 _minExecutionCredit
-    ) LimitOrderBook(_limitOrderExecutor, _weth, _usdc, _minExecutionCredit) {
+    ) OrderBook(_limitOrderExecutor, _weth, _usdc, _minExecutionCredit) {
         ///@notice Require that deployment addresses are not zero
         ///@dev All other addresses are being asserted in the limit order executor, which deploys the limit order router
         require(

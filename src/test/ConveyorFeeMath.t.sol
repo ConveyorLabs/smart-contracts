@@ -6,16 +6,15 @@ import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Utils.sol";
 import "./utils/Swap.sol";
-import "../../lib/interfaces/uniswap-v3/ISwapRouter.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
-import "../LimitOrderSwapRouter.sol";
+import "../SwapRouter.sol";
 import "./utils/ScriptRunner.sol";
 import "../../lib/libraries/Uniswap/LowGasSafeMath.sol";
 import "../../lib/libraries/Uniswap/FullMath.sol";
-import "../LimitOrderBook.sol";
-import "../LimitOrderQuoter.sol";
+import "../OrderBook.sol";
+import "../LimitOrderBatcher.sol";
 import "../ConveyorExecutor.sol";
 
 interface CheatCodes {
@@ -175,13 +174,13 @@ contract ConveyorFeeMathTest is DSTest {
     }
 }
 
-//wrapper around LimitOrderSwapRouter to expose internal functions for testing
-contract LimitOrderExecutorWrapper is LimitOrderSwapRouter {
+//wrapper around SwapRouter to expose internal functions for testing
+contract LimitOrderExecutorWrapper is SwapRouter {
     constructor(
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2
-    ) LimitOrderSwapRouter(_initBytecodes, _dexFactories, _isUniV2) {}
+    ) SwapRouter(_initBytecodes, _dexFactories, _isUniV2) {}
 
     function getV3PoolFee(address pairAddress)
         public

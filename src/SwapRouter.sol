@@ -7,7 +7,7 @@ import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "./lib/ConveyorMath.sol";
-import "./LimitOrderBook.sol";
+import "./OrderBook.sol";
 import "./lib/ConveyorTickMath.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/libraries/Uniswap/FixedPoint96.sol";
@@ -18,12 +18,12 @@ import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/token/SafeERC20.sol";
 import "./ConveyorErrors.sol";
-import "./interfaces/ILimitOrderSwapRouter.sol";
+import "./interfaces/ISwapRouter.sol";
 
-/// @title LimitOrderSwapRouter
+/// @title SwapRouter
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Dex aggregator that executes standalone swaps, and fulfills limit orders during execution.
-contract LimitOrderSwapRouter is ConveyorTickMath {
+contract SwapRouter is ConveyorTickMath {
     using SafeERC20 for IERC20;
     //----------------------Structs------------------------------------//
 
