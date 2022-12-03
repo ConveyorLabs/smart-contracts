@@ -3,7 +3,6 @@ pragma solidity 0.8.16;
 
 import "./SwapRouter.sol";
 import "./interfaces/ILimitOrderBatcher.sol";
-import "./lib/ConveyorFeeMath.sol";
 import "./LimitOrderRouter.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./interfaces/IOrderBook.sol";
@@ -264,7 +263,7 @@ contract ConveyorExecutor is IConveyorExecutor, SwapRouter {
         uint128 protocolFee = calculateFee(amountOutWeth, USDC, WETH);
 
         ///@notice Calculate the conveyorReward and executor reward.
-        (conveyorReward, beaconReward) = ConveyorFeeMath.calculateReward(
+        (conveyorReward, beaconReward) = calculateReward(
             protocolFee,
             amountOutWeth
         );
@@ -408,8 +407,10 @@ contract ConveyorExecutor is IConveyorExecutor, SwapRouter {
                 );
 
                 ///@notice Calculate the conveyorReward and the off-chain logic executor reward.
-                (conveyorReward, beaconReward) = ConveyorFeeMath
-                    .calculateReward(protocolFee, uint128(amountIn));
+                (conveyorReward, beaconReward) = calculateReward(
+                    protocolFee,
+                    uint128(amountIn)
+                );
 
                 ///@notice If the order is a stoploss, and the beaconReward surpasses 0.05 WETH. Cap the protocol and the off chain executor at 0.05 WETH.
                 if (order.stoploss) {

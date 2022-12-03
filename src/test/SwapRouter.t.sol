@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import "../lib/ConveyorFeeMath.sol";
 import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Utils.sol";
@@ -340,6 +339,10 @@ contract SwapRouterTest is DSTest {
         }
     }
 
+    //================================================================
+    //======================= Helper functions =======================
+    //================================================================
+
     function testFailUniswapV3Callback_UnauthorizedUniswapV3CallbackCaller()
         public
     {
@@ -377,7 +380,7 @@ contract SwapRouterTest is DSTest {
                 weth
             );
             //1.8446744073709550
-            (, uint128 rewardBeacon) = ConveyorFeeMath.calculateReward(
+            (, uint128 rewardBeacon) = limitOrderExecutor.calculateReward(
                 fee,
                 wethValue
             );
@@ -408,7 +411,7 @@ contract SwapRouterTest is DSTest {
                 weth
             );
             //1.8446744073709550
-            (uint128 rewardConveyor, ) = ConveyorFeeMath.calculateReward(
+            (uint128 rewardConveyor, ) = limitOrderExecutor.calculateReward(
                 fee,
                 wethValue
             );
