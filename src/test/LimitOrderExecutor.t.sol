@@ -144,7 +144,7 @@ contract LimitOrderExecutorTest is DSTest {
             uint256 gasCompensationBefore = address(tx.origin).balance;
 
             cheatCodes.prank(tx.origin);
-            limitOrderRouter.executeLimitOrders(tokenToWethOrderBatch);
+            limitOrderRouter.executeOrders(tokenToWethOrderBatch);
             uint256 gasCompensationAfter = address(tx.origin).balance;
             // check that the orders have been fufilled and removed
             for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
@@ -189,7 +189,7 @@ contract LimitOrderExecutorTest is DSTest {
         }
 
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeLimitOrders(tokenToWethOrderBatch);
+        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
     }
 
     ///@notice Test to execute a single token to with order
@@ -232,7 +232,7 @@ contract LimitOrderExecutorTest is DSTest {
             assert(order0.orderId != bytes32(0));
         }
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeLimitOrders(orderBatch);
+        limitOrderRouter.executeOrders(orderBatch);
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < orderBatch.length; ++i) {
@@ -315,19 +315,21 @@ contract LimitOrderExecutorTest is DSTest {
                 uint256 cumulativeGasCompensation;
                 ///@notice check that the orders have been placed
                 for (uint256 i = 0; i < orderBatch.length; ++i) {
-                    OrderBook.Order memory order0 = orderBook
-                        .getLimitOrderById(orderBatch[i]);
+                    OrderBook.Order memory order0 = orderBook.getLimitOrderById(
+                        orderBatch[i]
+                    );
                     cumulativeGasCompensation += order0.executionCredit;
                     assert(order0.orderId != bytes32(0));
                 }
                 ///@notice Execute orders with an EOA.
                 cheatCodes.prank(tx.origin);
-                limitOrderRouter.executeLimitOrders(orderBatch);
+                limitOrderRouter.executeOrders(orderBatch);
                 uint256 gasCompensationAfter = address(tx.origin).balance;
                 // check that the orders have been fufilled and removed
                 for (uint256 i = 0; i < orderBatch.length; ++i) {
-                    OrderBook.Order memory order0 = orderBook
-                        .getLimitOrderById(orderBatch[i]);
+                    OrderBook.Order memory order0 = orderBook.getLimitOrderById(
+                        orderBatch[i]
+                    );
 
                     ///@notice Ensure the user was compensated.
                     assertGe(balanceAfterMin, order.amountOutMin);
@@ -379,7 +381,7 @@ contract LimitOrderExecutorTest is DSTest {
             uint256 gasCompensationBefore = address(tx.origin).balance;
 
             cheatCodes.prank(tx.origin);
-            limitOrderRouter.executeLimitOrders(tokenToWethOrderBatch);
+            limitOrderRouter.executeOrders(tokenToWethOrderBatch);
             uint256 gasCompensationAfter = address(tx.origin).balance;
             // check that the orders have been fufilled and removed
             for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
@@ -465,8 +467,9 @@ contract LimitOrderExecutorTest is DSTest {
 
             orderBatch[0] = orderId;
             for (uint256 i = 0; i < orderBatch.length; ++i) {
-                OrderBook.Order memory order0 = orderBook
-                    .getLimitOrderById(orderBatch[i]);
+                OrderBook.Order memory order0 = orderBook.getLimitOrderById(
+                    orderBatch[i]
+                );
 
                 assert(order0.orderId != bytes32(0));
             }
@@ -480,19 +483,21 @@ contract LimitOrderExecutorTest is DSTest {
                 uint256 cumulativeGasCompensation;
                 ///@notice check that the orders have been placed
                 for (uint256 i = 0; i < orderBatch.length; ++i) {
-                    OrderBook.Order memory order0 = orderBook
-                        .getLimitOrderById(orderBatch[i]);
+                    OrderBook.Order memory order0 = orderBook.getLimitOrderById(
+                        orderBatch[i]
+                    );
                     cumulativeGasCompensation += order0.executionCredit;
                     assert(order0.orderId != bytes32(0));
                 }
                 ///@notice Execute orders with an EOA.
                 cheatCodes.prank(tx.origin);
-                limitOrderRouter.executeLimitOrders(orderBatch);
+                limitOrderRouter.executeOrders(orderBatch);
                 uint256 gasCompensationAfter = address(tx.origin).balance;
                 // check that the orders have been fufilled and removed
                 for (uint256 i = 0; i < orderBatch.length; ++i) {
-                    OrderBook.Order memory order0 = orderBook
-                        .getLimitOrderById(orderBatch[i]);
+                    OrderBook.Order memory order0 = orderBook.getLimitOrderById(
+                        orderBatch[i]
+                    );
 
                     ///@notice Ensure the user was compensated.
                     assertGe(balanceAfterMin, order.amountOutMin);
@@ -538,7 +543,7 @@ contract LimitOrderExecutorTest is DSTest {
             uint256 gasCompensationBefore = address(tx.origin).balance;
 
             cheatCodes.prank(tx.origin);
-            limitOrderRouter.executeLimitOrders(tokenToTokenOrderBatch);
+            limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
             uint256 gasCompensationAfter = address(tx.origin).balance;
             // check that the orders have been fufilled and removed
             for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
@@ -638,19 +643,21 @@ contract LimitOrderExecutorTest is DSTest {
                 uint256 cumulativeGasCompensation;
                 ///@notice check that the orders have been placed
                 for (uint256 i = 0; i < orderBatch.length; ++i) {
-                    OrderBook.Order memory order0 = orderBook
-                        .getLimitOrderById(orderBatch[i]);
+                    OrderBook.Order memory order0 = orderBook.getLimitOrderById(
+                        orderBatch[i]
+                    );
                     cumulativeGasCompensation += order0.executionCredit;
                     assert(order0.orderId != bytes32(0));
                 }
                 ///@notice Execute orders with an EOA.
                 cheatCodes.prank(tx.origin);
-                limitOrderRouter.executeLimitOrders(orderBatch);
+                limitOrderRouter.executeOrders(orderBatch);
                 uint256 gasCompensationAfter = address(tx.origin).balance;
                 // check that the orders have been fufilled and removed
                 for (uint256 i = 0; i < orderBatch.length; ++i) {
-                    OrderBook.Order memory order0 = orderBook
-                        .getLimitOrderById(orderBatch[i]);
+                    OrderBook.Order memory order0 = orderBook.getLimitOrderById(
+                        orderBatch[i]
+                    );
 
                     ///@notice Ensure the user was compensated.
                     assertGe(balanceAfterMin, order.amountOutMin);
@@ -701,7 +708,7 @@ contract LimitOrderExecutorTest is DSTest {
             uint256 gasCompensationBefore = address(tx.origin).balance;
 
             cheatCodes.prank(tx.origin);
-            limitOrderRouter.executeLimitOrders(wethToTaxedOrderBatch);
+            limitOrderRouter.executeOrders(wethToTaxedOrderBatch);
             uint256 gasCompensationAfter = address(tx.origin).balance;
             // check that the orders have been fufilled and removed
             for (uint256 i = 0; i < wethToTaxedOrderBatch.length; ++i) {
@@ -760,15 +767,16 @@ contract LimitOrderExecutorTest is DSTest {
             uint256 cumulativeGasCompensation = 0;
             ///@notice check that the orders have been placed
             for (uint256 i = 0; i < orderBatch.length; ++i) {
-                OrderBook.Order memory order0 = orderBook
-                    .getLimitOrderById(orderBatch[i]);
+                OrderBook.Order memory order0 = orderBook.getLimitOrderById(
+                    orderBatch[i]
+                );
                 cumulativeGasCompensation += order0.executionCredit;
                 assert(order0.orderId != bytes32(0));
             }
             uint256 gasCompensationBefore = address(tx.origin).balance;
             ///@notice Execute orders with an EOA.
             cheatCodes.prank(tx.origin);
-            limitOrderRouter.executeLimitOrders(orderBatch);
+            limitOrderRouter.executeOrders(orderBatch);
             uint256 gasCompensationAfter = address(tx.origin).balance;
             uint256 txOriginBalanceAfter = IERC20(WETH).balanceOf(tx.origin);
             // check that the orders have been fufilled and removed
@@ -813,7 +821,7 @@ contract LimitOrderExecutorTest is DSTest {
             uint256 gasCompensationBefore = address(tx.origin).balance;
 
             cheatCodes.prank(tx.origin);
-            limitOrderRouter.executeLimitOrders(tokenToWethOrderBatch);
+            limitOrderRouter.executeOrders(tokenToWethOrderBatch);
             uint256 gasCompensationAfter = address(tx.origin).balance;
             // check that the orders have been fufilled and removed
             for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
@@ -872,15 +880,16 @@ contract LimitOrderExecutorTest is DSTest {
             uint256 cumulativeGasCompensation = 0;
             ///@notice check that the orders have been placed
             for (uint256 i = 0; i < orderBatch.length; ++i) {
-                OrderBook.Order memory order0 = orderBook
-                    .getLimitOrderById(orderBatch[i]);
+                OrderBook.Order memory order0 = orderBook.getLimitOrderById(
+                    orderBatch[i]
+                );
                 cumulativeGasCompensation += order0.executionCredit;
                 assert(order0.orderId != bytes32(0));
             }
             uint256 gasCompensationBefore = address(tx.origin).balance;
             ///@notice Execute orders with an EOA.
             cheatCodes.prank(tx.origin);
-            limitOrderRouter.executeLimitOrders(orderBatch);
+            limitOrderRouter.executeOrders(orderBatch);
             uint256 gasCompensationAfter = address(tx.origin).balance;
             uint256 txOriginBalanceAfter = IERC20(WETH).balanceOf(tx.origin);
             // check that the orders have been fufilled and removed
@@ -936,15 +945,16 @@ contract LimitOrderExecutorTest is DSTest {
             uint256 cumulativeGasCompensation = 0;
             ///@notice check that the orders have been placed
             for (uint256 i = 0; i < orderBatch.length; ++i) {
-                OrderBook.Order memory order0 = orderBook
-                    .getLimitOrderById(orderBatch[i]);
+                OrderBook.Order memory order0 = orderBook.getLimitOrderById(
+                    orderBatch[i]
+                );
                 cumulativeGasCompensation += order0.executionCredit;
                 assert(order0.orderId != bytes32(0));
             }
             uint256 gasCompensationBefore = address(tx.origin).balance;
             ///@notice Execute orders with an EOA.
             cheatCodes.prank(tx.origin);
-            limitOrderRouter.executeLimitOrders(orderBatch);
+            limitOrderRouter.executeOrders(orderBatch);
             uint256 gasCompensationAfter = address(tx.origin).balance;
             uint256 txOriginBalanceAfter = IERC20(WETH).balanceOf(tx.origin);
             // check that the orders have been fufilled and removed
@@ -989,7 +999,7 @@ contract LimitOrderExecutorTest is DSTest {
             uint256 gasCompensationBefore = address(tx.origin).balance;
 
             cheatCodes.prank(tx.origin);
-            limitOrderRouter.executeLimitOrders(orderBatch);
+            limitOrderRouter.executeOrders(orderBatch);
             uint256 gasCompensationAfter = address(tx.origin).balance;
             // check that the orders have been fufilled and removed
             for (uint256 i = 0; i < orderBatch.length; ++i) {
@@ -1037,7 +1047,7 @@ contract LimitOrderExecutorTest is DSTest {
             uint256 gasCompensationBefore = address(tx.origin).balance;
 
             cheatCodes.prank(tx.origin);
-            limitOrderRouter.executeLimitOrders(orderBatch);
+            limitOrderRouter.executeOrders(orderBatch);
             uint256 gasCompensationAfter = address(tx.origin).balance;
             // check that the orders have been fufilled and removed
             for (uint256 i = 0; i < orderBatch.length; ++i) {
@@ -1097,15 +1107,16 @@ contract LimitOrderExecutorTest is DSTest {
             uint256 cumulativeGasCompensation = 0;
             ///@notice check that the orders have been placed
             for (uint256 i = 0; i < orderBatch.length; ++i) {
-                OrderBook.Order memory order0 = orderBook
-                    .getLimitOrderById(orderBatch[i]);
+                OrderBook.Order memory order0 = orderBook.getLimitOrderById(
+                    orderBatch[i]
+                );
                 cumulativeGasCompensation += order0.executionCredit;
                 assert(order0.orderId != bytes32(0));
             }
             uint256 gasCompensationBefore = address(tx.origin).balance;
             ///@notice Execute orders with an EOA.
             cheatCodes.prank(tx.origin);
-            limitOrderRouter.executeLimitOrders(orderBatch);
+            limitOrderRouter.executeOrders(orderBatch);
             uint256 gasCompensationAfter = address(tx.origin).balance;
             uint256 txOriginBalanceAfter = IERC20(WETH).balanceOf(tx.origin);
             // check that the orders have been fufilled and removed
@@ -1150,7 +1161,7 @@ contract LimitOrderExecutorTest is DSTest {
         }
 
         //Don't prank tx.origin should revert
-        limitOrderRouter.executeLimitOrders(tokenToTokenOrderBatch);
+        limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
@@ -1182,7 +1193,7 @@ contract LimitOrderExecutorTest is DSTest {
         }
 
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeLimitOrders(tokenToTokenOrderBatch);
+        limitOrderRouter.executeOrders(tokenToTokenOrderBatch);
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
@@ -1213,7 +1224,7 @@ contract LimitOrderExecutorTest is DSTest {
         }
 
         //Dont prank tx.origin should revert with stoploss orders.
-        limitOrderRouter.executeLimitOrders(tokenToWethOrderBatch);
+        limitOrderRouter.executeOrders(tokenToWethOrderBatch);
 
         // check that the orders have been fufilled and removed
         for (uint256 i = 0; i < tokenToWethOrderBatch.length; ++i) {
@@ -1229,7 +1240,7 @@ contract LimitOrderExecutorTest is DSTest {
         bytes32[] memory emptyIdArray = new bytes32[](0);
 
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeLimitOrders(emptyIdArray);
+        limitOrderRouter.executeOrders(emptyIdArray);
     }
 
     ///@notice Test to check fail case if orderId is not in the state of contract
@@ -1237,7 +1248,7 @@ contract LimitOrderExecutorTest is DSTest {
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = bytes32(0);
         cheatCodes.prank(tx.origin);
-        limitOrderRouter.executeLimitOrders(orderIds);
+        limitOrderRouter.executeOrders(orderIds);
     }
 
     receive() external payable {}
@@ -1322,9 +1333,7 @@ contract LimitOrderExecutorTest is DSTest {
         returns (bytes32 orderId)
     {
         //create a new array of orders
-        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](
-            1
-        );
+        OrderBook.Order[] memory orderGroup = new OrderBook.Order[](1);
         //add the order to the arrOrder and add the arrOrder to the orderGroup
         orderGroup[0] = order;
         cheatCodes.deal(address(this), type(uint64).max);
@@ -1414,9 +1423,7 @@ contract LimitOrderExecutorTest is DSTest {
             500,
             MAX_U32
         );
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            4
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](4);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1487,9 +1494,7 @@ contract LimitOrderExecutorTest is DSTest {
             0,
             MAX_U32
         );
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            4
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](4);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1568,9 +1573,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            4
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](4);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1628,9 +1631,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            3
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1688,9 +1689,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            3
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1748,9 +1747,7 @@ contract LimitOrderExecutorTest is DSTest {
             0,
             MAX_U32
         );
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            3
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         bytes32[] memory mockOrderOrderIds = placeMultipleMockOrder(orderBatch);
@@ -1818,9 +1815,7 @@ contract LimitOrderExecutorTest is DSTest {
             0,
             MAX_U32
         );
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            3
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1881,9 +1876,7 @@ contract LimitOrderExecutorTest is DSTest {
             0,
             MAX_U32
         );
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            3
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -1947,9 +1940,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            3
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2007,9 +1998,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            3
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2067,9 +2056,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            3
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2127,9 +2114,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            3
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2187,9 +2172,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            3
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2233,9 +2216,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            2
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
 
@@ -2278,9 +2259,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            2
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
 
@@ -2337,9 +2316,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            3
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2396,9 +2373,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            3
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2496,9 +2471,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            6
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](6);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;
@@ -2556,9 +2529,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            3
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order;
         orderBatch[1] = order1;
         orderBatch[2] = order2;
@@ -2662,9 +2633,7 @@ contract LimitOrderExecutorTest is DSTest {
         //     MAX_U32
         // );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            2
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         // orderBatch[2] = order3;
@@ -2713,9 +2682,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            2
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
 
@@ -2758,9 +2725,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            2
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
 
@@ -2821,9 +2786,7 @@ contract LimitOrderExecutorTest is DSTest {
         //         MAX_U32
         //     );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            2
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](2);
         orderBatch[0] = order;
         orderBatch[1] = order1;
         // orderBatch[2] = order2;
@@ -2850,9 +2813,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            1
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](1);
         orderBatch[0] = order;
 
         return placeMultipleMockOrder(orderBatch);
@@ -2909,9 +2870,7 @@ contract LimitOrderExecutorTest is DSTest {
             MAX_U32
         );
 
-        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](
-            3
-        );
+        OrderBook.Order[] memory orderBatch = new OrderBook.Order[](3);
         orderBatch[0] = order1;
         orderBatch[1] = order2;
         orderBatch[2] = order3;

@@ -218,10 +218,7 @@ contract LimitOrderRouter is ILimitOrderRouter, OrderBook {
 
     ///@notice Function to validate the congruency of an array of orders.
     ///@param orders Array of orders to be validated
-    function _validateOrderSequencing(Order[] memory orders)
-        internal
-        pure
-    {
+    function _validateOrderSequencing(Order[] memory orders) internal pure {
         ///@notice Iterate through the length of orders -1.
         for (uint256 i = 0; i < orders.length - 1; ) {
             ///@notice Cache order at index i, and i+1
@@ -284,7 +281,7 @@ contract LimitOrderRouter is ILimitOrderRouter, OrderBook {
 
     ///@notice This function is called by off-chain executors, passing in an array of orderIds to execute a specific batch of orders.
     /// @param orderIds - Array of orderIds to indicate which orders should be executed.
-    function executeLimitOrders(bytes32[] calldata orderIds)
+    function executeOrders(bytes32[] calldata orderIds)
         external
         nonReentrant
         onlyEOA

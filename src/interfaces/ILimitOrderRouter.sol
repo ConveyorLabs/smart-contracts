@@ -8,7 +8,7 @@ interface ILimitOrderRouter {
         external
         returns (bool success);
 
-    function executeLimitOrders(bytes32[] calldata orderIds) external;
+    function executeOrders(bytes32[] calldata orderIds) external;
 
     function confirmTransferOwnership() external;
 
