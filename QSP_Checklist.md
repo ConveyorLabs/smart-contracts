@@ -54,7 +54,7 @@ In the SwapRouter contract, several `transferXXX()` functions allow anyone to ca
  
 ### Resolution
 All `transferXXX()` functions were updated to only be callable by the execution contract.
-- ConveyorExecutor.sol#L443
+- ConveyorExecutor.sol#L449
 - SwapRouter.sol#L296
 - SwapRouter.sol#308
 
@@ -99,7 +99,7 @@ modifier onlyLimitOrderRouter() {
 ```
 
 - ConveyorExecutor.sol#L124
-- ConveyorExecutor.sol#L281
+- ConveyorExecutor.sol#L284
 
 
 # QSP-3 Ignoring Return Value of ERC20 Transfer Functions ✅
@@ -110,7 +110,7 @@ Several functions use ERC20's and without checking their return values. Since pe
 ### Resolution
 SafeERC20 was implemented for ERC20 transfer functions.
 
-- ConveyorExecutor.sol#L446
+- ConveyorExecutor.sol#L452
 - SwapRouer.sol#L342
 - SwapRouer.sol#L345
 - SwapRouer.sol#L537
@@ -233,7 +233,7 @@ A nonReentrant modifier has been added to `LimitOrderRouter.executeOrders()` and
 ```
 
 - LimitOrderRouter.sol#284-288
-- ConveyorExecutor.sol#487
+- ConveyorExecutor.sol#493
 
 # QSP-9 Not Cancelling Order as Expected ✅
 
@@ -261,17 +261,13 @@ The conditions to cancel an order in refresh order is that the order has expired
 - LimitOrderRouter.sol#L129
 
 
-
 # QSP-10 Granting Insufficient Gas Credit to the Executor ✅
 
 ### Description
-The calculateExecutionGasConsumed() function returns the gas difference of the initialTxGas and the current gas retrieved by the gas() call. The returned value is the
-gas without multiplying it with the gas price. The calculateExecutionGasCompensation() function uses the returned gas value directly to calculate the gasDecrementValue. The
-gasDecrementValue does not take the gas price into account either. Consequently, the executor will not get enough gas compensation with the current implementation.
+The `calculateExecutionGasConsumed()` function returns the gas difference of the initialTxGas and the current gas retrieved by the gas() call. The returned value is the gas without multiplying it with the gas price. The `calculateExecutionGasCompensation()` function uses the returned gas value directly to calculate the gasDecrementValue. The gasDecrementValue does not take the gas price into account either. Consequently, the executor will not get enough gas compensation with the current implementation.
 
 ### Resolution
-The `calculateExecutionGasConsumed()` function was patched to multiply the gas price with the execution gas to decrement the correct amount of gas from the gasCredit balance and pay the off-chain executor. 
-
+We have removed gas credit balances, as well as compensation based on gas price from the oracle. Now, when a user places an order, they will deposit an `executionCredit`, which is now accounted for in the order struct. Upon execution, the off-chain executor will be paid the `executionCredit`. This change was made due to the inconsistency of having a viable gas oracle on every chain.
 
 # QSP-11 Integer Overflow / Underflow ✅
 ### Description
@@ -280,8 +276,110 @@ analogy: at 11:59, the minute hand goes to 0, not 60, because 59 is the most sig
 We noticed that the ConveyorMath library implements changes from the ABDK library and introduced several issues because the overflow protection on the original library would work only on
 the signed integers or with 128 bits. The overflow can lead to a miscalculation of the fees and rewards in the SwapRouter contract.
 
+# QSP-11_1
+### Description
+OrderBook._calculateMinGasCredits()#L480-488: The code uses the unchecked block when calculating the minGasCredits. However, there is no boundary for the
+input variables, and the calculation (especially the multiplication on L482-485) can overflow.
+
 ### Resolution
-All reccomendations have been implemented in their corresponding functions. 
+This function no longer exists because it is no longer needed.
+
+
+
+# QSP-11_2
+### Description
+ConveyorMath.sub()#L80: The cast int128(MAX_64x64) will always be -1. MAX_64x64 is the constant for uint128 with 128 bits of 1. After casting to int128, the code
+will treat it as -1. Judging from the logic, it does not make sense to check require(... && result <= -1).
+
+### Resolution
+In ConveyorMath.sub() we changed int128(MAX_64x64) to type(int128).max.
+
+- ConveyorMath.sol#L88
+
+
+# QSP-11_3
+### Description
+ConveyorMath.sub64UI()#L86: The line (y << 64) can be over-shifted and lose some bits for y. Also, the calculation result = x - (y << 64) can underflow as y
+<<64 can be larger than x, especially since x is of the type uint128 and y is of the type uint256. The line require(result >= 0x0 && uint128(result) <=
+uint128(MAX_64x64)) would not help preventing the overflow.
+
+### Resolution
+This function is no longer needed and was removed.
+
+
+# QSP-11_4
+### Description
+ConveyorMath.add128x128()#L100: The line answer = x + y can overflow. The check require(answer <= MAX_128x128) would not help as the answer will already
+have overflowed and always passes the validation.
+
+### Resolution
+The unchecked block in ConveyorMath.add128x128() was removed as well as the unnecessary validation require(answer <= MAX_128x128).
+
+- ConveyorMath.sol#L97-101
+
+
+# QSP-11_5
+### Description
+ConveyorMath.add128x64()#L112: The line answer = x + (uint256(y) << 64) can overflow. The check require(answer <= MAX_128x128) would not help as the
+answer will already have overflowed and always passes the validation
+
+### Resolution
+The unchecked block in ConveyorMath.add128x64() was removed as well as the unnecessary validation require(answer <= MAX_128x128).
+
+- ConveyorMath.sol#L107-111
+
+
+# QSP-11_6
+### Description
+ConveyorMath.mul128x64()#L139: The line (uint256(y) * x) can overflow since x is of type uint256. The check require(answer <= MAX_128x128) would not help
+as the answer will already have overflowed and always passes the validation.
+
+### Resolution
+The unchecked block in ConveyorMath.mul128X64() was removed as well as the unnecessary validation require(answer <= MAX_128x128).
+
+- ConveyorMath.sol#L129-136
+
+
+# QSP-11_7
+### Description
+ConveyorMath.mul128I()#:177-178: The line (uint256(x) * (y & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)) can overflow since x is of type uint256.
+
+### Resolution
+The unchecked block was removed and logic was changed to (x*y) >> 128.
+
+- ConveyorMath.sol#L164-170
+
+# QSP-11_8
+### Description
+ConveyorMath.div128x128()#L224-225: The line hi + lo can overflow.
+
+### Resolution
+Changed the validation logic from `hi+lo <= MAX_128x128` to `hi <= MAX_128x128-lo`.
+
+- ConveyorMath.sol#L210
+
+
+# QSP-11_9
+### Description
+ConveyorMath.divUU128x128()#L369-385: The require(answer <= MAX_128x128...) check is useless as MAX_128x128 is type(uint256).max so the answer of theuint256 type can never exceed this value. The following lines answer * (y >> 128) and answer * (y & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF) can potentially
+overflow since answer is not capped. The code is tweaked from the divUU() function. However, it cannot simply do so unless accepting phantom overflow, as the original
+function is designed to work with 128 bits calculations with 256 bits buffer. To handle 256 bits calculation requires a full re-implementation. Also, note that final return
+value answer << 128 is incorrect. Since most of the implementation is identical with the divUU(), the answer is a 64.64 fixed-point number. The implementation should
+shift the answer 64 bits instead of 128 bits to convert a 64.64 value to 128.128 format.
+
+### Resolution
+This function was removed as it was no longer needed. Instead of this, we now use `divUU()` in place of the previous function.
+
+
+# QSP-11_10
+### Description
+SwapRouter._calculateAlphaX()#L640: The line QuadruplePrecision.fromInt(int256(_k)) casts the _k from uint256 to int256. If _k is larger than or equal to
+1<<255, the cast from uint256 to int256 would accidentally treat _k as a negative number.
+
+
+### Resolution
+This function was removed as it was no longer needed. We now have a constant capping the max payout for stop loss orders.
+
 
 # QSP-12 Updating Order Performs Wrong Total Order Quantity Accounting ✅
 ### Description
