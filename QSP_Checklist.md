@@ -54,7 +54,7 @@ In the SwapRouter contract, several `transferXXX()` functions allow anyone to ca
  
 ### Resolution
 All `transferXXX()` functions were updated to only be callable by the execution contract.
-- ConveyorExecutor.sol#L449
+- ConveyorExecutor.sol#L443
 - SwapRouter.sol#L296
 - SwapRouter.sol#308
 
@@ -99,7 +99,7 @@ modifier onlyLimitOrderRouter() {
 ```
 
 - ConveyorExecutor.sol#L124
-- ConveyorExecutor.sol#L284
+- ConveyorExecutor.sol#L281
 
 
 # QSP-3 Ignoring Return Value of ERC20 Transfer Functions ✅
@@ -110,7 +110,7 @@ Several functions use ERC20's and without checking their return values. Since pe
 ### Resolution
 SafeERC20 was implemented for ERC20 transfer functions.
 
-- ConveyorExecutor.sol#L452
+- ConveyorExecutor.sol#L446
 - SwapRouer.sol#L342
 - SwapRouer.sol#L345
 - SwapRouer.sol#L537
@@ -233,7 +233,7 @@ A nonReentrant modifier has been added to `LimitOrderRouter.executeOrders()` and
 ```
 
 - LimitOrderRouter.sol#284-288
-- ConveyorExecutor.sol#493
+- ConveyorExecutor.sol#487
 
 # QSP-9 Not Cancelling Order as Expected ✅
 
