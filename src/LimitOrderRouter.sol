@@ -13,7 +13,7 @@ import "./interfaces/ILimitOrderRouter.sol";
 /// @title LimitOrderRouter
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
-contract LimitOrderRouter is ILimitOrderRouter, OrderBook {
+contract LimitOrderRouter is OrderBook {
     using SafeERC20 for IERC20;
     // ========================================= Modifiers =============================================
 
@@ -320,19 +320,16 @@ contract LimitOrderRouter is ILimitOrderRouter, OrderBook {
             _validateOrderSequencing(orders);
         }
 
-        uint256 totalBeaconReward;
-        uint256 totalConveyorReward;
-
         ///@notice If the order is not taxed and the tokenOut on the order is Weth
         if (orders[0].tokenOut == WETH) {
-            (totalBeaconReward, totalConveyorReward) = IConveyorExecutor(
-                LIMIT_ORDER_EXECUTOR
-            ).executeTokenToWethOrders(orders);
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).executeTokenToWethOrders(
+                orders
+            );
         } else {
             ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
-            (totalBeaconReward, totalConveyorReward) = IConveyorExecutor(
-                LIMIT_ORDER_EXECUTOR
-            ).executeTokenToTokenOrders(orders);
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).executeTokenToTokenOrders(
+                orders
+            );
         }
 
         ///@notice Iterate through all orderIds in the batch and delete the orders from queue post execution.

@@ -124,7 +124,6 @@ contract ConveyorExecutor is IConveyorExecutor, SwapRouter {
     function executeTokenToWethOrders(OrderBook.Order[] calldata orders)
         external
         onlyLimitOrderRouter
-        returns (uint256, uint256)
     {
         ///@notice Get all of the execution prices on TokenIn to Weth for each dex.
         ///@notice Get all prices for the pairing
@@ -187,8 +186,6 @@ contract ConveyorExecutor is IConveyorExecutor, SwapRouter {
 
         ///@notice Increment the conveyor balance.
         conveyorBalance += totalConveyorReward;
-
-        return (totalBeaconReward, totalConveyorReward);
     }
 
     ///@notice Function to execute a single Token To Weth order.
@@ -284,7 +281,6 @@ contract ConveyorExecutor is IConveyorExecutor, SwapRouter {
     function executeTokenToTokenOrders(OrderBook.Order[] calldata orders)
         external
         onlyLimitOrderRouter
-        returns (uint256, uint256)
     {
         TokenToTokenExecutionPrice[] memory executionPrices;
         address tokenIn = orders[0].tokenIn;
@@ -359,8 +355,6 @@ contract ConveyorExecutor is IConveyorExecutor, SwapRouter {
         _transferBeaconReward(totalBeaconReward, tx.origin, WETH);
 
         conveyorBalance += totalConveyorReward;
-
-        return (totalBeaconReward, totalConveyorReward);
     }
 
     ///@notice Function to execute a single Token To Token order.
