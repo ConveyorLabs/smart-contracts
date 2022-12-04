@@ -19,6 +19,19 @@ This function was modified to be more gas efficient by eliminating all calls to 
 This has been simplified to be more gas efficient by eliminating all calls to the quoter. <br />
 Reference `SwapRouter`
 
+
+
+//-----------------------------------------------------Move everything that is above, below, in the right spot
+
+
+
+
+
+
+
+
+
+
 # QSP Resolution
 The following sections detail the findings from the initial QSP report and the resolutions for each issue.
 
@@ -31,13 +44,19 @@ Some funds-transferring functions in the contracts are declared as public or ext
 The visibility of the `safeTransferETH()` function in several contracts is public. The visibility allows anyone to call this function to transfer the ETH on the contract to any address directly. The following is the list of affected contracts: `LimitOrderRouter.sol`, `SwapRouter.sol`, `TaxedTokenLimitOrderExecution.sol`,`TokenToTokenLimitOrderExecution.sol`, `TokenToWethLimitOrderExecution.sol`.
 
 ### Resolution
-The `safeTransferETH()` function visibility was changed to internal for all contracts affected.
+The `safeTransferETH()` function visibility was changed to internal for all contracts affected. 
+- OrderBook.sol#L263
+- SwapRouter.sol#L164
+
 
 ### QSP-1_2
 In the SwapRouter contract, several `transferXXX()` functions allow anyone to call and direct transfer the funds away. The following is the list of functions: `transferTokensToContract()`, `_transferTokensOutToOwner()`, and `_transferBeaconReward()`.
  
 ### Resolution
 All `transferXXX()` functions were updated to only be callable by the execution contract.
+- ConveyorExecutor.sol#L449
+- SwapRouter.sol#L296
+- SwapRouter.sol#308
 
 
 ### QSP-1_3
@@ -47,7 +66,7 @@ The `SwapRouter.uniswapV3SwapCallback()` function does not verify that it is cal
 
 The Uniswapv3 swap callback now has verification that the caller is a Uniswapv3 pool. First, the pool address is derived by calling the Uniswapv3 Factory. Then the function checks if the msg.sender is the pool address.
 
-```solidity 
+```solidity
      address poolAddress = IUniswapV3Factory(uniswapV3Factory).getPool(
             tokenIn,
             tokenOut,
@@ -59,8 +78,7 @@ The Uniswapv3 swap callback now has verification that the caller is a Uniswapv3 
         }
 ```
 
-
-
+- SwapRouter.sol#L486-541
 
 
 # QSP-2 Missing Authorization for Execution Contracts ✅
@@ -68,7 +86,7 @@ The Uniswapv3 swap callback now has verification that the caller is a Uniswapv3 
 Several functions are missing authorization validation and allow anyone to call the function instead of the specific callers. Specifically, the "execution" contracts are designed to be triggered by the `LimitOrderRouter` contract. However, those functions do not verify the caller. If anyone calls those functions on the "execution" contract, it will trigger the order execution without updating the order status as fulfilled.
 
 ### Resolution
-Execution functions were merged into a single execution contract called `LimitOrderExecutor.sol`. Validation was added to each execution function via a modifier called `onlyLimitOrderRouter`.
+Execution functions were merged into a single execution contract called `ConveyorExector.sol`. Validation was added to each execution function via a modifier called `onlyLimitOrderRouter`.
 
 
 ```solidity
@@ -80,6 +98,10 @@ modifier onlyLimitOrderRouter() {
 }
 ```
 
+- ConveyorExecutor.sol#L124
+- ConveyorExecutor.sol#L284
+
+
 # QSP-3 Ignoring Return Value of ERC20 Transfer Functions ✅
 
 ## Description
@@ -87,6 +109,12 @@ Several functions use ERC20's and without checking their return values. Since pe
 
 ### Resolution
 SafeERC20 was implemented for ERC20 transfer functions.
+
+- ConveyorExecutor.sol#L452
+- SwapRouer.sol#L342
+- SwapRouer.sol#L345
+- SwapRouer.sol#L537
+- SwapRouer.sol#L539
 
 
 # QSP-4 Cancelling Order Provides Compensation Twice ✅
@@ -96,7 +124,9 @@ system, transfers compensation to the message sender and emits an event. After t
 event for the second time.
 
 ### Resolution
-Duplicate logic was removed.
+Duplicate logic to cancel order compensation was removed.
+
+- LimitOrderRouter#L164-179
 
 # QSP-5 Updating an Existing Order Can Be Malicious ✅
 ### Description
@@ -115,6 +145,8 @@ function updateOrder(
    //--snip--   
   }
 ```
+
+- OrderBook.sol#L434-450
 
 
 # QSP-6 Same Order Id Can Be Executed Multiple Times ✅
@@ -136,6 +168,8 @@ Logic was added within the `_resolveCompletedOrder()` function to check if the o
         }
 ```
 
+- OrderBook.sol#L596-599
+
 
 # QSP-7 Incorrectly Computing the Best Price ✅
 ### Description
@@ -146,6 +180,8 @@ the function will always return the default value of bestPriceIndex, which is 0.
 ### Resolution
 Changed `_findBestTokenToWethExecutionPrice()` to initialize the bestPrice as type(uint256).max for buys and 0 for sells.
 
+- LimitOrderBatcher.sol#L31
+
 # QSP-8 Reentrancy ✅
 ### Description
 A reentrancy vulnerability is a scenario where an attacker can repeatedly call a function from itself, unexpectedly leading to potentially disastrous results. The following are places
@@ -154,7 +190,7 @@ that are at risk of reentrancy: `LimitOrderRouter.executeOrders()`, `withdrawCon
 
 ### Resolution
 
-Logic to stop reentrancy has been added to `LimitOrderRouter.executeOrders()` and `withdrawConveyorFees()`. 
+A nonReentrant modifier has been added to `LimitOrderRouter.executeOrders()` and `withdrawConveyorFees()`. 
 
 ```solidity
 
@@ -168,33 +204,63 @@ Logic to stop reentrancy has been added to `LimitOrderRouter.executeOrders()` an
         _;
         reentrancyStatus = false;
     }
-
-    
-    function executeOrders(bytes32[] calldata orderIds) external nonReentrant {
-        
-        //--snip--
-    }
-
 ```
 
+```solidity
+ ///@notice This function is called by off-chain executors, passing in an array of orderIds to execute a specific batch of orders.
+    /// @param orderIds - Array of orderIds to indicate which orders should be executed.
+    function executeOrders(bytes32[] calldata orderIds)
+        external
+        nonReentrant
+        onlyEOA
+    {
+    //--snip--
+```
 
 ```solidity
 
     ///@notice Function to withdraw owner fee's accumulated
-    function withdrawConveyorFees() external {
-        if (reentrancyStatus == true) {
-            revert Reentrancy();
-        }
-        reentrancyStatus = true;
+    function withdrawConveyorFees() external nonReentrant onlyOwner {
+        ///@notice Unwrap the the conveyorBalance.
+        IWETH(WETH).withdraw(conveyorBalance);
+
+        uint256 withdrawAmount = conveyorBalance;
+        ///@notice Set the conveyorBalance to 0 prior to transferring the ETH.
+        conveyorBalance = 0;
+        _safeTransferETH(owner, withdrawAmount);
+    }
    //--snip--     
 ```
 
+- LimitOrderRouter.sol#284-288
+- ConveyorExecutor.sol#493
+
 # QSP-9 Not Cancelling Order as Expected ✅
+
+## QSP-9_1
+
 ### Description
-A few code comments state that orders should be canceled in certain cases while the implementation does not cancel them.
+Both the `LimitOrderBatcher.batchTokenToTokenOrders()` and the `LimitOrderBatcher._batchTokenToWethOrders()` functions state that "If the transfer fails, cancel the order" (L124 and L278). However, the implementation does not handle the failed transfer for the call of `IOrderRouter(orderRouter).transferTokensToContract()`. Moreover, since the implementation of the `SwapRouter.transferTokensToContract()` function ignores the return value of `IERC20(order.tokenIn).transferFrom()`, it is possible that the transfer failed silently without reverting the transaction, causing the execution to proceed without a token transfer.
 
 ### Resolution
-Comments referring to order cancellation in these instances have been removed or cancellation logic has been added.
+This function no longer exists, as we have removed batching and updated the system to only use linear execution.
+
+
+
+## QSP-9_2
+### Description
+`LimitOrderRouter.refreshOrder()` states, "Check that the account has enough gas credits to refresh the order; otherwise, cancel the order and continue the loop".
+However, on L234-240, the block for the condition `if (gasCreditBalance[order.owner] < REFRESH_FEE)` does not cancel the order.
+
+### Resolution
+The conditions to cancel an order in refresh order is that the order has expired, the execution credit balance is less than the refresh fee, the execution `creditBalance - refreshFee` is less than the `minExecutionCredit`, or if the owner's `tokenIn` balance is less than the specified order quantity. All of these conditions now contain logic to cancel an order during refresh.
+
+- LimitOrderRouter.sol#L116
+- LimitOrderRouter.sol#L121
+- LimitOrderRouter.sol#L124
+- LimitOrderRouter.sol#L129
+
+
 
 # QSP-10 Granting Insufficient Gas Credit to the Executor ✅
 
