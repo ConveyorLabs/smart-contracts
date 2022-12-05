@@ -3,14 +3,14 @@ pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
-import "./interfaces/ILimitOrderSwapRouter.sol";
+import "./interfaces/ISwapRouter.sol";
 import "./lib/ConveyorMath.sol";
 import "./interfaces/IConveyorExecutor.sol";
 
-/// @title LimitOrderBook
+/// @title OrderBook
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Contract to maintain active orders in limit order system.
-contract LimitOrderBook {
+contract OrderBook {
     address immutable LIMIT_ORDER_EXECUTOR;
 
     address immutable WETH;
@@ -115,7 +115,7 @@ contract LimitOrderBook {
     ///@param tokenIn - The tokenIn for the order.
     ///@param tokenOut - The tokenOut for the order.
     ///@param orderId - Unique identifier for the order.
-    struct LimitOrder {
+    struct Order {
         bool buy;
         bool taxed;
         bool stoploss;
@@ -149,7 +149,7 @@ contract LimitOrderBook {
     //----------------------State Structures------------------------------------//
 
     ///@notice Mapping from an orderId to its order.
-    mapping(bytes32 => LimitOrder) internal orderIdToLimitOrder;
+    mapping(bytes32 => Order) internal orderIdToLimitOrder;
 
     ///@notice Mapping to find the total orders quantity for a specific token, for an individual account
     ///@dev The key is represented as: keccak256(abi.encode(owner, token));
@@ -166,7 +166,7 @@ contract LimitOrderBook {
     mapping(address => bytes32[]) public addressToAllOrderIds;
 
     ///@notice The orderNonce is a unique value is used to create orderIds and increments every time a new order is placed.
-    ///@dev The orderNonce is set to 1 intially, and is always incremented by 2, so that the nonce is always odd, ensuring that there are not collisions with the orderIds from the SandboxLimitOrderBook
+    ///@dev The orderNonce is set to 1 intially, and is always incremented by 2, so that the nonce is always odd, ensuring that there are not collisions with the orderIds from the SandboxOrderBook
     uint256 orderNonce = 1;
 
     ///@notice Function to decrease the execution credit for an order.
@@ -177,7 +177,7 @@ contract LimitOrderBook {
         nonReentrant
     {
         ///@notice Load the order into memory from storage.
-        LimitOrder memory order = orderIdToLimitOrder[orderId];
+        Order memory order = orderIdToLimitOrder[orderId];
         ///@notice Ensure that the order exists.
         if (order.orderId == bytes32(0)) {
             revert OrderDoesNotExist(order.orderId);
@@ -218,7 +218,7 @@ contract LimitOrderBook {
         nonReentrant
     {
         ///@notice Load the order into memory from storage.
-        LimitOrder memory order = orderIdToLimitOrder[orderId];
+        Order memory order = orderIdToLimitOrder[orderId];
         ///@notice Ensure the msg.value is greater than 0.
         if (msg.value == 0) {
             revert InsufficientMsgValue();
@@ -246,9 +246,9 @@ contract LimitOrderBook {
     function getLimitOrderById(bytes32 orderId)
         public
         view
-        returns (LimitOrder memory)
+        returns (Order memory)
     {
-        LimitOrder memory order = orderIdToLimitOrder[orderId];
+        Order memory order = orderIdToLimitOrder[orderId];
 
         if (order.orderId == bytes32(0)) {
             revert OrderDoesNotExist(orderId);
@@ -276,7 +276,7 @@ contract LimitOrderBook {
     ///@notice Places a new order (or group of orders) into the system.
     ///@param orderGroup - List of newly created orders to be placed.
     /// @return orderIds - Returns a list of orderIds corresponding to the newly placed orders.
-    function placeLimitOrder(LimitOrder[] calldata orderGroup)
+    function placeLimitOrder(Order[] calldata orderGroup)
         public
         payable
         returns (bytes32[] memory)
@@ -312,7 +312,7 @@ contract LimitOrderBook {
         ///@notice For each order within the list of orders passed into the function.
         for (uint256 i = 0; i < orderGroup.length; ) {
             ///@notice Get the order details from the orderGroup.
-            LimitOrder memory newOrder = orderGroup[i];
+            Order memory newOrder = orderGroup[i];
 
             if (newOrder.quantity == 0) {
                 revert OrderQuantityIsZero();
@@ -459,7 +459,7 @@ contract LimitOrderBook {
         uint128 quantity
     ) internal {
         ///@notice Get the existing order that will be replaced with the new order
-        LimitOrder memory order = orderIdToLimitOrder[orderId];
+        Order memory order = orderIdToLimitOrder[orderId];
         if (order.owner != msg.sender) {
             revert MsgSenderIsNotOrderOwner();
         }
@@ -520,7 +520,7 @@ contract LimitOrderBook {
     /// @param orderId - The orderId that corresponds to the order that should be canceled.
     function cancelOrder(bytes32 orderId) public {
         ///@notice Get the order details
-        LimitOrder memory order = orderIdToLimitOrder[orderId];
+        Order memory order = orderIdToLimitOrder[orderId];
 
         if (order.orderId == bytes32(0)) {
             revert OrderDoesNotExist(orderId);
@@ -571,7 +571,7 @@ contract LimitOrderBook {
     ///@notice Function to remove an order from the system.
     ///@param orderId - The orderId that should be removed from the system.
     function _removeOrderFromSystem(bytes32 orderId) internal {
-        LimitOrder memory order = orderIdToLimitOrder[orderId];
+        Order memory order = orderIdToLimitOrder[orderId];
 
         ///@notice Remove the order from the system
         delete orderIdToLimitOrder[orderId];
@@ -591,7 +591,7 @@ contract LimitOrderBook {
     ///@param orderId - The orderId that should be resolved from the system.
     function _resolveCompletedOrder(bytes32 orderId) internal {
         ///@notice Grab the order currently in the state of the contract based on the orderId of the order passed.
-        LimitOrder memory order = orderIdToLimitOrder[orderId];
+        Order memory order = orderIdToLimitOrder[orderId];
 
         ///@notice If the order has already been removed from the contract revert.
         if (order.orderId == bytes32(0)) {

@@ -1,21 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import "../lib/ConveyorFeeMath.sol";
 import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Utils.sol";
 import "./utils/Swap.sol";
-import "../../lib/interfaces/uniswap-v3/ISwapRouter.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
 import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
 import "../../lib/interfaces/token/IERC20.sol";
-import "../LimitOrderSwapRouter.sol";
+import "../SwapRouter.sol";
 import "./utils/ScriptRunner.sol";
 import "../../lib/libraries/Uniswap/LowGasSafeMath.sol";
 import "../../lib/libraries/Uniswap/FullMath.sol";
-import "../LimitOrderBook.sol";
-import "../LimitOrderQuoter.sol";
+import "../OrderBook.sol";
+import "../LimitOrderBatcher.sol";
 import "../ConveyorExecutor.sol";
 
 //import "../../scripts/logistic_curve.py";
@@ -129,7 +127,7 @@ contract SwapRouterTest is DSTest {
         uint128 reserve0UsdcCommon = reserve0Usdc * 10**12;
 
         (
-            LimitOrderSwapRouter.SpotReserve memory priceWethUsdc,
+            SwapRouter.SpotReserve memory priceWethUsdc,
             address poolAddressWethUsdc
         ) = limitOrderExecutor.calculateV2SpotPrice(
                 weth,
@@ -151,10 +149,8 @@ contract SwapRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address kope = 0x8CC9b5406049D2b66106bb39C5047666E50F06FE;
 
-        (
-            LimitOrderSwapRouter.SpotReserve memory priceWethKope,
-
-        ) = limitOrderExecutor.calculateV2SpotPrice(
+        (SwapRouter.SpotReserve memory priceWethKope, ) = limitOrderExecutor
+            .calculateV2SpotPrice(
                 kope,
                 weth,
                 _sushiFactoryAddress,
@@ -174,15 +170,8 @@ contract SwapRouterTest is DSTest {
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         address ohm = 0x64aa3364F17a4D01c6f1751Fd97C2BD3D7e7f1D5;
 
-        (
-            LimitOrderSwapRouter.SpotReserve memory priceOhmDai,
-
-        ) = limitOrderExecutor.calculateV2SpotPrice(
-                dai,
-                ohm,
-                _sushiFactoryAddress,
-                _sushiHexDem
-            );
+        (SwapRouter.SpotReserve memory priceOhmDai, ) = limitOrderExecutor
+            .calculateV2SpotPrice(dai, ohm, _sushiFactoryAddress, _sushiHexDem);
 
         assertEq(priceOhmDai.spotPrice, 21888402763315038097036358416236281856);
     }
@@ -196,7 +185,7 @@ contract SwapRouterTest is DSTest {
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
         (
-            LimitOrderSwapRouter.SpotReserve memory priceDaiWeth,
+            SwapRouter.SpotReserve memory priceDaiWeth,
             address poolAddressDaiWeth
         ) = limitOrderExecutor.calculateV3SpotPrice(
                 dai,
@@ -217,15 +206,8 @@ contract SwapRouterTest is DSTest {
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
-        (
-            LimitOrderSwapRouter.SpotReserve memory priceDaiUsdc,
-
-        ) = limitOrderExecutor.calculateV3SpotPrice(
-                dai,
-                usdc,
-                3000,
-                _uniV3FactoryAddress
-            );
+        (SwapRouter.SpotReserve memory priceDaiUsdc, ) = limitOrderExecutor
+            .calculateV3SpotPrice(dai, usdc, 3000, _uniV3FactoryAddress);
         assertEq(
             priceDaiUsdc.spotPrice,
             341140785248087661355983754903316070398
@@ -241,7 +223,7 @@ contract SwapRouterTest is DSTest {
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
         (
-            LimitOrderSwapRouter.SpotReserve memory price1,
+            SwapRouter.SpotReserve memory price1,
             address poolAddress0
         ) = limitOrderExecutor.calculateV2SpotPrice(
                 usdc,
@@ -262,10 +244,8 @@ contract SwapRouterTest is DSTest {
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
-        (
-            LimitOrderSwapRouter.SpotReserve memory spotPriceDaiUsdc,
-
-        ) = limitOrderExecutor.calculateV2SpotPrice(
+        (SwapRouter.SpotReserve memory spotPriceDaiUsdc, ) = limitOrderExecutor
+            .calculateV2SpotPrice(
                 usdc,
                 dai,
                 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
@@ -285,10 +265,8 @@ contract SwapRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
 
-        (
-            LimitOrderSwapRouter.SpotReserve memory spotPriceWethWax,
-
-        ) = limitOrderExecutor.calculateV2SpotPrice(
+        (SwapRouter.SpotReserve memory spotPriceWethWax, ) = limitOrderExecutor
+            .calculateV2SpotPrice(
                 wax,
                 weth,
                 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
@@ -305,15 +283,11 @@ contract SwapRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-        (
-            LimitOrderSwapRouter.SpotReserve[] memory pricesWethUsdc,
+        (SwapRouter.SpotReserve[] memory pricesWethUsdc, ) = limitOrderExecutor
+            .getAllPrices(weth, usdc, 500);
 
-        ) = limitOrderExecutor.getAllPrices(weth, usdc, 500);
-
-        (
-            LimitOrderSwapRouter.SpotReserve[] memory pricesUsdcWeth,
-
-        ) = limitOrderExecutor.getAllPrices(usdc, weth, 500);
+        (SwapRouter.SpotReserve[] memory pricesUsdcWeth, ) = limitOrderExecutor
+            .getAllPrices(usdc, weth, 500);
 
         console.log("weth/usdc");
         console.log(pricesWethUsdc[0].spotPrice);
@@ -334,10 +308,8 @@ contract SwapRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         if (_amount > 0) {
-            (
-                LimitOrderSwapRouter.SpotReserve memory price1,
-
-            ) = limitOrderExecutor.calculateV2SpotPrice(
+            (SwapRouter.SpotReserve memory price1, ) = limitOrderExecutor
+                .calculateV2SpotPrice(
                     weth,
                     usdc,
                     0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f,
@@ -366,6 +338,10 @@ contract SwapRouterTest is DSTest {
             assertEq(fee / 10000, expected / 10000);
         }
     }
+
+    //================================================================
+    //======================= Helper functions =======================
+    //================================================================
 
     function testFailUniswapV3Callback_UnauthorizedUniswapV3CallbackCaller()
         public
@@ -404,7 +380,7 @@ contract SwapRouterTest is DSTest {
                 weth
             );
             //1.8446744073709550
-            (, uint128 rewardBeacon) = ConveyorFeeMath.calculateReward(
+            (, uint128 rewardBeacon) = limitOrderExecutor.calculateReward(
                 fee,
                 wethValue
             );
@@ -435,7 +411,7 @@ contract SwapRouterTest is DSTest {
                 weth
             );
             //1.8446744073709550
-            (uint128 rewardConveyor, ) = ConveyorFeeMath.calculateReward(
+            (uint128 rewardConveyor, ) = limitOrderExecutor.calculateReward(
                 fee,
                 wethValue
             );
@@ -493,9 +469,9 @@ contract SwapRouterTest is DSTest {
         uint16 feeOut,
         uint32 lastRefreshTimestamp,
         uint32 expirationTimestamp
-    ) internal view returns (LimitOrderBook.LimitOrder memory order) {
+    ) internal view returns (OrderBook.Order memory order) {
         //Initialize mock order
-        order = LimitOrderBook.LimitOrder({
+        order = OrderBook.Order({
             stoploss: false,
             buy: buy,
             taxed: taxed,
@@ -631,7 +607,7 @@ contract SwapRouterTest is DSTest {
         require(amountOut != 0, "InsufficientOutputAmount");
     }
 
-    //Uniswap V3 LimitOrderSwapRouter Tests
+    //Uniswap V3 SwapRouter Tests
     function testSwapV3_1() public {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
@@ -664,7 +640,7 @@ contract SwapRouterTest is DSTest {
         );
     }
 
-    //Uniswap V3 LimitOrderSwapRouter Tests
+    //Uniswap V3 SwapRouter Tests
     function testSwapV3_2() public {
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -758,13 +734,13 @@ contract SwapRouterTest is DSTest {
     //================================================================================================
 }
 
-//wrapper around LimitOrderSwapRouter to expose internal functions for testing
-contract LimitOrderExecutorWrapper is LimitOrderSwapRouter {
+//wrapper around SwapRouter to expose internal functions for testing
+contract LimitOrderExecutorWrapper is SwapRouter {
     constructor(
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2
-    ) LimitOrderSwapRouter(_initBytecodes, _dexFactories, _isUniV2) {}
+    ) SwapRouter(_initBytecodes, _dexFactories, _isUniV2) {}
 
     function getV3PoolFee(address pairAddress)
         public

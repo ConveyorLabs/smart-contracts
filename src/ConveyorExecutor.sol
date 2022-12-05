@@ -1,28 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import "./LimitOrderSwapRouter.sol";
-import "./interfaces/ILimitOrderQuoter.sol";
-import "./lib/ConveyorFeeMath.sol";
+import "./SwapRouter.sol";
+import "./interfaces/ILimitOrderBatcher.sol";
 import "./LimitOrderRouter.sol";
-import "./interfaces/ILimitOrderSwapRouter.sol";
-import "./interfaces/ISandboxLimitOrderRouter.sol";
-import "./interfaces/ISandboxLimitOrderBook.sol";
-import "./interfaces/ILimitOrderBook.sol";
+import "./interfaces/ISwapRouter.sol";
+import "./interfaces/IOrderBook.sol";
 import "./interfaces/IConveyorExecutor.sol";
 
 /// @title ConveyorExecutor
 /// @author 0xOsiris, 0xKitsune
 /// @notice This contract handles all order execution.
-contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
+contract ConveyorExecutor is IConveyorExecutor, SwapRouter {
     using SafeERC20 for IERC20;
     ///====================================Immutable Storage Variables==============================================//
     address immutable WETH;
     address immutable USDC;
     address immutable LIMIT_ORDER_QUOTER;
     address public immutable LIMIT_ORDER_ROUTER;
-    address public immutable SANDBOX_LIMIT_ORDER_BOOK;
-    address public immutable SANDBOX_LIMIT_ORDER_ROUTER;
 
     ///====================================Constants==============================================//
 
@@ -45,19 +40,8 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
 
     ///@notice Modifier to restrict smart contracts from calling a function.
     modifier onlyOrderBook() {
-        if (
-            msg.sender != LIMIT_ORDER_ROUTER &&
-            msg.sender != SANDBOX_LIMIT_ORDER_BOOK
-        ) {
+        if (msg.sender != LIMIT_ORDER_ROUTER) {
             revert MsgSenderIsNotOrderBook();
-        }
-        _;
-    }
-
-    ///@notice Modifier to restrict smart contracts from calling a function.
-    modifier onlySandboxLimitOrderBook() {
-        if (msg.sender != SANDBOX_LIMIT_ORDER_BOOK) {
-            revert MsgSenderIsNotLimitOrderBook();
         }
         _;
     }
@@ -98,43 +82,29 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
 
     ///@param _weth The wrapped native token on the chain.
     ///@param _usdc Pegged stable token on the chain.
-    ///@param _limitOrderQuoterAddress The address of the LimitOrderQuoter contract.
+    ///@param _limitOrderBatcherAddress The address of the LimitOrderBatcher contract.
     ///@param _deploymentByteCodes The deployment bytecodes of all dex factory contracts.
     ///@param _dexFactories The Dex factory addresses.
     ///@param _isUniV2 Array of booleans indication whether the Dex is V2 architecture.
     constructor(
         address _weth,
         address _usdc,
-        address _limitOrderQuoterAddress,
+        address _limitOrderBatcherAddress,
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
         uint256 _minExecutionCredit
-    ) LimitOrderSwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
+    ) SwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
         require(_weth != address(0), "Invalid weth address");
         require(_usdc != address(0), "Invalid usdc address");
         require(
-            _limitOrderQuoterAddress != address(0),
-            "Invalid LimitOrderQuoter address"
+            _limitOrderBatcherAddress != address(0),
+            "Invalid LimitOrderBatcher address"
         );
 
         USDC = _usdc;
         WETH = _weth;
-        LIMIT_ORDER_QUOTER = _limitOrderQuoterAddress;
-
-        SANDBOX_LIMIT_ORDER_BOOK = address(
-            new SandboxLimitOrderBook(
-                address(this),
-                _weth,
-                _usdc,
-                _minExecutionCredit
-            )
-        );
-
-        ///@notice Assign the SANDBOX_LIMIT_ORDER_ROUTER address
-        SANDBOX_LIMIT_ORDER_ROUTER = ISandboxLimitOrderBook(
-            SANDBOX_LIMIT_ORDER_BOOK
-        ).getSandboxLimitOrderRouterAddress();
+        LIMIT_ORDER_QUOTER = _limitOrderBatcherAddress;
 
         LIMIT_ORDER_ROUTER = address(
             new LimitOrderRouter(
@@ -151,9 +121,10 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
 
     ///@notice Function to execute a batch of Token to Weth Orders.
     ///@param orders The orders to be executed.
-    function executeTokenToWethOrders(
-        LimitOrderBook.LimitOrder[] calldata orders
-    ) external onlyLimitOrderRouter returns (uint256, uint256) {
+    function executeTokenToWethOrders(OrderBook.Order[] calldata orders)
+        external
+        onlyLimitOrderRouter
+    {
         ///@notice Get all of the execution prices on TokenIn to Weth for each dex.
         ///@notice Get all prices for the pairing
         (
@@ -162,7 +133,7 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
         ) = getAllPrices(orders[0].tokenIn, WETH, orders[0].feeIn);
 
         ///@notice Initialize all execution prices for the token pair.
-        TokenToWethExecutionPrice[] memory executionPrices = ILimitOrderQuoter(
+        TokenToWethExecutionPrice[] memory executionPrices = ILimitOrderBatcher(
             LIMIT_ORDER_QUOTER
         ).initializeTokenToWethExecutionPrices(
                 spotReserveAToWeth,
@@ -178,7 +149,7 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
 
         for (uint256 i = 0; i < orders.length; ) {
             ///@notice Create a variable to track the best execution price in the array of execution prices.
-            uint256 bestPriceIndex = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
+            uint256 bestPriceIndex = ILimitOrderBatcher(LIMIT_ORDER_QUOTER)
                 .findBestTokenToWethExecutionPrice(
                     executionPrices,
                     orders[i].buy
@@ -199,7 +170,7 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
             }
 
             ///@notice Update the best execution price.
-            executionPrices[bestPriceIndex] = ILimitOrderQuoter(
+            executionPrices[bestPriceIndex] = ILimitOrderBatcher(
                 LIMIT_ORDER_QUOTER
             ).simulateTokenToWethPriceChange(
                     uint128(orders[i].quantity),
@@ -215,16 +186,14 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
 
         ///@notice Increment the conveyor balance.
         conveyorBalance += totalConveyorReward;
-
-        return (totalBeaconReward, totalConveyorReward);
     }
 
     ///@notice Function to execute a single Token To Weth order.
     ///@param order - The order to be executed.
     ///@param executionPrice - The best priced TokenToWethExecutionPrice to execute the order on.
     function _executeTokenToWethOrder(
-        LimitOrderBook.LimitOrder calldata order,
-        LimitOrderSwapRouter.TokenToWethExecutionPrice memory executionPrice
+        OrderBook.Order calldata order,
+        SwapRouter.TokenToWethExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
         ///@notice Swap the batch amountIn on the batch lp address and send the weth back to the contract.
         (
@@ -248,7 +217,7 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
     ///@return amountOutWeth - The amountOut in Weth after the swap.
     function _executeSwapTokenToWethOrder(
         address lpAddressAToWeth,
-        LimitOrderBook.LimitOrder calldata order
+        OrderBook.Order calldata order
     )
         internal
         returns (
@@ -264,7 +233,7 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
         address tokenIn = order.tokenIn;
 
         ///@notice Calculate the amountOutMin for the tokenA to Weth swap.
-        uint256 amountOutMinAToWeth = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
+        uint256 amountOutMinAToWeth = ILimitOrderBatcher(LIMIT_ORDER_QUOTER)
             .calculateAmountOutMinAToWeth(
                 lpAddressAToWeth,
                 orderQuantity,
@@ -291,7 +260,7 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
         uint128 protocolFee = calculateFee(amountOutWeth, USDC, WETH);
 
         ///@notice Calculate the conveyorReward and executor reward.
-        (conveyorReward, beaconReward) = ConveyorFeeMath.calculateReward(
+        (conveyorReward, beaconReward) = calculateReward(
             protocolFee,
             amountOutWeth
         );
@@ -309,9 +278,10 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
 
     ///@notice Function to execute an array of TokenToToken orders
     ///@param orders - Array of orders to be executed.
-    function executeTokenToTokenOrders(
-        LimitOrderBook.LimitOrder[] calldata orders
-    ) external onlyLimitOrderRouter returns (uint256, uint256) {
+    function executeTokenToTokenOrders(OrderBook.Order[] calldata orders)
+        external
+        onlyLimitOrderRouter
+    {
         TokenToTokenExecutionPrice[] memory executionPrices;
         address tokenIn = orders[0].tokenIn;
 
@@ -332,7 +302,7 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
                 address[] memory lpAddressWethToB
             ) = getAllPrices(WETH, orders[0].tokenOut, feeOut);
 
-            executionPrices = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
+            executionPrices = ILimitOrderBatcher(LIMIT_ORDER_QUOTER)
                 .initializeTokenToTokenExecutionPrices(
                     tokenIn,
                     spotReserveAToWeth,
@@ -350,7 +320,7 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
         ///@notice Loop through each Order.
         for (uint256 i = 0; i < orders.length; ) {
             ///@notice Create a variable to track the best execution price in the array of execution prices.
-            uint256 bestPriceIndex = ILimitOrderQuoter(LIMIT_ORDER_QUOTER)
+            uint256 bestPriceIndex = ILimitOrderBatcher(LIMIT_ORDER_QUOTER)
                 .findBestTokenToTokenExecutionPrice(
                     executionPrices,
                     orders[i].buy
@@ -370,7 +340,7 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
             }
 
             ///@notice Update the best execution price.
-            executionPrices[bestPriceIndex] = ILimitOrderQuoter(
+            executionPrices[bestPriceIndex] = ILimitOrderBatcher(
                 LIMIT_ORDER_QUOTER
             ).simulateTokenToTokenPriceChange(
                     uint128(orders[i].quantity),
@@ -385,15 +355,13 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
         _transferBeaconReward(totalBeaconReward, tx.origin, WETH);
 
         conveyorBalance += totalConveyorReward;
-
-        return (totalBeaconReward, totalConveyorReward);
     }
 
     ///@notice Function to execute a single Token To Token order.
     ///@param order - The order to be executed.
     ///@param executionPrice - The best priced TokenToTokenExecution price to execute the order on.
     function _executeTokenToTokenOrder(
-        LimitOrderBook.LimitOrder calldata order,
+        OrderBook.Order calldata order,
         TokenToTokenExecutionPrice memory executionPrice
     ) internal returns (uint256, uint256) {
         ///@notice Initialize variables to prevent stack too deep.
@@ -433,8 +401,10 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
                 );
 
                 ///@notice Calculate the conveyorReward and the off-chain logic executor reward.
-                (conveyorReward, beaconReward) = ConveyorFeeMath
-                    .calculateReward(protocolFee, uint128(amountIn));
+                (conveyorReward, beaconReward) = calculateReward(
+                    protocolFee,
+                    uint128(amountIn)
+                );
 
                 ///@notice If the order is a stoploss, and the beaconReward surpasses 0.05 WETH. Cap the protocol and the off chain executor at 0.05 WETH.
                 if (order.stoploss) {
@@ -470,100 +440,13 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
 
     ///@notice Transfer the order quantity to the contract.
     ///@param order - The orders tokens to be transferred.
-    function _transferTokensToContract(LimitOrderBook.LimitOrder calldata order)
+    function _transferTokensToContract(OrderBook.Order calldata order)
         internal
     {
         IERC20(order.tokenIn).safeTransferFrom(
             order.owner,
             address(this),
             order.quantity
-        );
-    }
-
-    ///@notice Function to execute multicall orders from the context of ConveyorExecutor.
-    ///@param orders The orders to be executed.
-    ///@param sandboxMulticall -
-    ///@dev
-    /*The sandBoxRouter address is an immutable address from the sandboxLimitOrderBook.
-    Since the function is onlySandboxLimitOrderBook, the sandBoxRouter address will never change*/
-    function executeSandboxLimitOrders(
-        SandboxLimitOrderBook.SandboxLimitOrder[] calldata orders,
-        SandboxLimitOrderRouter.SandboxMulticall calldata sandboxMulticall
-    ) external onlySandboxLimitOrderBook nonReentrant {
-        uint256 expectedAccumulatedFees = 0;
-
-        if (sandboxMulticall.transferAddresses.length > 0) {
-            ///@notice Ensure that the transfer address array is equal to the length of orders to avoid out of bounds index errors
-            if (sandboxMulticall.transferAddresses.length != orders.length) {
-                revert InvalidTransferAddressArray();
-            }
-
-            ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
-            for (uint256 i = 0; i < orders.length; ) {
-                uint128 fillAmount = sandboxMulticall.fillAmounts[i];
-                IERC20(orders[i].tokenIn).safeTransferFrom(
-                    orders[i].owner,
-                    sandboxMulticall.transferAddresses[i],
-                    fillAmount
-                );
-
-                uint256 feeRequired = ConveyorMath.mul64U(
-                    ConveyorMath.divUU(fillAmount, orders[i].amountInRemaining),
-                    orders[i].feeRemaining
-                );
-
-                if (feeRequired == 0) {
-                    revert InsufficientFillAmountSpecified(
-                        fillAmount,
-                        orders[i].amountInRemaining
-                    );
-                }
-                expectedAccumulatedFees += feeRequired;
-
-                unchecked {
-                    ++i;
-                }
-            }
-        } else {
-            ///@notice Iterate through each order and transfer the amountSpecifiedToFill to the multicall execution contract.
-            for (uint256 i = 0; i < orders.length; ) {
-                uint128 fillAmount = sandboxMulticall.fillAmounts[i];
-                IERC20(orders[i].tokenIn).safeTransferFrom(
-                    orders[i].owner,
-                    SANDBOX_LIMIT_ORDER_ROUTER,
-                    fillAmount
-                );
-                uint256 feeRequired = ConveyorMath.mul64U(
-                    ConveyorMath.divUU(fillAmount, orders[i].amountInRemaining),
-                    orders[i].feeRemaining
-                );
-
-                if (feeRequired == 0) {
-                    revert InsufficientFillAmountSpecified(
-                        fillAmount,
-                        orders[i].amountInRemaining
-                    );
-                }
-                expectedAccumulatedFees += feeRequired;
-
-                unchecked {
-                    ++i;
-                }
-            }
-        }
-
-        ///@notice Cache the contract balance to check if the fee was paid post execution
-        uint256 contractBalancePreExecution = IERC20(WETH).balanceOf(
-            address(this)
-        );
-
-        ///@notice acll the SandboxRouter callback to execute the calldata from the sandboxMulticall
-        ISandboxLimitOrderRouter(SANDBOX_LIMIT_ORDER_ROUTER)
-            .sandboxRouterCallback(sandboxMulticall);
-
-        _requireConveyorFeeIsPaid(
-            contractBalancePreExecution,
-            expectedAccumulatedFees
         );
     }
 

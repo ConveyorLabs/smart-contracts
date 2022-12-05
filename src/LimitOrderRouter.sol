@@ -2,18 +2,18 @@
 pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
-import "./LimitOrderBook.sol";
+import "./OrderBook.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/token/IWETH.sol";
-import "./LimitOrderSwapRouter.sol";
-import "./interfaces/ILimitOrderQuoter.sol";
+import "./SwapRouter.sol";
+import "./interfaces/ILimitOrderBatcher.sol";
 import "./interfaces/IConveyorExecutor.sol";
 import "./interfaces/ILimitOrderRouter.sol";
 
 /// @title LimitOrderRouter
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
-/// @notice Limit Order contract to execute existing limit orders within the LimitOrderBook contract.
-contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
+/// @notice Limit Order contract to execute existing limit orders within the OrderBook contract.
+contract LimitOrderRouter is OrderBook {
     using SafeERC20 for IERC20;
     // ========================================= Modifiers =============================================
 
@@ -67,7 +67,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         address _usdc,
         address _limitOrderExecutor,
         uint256 _minExecutionCredit
-    ) LimitOrderBook(_limitOrderExecutor, _weth, _usdc, _minExecutionCredit) {
+    ) OrderBook(_limitOrderExecutor, _weth, _usdc, _minExecutionCredit) {
         ///@notice Require that deployment addresses are not zero
         ///@dev All other addresses are being asserted in the limit order executor, which deploys the limit order router
         require(
@@ -90,7 +90,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
             ///@notice Get the current orderId.
             bytes32 orderId = orderIds[i];
 
-            LimitOrder memory order = getLimitOrderById(orderId);
+            Order memory order = getLimitOrderById(orderId);
 
             totalRefreshFees += _refreshLimitOrder(order);
 
@@ -105,7 +105,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
     ///@notice Internal helper function to refresh a Limit Order.
     ///@param order - The Limit Order to be refreshed.
     ///@return executorFee - The fee to be compensated to the off-chain executor.
-    function _refreshLimitOrder(LimitOrder memory order)
+    function _refreshLimitOrder(Order memory order)
         internal
         returns (uint256 executorFee)
     {
@@ -166,7 +166,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         nonReentrant
         returns (bool success)
     {
-        LimitOrder memory order = getLimitOrderById(orderId);
+        Order memory order = getLimitOrderById(orderId);
 
         if (IERC20(order.tokenIn).balanceOf(order.owner) < order.quantity) {
             ///@notice Remove the order from the limit order system.
@@ -181,7 +181,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
     /// @notice Internal helper function to cancel an order. This function is only called after cancel order validation.
     /// @param order - The order to cancel.
     /// @return success - Boolean to indicate if the order was successfully canceled.
-    function _cancelLimitOrderViaExecutor(LimitOrder memory order)
+    function _cancelLimitOrderViaExecutor(Order memory order)
         internal
         returns (uint256)
     {
@@ -218,15 +218,12 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
     ///@notice Function to validate the congruency of an array of orders.
     ///@param orders Array of orders to be validated
-    function _validateOrderSequencing(LimitOrder[] memory orders)
-        internal
-        pure
-    {
+    function _validateOrderSequencing(Order[] memory orders) internal pure {
         ///@notice Iterate through the length of orders -1.
         for (uint256 i = 0; i < orders.length - 1; ) {
             ///@notice Cache order at index i, and i+1
-            LimitOrder memory currentOrder = orders[i];
-            LimitOrder memory nextOrder = orders[i + 1];
+            Order memory currentOrder = orders[i];
+            Order memory nextOrder = orders[i + 1];
 
             ///@notice Check if the current order is less than or equal to the next order
             if (currentOrder.quantity > nextOrder.quantity) {
@@ -284,7 +281,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
     ///@notice This function is called by off-chain executors, passing in an array of orderIds to execute a specific batch of orders.
     /// @param orderIds - Array of orderIds to indicate which orders should be executed.
-    function executeLimitOrders(bytes32[] calldata orderIds)
+    function executeOrders(bytes32[] calldata orderIds)
         external
         nonReentrant
         onlyEOA
@@ -295,7 +292,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         }
 
         ///@notice Get all of the orders by orderId and add them to a temporary orders array
-        LimitOrder[] memory orders = new LimitOrder[](orderIds.length);
+        Order[] memory orders = new Order[](orderIds.length);
 
         for (uint256 i = 0; i < orderIds.length; ) {
             orders[i] = getLimitOrderById(orderIds[i]);
@@ -323,19 +320,16 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
             _validateOrderSequencing(orders);
         }
 
-        uint256 totalBeaconReward;
-        uint256 totalConveyorReward;
-
         ///@notice If the order is not taxed and the tokenOut on the order is Weth
         if (orders[0].tokenOut == WETH) {
-            (totalBeaconReward, totalConveyorReward) = IConveyorExecutor(
-                LIMIT_ORDER_EXECUTOR
-            ).executeTokenToWethOrders(orders);
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).executeTokenToWethOrders(
+                orders
+            );
         } else {
             ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
-            (totalBeaconReward, totalConveyorReward) = IConveyorExecutor(
-                LIMIT_ORDER_EXECUTOR
-            ).executeTokenToTokenOrders(orders);
+            IConveyorExecutor(LIMIT_ORDER_EXECUTOR).executeTokenToTokenOrders(
+                orders
+            );
         }
 
         ///@notice Iterate through all orderIds in the batch and delete the orders from queue post execution.
