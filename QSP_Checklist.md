@@ -1,36 +1,3 @@
-## Uniswap V3 Changes
-#### Function `LimitOrderBatcher.calculateAmountOutMinAToWeth()`
-We eliminated the use of the v3 Quoter in the contract. Our quoting logic was modeled after: (https://github.com/Uniswap/v3-core/blob/main/contracts/UniswapV3Pool.sol#L596).
-
-The implementation is located in `src/lib/ConveyorTickMath.sol` within the function `simulateAmountOutOnSqrtPriceX96`. 
-This function is called in `src/LimitOrderBatcher.sol` within `calculateAmountOutMinAToWeth` </br>
-
-Tests:<br />
-Reference `src/test/LimitOrderBatcher.t.sol` for `calculateAmountOutMinAToWeth` tests.<br />
-Reference `src/test/ConveyorTickMath.t.sol` for `simulateAmountOutOnSqrtPriceX96` tests. <br />
-
-#### Function `_calculateV3SpotPrice`
-The V3 spot price calculation has been modified to be more gas efficient by simply calling `slot0()` on the pool, and converting `sqrtPriceX96` to `128.128` fixed point representation of `sqrtPriceX96**2`. 
-
-#### Function `LimitOrderBatcher.calculateNextSqrtPriceX96`
-This function was modified to be more gas efficient by eliminating all calls to the v3 quoter, and calculating the amountOut return value by simply calling `ConveyorTickMath.simulateAmountOutOnSqrtPriceX96`. 
-
-#### Function `SwapRouter.getNextSqrtPriceV3`
-This has been simplified to be more gas efficient by eliminating all calls to the quoter. <br />
-Reference `SwapRouter`
-
-
-
-//-----------------------------------------------------Move everything that is above, below, in the right spot
-
-
-
-
-
-
-
-
-
 
 # QSP Resolution
 The following sections detail the findings from the initial QSP report and the resolutions for each issue.
@@ -390,9 +357,7 @@ Additionally, the function updates the total order quantity with a call to updat
 the old and new order are the same, this could update some completely unrelated token order quantity.
 
 ### Resolution
-
 The updated order quantity now calculates the correct value.
-
 
 ```solidity
 
@@ -400,6 +365,11 @@ totalOrdersValue += newQuantity;
 totalOrdersValue -= oldOrder.quantity;
 
 ```
+
+- OrderBook.Sol#L479-480
+
+
+
 # QSP-13 Not Always Taking Beacon Reward Into Account ✅
 ### Description
 In the TaxedTokenLimitOrderExecution and TokenToTokenLimitOrderExecution contracts, the _executeTokenToTokenOrder() functions will always return a zero
@@ -408,7 +378,12 @@ beaconReward value is not returned as part of the function. The _executeTokenToT
 _executeSwapTokenToWethOrder() function.
 
 ### Resolution
-The taxed execution contracts have been removed with the new architecture. `_executeSwapTokenToWethOrder()` Now returns the conveyor/beacon reward. Further, the execution tests now have assertions validating executor payment after execution has completed.
+`_executeSwapTokenToWethOrder()` now returns the `amountOutWeth - conveyorBeaconReward` after the beacon reward is adjusted in the event that it is capped. Further, the execution tests now have assertions validating executor payment after execution has completed.
+
+- ConveyorExecutor.sol#L267-275
+- ConveyorExecutor.sol#403-417
+
+
 
 # QSP-14 Denial of Service Due to Unbound Iteration ✅
 ### Description
@@ -416,7 +391,7 @@ Description: There is a limit on how much gas a block can execute on the network
 transaction will never work and block the service. The following is the list of places that are at risk:
 
 ### Resolution
-#### 1.)
+#### QSP_14_1
 Modified `getAllOrderIds` to use an `offset`, and `length` parameter to index `addressToAllOrderIds` array from a specified position with a fixed return data `length`.
 ```solidity
 function getOrderIds(
@@ -465,18 +440,42 @@ function getOrderIds(
     }
 ```
 
-#### 2.)
-The number of `dexes` deployed in the constructor of the `SwapRouter` will never be anywhere from `3-15` depending on the chain. This will be sufficiently small to not exceed the block gas limit in `getAllPrices` when iterating through the dexes.
+- OrderBook.sol#L672-719
+
+#### QSP_14_2
+The number of `dexes` deployed in the constructor of the `SwapRouter` will never be anywhere from `3-8` depending on the chain. This will be sufficiently small to not exceed the block gas limit in `getAllPrices` when iterating through the dexes.
+
 # QSP-15 Missing Input Validation ✅
 ### Description
-1.) The following has been added to `_removeOrderFromSystem` in both `LimitOrderBook` and `SandboxLimitOrderBook`
+1. OrderBook._resolveCompletedOrder() (L396-410): Check if the order exists or not before removing from storage. This function is used in LimitOrderRouter.executeOrders() (L432-532). However, this function does not check the order existence either.
+2. LimitOrderRouter.transferOwnership() (L566-571): The validation on L567 owner == address(0) seems to be mistaken. Should validate that the newOwner is a non-zero address instead of validating the owner.
+3. LimitOrderRouter.executeOrders() (L432-532): Check if the order exists for the order ID in the orderIds array. The validation can be added in the loop at L440-446 that sets orders[i] = getOrderById(orderIds[i]). Otherwise, an empty order has a chance to be executed unexpectedly. Additionally, the function should check that orderIds.length is non-zero.
+4. SwapRouter.constructor() (L190-208): The first element of the _isUniV2 input must be true as the 0th index DEX needs to be Uniswap V2 compatible due to the implementation of the SwapRouter._calculateFee() function.
+5. GasOracle.constructor() does not check if _gasOracleAddress is the zero address.
+6. OrderBook.constructor() does not check if _orderRouter is the zero address.
+7. LimitOrderRouter.constructor() does not check if any of _weth, _usdc, _tokenToTokenExecutionAddress, _taxedExecutionAddress, _tokenToWethExecutionAddress, _orderRouter are the zero address, and _executionCost is not 0.
+8. LimitOrderRouter.depositGasCredits() does not check if msg.value is 0. If msg.value == 0, then the function does nothing.
+9. SwapRouter.constructor() does not check if any element in _deploymentByteCodes or _dexFactories is 0.
+10. SwapRouter.calculateFee() does not check if amountIn is not 0.
+11. LimitOrderBatcher.constructor() does not check weth, quoterAddress, orderRouterAddress are not the zero address.
+12. TokenToTokenLimitOrderExecution.constructor(),TaxedTokenLimitOrderExecution.constructor(),TokenToWethLimitOrderExecution.constructor()do not check that _usdc is not 0.
+
+
+### Resolutions
+#### QSP_15_1
+ The following has been added to `_removeOrderFromSystem` in both `LimitOrderBook` and `SandboxLimitOrderBook`
+
 ```solidity
         ///@notice If the order has already been removed from the contract revert.
         if (order.orderId == bytes32(0)) {
             revert DuplicateOrderIdsInOrderGroup();
         }
 ```
-2.)
+
+- OrderBook.sol#L597-599
+
+
+#### QSP_15_2
 ```solidity
     ///@notice Function to transfer ownership of the contract.
     function transferOwnership(address newOwner) external onlyOwner {
@@ -486,7 +485,12 @@ The number of `dexes` deployed in the constructor of the `SwapRouter` will never
         tempOwner = newOwner;
     }
 ```
-3.) The following has been added to `executeOrders`
+- LimitOrderRouter.sol#L372-374
+
+
+#### QSP_15_3
+
+The following has been added to `executeOrders`
 ```solidity
  for (uint256 i = 0; i < orderIds.length; ) {
             orders[i] = getLimitOrderById(orderIds[i]);
@@ -498,7 +502,11 @@ The number of `dexes` deployed in the constructor of the `SwapRouter` will never
             }
         }
 ```
-4.) 
+
+- LimitOrderRouter.sol#L299-301
+
+
+#### QSP_15_4
 ```solidity
 constructor(
         bytes32[] memory _deploymentByteCodes,
@@ -530,163 +538,136 @@ constructor(
         }
     }
 ```
-5.)
-```solidity
+- SwapRouter.sol#L134-158
 
-    constructor(address _gasOracleAddress) {
-        require(_gasOracleAddress != address(0), "Invalid address");
-        gasOracleAddress = _gasOracleAddress;
+#### QSP_15_5
+The gas oracle was removed as well as all gas credit logic.
 
-        (, int256 answer, , , ) = IAggregatorV3(gasOracleAddress)
-            .latestRoundData();
-        meanGasPrice = uint256(answer);
-        cumulativeSum = meanGasPrice;
-        lastGasOracleTimestamp = block.timestamp;
-    }
-```
-6.)
-`SandboxLimitOrderBook`
+#### QSP_15_6
 ```solidity
-constructor(
-        address _conveyorGasOracle,
+    ///@param _limitOrderExecutor The address of the ConveyorExecutor contract.
+    ///@param _weth The address of the WETH contract.
+    ///@param _usdc The address of the USDC contract.
+    ///@param _minExecutionCredit The minimum amount of Conveyor gas credits required to place an order.
+    constructor(
         address _limitOrderExecutor,
         address _weth,
         address _usdc,
-        uint256 _sandboxLimitOrderExecutionGasCost
-    ) ConveyorGasOracle(_conveyorGasOracle) {
-        require(
-            _limitOrderExecutor != address(0),
-            "limitOrderExecutor address is address(0)"
-        );
-        WETH = _weth;
-        USDC = _usdc;
-        LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
-        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
-        CONVEYOR_GAS_ORACLE = _conveyorGasOracle;
-
-        SANDBOX_LIMIT_ORDER_ROUTER = address(
-            new SandboxLimitOrderRouter(_limitOrderExecutor, address(this))
-        );
-    }
-```
-`LimitOrderBook`
-```solidity
-constructor(
-        address _conveyorGasOracle,
-        address _limitOrderExecutor,
-        address _weth,
-        address _usdc,
-        uint256 _limitOrderExecutionGasCost
-
+        uint256 _minExecutionCredit
     ) {
-
         require(
             _limitOrderExecutor != address(0),
             "limitOrderExecutor address is address(0)"
         );
 
+        require(_minExecutionCredit != 0, "Minimum Execution Credit is 0");
+
+        minExecutionCredit = _minExecutionCredit;
         WETH = _weth;
         USDC = _usdc;
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
-        LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
-        CONVEYOR_GAS_ORACLE = _conveyorGasOracle;
     }
 ```
-7.) This validation is happening in the `ConveyorExecutor` Constructor prior to deploying the `LimitOrderRouter`
+- OrderBook.sol#L45-48
+
+#### QSP_15_7
+This validation is happening in the `ConveyorExecutor` Constructor prior to deploying the `LimitOrderRouter`
 ```solidity
-constructor(
+///@param _weth - Address of the wrapped native token for the chain.
+    ///@param _usdc - Address of the USD pegged token for the chain.
+    ///@param _limitOrderExecutor - Address of the limit order executor contract
+    ///@param _minExecutionCredit - Minimum amount of credit that must be provided to the limit order executor contract.
+    constructor(
         address _weth,
         address _usdc,
-        address _LimitOrderBatcherAddress,
+        address _limitOrderExecutor,
+        uint256 _minExecutionCredit
+    ) OrderBook(_limitOrderExecutor, _weth, _usdc, _minExecutionCredit) {
+        ///@notice Require that deployment addresses are not zero
+        ///@dev All other addresses are being asserted in the limit order executor, which deploys the limit order router
+        require(
+            _limitOrderExecutor != address(0),
+            "Invalid ConveyorExecutor address"
+        );
+
+        ///@notice Set the owner of the contract
+        owner = tx.origin;
+    }
+```
+- ConveyorExecutor.sol#L98-103
+
+#### QSP_15_8
+Gas credit logic was removed.
+
+#### QSP_15_9
+```solidity
+/**@dev It is important to note that a univ2 compatible DEX must be initialized in the 0th index.
+        The calculateFee function relies on a uniV2 DEX to be in the 0th index.*/
+    ///@param _deploymentByteCodes - Array of DEX creation init bytecodes.
+    ///@param _dexFactories - Array of DEX factory addresses.
+    ///@param _isUniV2 - Array of booleans indicating if the DEX is UniV2 compatible.
+    constructor(
         bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
-        bool[] memory _isUniV2,
-        address _chainLinkGasOracle,
-        uint256 _limitOrderExecutionGasCost,
-        uint256 _sandboxLimitOrderExecutionGasCost
-    ) SwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
-        require(
-            _chainLinkGasOracle != address(0),
-            "Invalid gas oracle address"
-        );
+        bool[] memory _isUniV2
+    ) {
+        ///@notice Initialize DEXs and other variables
+        for (uint256 i = 0; i < _deploymentByteCodes.length; ++i) {
+            if (i == 0) {
+                require(_isUniV2[i], "First Dex must be uniswap v2");
+            }
+            require(
+                _deploymentByteCodes[i] != bytes32(0) &&
+                    _dexFactories[i] != address(0),
+                "Zero values in constructor"
+            );
+            dexes.push(
+                Dex({
+                    factoryAddress: _dexFactories[i],
+                    initBytecode: _deploymentByteCodes[i],
+                    isUniV2: _isUniV2[i]
+                })
+            );
 
-        require(_weth != address(0), "Invalid weth address");
-        require(_usdc != address(0), "Invalid usdc address");
-        require(
-            _LimitOrderBatcherAddress != address(0),
-            "Invalid LimitOrderBatcher address"
-        );
+            address uniswapV3Factory;
+            ///@notice If the dex is a univ3 variant, then set the uniswapV3Factory storage address.
+            if (!_isUniV2[i]) {
+                uniswapV3Factory = _dexFactories[i];
+            }
 
-        USDC = _usdc;
-        WETH = _weth;
-        LIMIT_ORDER_QUOTER = _LimitOrderBatcherAddress;
-        LIMIT_ORDER_EXECUTION_GAS_COST = _limitOrderExecutionGasCost;
-        SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST = _sandboxLimitOrderExecutionGasCost;
-
-        SANDBOX_LIMIT_ORDER_BOOK = address(
-            new SandboxLimitOrderBook(
-                _chainLinkGasOracle,
-                address(this),
-                _weth,
-                _usdc,
-                _sandboxLimitOrderExecutionGasCost
-            )
-        );
-
-        ///@notice Assign the SANDBOX_LIMIT_ORDER_ROUTER address
-        SANDBOX_LIMIT_ORDER_ROUTER = ISandboxLimitOrderBook(
-            SANDBOX_LIMIT_ORDER_BOOK
-        ).getSandboxLimitOrderRouterAddress();
-
-        LIMIT_ORDER_ROUTER = address(
-            new LimitOrderRouter(
-                SANDBOX_LIMIT_ORDER_BOOK, ///@notice The SandboxLimitOrderBook inherits the conveyor gas oracle.
-                _weth,
-                _usdc,
-                address(this),
-                _limitOrderExecutionGasCost
-            )
-        );
-
-        ///@notice assign the owner address
-        owner = msg.sender;
-    }
-```
-8.) This function has moved into the `ConveyorExecutor`, below is the resolved code.
-```solidity
-function depositGasCredits() public payable returns (bool success) {
-        if (msg.value == 0) {
-            revert InsufficientMsgValue();
+            UNISWAP_V3_FACTORY = uniswapV3Factory;
         }
-        ///@notice Increment the gas credit balance for the user by the msg.value
-        uint256 newBalance = gasCreditBalance[msg.sender] + msg.value;
-
-        ///@notice Set the gas credit balance of the sender to the new balance.
-        gasCreditBalance[msg.sender] = newBalance;
-
-        ///@notice Emit a gas credit event notifying the off-chain executors that gas credits have been deposited.
-        emit GasCreditEvent(msg.sender, newBalance);
-
-        return true;
     }
+
 ```
-9.) Ref `4` for resolved code.
-10.) Added assertion to `calculateFee`
+- SwapRouter.sol#L134-158
+
+#### QSP_15_10
+ Added assertion to `calculateFee`
 ```solidity
 uint128 calculated_fee_64x64;
         if (amountIn == 0) {
             revert AmountInIsZero();
         }
 ```
-11.) Not Applicable in the current architecture. Below is the Quoter constructor.
+
+- SwapRouter.sol#L191-193 
+
+#### QSP_15_11
+The referenced variables have been removed from the Quoter constructor. Below is the updated Quoter constructor.
 ```solidity
 constructor(address _weth) {
         require(_weth != address(0), "Invalid weth address");
         WETH = _weth;
     }
 ```
-12.) Ref `7` for resolved constructor. 
-### Resolution
+
+- LimitOrderBatcher.sol#L17
+
+#### QSP_15_12
+The ConveyorExecutor contract now checks the mentioned variables for `address(0)`.
+
+- ConveyorExecutor.sol#L99
 
 # QSP-16 Gas Oracle Reliability ✅
 ### Description
@@ -698,42 +679,7 @@ malicious activity.
 
 
 ### Resolution
-The GasOracle now stores a moving average over a 24 hour time horizon, adjusting the average everytime the gas oracle is called, accounting for any volitility or stale gas prices. 
-
-```solidity
-
-contract GasOracle {
-    //--snip--
-
-    uint256 constant timeHorizon = 86400;
-    //--snip--
-
-
-    if (!(block.timestamp == lastGasOracleTimestamp)) {
-            (, int256 answer, , , ) = IAggregatorV3(gasOracleAddress)
-                .latestRoundData();
-
-            uint256 gasPrice = uint256(answer);
-            if (block.timestamp - lastGasOracleTimestamp > timeHorizon) {
-                cumulativeSum = meanGasPrice + gasPrice;
-                arithmeticscale = 2;
-                meanGasPrice = cumulativeSum / arithmeticscale;
-            } else {
-                cumulativeSum += gasPrice;
-                arithmeticscale++;
-                meanGasPrice = cumulativeSum / arithmeticscale;
-            }
-            emit MeanGasPriceUpdate(
-                block.number,
-                block.timestamp,
-                gasPrice,
-                meanGasPrice
-            );
-        }
-
-}
-```
-
+Gas oracle logic has been removed from the protocol.
 
 # QSP-17 Math Function Returns Wrong Type ✅
 Severity: 🟡Low Risk🟡
@@ -746,12 +692,13 @@ This function has been removed from the codebase as we are no longer using it in
 # QSP-18 Individual Order Fee Is Not Used in Batch Execution ✅
 
 File(s) affected: TokenToWethLimitOrderExecution.sol
-**Description**: In TokenToWethLimitOrderExecution.sol#L365, getAllPrices() is using the first order's order.feeIn to compute uniswap prices for all of the orders in the batch.
+## Description: In TokenToWethLimitOrderExecution.sol#L365, getAllPrices() is using the first order's order.feeIn to compute uniswap prices for all of the orders in the batch.
 However, different orders are not guaranteed to have the same feeIn. Thus, the computed result may not apply to all orders in the batch.
-**Recommendation**: Change the logic to use each individual order's feeIn or check that they all have the same feeIn value, e.g. in LimitOrderRouter._validateOrderSequencing().
 
 ### Resolution Details
 Updated _validateOrderSequencing() to check for congruent `feeIn` and `feeOut`. Added tests `testFailValidateOrderSequence_IncongruentFeeIn` and  `testFailValidateOrderSequence_IncongruentFeeOut`.
+
+- LimitOrderRouter.sol#L265-272
 
 # QSP-19 Locking the Difference Between `beaconReward` and `maxBeaconReward` in the Contract ✅
 Severity: 🔵Informational🔵
@@ -760,44 +707,66 @@ The code has the concept of a `maxBeaconReward` to cap the max beacon reward sen
 ### Resolution Details
 This issue has been resolved by subtracting the `amountOutInWeth` by the beaconReward after the cap has been computer. Along with this we decided to remove the maxBeaconReward for all order types except stoplosses.
 
+- ConveyorExecutor.sol#L267-275
+- ConveyorExecutor.sol#403-417
+
 
 ## QSP-19_1
 `TaxedTokenLimitOrderExecution._executeTokenToWethTaxedSingle()`: The function calls the `_executeTokenToWethOrder()` function on L133 and the `_executeTokenToWethOrder() `function will return `uint256(amountOutWeth - (beaconReward + conveyorReward))` (L192) as the `amountOut`. The `amountOut` is the final amount transferred to the order's owner. Later on L148-150, the raw `beaconReward` is capped to the `maxBeaconReward`. The difference will be left and locked in the contract.
 
 ### Resolution
 The contract architecture change from batch execution to linear execution remvoved the need for a TaxedTokenLimitOrderExecution contract. A single taxed order from Token -> WETH will now be executed by the contract `LimitOrderExecutor#L52` within the function `executeTokenToWethOrders`. The resolution to the locked beacon reward issue within the function is addressed in **QSP-19_6**.
+
+- ConveyorExecutor.sol#L267-275
+- ConveyorExecutor.sol#403-417
+
 ## QSP-19_2 
 `TaxedTokenLimitOrderExecution._executeTokenToTokenTaxedSingle()`: The function calls `_executeTokenToTokenOrder().` The raw `beaconReward` will also be part of the deduction in `_executeTokenToTokenOrder()` (L357): `amountInWethToB = amountIn - (beaconReward + conveyorReward)`. The `maxBeaconReward` cap is applied later, and the difference will be left locked in the contract.
 ### Resolution
-The contract architecture change from batch execution to linear execution remvoved the need for a TaxedTokenLimitOrderExecution contract. A single taxed order from Token -> Token will now be executed by the contract `LimitOrderExecutor#L220` within the function `executeTokenToTokenOrders`. The resolution to the locked beacon reward issue within the function is addressed in **QSP-19_4**.
+The contract architecture change from batch execution to linear execution remvoved the need for a TaxedTokenLimitOrderExecution contract. A single taxed order from Token -> Token will now be executed by the contract within the function `executeTokenToTokenOrders`. The resolution to the locked beacon reward issue within the function is addressed in **QSP-19_4**.
+- ConveyorExecutor.sol#L267-275
+- ConveyorExecutor.sol#403-417
+
 ## QSP-19_3
 TokenToTokenLimitOrderExecution._executeTokenToTokenSingle(): The function calls the _executeTokenToTokenOrder(). The raw beaconReward will be deducted when calculating the amountInWethToB. Later in _executeTokenToTokenSingle(), the maxBeaconReward is applied to the beaconReward. The difference
 between the beaconReward and maxBeaconReward will be left in the contract.
+
 ### Resolution
-This function has been removed as it is no longer needed with a linear execution contract architecture. A single order from Token-> Token will now be executed by the contract `LimitOrderExecutor#L220` within the function `executeTokenToTokenOrders`. The resolution to the locked beacon reward issue within the function is addressed in **QSP-19_4**.
+This function has been removed as it is no longer needed with a linear execution contract architecture. A single order from Token-> Token will now be executed by the contract within the function `executeTokenToTokenOrders`. The resolution to the locked beacon reward issue within the function is addressed in **QSP-19_4**.
+- ConveyorExecutor.sol#L267-275
+- ConveyorExecutor.sol#403-417
+
 ## QSP-19_4
 `TokenToTokenLimitOrderExecution._executeTokenToTokenBatchOrders()`: The function calls `_executeTokenToTokenBatch()`. In the
 `_executeTokenToTokenBatch()` function, the raw `beaconReward` is deducted when calculating the `amountInWethToB`. Later in the `_executeTokenToTokenBatchOrders()` function, the `maxBeaconReward` is applied to the `totalBeaconReward`. The difference between the `totalBeaconReward` and `maxBeaconReward` will be left in the contract.
 ### Resolution
-The function `TokenToTokenLimitOrderExecution._executeTokenToTokenBatchOrders()` has been replaced with `LimitOrderExecutor#L222executeTokenToTokenOrders()` as a result of changing to a linear execution architecture. The function similarly calculates the `maxBeaconReward` `#L256-257` and calls `_executeTokenToTokenOrder#L278` passing in the capped beacon reward.
+The function `TokenToTokenLimitOrderExecution._executeTokenToTokenBatchOrders()` has been replaced with `executeTokenToTokenOrders()` as a result of changing to a linear execution architecture. The function similarly calculates the `maxBeaconReward` and calls `_executeTokenToTokenOrder` passing in the capped beacon reward.
+
 #### Case Token-Token.) 
-The function calls `_executeSwapTokenToWethOrder#L329` and returns the `amountInWethToB` decremented by the `maxBeaconReward` if instantiated. The fix can be referenced at `LimitOrderExecutor#L190-217`. 
+The function calls `_executeSwapTokenToWethOrder` and returns the `amountInWethToB` decremented by the `maxBeaconReward` if instantiated.
 #### Case WETH-Token.) 
-Since WETH is the input token no swap is needed. The function `_executeTokenToTokenOrder#L341` calls `transferTokensToContract` and decrements the value `amountInWethToB` by the `maxBeaconReward` if instantiated. The fix can be referenced in `LimitOrderExecutor#L341-363`.
+Since WETH is the input token no swap is needed. The function `_executeTokenToTokenOrder` calls `transferTokensToContract` and decrements the value `amountInWethToB` by the `maxBeaconReward` if instantiated. 
+
+- ConveyorExecutor.sol#L267-275
+- ConveyorExecutor.sol#403-417
+
 ## QSP-19_5 
 `TokenToWethLimitOrderExecution._executeTokenToWethSingle()`: The function calls `_executeTokenToWethOrder()`. The `_executeTokenToWethOrder()` will deduct the raw `beaconReward` when returning the `amountOut` value. Later, the `_executeTokenToWethSingle()` function caps the `beaconReward` to `maxBeaconReward`. The difference between the `beaconReward` and `maxBeaconReward` will be left in the contract. 
 
 ### Resolution
-This function has been removed as it is no longer needed with a linear execution contract architecture. A single order from Token-> WETH will now be executed by the contract `LimitOrderExecutor#L52` within the function `executeTokenToWethOrders`. The resolution to the locked beacon reward issue within the function is addressed in **QSP-19_6**.
+This function has been removed as it is no longer needed with a linear execution contract architecture. A single order from Token-> WETH will now be executed by the contract `LimitOrderExecutor` within the function `executeTokenToWethOrders`. The resolution to the locked beacon reward issue within the function is addressed in **QSP-19_6**.
+
+- ConveyorExecutor.sol#L267-275
+- ConveyorExecutor.sol#403-417
+
 
 ## QSP-19_6 
 `TokenToWethLimitOrderExecution._executeTokenToWethBatchOrders()`: The function calls the `_executeTokenToWethBatch()` function. The `_executeTokenToWethBatch()` will deduct the raw `beaconReward` when returning the `amountOut` value. Later, the `_executeTokenToWethBatchOrders()` function caps the `totalBeaconReward` to `maxBeaconReward`. The difference between the `totalBeaconReward` and `maxBeaconReward` will be left in the contract.
 
 ### Resolution
 
-The function `TokenToWethLimitOrderExecution._executeTokenToWethBatchOrders()` is no longer used with the changes to a simpler linear execution architecture. All orders from Token -> Weth will now be executed at the top level by `LimitOrderExecutor#L52executeTokenToWethOrders`. This function calculates the `maxBeaconReward` `LimitOrderExecutor#L72` and calls `_executeTokenToWethOrder#L97` passing in the `maxBeaconReward` as a parameter. `_executeTokenToWethOrder` calls `_executeSwapTokenToWethOrder#L141` with the `maxBeaconReward` as a parameter and the returned `amountOutWeth` value is decremented by the `beaconReward` after the `beaconReward` has been capped. The fix can be referenced at 
+The function `TokenToWethLimitOrderExecution._executeTokenToWethBatchOrders()` is no longer used with the changes to a simpler linear execution architecture. All orders from Token -> Weth will now be executed at the top level by `executeTokenToWethOrders`. This function calculates the `maxBeaconReward` `LimitOrderExecutor` and calls `_executeTokenToWethOrder` passing in the `maxBeaconReward` as a parameter. `_executeTokenToWethOrder` calls `_executeSwapTokenToWethOrder` with the `maxBeaconReward` as a parameter and the returned `amountOutWeth` value is decremented by the `beaconReward` after the `beaconReward` has been capped. The fix can be referenced at 
 
-`ConveyorExecutor#L476`
 ```solidity
         ///@notice Calculate the conveyorReward and executor reward.
         (conveyorReward, beaconReward) = ConveyorFeeMath.calculateReward(
@@ -816,30 +785,30 @@ The function `TokenToWethLimitOrderExecution._executeTokenToWethBatchOrders()` i
         amountOutWeth = amountOutWeth - (beaconReward + conveyorReward);
 ```
 
+- ConveyorExecutor.sol#L267-275
+- ConveyorExecutor.sol#403-417
+
 
 # QSP-20 Inaccurate Array Length ✅ (Needs tests to validate expected behavior)
 Severity: Informational Status: Unresolved
 
 File(s) affected: LimitOrderBatcher.sol, OrderBook.sol
-**Description**: Some functions return arrays that are padded with empty elements. The caller of those functions will need to be aware of this fact to not accidentally treat the padding as real data. The following is a list of functions that have this issue:
+## Description: Some functions return arrays that are padded with empty elements. The caller of those functions will need to be aware of this fact to not accidentally treat the padding as real data. The following is a list of functions that have this issue:
 1. OrderBook.getAllOrderIds(): The impact is unclear, as the function is only used in the test contracts.
 
 2. LimitOrderBatcher.batchTokenToTokenOrders(): The function is called by TokenToTokenLimitOrderExecution.executeTokenToTokenOrders(). Fortunately, the
 implementation of executeTokenToTokenOrders() seems to be aware of the fact that batches can be empty.
 
-**Recommendation**: Either get an exact array length and allocate the array with the correct size or try to override the array length before returning the array. Otherwise, consider adding a warning to the above functions to ensure callers are aware of the returned array potentially containing empty elements.
-While newer solidity versions no longer allow assigning the array length directly, it is still possible to do so using assembly:
-
-```solidity
-assembly {
-    mstore(<:your_array_var>, <:reset_size>)
-}
-```
 
 ### Resolution
+#### QSP_20_1
+In `OrderBook.getAllOrderIds()` assembly is used to resize the array after it is populated.
 
-In `OrderBook.getAllOrderIds()` assembly is used to resize the array after it is populated. Batching functionality was removed so the issue in `LimitOrderBatcher.batchTokenToTokenOrders()` no longer exists.
+- OrderBook.sol#L658-664
+- OrderBook.sol#L672-719
 
+#### QSP_20_2
+Batching functionality was removed so the issue in `LimitOrderBatcher.batchTokenToTokenOrders()` no longer exists.
 
 
 # QSP-21 `TaxedTokenLimitOrderExecution` Contains Code for Handling Non-Taxed Orders ✅
@@ -850,8 +819,10 @@ Severity: 🔵Informational🔵
 The function `_executeTokenToTokenOrder()` checks whether the order to execute is taxed. In case it is not, the tokens for the order are transferred to the `SwapRouter`contract. When actually executing the swap in `_executeSwapTokenToWethOrder()`, the swap is performed using the order.owner as sender, i.e. the tokens will be sent again from that address. Since the function is typically only called from code paths where orders are taxed, the best case scenario is that `TaxedTokenLimitOrderExecution.sol#L323-326` is dead code. In case somebody calls this function manually with a non-taxed order, it might lead to tokens being sent erroneously to the SwapRouter.
 
 ### Resolution
-This code has been removed with the new contract architecture for linear execution. Taxed orders now follow the same execution flow as untaxed orders dependent on whether the swap is happening on Token-> Weth or Token->Token.
+Taxed token limit order execution has been removed. Instead of a specific function for taxed token execution, taxed tokens are executed through `executeTokenToTokenOrders` or `executeTokenToWethOrders`.
 
+- ConveyorExecutor.sol#L124
+- ConveyorExecutor.sol#L280
 
 ## QSP-22 Unlocked Pragma ✅
 Severity: 🔵Informational🔵
@@ -861,20 +832,23 @@ meaning that the compiler will use the specified version and above, hence the te
 ### Resolution
 Locked all core contracts at solidity v0.8.16.
 
+
 # QSP-23 Allowance Not Checked when Updating Orders ✅
 Severity: 🔵Informational🔵
 ## Description: 
 When placing an order, the contract will check if users set a high enough allowance to the ORDER_ROUTER contract (L216). However, this is not checked when updating an order in
 the function updateOrder().
 ### Resolution
-Added a check that ensures the allowance of the sender on the `LimitOrderExecutor` contract >= the `newOrder.quantity`. Reference `OrderBook.sol#L277-281` for the fix:
+Added a check that ensures the allowance of the sender on the `LimitOrderExecutor` contract >= the `newOrder.quantity`.
 ```solidity
         ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
         if (totalApprovedQuantity < newOrder.quantity) {
             revert InsufficientAllowanceForOrderUpdate();
         }
 ```
-Test Reference `OrderBook.t.sol#L363-401`:
+
+
+Test Case
 ```solidity
     ///@notice Test fail update order insufficient allowance
     function testFailUpdateOrder_InsufficientAllowanceForOrderUpdate(
@@ -917,6 +891,8 @@ Test Reference `OrderBook.t.sol#L363-401`:
     }
 ```
 
+- OrderBook.sol#L501-507
+
 
 # QSP-24 Incorrect Restriction in fromUInt256 ✅
 Severity: 🔵Informational🔵
@@ -925,7 +901,7 @@ In the function `fromUInt256()`, if the input `x` is an unsigned integer and `x 
 the restriction for `x` is set to `<= 0x7FFFFFFFFFFFFFFF` in the current implementation.
 
 ### Resolution
-Changed the require statement to the reccomended validation logic. Reference `ConveyorMath.sol#L20-25`.
+Changed the require statement to the recommended validation logic. Reference `ConveyorMath.sol#L20-25`.
 ```solidity
 function fromUInt256(uint256 x) internal pure returns (uint128) {
     unchecked {
@@ -935,6 +911,7 @@ function fromUInt256(uint256 x) internal pure returns (uint128) {
 }
 ```
 
+- ConveyorMath.sol#L24
 
 # QSP-25 Extremely Expensive Batch Execution for Uniswap V3 ✅
 Severity: 🟢Undetermined🟢
@@ -945,53 +922,27 @@ According to the discussion with the team, the motivation for executing orders i
 Changes made to mitigate Gas consumption in execution:
 As per the reccomendation of the quant stamp team we changed the execution architecture of the contract to a stricly linear flow. The changes to linear execution architecture immediately reduced the gas consumption overall, most significantly when a V3 pool was utilized during execution because of a reduced amount of calls to the quoter. Further, we eliminated using the v3 quoter completely from the contract, and built our own internal logic to simulate the amountOut yielded on a V3 swap. Reference `Contract Architecture Changes/Uniswap V3` for a detailed report of the code, and it's implementation throughout the contract. 
 
-Relevant Gas Snapshot Post Changes:
-```js
-╭──────────────────────────────────────────────────────────────┬─────────────────┬────────┬────────┬────────┬─────────╮
-│ src/test/SwapRouter.t.sol:LimitOrderExecutorWrapper contract ┆                 ┆        ┆        ┆        ┆         │
-╞══════════════════════════════════════════════════════════════╪═════════════════╪════════╪════════╪════════╪═════════╡
-│ Deployment Cost                                              ┆ Deployment Size ┆        ┆        ┆        ┆         │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ 2805140                                                      ┆ 14741           ┆        ┆        ┆        ┆         │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ Function Name                                                ┆ min             ┆ avg    ┆ median ┆ max    ┆ # calls │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ _swap                                                        ┆ 76694           ┆ 85391  ┆ 85391  ┆ 94089  ┆ 2       │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ calculateV2SpotPrice                                         ┆ 11103           ┆ 22522  ┆ 22741  ┆ 30613  ┆ 7       │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ calculateV3SpotPrice                                         ┆ 22219           ┆ 25854  ┆ 25854  ┆ 29489  ┆ 2       │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ swapV2                                                       ┆ 33994           ┆ 48468  ┆ 39571  ┆ 80739  ┆ 4       │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ swapV3                                                       ┆ 101887          ┆ 182907 ┆ 182907 ┆ 263927 ┆ 2       │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ uniswapV3SwapCallback                                        ┆ 815             ┆ 22480  ┆ 32084  ┆ 35159  ┆ 5       │
-╰──────────────────────────────────────────────────────────────┴─────────────────┴────────┴────────┴────────┴─────────╯
-╭────────────────────────────────────────────────────┬─────────────────┬───────┬────────┬───────┬─────────╮
-│ src/LimitOrderBatcher.sol:LimitOrderBatcher contract ┆                 ┆       ┆        ┆       ┆         │
-╞════════════════════════════════════════════════════╪═════════════════╪═══════╪════════╪═══════╪═════════╡
-│ Deployment Cost                                    ┆ Deployment Size ┆       ┆        ┆       ┆         │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ 3263478                                            ┆ 16664           ┆       ┆        ┆       ┆         │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ Function Name                                      ┆ min             ┆ avg   ┆ median ┆ max   ┆ # calls │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ _findBestTokenToTokenExecutionPrice                ┆ 5347            ┆ 5353  ┆ 5347   ┆ 5401  ┆ 21      │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ _findBestTokenToWethExecutionPrice                 ┆ 2350            ┆ 2362  ┆ 2350   ┆ 2377  ┆ 11      │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ _initializeTokenToTokenExecutionPrices             ┆ 8889            ┆ 10998 ┆ 11902  ┆ 11902 ┆ 10      │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ _initializeTokenToWethExecutionPrices              ┆ 4623            ┆ 4623  ┆ 4623   ┆ 4623  ┆ 4       │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ calculateAmountOutMinAToWeth                       ┆ 4006            ┆ 9066  ┆ 6011   ┆ 19654 ┆ 22      │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ simulateTokenToTokenPriceChange                    ┆ 4481            ┆ 9253  ┆ 4481   ┆ 32449 ┆ 21      │
-├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│ simulateTokenToWethPriceChange                     ┆ 6220            ┆ 14629 ┆ 6369   ┆ 24576 ┆ 11      │
-╰────────────────────────────────────────────────────┴─────────────────┴───────┴────────┴───────┴─────────╯
-```
+## Uniswap V3 Changes
+#### Function `LimitOrderBatcher.calculateAmountOutMinAToWeth()`
+We eliminated the use of the v3 Quoter in the contract. Our quoting logic was modeled after: (https://github.com/Uniswap/v3-core/blob/main/contracts/UniswapV3Pool.sol#L596).
+
+The implementation is located in `src/lib/ConveyorTickMath.sol` within the function `simulateAmountOutOnSqrtPriceX96`. 
+This function is called in `src/LimitOrderBatcher.sol` within `calculateAmountOutMinAToWeth` </br>
+
+Tests:<br />
+Reference `src/test/LimitOrderBatcher.t.sol` for `calculateAmountOutMinAToWeth` tests.<br />
+Reference `src/test/ConveyorTickMath.t.sol` for `simulateAmountOutOnSqrtPriceX96` tests. <br />
+
+#### Function `_calculateV3SpotPrice`
+The V3 spot price calculation has been modified to be more gas efficient by simply calling `slot0()` on the pool, and converting `sqrtPriceX96` to `128.128` fixed point representation of `sqrtPriceX96**2`. 
+
+#### Function `LimitOrderBatcher.calculateNextSqrtPriceX96`
+This function was modified to be more gas efficient by eliminating all calls to the v3 quoter, and calculating the amountOut return value by simply calling `ConveyorTickMath.simulateAmountOutOnSqrtPriceX96`. 
+
+#### Function `SwapRouter.getNextSqrtPriceV3`
+This has been simplified to be more gas efficient by eliminating all calls to the quoter. <br />
+Reference `SwapRouter`
+
 
 # QSP-26 Issues in Maximum Beacon Reward Calculation ✅
 ### Resolution
@@ -1001,21 +952,24 @@ uint128 constant STOP_LOSS_MAX_BEACON_REWARD = 50000000000000000;
 ```
 This constant is used in place of the `maxBeaconReward` in the case of stoploss orders. 
 
+- ConveyorExecutor.sol#L29
+
 # QSP-27 Verifier's Dilemma ✅
-`Old System`
-For order execution, the gas price that can be used is capped so that an off-chain executor can assign the max gas to avoid being frontrun by another off-chain executor. The cap is 1.75% above the Chainlink fast gas oracle. The Chainlink oracle's gas price can deviate from the real competitive gas price by 25% before an update. If the gas oracle is 25% lower than
-the competitive gas price, the execution transaction gas price is still priced at a competitive rate. If the gas oracle is 25% higher than the competitive gas price, the execution gas price will be faster than the current competitive rate. At all times, the execution transaction's gas price will be competitve.
+he beacon network allows any executor to submit the execution of the orders. As an incentive for monitoring the protocol and executing orders once they become valid, the protocol pays the executors a reward. However, an attacker can steal the work of another executor by simply monitoring the mempool and front-run their transaction. Despite the attacker never monitoring and matching the orders, the attacker can earn the beacon reward by stealing another executor's work.
+Furthermore, since only the fastest executor receives a reward, this might discourage participants from becoming an executor themselves.
 
-Since the gas price is an exact value, searchers can not monitor the mempool and front run the transaction with a higher gas price. This effecively eliminates the verifier's delimma from the protocol, incentivizing the off-chain executor to be the first to compute the execution opportunity and submit a transaction. Any while miners/block builders can order a block as they desire there is not an incentive to order one transaction in front of the other, allowing the first to submit the transaction to be included in most cases. There is still a chance that block builders (or validators, depending on the chain) could reorder transactions before including them in the block. Off-chain executors are encouraged to use Flashbots or equivalent, for chains that have private relays to further avoid potential frontrunning. 
-
-`New System`
-The new system will not cap the `tx.gasPrice`. Instead, on chains where possible the open source executor will use relayers for `tx` obfuscation, and on chains without relayers will use `pga` mechanics. This was decided to give the executor maximum flexibility on pathing allowing them to pass `SandboxLimitOrders` liquidity through convex pathing where there will likely be competition outside the network to capture mev opportunities. The executor gets to keep any profit above the `amountOutRequired` on the order, so we expect to see and employ complex strategies that would be severely handicapped by requiring any max `gasPrice`.
-
-With that said, the owners of the `SandboxLimitOrders` being executed will only pay a maximum amount of gas compensation defined as an immutable variable in the `ConveyorExecutor` called `SANDBOX_LIMIT_ORDER_EXECUTION_GAS_COST`.
-
+## Resolution
+The default behavior for the off-chain logic will be to route the execution transaction through private relays, encrypted mempools and other means of transaction obfuscation when available. For chains that do not have an equivalent option, the default Beacon will have built in priority gas auction (PGA) logic to compete with other bots that try to front run their transaction. While this does not alleviate the Verifier's delimma on these chains, it gives the beacon a defense mechanism against front runners.  
 
 # QSP-28 Taxed Token Swaps Using Uniswap V3 Might Fail 🟡
-This QSP has been acknowledged. The current taxed token tests in the codebase have been successfully executed on V3 Pools. The off-chain executor is able to call the node prior to execution, and should be able to determine if a taxed token execution will fail or not. In the case when a taxed token were to fail a v3 execution the off-chain executor can wait until a v2 pool becomes the most advantageous limit price to execute the Order. Further, we expect the majority of the limit orders on the protocol passing through the `SandboxLimitOrders` system since only `stoplosses` will be placed on the old system through the `ConveyorFinance` frontend interface.
+
+## Description
+The SwapRouter does not seem to handle taxed tokens, i.e. ones with a "fee on transfer", correctly when routed through Uniswap V3. In the uniswapV3SwapCallback() function, one of the function parameters dictates the amount of tokens that have to be transferred to the pool for the swap to succeed. The SwapRouter attempts to send exactly that many tokens. However, if the token transfers are "taxed", the pool will receive less than intended and the swap will fail.
+
+## Resolution
+This QSP has been acknowledged. The current taxed token tests in the codebase have been successfully executed on V3 Pools. The off-chain executor is able to call the node prior to execution, and should be able to determine if a taxed token execution will fail or not. In the case when a taxed token were to fail a v3 execution the off-chain executor can wait until a v2 pool becomes the most advantageous limit price to execute the Order.
+
+
 # **Code Documentation**
 Consider providing instructions on how to build and test the contracts in the README.  </br>
 Consider providing a link in the code comment for the SwapRouter._getV2PairAddress() function (L1025-1045) on how the address is determined: Uniswap V2 Pair Address doc. ✅ </br>
