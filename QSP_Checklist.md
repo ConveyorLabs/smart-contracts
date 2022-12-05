@@ -970,8 +970,8 @@ The SwapRouter does not seem to handle taxed tokens, i.e. ones with a "fee on tr
 This QSP has been acknowledged. The current taxed token tests in the codebase have been successfully executed on V3 Pools. The off-chain executor is able to call the node prior to execution, and should be able to determine if a taxed token execution will fail or not. In the case when a taxed token were to fail a v3 execution the off-chain executor can wait until a v2 pool becomes the most advantageous limit price to execute the Order.
 
 
-# **Code Documentation**
-Consider providing instructions on how to build and test the contracts in the README.  </br>
+# **Code Documentation** ✅
+Consider providing instructions on how to build and test the contracts in the README. ✅ </br>
 Consider providing a link in the code comment for the SwapRouter._getV2PairAddress() function (L1025-1045) on how the address is determined: Uniswap V2 Pair Address doc. ✅ </br>
 
 The comment in LimitOrderRouter.sol#L416 (within the `_validateOrderSequencing()` function) does not match the implementation. Change it from "Check if thetoken tax status is the same..." to "Check if the buy/sell status is the same..." instead. ✅ </br>
@@ -1092,7 +1092,7 @@ Typos in variables:
     parameter _reciever in `SwapRouter._swapV3()` should be renamed to _receiver, the return variable amountRecieved should be amountReceived
     parameter _reciever in `SwapRouter._swap()` should be renamed to _receiver, the return variable amountRecieved should be amountReceived.
     
-OrderBook.sol#L240 could use storage instead of memory to save gas. TODO: Ask about this one. </br>
+OrderBook.sol#L240 could use storage instead of memory to save gas. </br>
 
 Internal function `_executeSwapTokenToWethOrder()` in `TokenToWethLimitOrderExecution.sol` is never used and can be removed. ✅ </br>
 
