@@ -7,23 +7,22 @@ import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Factory.sol";
 import "../lib/interfaces/uniswap-v3/IUniswapV3Pool.sol";
 import "./lib/ConveyorMath.sol";
-import "./LimitOrderBook.sol";
+import "./OrderBook.sol";
 import "./lib/ConveyorTickMath.sol";
 import "../lib/libraries/Uniswap/FullMath.sol";
 import "../lib/libraries/Uniswap/FixedPoint96.sol";
 import "../lib/libraries/Uniswap/TickMath.sol";
 import "../lib/interfaces/token/IWETH.sol";
-import "./lib/ConveyorFeeMath.sol";
 import "../lib/libraries/Uniswap/SqrtPriceMath.sol";
 import "../lib/interfaces/uniswap-v3/IQuoter.sol";
 import "../lib/libraries/token/SafeERC20.sol";
 import "./ConveyorErrors.sol";
-import "./interfaces/ILimitOrderSwapRouter.sol";
+import "./interfaces/ISwapRouter.sol";
 
-/// @title LimitOrderSwapRouter
+/// @title SwapRouter
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Dex aggregator that executes standalone swaps, and fulfills limit orders during execution.
-contract LimitOrderSwapRouter is ConveyorTickMath {
+contract SwapRouter is ConveyorTickMath {
     using SafeERC20 for IERC20;
     //----------------------Structs------------------------------------//
 
@@ -111,6 +110,8 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     uint128 private constant ZERO_POINT_ONE = 1844674407370955300;
     uint128 private constant ZERO_POINT_ZERO_ZERO_FIVE = 92233720368547760;
     uint128 private constant ZERO_POINT_ZERO_ZERO_ONE = 18446744073709550;
+    uint128 constant MAX_CONVEYOR_PERCENT = 110680464442257300 * 10**2;
+    uint128 constant MIN_CONVEYOR_PERCENT = 7378697629483821000;
 
     //======================Immutables================================
 
@@ -236,6 +237,56 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
 
         return
             ConveyorMath.add64x64(rationalFraction, 461168601842738800) / 10**2;
+    }
+
+    /// @notice Helper function to calculate beacon and conveyor reward on transaction execution.
+    /// @param percentFee - Percentage of order size to be taken from user order size.
+    /// @param wethValue - Total order value at execution price, represented in wei.
+    /// @return conveyorReward - Conveyor reward, represented in wei.
+    /// @return beaconReward - Beacon reward, represented in wei.
+    function calculateReward(uint128 percentFee, uint128 wethValue)
+        public
+        pure
+        returns (uint128 conveyorReward, uint128 beaconReward)
+    {
+        ///@notice Compute wethValue * percentFee
+        uint256 totalWethReward = ConveyorMath.mul64U(
+            percentFee,
+            uint256(wethValue)
+        );
+
+        ///@notice Initialize conveyorPercent to hold conveyors portion of the reward
+        uint128 conveyorPercent;
+
+        ///@notice This is to prevent over flow initialize the fee to fee+ (0.005-fee)/2+0.001*10**2
+        if (percentFee <= ZERO_POINT_ZERO_ZERO_FIVE) {
+            int256 innerPartial = int256(uint256(ZERO_POINT_ZERO_ZERO_FIVE)) -
+                int128(percentFee);
+
+            conveyorPercent =
+                (percentFee +
+                    ConveyorMath.div64x64(
+                        uint128(uint256(innerPartial)),
+                        uint128(2) << 64
+                    ) +
+                    uint128(ZERO_POINT_ZERO_ZERO_ONE)) *
+                10**2;
+        } else {
+            conveyorPercent = MAX_CONVEYOR_PERCENT;
+        }
+
+        if (conveyorPercent < MIN_CONVEYOR_PERCENT) {
+            conveyorPercent = MIN_CONVEYOR_PERCENT;
+        }
+
+        ///@notice Multiply conveyorPercent by total reward to retrive conveyorReward
+        conveyorReward = uint128(
+            ConveyorMath.mul64U(conveyorPercent, totalWethReward)
+        );
+
+        beaconReward = uint128(totalWethReward) - conveyorReward;
+
+        return (conveyorReward, beaconReward);
     }
 
     ///@notice Helper function to transfer ERC20 tokens out to an order owner address.

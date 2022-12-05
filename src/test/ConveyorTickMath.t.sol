@@ -12,7 +12,7 @@ import "../../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "./utils/ScriptRunner.sol";
 import "../lib/ConveyorTickMath.sol";
 import "../../lib/interfaces/uniswap-v3/IQuoter.sol";
-import "../LimitOrderSwapRouter.sol";
+import "../SwapRouter.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -321,12 +321,12 @@ contract ConveyorTickMathWrapper is ConveyorTickMath {
     }
 }
 
-contract SwapRouterWrapper is LimitOrderSwapRouter {
+contract SwapRouterWrapper is SwapRouter {
     constructor(
         bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2
-    ) LimitOrderSwapRouter(_initBytecodes, _dexFactories, _isUniV2) {}
+    ) SwapRouter(_initBytecodes, _dexFactories, _isUniV2) {}
 
     function swapV3(
         address _lp,

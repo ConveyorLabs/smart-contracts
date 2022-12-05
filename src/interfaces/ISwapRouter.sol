@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import "../LimitOrderSwapRouter.sol";
+import "../SwapRouter.sol";
 
-interface ILimitOrderSwapRouter {
-    function dexes() external view returns (LimitOrderSwapRouter.Dex[] memory);
+interface ISwapRouter {
+    function dexes() external view returns (SwapRouter.Dex[] memory);
 
     function calculateSandboxFeeAmount(
         address tokenIn,
@@ -25,7 +25,7 @@ interface ILimitOrderSwapRouter {
         external
         view
         returns (
-            LimitOrderSwapRouter.SpotReserve memory spRes,
+            SwapRouter.SpotReserve memory spRes,
             address poolAddress
         );
 
@@ -43,7 +43,7 @@ interface ILimitOrderSwapRouter {
         external
         view
         returns (
-            LimitOrderSwapRouter.SpotReserve[] memory prices,
+            SwapRouter.SpotReserve[] memory prices,
             address[] memory lps
         );
 }
