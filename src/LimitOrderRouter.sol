@@ -371,7 +371,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         }
 
         ///@notice Emit an order fufilled event to notify the off-chain executors.
-        emit OrderFufilled(orderIds);
+        emit OrderFilled(orderIds);
 
         ///@notice Calculate the execution gas compensation.
         uint256 executionGasCompensation;

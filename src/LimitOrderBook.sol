@@ -81,7 +81,7 @@ contract LimitOrderBook {
     /**@notice Event that is emitted when an order is filled. For each order that is filled, the corresponding orderId is added
     to the orderIds param. 
      */
-    event OrderFufilled(bytes32[] orderIds);
+    event OrderFilled(bytes32[] orderIds);
 
     ///@notice Event that notifies off-chain executors when an order has been refreshed.
     event OrderRefreshed(
