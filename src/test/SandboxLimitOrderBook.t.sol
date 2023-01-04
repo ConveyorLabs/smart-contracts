@@ -169,16 +169,17 @@ contract SandboxLimitOrderBookTest is DSTest {
     }
 
     function testGetOrderIds() public {
+        cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
         //if the fuzzed amount is enough to complete the swap
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, swapToken);
+        swapHelper.swapEthForTokenWithUniV2(10000 ether, swapToken);
 
         bytes32 orderId1 = placeMockSandboxLimitOrder(
-            newSandboxLimitOrder(swapToken, WETH, 10e21, uint112(1))
+            newSandboxLimitOrder(swapToken, WETH, 10e20, uint112(1))
         );
 
         bytes32 orderId2 = placeMockSandboxLimitOrder(
-            newSandboxLimitOrder(swapToken, WETH, 10e21, uint112(1))
+            newSandboxLimitOrder(swapToken, WETH, 10e20, uint112(1))
         );
 
         sandboxLimitOrderBook.cancelOrder(orderId2);

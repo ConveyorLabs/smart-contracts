@@ -1457,7 +1457,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
                 orderOffsetSlot := add(orderOffsetSlot, 0x20)
             }
 
-            OrderType orderType = addressToOrderIds[owner][orderId];
+            OrderType orderType = addressToOrderIds[orderOwner][orderId];
 
             if (orderType == targetOrderType) {
                 orderIds[orderIdIndex] = orderId;
