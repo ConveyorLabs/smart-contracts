@@ -129,7 +129,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     /**@notice Event that is emitted when an order is filled. For each order that is filled, the corresponding orderId is added
     to the orderIds param. 
      */
-    event OrderFufilled(bytes32[] orderIds);
+    event OrderFilled(bytes32[] orderIds);
 
     /**@notice Event that is emitted when an order is partially filled. For each order that is parital filled, the corresponding orderId is added
     to the orderIds param. 
@@ -1335,31 +1335,37 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         ///@notice Update the status of the order to filled
         addressToOrderIds[order.owner][order.orderId] = OrderType
             .FilledSandboxLimitOrder;
+
+        ///@notice Emit the event that the order has been filled.
+        bytes32[] memory filledOrderIds = new bytes32[](1);
+        filledOrderIds[0] = order.orderId;
+
+        emit OrderFilled(filledOrderIds);
     }
 
     ///@notice Decrement an owner's total order value on a specific token.
     ///@param token - Token address to decrement the total order value on.
-    ///@param owner - Account address to decrement the total order value from.
+    ///@param orderOwner - Account address to decrement the total order value from.
     ///@param quantity - Amount to decrement the total order value by.
     function decrementTotalOrdersQuantity(
         address token,
-        address owner,
+        address orderOwner,
         uint256 quantity
     ) internal {
-        bytes32 totalOrdersValueKey = keccak256(abi.encode(owner, token));
+        bytes32 totalOrdersValueKey = keccak256(abi.encode(orderOwner, token));
         totalOrdersQuantity[totalOrdersValueKey] -= quantity;
     }
 
     ///@notice Update an owner's total order value on a specific token.
     ///@param token - Token address to update the total order value on.
-    ///@param owner - Account address to update the total order value from.
+    ///@param orderOwner - Account address to update the total order value from.
     ///@param newQuantity - Amount set the the new total order value to.
     function _updateTotalOrdersQuantity(
         address token,
-        address owner,
+        address orderOwner,
         uint256 newQuantity
     ) internal {
-        bytes32 totalOrdersValueKey = keccak256(abi.encode(owner, token));
+        bytes32 totalOrdersValueKey = keccak256(abi.encode(orderOwner, token));
         totalOrdersQuantity[totalOrdersValueKey] = newQuantity;
     }
 
@@ -1395,8 +1401,8 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         return totalOrdersQuantity[totalOrdersValueKey];
     }
 
-    function getAllOrderIdsLength(address owner) public view returns (uint256) {
-        return addressToAllOrderIds[owner].length;
+    function getAllOrderIdsLength(address orderOwner) public view returns (uint256) {
+        return addressToAllOrderIds[orderOwner].length;
     }
 
     function getSandboxLimitOrderRouterAddress() public view returns (address) {
@@ -1417,18 +1423,18 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     }
 
     ///@notice Get all of the order Ids matching the targetOrderType for a given address
-    ///@param owner - Target address to get all order Ids for.
+    ///@param orderOwner - Target address to get all order Ids for.
     ///@param targetOrderType - Target orderType to retrieve from all orderIds.
     ///@param orderOffset - The first order to start from when checking orderstatus. For example, if order offset is 2, the function will start checking orderId status from the second order.
     ///@param length - The amount of orders to check order status for.
     ///@return - Array of orderIds matching the targetOrderType
     function getOrderIds(
-        address owner,
+        address orderOwner,
         OrderType targetOrderType,
         uint256 orderOffset,
         uint256 length
     ) public view returns (bytes32[] memory) {
-        bytes32[] memory allOrderIds = addressToAllOrderIds[owner];
+        bytes32[] memory allOrderIds = addressToAllOrderIds[orderOwner];
 
         uint256 orderIdIndex = 0;
         bytes32[] memory orderIds = new bytes32[](allOrderIds.length);
