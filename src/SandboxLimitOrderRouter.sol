@@ -20,7 +20,7 @@ contract SandboxLimitOrderRouter is ISandboxLimitOrderRouter {
     mapping(address => uint256) public lastCheckIn;
 
     ///@notice Minimum time between checkins.
-    uint256 public constant CHECKIN_INTERVAL = 1 days;
+    uint256 public constant CHECK_IN_INTERVAL = 1 days;
 
     ///@notice Modifier to restrict addresses other than the ConveyorExecutor from calling the contract
     modifier onlyLimitOrderExecutor() {
@@ -71,7 +71,7 @@ contract SandboxLimitOrderRouter is ISandboxLimitOrderRouter {
         uint256 lastCheckInTime = lastCheckIn[msg.sender];
         
         ///@notice Check if the last checkin time is greater than the checkin interval.
-        if (block.timestamp-lastCheckInTime > CHECKIN_INTERVAL) {
+        if (block.timestamp-lastCheckInTime > CHECK_IN_INTERVAL) {
             ///@notice If the last checkin time is greater than the checkin interval, revert.
             revert ExecutorNotCheckedIn();
         }

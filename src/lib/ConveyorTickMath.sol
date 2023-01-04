@@ -98,7 +98,7 @@ contract ConveyorTickMath {
     ///@notice Function to simulate the change in sqrt price on a uniswap v3 swap.
     ///@param token0 Token 0 in the v3 pool.
     ///@param tokenIn Token 0 in the v3 pool.
-    ///@param lpAddressAToWeth The tokenA to weth liquidity pool address.
+    ///@param pool The tokenA to weth liquidity pool address.
     ///@param amountIn The amount in to simulate the price change on.
     ///@param tickSpacing The tick spacing on the pool.
     ///@param liquidity The liquidity in the pool.
@@ -106,7 +106,7 @@ contract ConveyorTickMath {
     function simulateAmountOutOnSqrtPriceX96(
         address token0,
         address tokenIn,
-        address lpAddressAToWeth,
+        address pool,
         uint256 amountIn,
         int24 tickSpacing,
         uint128 liquidity,
@@ -117,7 +117,7 @@ contract ConveyorTickMath {
 
         ///@notice Grab the current price and the current tick in the pool.
         (uint160 sqrtPriceX96, int24 initialTick, , , , , ) = IUniswapV3Pool(
-            lpAddressAToWeth
+            pool
         ).slot0();
 
         ///@notice Set the sqrtPriceLimit to Min or Max sqrtRatio
@@ -146,7 +146,7 @@ contract ConveyorTickMath {
                     currentState.tick,
                     tickSpacing,
                     zeroForOne,
-                    lpAddressAToWeth
+                    pool
                 );
             // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
             if (step.tickNext < TickMath.MIN_TICK) {

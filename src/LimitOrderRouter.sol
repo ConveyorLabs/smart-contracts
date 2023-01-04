@@ -53,7 +53,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
     uint256 private constant REFRESH_FEE = 20000000000000000;
 
     ///@notice Minimum time between checkins.
-    uint256 public constant CHECKIN_INTERVAL = 1 days;
+    uint256 public constant CHECK_IN_INTERVAL = 1 days;
 
     // ========================================= State Variables =============================================
     address owner;
@@ -305,7 +305,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         uint256 lastCheckInTime = lastCheckIn[msg.sender];
         
         ///@notice Check if the last checkin time is greater than the checkin interval.
-        if (block.timestamp-lastCheckInTime > CHECKIN_INTERVAL) {
+        if (block.timestamp-lastCheckInTime > CHECK_IN_INTERVAL) {
             ///@notice If the last checkin time is greater than the checkin interval, revert.
             revert ExecutorNotCheckedIn();
         }
