@@ -20,10 +20,6 @@ contract ConveyorTickMath {
     using SafeCast for uint256;
     using LowGasSafeMath for int256;
     using Tick for mapping(int24 => Tick.Info);
-    using TickBitmap for mapping(int16 => uint256);
-
-    ///@notice Storage mapping to hold the tickBitmap for a v3 pool.
-    mapping(int16 => uint256) public tickBitmap;
 
     ///@notice Storage mapping to map a tick to the relevant liquidity data on that tick in a pool.
     mapping(int24 => Tick.Info) public ticks;
@@ -145,11 +141,12 @@ contract ConveyorTickMath {
             ///@notice Set sqrtPriceStartX96.
             step.sqrtPriceStartX96 = currentState.sqrtPriceX96;
             ///@notice Set the tickNext, and if the tick is initialized.
-            (step.tickNext, step.initialized) = tickBitmap
+            (step.tickNext, step.initialized) = TickBitmap
                 .nextInitializedTickWithinOneWord(
                     currentState.tick,
                     tickSpacing,
-                    zeroForOne
+                    zeroForOne,
+                    lpAddressAToWeth
                 );
             // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
             if (step.tickNext < TickMath.MIN_TICK) {
