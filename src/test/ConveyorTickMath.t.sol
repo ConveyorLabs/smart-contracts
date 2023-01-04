@@ -209,7 +209,7 @@ contract ConveyorTickMathTest is DSTest {
         bool run = true;
 
         {
-            uint112 MAX_INPUT = 100000000000000000000; //1000 WETH
+            uint112 MAX_INPUT = 1000000000000000000000; //1000 WETH
             //Input quantities range between 100-1000 WETH to hopefully always have enough to cross a tick
             if (
                 _alphaX == 0 ||

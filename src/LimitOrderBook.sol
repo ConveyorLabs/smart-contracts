@@ -16,6 +16,9 @@ contract LimitOrderBook {
     address immutable WETH;
     address immutable USDC;
 
+    ///@notice Minimum time between checkins.
+    uint256 public constant CHECK_IN_INTERVAL = 1 days;
+    
     uint256 minExecutionCredit;
 
     ///@notice Boolean responsible for indicating if a function has been entered when the nonReentrant modifier is used.

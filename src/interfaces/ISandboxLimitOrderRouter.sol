@@ -13,6 +13,4 @@ interface ISandboxLimitOrderRouter {
     function executeSandboxMulticall(
         SandboxLimitOrderRouter.SandboxMulticall calldata sandboxMultiCall
     ) external;
-
-    function checkIn() external;
 }

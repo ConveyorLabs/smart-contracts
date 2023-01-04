@@ -18,4 +18,6 @@ interface IConveyorExecutor {
         SandboxLimitOrderBook.SandboxLimitOrder[] memory orders,
         SandboxLimitOrderRouter.SandboxMulticall calldata calls
     ) external;
+
+    function lastCheckIn(address account) external view returns (uint256);
 }

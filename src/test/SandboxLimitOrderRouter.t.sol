@@ -174,7 +174,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         );
 
         cheatCodes.prank(tx.origin);
-        sandboxRouter.checkIn();
+        limitOrderExecutor.checkIn();
 
         dealSandboxRouterExecutionFee();
 
@@ -276,7 +276,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
     function testExecuteMulticallOrderSingleV3() public {
         cheatCodes.deal(address(swapHelper), type(uint256).max);
         cheatCodes.prank(tx.origin);
-        sandboxRouter.checkIn();
+        limitOrderExecutor.checkIn();
         ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         ///@notice Max approve the executor on the input token.
@@ -401,7 +401,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
     function testExecuteMulticallOrderBatch() public {
         cheatCodes.deal(address(swapHelper), type(uint256).max);
         cheatCodes.prank(tx.origin);
-        sandboxRouter.checkIn();
+        limitOrderExecutor.checkIn();
         // IERC20(DAI).approve(address(sandboxRouter), type(uint256).max);
         dealSandboxRouterExecutionFee();
 
@@ -482,7 +482,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
     function testExecuteMulticallOrdersSameOwnerBundleInputToken() public {
         cheatCodes.deal(address(swapHelper), type(uint256).max);
         cheatCodes.prank(tx.origin);
-        sandboxRouter.checkIn();
+        limitOrderExecutor.checkIn();
         ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         ///@notice Max approve the executor on the input token.

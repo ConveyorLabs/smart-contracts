@@ -38,6 +38,9 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     ///@notice The refresh fee is 0.02 ETH
     uint256 private constant REFRESH_FEE = 20000000000000000;
 
+    ///@notice Minimum time between checkins.
+    uint256 public constant CHECK_IN_INTERVAL = 1 days;
+
     // ========================================= Storage =============================================
 
     ///@notice State variable to track the amount of gas initally alloted during executeLimitOrders.
@@ -646,6 +649,16 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         nonReentrant
         returns (bool success)
     {
+        ///@notice Get the last checkin time of the executor.
+        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
+            .lastCheckIn(msg.sender);
+
+        ///@notice Check if the last checkin time is greater than the checkin interval.
+        if (block.timestamp - lastCheckInTime > CHECK_IN_INTERVAL) {
+            ///@notice If the last checkin time is greater than the checkin interval, revert.
+            revert ExecutorNotCheckedIn();
+        }
+
         SandboxLimitOrder memory order = getSandboxLimitOrderById(orderId);
 
         ///@notice If the order owner does not have min gas credits, cancel the order
@@ -709,6 +722,16 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
     function refreshOrder(bytes32[] calldata orderIds) external nonReentrant {
+        ///@notice Get the last checkin time of the executor.
+        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
+            .lastCheckIn(msg.sender);
+
+        ///@notice Check if the last checkin time is greater than the checkin interval.
+        if (block.timestamp - lastCheckInTime > CHECK_IN_INTERVAL) {
+            ///@notice If the last checkin time is greater than the checkin interval, revert.
+            revert ExecutorNotCheckedIn();
+        }
+
         ///@notice Initialize totalRefreshFees;
         uint256 totalRefreshFees;
 
@@ -1401,7 +1424,11 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         return totalOrdersQuantity[totalOrdersValueKey];
     }
 
-    function getAllOrderIdsLength(address orderOwner) public view returns (uint256) {
+    function getAllOrderIdsLength(address orderOwner)
+        public
+        view
+        returns (uint256)
+    {
         return addressToAllOrderIds[orderOwner].length;
     }
 

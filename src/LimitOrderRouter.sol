@@ -52,15 +52,9 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
     ///@notice The refresh fee is 0.02 ETH
     uint256 private constant REFRESH_FEE = 20000000000000000;
 
-    ///@notice Minimum time between checkins.
-    uint256 public constant CHECK_IN_INTERVAL = 1 days;
-
     // ========================================= State Variables =============================================
     address owner;
     address tempOwner;
-
-    ///@notice Mapping of addresses to their last checkin time.
-    mapping(address => uint256) public lastCheckIn;
 
     // ========================================= Constructor =============================================
 
@@ -85,15 +79,19 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         owner = tx.origin;
     }
 
-    ///@notice Function to monitor Executor checkin. 
-    function checkIn() external {
-        ///@notice Set the lastCheckIn time to the current block timestamp.
-        lastCheckIn[msg.sender] = block.timestamp;
-    }
-
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
     function refreshOrder(bytes32[] calldata orderIds) external nonReentrant {
+        ///@notice Get the last checkin time of the executor.
+        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
+            .lastCheckIn(msg.sender);
+
+        ///@notice Check if the last checkin time is greater than the checkin interval.
+        if (block.timestamp - lastCheckInTime > CHECK_IN_INTERVAL) {
+            ///@notice If the last checkin time is greater than the checkin interval, revert.
+            revert ExecutorNotCheckedIn();
+        }
+
         ///@notice Initialize totalRefreshFees;
         uint256 totalRefreshFees;
 
@@ -178,6 +176,16 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         nonReentrant
         returns (bool success)
     {
+        ///@notice Get the last checkin time of the executor.
+        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
+            .lastCheckIn(msg.sender);
+
+        ///@notice Check if the last checkin time is greater than the checkin interval.
+        if (block.timestamp - lastCheckInTime > CHECK_IN_INTERVAL) {
+            ///@notice If the last checkin time is greater than the checkin interval, revert.
+            revert ExecutorNotCheckedIn();
+        }
+
         LimitOrder memory order = getLimitOrderById(orderId);
 
         if (IERC20(order.tokenIn).balanceOf(order.owner) < order.quantity) {
@@ -301,15 +309,16 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         nonReentrant
         onlyEOA
     {
+        ///@notice Get the last checkin time of the executor.
+        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
+            .lastCheckIn(msg.sender);
 
-        uint256 lastCheckInTime = lastCheckIn[msg.sender];
-        
         ///@notice Check if the last checkin time is greater than the checkin interval.
-        if (block.timestamp-lastCheckInTime > CHECK_IN_INTERVAL) {
+        if (block.timestamp - lastCheckInTime > CHECK_IN_INTERVAL) {
             ///@notice If the last checkin time is greater than the checkin interval, revert.
             revert ExecutorNotCheckedIn();
         }
-        
+
         ///@notice Revert if the length of the orderIds array is 0.
         if (orderIds.length == 0) {
             revert InvalidCalldata();

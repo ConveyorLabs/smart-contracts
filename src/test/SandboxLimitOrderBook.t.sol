@@ -213,6 +213,7 @@ contract SandboxLimitOrderBookTest is DSTest {
 
     ///@notice Refresh order test
     function testRefreshOrder() public {
+        
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, swapToken);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
@@ -238,7 +239,8 @@ contract SandboxLimitOrderBookTest is DSTest {
         }
 
         cheatCodes.warp(block.timestamp + 2592000);
-
+        cheatCodes.prank(address(this));
+        limitOrderExecutor.checkIn();
         sandboxLimitOrderBook.refreshOrder(orderBatch);
 
         //Ensure the order was not canceled and lastRefresh timestamp is updated to block.timestamp
@@ -484,6 +486,8 @@ contract SandboxLimitOrderBookTest is DSTest {
 
     ///Test refresh order, cancel order since order has expired test
     function testRefreshOrder_CancelOrderOrderExpired() public {
+        cheatCodes.prank(address(this));
+        limitOrderExecutor.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, swapToken);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
@@ -523,6 +527,8 @@ contract SandboxLimitOrderBookTest is DSTest {
     //block 15233771
     ///Test refresh order, Order not refreshable since last refresh timestamp isn't beyond the refresh threshold from the current block.timestamp
     function testFailRefreshOrder_OrderNotEligibleForRefresh() public {
+        cheatCodes.prank(address(this));
+        limitOrderExecutor.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, swapToken);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
@@ -872,6 +878,8 @@ contract SandboxLimitOrderBookTest is DSTest {
     }
 
     function testValidateAndCancelOrder() public {
+        cheatCodes.prank(address(this));
+        limitOrderExecutor.checkIn();
         SandboxLimitOrderBook.SandboxLimitOrder
             memory order = newSandboxLimitOrder(WETH, swapToken, 1 ether, 0);
 
@@ -901,6 +909,8 @@ contract SandboxLimitOrderBookTest is DSTest {
 
     //Should fail validateAndCancel since user has the min credit balance
     function testFailValidateAndCancelOrder() public {
+        cheatCodes.prank(address(this));
+        limitOrderExecutor.checkIn();
         SandboxLimitOrderBook.SandboxLimitOrder
             memory order = newSandboxLimitOrder(WETH, swapToken, 10e16, 0);
 

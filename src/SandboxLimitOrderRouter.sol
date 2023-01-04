@@ -6,6 +6,7 @@ import "./ConveyorErrors.sol";
 import "./interfaces/ISandboxLimitOrderBook.sol";
 import "../lib/libraries/token/SafeERC20.sol";
 import "./interfaces/ISandboxLimitOrderRouter.sol";
+import "./interfaces/IConveyorExecutor.sol";
 
 /// @title SandboxRouter
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
@@ -15,9 +16,6 @@ contract SandboxLimitOrderRouter is ISandboxLimitOrderRouter {
     ///@notice ConveyorExecutor & LimitOrderRouter Addresses.
     address immutable LIMIT_ORDER_EXECUTOR;
     address immutable SANDBOX_LIMIT_ORDER_BOOK;
-
-    ///@notice Mapping of addresses to their last checkin time.
-    mapping(address => uint256) public lastCheckIn;
 
     ///@notice Minimum time between checkins.
     uint256 public constant CHECK_IN_INTERVAL = 1 days;
@@ -57,21 +55,16 @@ contract SandboxLimitOrderRouter is ISandboxLimitOrderRouter {
         SANDBOX_LIMIT_ORDER_BOOK = _sandboxLimitOrderBook;
     }
 
-    ///@notice Function to monitor Executor checkin. 
-    function checkIn() external {
-        ///@notice Set the lastCheckIn time to the current block timestamp.
-        lastCheckIn[msg.sender] = block.timestamp;
-    }
-
     ///@notice Function to execute multiple OrderGroups
     ///@param sandboxMultiCall The calldata to be executed by the contract.
     function executeSandboxMulticall(SandboxMulticall calldata sandboxMultiCall)
         external
     {
-        uint256 lastCheckInTime = lastCheckIn[msg.sender];
-        
+        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
+            .lastCheckIn(msg.sender);
+
         ///@notice Check if the last checkin time is greater than the checkin interval.
-        if (block.timestamp-lastCheckInTime > CHECK_IN_INTERVAL) {
+        if (block.timestamp - lastCheckInTime > CHECK_IN_INTERVAL) {
             ///@notice If the last checkin time is greater than the checkin interval, revert.
             revert ExecutorNotCheckedIn();
         }
