@@ -125,7 +125,8 @@ contract LimitOrderExecutorTest is DSTest {
     ///@notice Test to Execute a batch of Token To Weth Orders
     function testExecuteTokenToWethOrderBatch() public {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
-
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
         bytes32[] memory tokenToWethOrderBatch = placeNewMockTokenToWethBatch();
 
@@ -171,7 +172,8 @@ contract LimitOrderExecutorTest is DSTest {
         public
     {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
-
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
         bytes32[]
             memory tokenToWethOrderBatch = placeNewMockTokenToWethBatchDuplicateOrderIds();
@@ -192,6 +194,8 @@ contract LimitOrderExecutorTest is DSTest {
     function testExecuteWethToTokenSingle() public {
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         cheatCodes.deal(address(this), 500000000000 ether);
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
             abi.encodeWithSignature("deposit()")
         );
@@ -246,6 +250,8 @@ contract LimitOrderExecutorTest is DSTest {
             run = false;
         }
         if (run) {
+            cheatCodes.prank(tx.origin);
+            limitOrderRouter.checkIn();
             cheatCodes.deal(address(swapHelper), MAX_UINT);
             swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
             IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
@@ -359,7 +365,8 @@ contract LimitOrderExecutorTest is DSTest {
         require(depositSuccess, "weth deposit failed");
 
         IERC20(WETH).approve(address(limitOrderExecutor), 5000000000 ether);
-
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         bytes32[] memory tokenToWethOrderBatch = placeNewMockWethToTokenBatch();
         uint256 cumulativeGasCompensation;
         //Make sure the orders have been placed
@@ -405,6 +412,8 @@ contract LimitOrderExecutorTest is DSTest {
             run = false;
         }
         if (run) {
+            cheatCodes.prank(tx.origin);
+            limitOrderRouter.checkIn();
             cheatCodes.deal(address(swapHelper), MAX_UINT);
             swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
             IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
@@ -518,7 +527,8 @@ contract LimitOrderExecutorTest is DSTest {
 
         bytes32[]
             memory tokenToTokenOrderBatch = placeNewMockTokenToTokenBatch();
-
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         uint256 cumulativeGasCompensation;
         //Make sure the orders have been placed
         for (uint256 i = 0; i < tokenToTokenOrderBatch.length; ++i) {
@@ -567,6 +577,8 @@ contract LimitOrderExecutorTest is DSTest {
             run = false;
         }
         if (run) {
+            cheatCodes.prank(tx.origin);
+            limitOrderRouter.checkIn();
             cheatCodes.deal(address(swapHelper), MAX_UINT);
 
             address(WETH).call{value: amountIn}(
@@ -672,6 +684,8 @@ contract LimitOrderExecutorTest is DSTest {
 
     ///@notice Test to execute a batch of weth to taxed token orders
     function testExecuteWethToTaxedTokenBatch() public {
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         cheatCodes.deal(address(this), 500000000000 ether);
         (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
@@ -723,6 +737,8 @@ contract LimitOrderExecutorTest is DSTest {
 
     ///@notice Test to execute a single taxed to token order Taxed_token/Weth
     function testExecuteTaxedTokenToWethSingle() public {
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, TAXED_TOKEN);
 
@@ -784,6 +800,8 @@ contract LimitOrderExecutorTest is DSTest {
 
     ///@notice Test to execute a batch of Taxed to token orders
     function testExecuteTaxedTokenToWethBatch() public {
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         IERC20(TAXED_TOKEN).approve(address(limitOrderExecutor), MAX_UINT);
@@ -830,6 +848,8 @@ contract LimitOrderExecutorTest is DSTest {
 
     ///@notice Test to execute a single Token To Taxed order
     function testExecuteTokenToTaxedTokenSingle() public {
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
 
@@ -891,6 +911,8 @@ contract LimitOrderExecutorTest is DSTest {
 
     ///@notice Taxed Token to dai single test
     function testExecuteTaxedTokenToTokenSingle() public {
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, TAXED_TOKEN);
 
@@ -953,6 +975,8 @@ contract LimitOrderExecutorTest is DSTest {
 
     ///@notice Test to execute a batch of taxed token to token orders
     function testExecuteTaxedTokenToTokenBatch() public {
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         cheatCodes.deal(address(swapHelperUniV2), MAX_UINT);
         swapHelperUniV2.swapEthForTokenWithUniV2(10000 ether, TAXED_TOKEN);
 
@@ -999,6 +1023,8 @@ contract LimitOrderExecutorTest is DSTest {
 
     ///@notice Test to execute a batch of taxed token to taxed token orders
     function testExecuteTaxedTokenToTaxedTokenBatch() public {
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         cheatCodes.deal(address(swapHelperUniV2), MAX_UINT);
         swapHelperUniV2.swapEthForTokenWithUniV2(10000 ether, TAXED_TOKEN);
 
@@ -1044,6 +1070,8 @@ contract LimitOrderExecutorTest is DSTest {
 
     ///@notice Test to execute a single taxed token to taxed token order
     function testExecuteTaxedTokenToTaxedTokenSingle() public {
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, TAXED_TOKEN);
 
@@ -1111,6 +1139,8 @@ contract LimitOrderExecutorTest is DSTest {
     function testFailExecuteTokenToTokenBatch_InvalidNonEOAStoplossExecution()
         public
     {
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         IERC20(USDC).approve(address(limitOrderExecutor), MAX_UINT);
@@ -1141,6 +1171,8 @@ contract LimitOrderExecutorTest is DSTest {
     function testFailExecuteTokenToTokenBatch_DuplicateOrdersInExecution()
         public
     {
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         IERC20(USDC).approve(address(limitOrderExecutor), MAX_UINT);
@@ -1171,6 +1203,8 @@ contract LimitOrderExecutorTest is DSTest {
     function testFailExecuteTokenToWethOrderBatch_InvalidNonEOAStoplossExecution()
         public
     {
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
 
         IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
@@ -1199,16 +1233,25 @@ contract LimitOrderExecutorTest is DSTest {
     ///@notice Test to check fail case if orderIds length is 0
     function testFailExecuteOrders_InvalidCalldata() public {
         bytes32[] memory emptyIdArray = new bytes32[](0);
-
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         cheatCodes.prank(tx.origin);
         limitOrderRouter.executeLimitOrders(emptyIdArray);
     }
 
     ///@notice Test to check fail case if orderId is not in the state of contract
     function testFailExecuteOrders_OrderDoesNotExist() public {
+        cheatCodes.prank(tx.origin);
+        limitOrderRouter.checkIn();
         bytes32[] memory orderIds = new bytes32[](1);
         orderIds[0] = bytes32(0);
         cheatCodes.prank(tx.origin);
+        limitOrderRouter.executeLimitOrders(orderIds);
+    }
+
+    function testFailExecuteOrders_ExecutorNotCheckedIn() public {
+        bytes32[] memory orderIds = new bytes32[](1);
+        orderIds[0] = bytes32(0);
         limitOrderRouter.executeLimitOrders(orderIds);
     }
 

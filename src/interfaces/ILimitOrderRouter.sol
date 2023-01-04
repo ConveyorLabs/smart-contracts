@@ -13,4 +13,6 @@ interface ILimitOrderRouter {
     function confirmTransferOwnership() external;
 
     function transferOwnership(address newOwner) external;
+    
+    function checkIn() external;
 }

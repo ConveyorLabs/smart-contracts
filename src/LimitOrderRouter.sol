@@ -52,9 +52,15 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
     ///@notice The refresh fee is 0.02 ETH
     uint256 private constant REFRESH_FEE = 20000000000000000;
 
+    ///@notice Minimum time between checkins.
+    uint256 public constant CHECKIN_INTERVAL = 1 days;
+
     // ========================================= State Variables =============================================
     address owner;
     address tempOwner;
+
+    ///@notice Mapping of addresses to their last checkin time.
+    mapping(address => uint256) public lastCheckIn;
 
     // ========================================= Constructor =============================================
 
@@ -77,6 +83,12 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
         ///@notice Set the owner of the contract
         owner = tx.origin;
+    }
+
+    ///@notice Function to monitor Executor checkin. 
+    function checkIn() external {
+        ///@notice Set the lastCheckIn time to the current block timestamp.
+        lastCheckIn[msg.sender] = block.timestamp;
     }
 
     /// @notice Function to refresh an order for another 30 days.
@@ -289,6 +301,15 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         nonReentrant
         onlyEOA
     {
+
+        uint256 lastCheckInTime = lastCheckIn[msg.sender];
+        
+        ///@notice Check if the last checkin time is greater than the checkin interval.
+        if (block.timestamp-lastCheckInTime > CHECKIN_INTERVAL) {
+            ///@notice If the last checkin time is greater than the checkin interval, revert.
+            revert ExecutorNotCheckedIn();
+        }
+        
         ///@notice Revert if the length of the orderIds array is 0.
         if (orderIds.length == 0) {
             revert InvalidCalldata();
