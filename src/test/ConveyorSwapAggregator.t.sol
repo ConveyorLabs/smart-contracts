@@ -45,6 +45,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         forkId = cheatCodes.activeFork();
         cheatCodes.makePersistent(address(conveyorSwapAggregator));
         cheatCodes.makePersistent(address(this));
+      
         cheatCodes.makePersistent(
             address(0xba5BDe662c17e2aDFF1075610382B9B691296350)
         );
@@ -138,7 +139,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         address tokenIn = 0xba5BDe662c17e2aDFF1075610382B9B691296350;
         uint256 amountIn = 5678000000000000000000;
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        uint256 amountOutMin = 487387019661733947;
+        uint256 amountOutMin = 453245423220749265;
         address lp = 0x7685cD3ddD862b8745B1082A6aCB19E14EAA74F3;
 
         //Deposit weth to address(this)
@@ -189,6 +190,67 @@ contract ConveyorSwapAggregatorTest is DSTest {
             multicall
         );
     }
+
+    // function testBenchParaswapUsdcEth() public {
+    //     cheatCodes.deal(address(this), type(uint256).max);
+    //     address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    //     uint256 amountIn = 572272000;
+    //     address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    //     uint256 amountOutMin = 1;
+    //     address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+
+    //     //Deposit weth to address(this)
+    //     (bool depositSuccess, ) = address(tokenOut).call{
+    //         value: 500000000 ether
+    //     }(abi.encodeWithSignature("deposit()"));
+    //     require(depositSuccess, "deposit failed");
+    //     IUniswapV3Pool(lp).swap(
+    //         address(this),
+    //         false,
+    //         5 ether,
+    //         TickMath.MAX_SQRT_RATIO - 1,
+    //         abi.encode(false, tokenOut, address(this))
+    //     );
+
+        
+
+    //     ConveyorSwapAggregator.Call[]
+    //         memory calls = new ConveyorSwapAggregator.Call[](1);
+
+    //     calls[0] = newUniV3Call(
+    //         lp,
+    //         conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
+    //         address(this),
+    //         true,
+    //         amountIn,
+    //         tokenIn
+    //     );
+        
+
+    //     forkId = cheatCodes.activeFork();
+    //     cheatCodes.rollFork(forkId, 16349359);
+    //     console.log(IERC20(tokenIn).balanceOf(address(this)));
+    //     IERC20(tokenIn).approve(
+    //         address(conveyorSwapAggregator),
+    //         type(uint256).max
+    //     );
+    //     console.log(IERC20(tokenIn).balanceOf(address(this)));
+    //     ConveyorSwapAggregator.SwapAggregatorMulticall
+    //         memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+    //             conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
+    //             calls
+    //         );
+
+    //     conveyorSwapAggregator.swap(
+    //         tokenIn,
+    //         amountIn,
+    //         tokenOut,
+    //         amountOutMin,
+    //         multicall
+    //     );
+    // }
+
+    
 
     function uniswapV3SwapCallback(
         int256 amount0Delta,

@@ -14,8 +14,10 @@ interface IConveyorSwapExecutor {
 /// @notice Multicall contract for token Swaps.
 contract ConveyorSwapAggregator {
     address public immutable CONVEYOR_SWAP_EXECUTOR;
+    address public immutable WETH;
 
-    constructor() {
+    constructor(address _weth) {
+        WETH = _weth;
         CONVEYOR_SWAP_EXECUTOR = address(new ConveyorSwapExecutor());
     }
 
@@ -55,6 +57,73 @@ contract ConveyorSwapAggregator {
                 amountOutMin
             );
         }
+    }
+
+    function swapExactEthForToken(
+        address tokenOut,
+        uint256 amountOutMin,
+        SwapAggregatorMulticall calldata swapAggregatorMulticall
+    ) external payable {
+        (bool success, ) = address(WETH).call{value: msg.value}(
+            abi.encodeWithSignature("deposit()")
+        );
+
+        require(success, "WETH deposit failed");
+
+        IERC20(WETH).transfer(
+            swapAggregatorMulticall.tokenInDestination,
+            msg.value
+        );
+
+        uint256 tokenOutBalance = IERC20(tokenOut).balanceOf(msg.sender);
+        uint256 tokenOutAmountRequired = tokenOutBalance + amountOutMin;
+
+        IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
+            swapAggregatorMulticall.calls
+        );
+
+        if (IERC20(tokenOut).balanceOf(msg.sender) < tokenOutAmountRequired) {
+            revert InsufficientOutputAmount(
+                tokenOutAmountRequired - IERC20(tokenOut).balanceOf(msg.sender),
+                amountOutMin
+            );
+        }
+    }
+
+    function swapExactTokenForEth(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        SwapAggregatorMulticall calldata swapAggregatorMulticall
+    ) external {
+        IERC20(tokenIn).transferFrom(
+            msg.sender,
+            swapAggregatorMulticall.tokenInDestination,
+            amountIn
+        );
+
+        uint256 ethBalance = address(this).balance;
+        uint256 ethAmountRequired = ethBalance + amountOutMin;
+
+        IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
+            swapAggregatorMulticall.calls
+        );
+
+        if (address(this).balance < ethAmountRequired) {
+            revert InsufficientOutputAmount(
+                ethAmountRequired - address(this).balance,
+                amountOutMin
+            );
+        }
+
+        (bool success, ) = address(WETH).call{value: address(this).balance}(
+            abi.encodeWithSignature("withdraw(uint256)", address(this).balance)
+        );
+
+        require(success, "WETH withdraw failed");
+
+        payable(msg.sender).transfer(address(this).balance);
+        
     }
 }
 
