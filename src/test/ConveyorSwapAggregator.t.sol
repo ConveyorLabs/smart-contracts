@@ -40,12 +40,16 @@ contract ConveyorSwapAggregatorTest is DSTest {
         cheatCodes.deal(address(swapHelper), type(uint256).max);
 
         conveyorSwapAggregator = IConveyorSwapAggregator(
-            address(new ConveyorSwapAggregator())
+            address(
+                new ConveyorSwapAggregator(
+                    0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+                )
+            )
         );
         forkId = cheatCodes.activeFork();
         cheatCodes.makePersistent(address(conveyorSwapAggregator));
         cheatCodes.makePersistent(address(this));
-      
+
         cheatCodes.makePersistent(
             address(0xba5BDe662c17e2aDFF1075610382B9B691296350)
         );
@@ -89,6 +93,60 @@ contract ConveyorSwapAggregatorTest is DSTest {
             amountOutMin,
             multicall
         );
+    }
+
+    function testSwapExactEthForTokens() public {
+        cheatCodes.rollFork(forkId, 16000200);
+
+        cheatCodes.deal(address(this), type(uint128).max);
+        uint256 amountIn = 1900000000000000000000;
+        address tokenOut = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+        uint256 amountOutMin = 1;
+        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+
+        ConveyorSwapAggregator.Call[]
+            memory calls = new ConveyorSwapAggregator.Call[](1);
+
+        calls[0] = newUniV2Call(lp, 1, 0, address(this));
+
+        ConveyorSwapAggregator.SwapAggregatorMulticall
+            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+                lp,
+                calls
+            );
+
+        conveyorSwapAggregator.swapExactEthForToken{value: amountIn}(tokenOut, amountOutMin, multicall);
+        
+    }
+
+    function testSwapExactTokenForETH() public {
+        cheatCodes.rollFork(forkId, 16000200);
+
+        cheatCodes.deal(address(this), type(uint128).max);
+        address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+        uint256 amountIn = 1900000000000000000000;
+        uint256 amountOutMin = 54776144172760093;
+        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+
+        swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
+        IERC20(tokenIn).approve(
+            address(conveyorSwapAggregator),
+            type(uint256).max
+        );
+
+        ConveyorSwapAggregator.Call[]
+            memory calls = new ConveyorSwapAggregator.Call[](1);
+
+        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorSwapAggregator));
+
+        ConveyorSwapAggregator.SwapAggregatorMulticall
+            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+                lp,
+                calls
+            );
+
+        conveyorSwapAggregator.swapExactTokenForEth(tokenIn, amountIn, amountOutMin, multicall);
+           
     }
 
     function testSwapUniv2MultiLP() public {
@@ -212,8 +270,6 @@ contract ConveyorSwapAggregatorTest is DSTest {
     //         abi.encode(false, tokenOut, address(this))
     //     );
 
-        
-
     //     ConveyorSwapAggregator.Call[]
     //         memory calls = new ConveyorSwapAggregator.Call[](1);
 
@@ -225,7 +281,6 @@ contract ConveyorSwapAggregatorTest is DSTest {
     //         amountIn,
     //         tokenIn
     //     );
-        
 
     //     forkId = cheatCodes.activeFork();
     //     cheatCodes.rollFork(forkId, 16349359);
@@ -249,8 +304,6 @@ contract ConveyorSwapAggregatorTest is DSTest {
     //         multicall
     //     );
     // }
-
-    
 
     function uniswapV3SwapCallback(
         int256 amount0Delta,

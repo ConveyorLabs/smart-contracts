@@ -1255,6 +1255,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         address txOrigin
     )
         internal
+        view
         returns (
             uint256 txOriginBalanceBefore,
             uint256 gasCompensationUpperBound

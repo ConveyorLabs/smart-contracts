@@ -68,7 +68,7 @@ contract ConveyorSwapAggregator {
             abi.encodeWithSignature("deposit()")
         );
 
-        require(success, "WETH deposit failed");
+        require(success, "Native token deposit failed");
 
         IERC20(WETH).transfer(
             swapAggregatorMulticall.tokenInDestination,
@@ -102,29 +102,73 @@ contract ConveyorSwapAggregator {
             amountIn
         );
 
-        uint256 ethBalance = address(this).balance;
-        uint256 ethAmountRequired = ethBalance + amountOutMin;
+        uint256 amountOutRequired;
+        assembly {
+            amountOutRequired := add(selfbalance(), amountOutMin)
+        }
 
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall.calls
         );
 
-        if (address(this).balance < ethAmountRequired) {
+        bool sufficient;
+        bool transferSuccess;
+        uint256 balanceWeth = IERC20(WETH).balanceOf(address(this));
+        assembly {
+            mstore(0x0, shl(224, 0x2e1a7d4d))
+            mstore(4, balanceWeth)
+            mstore(36, shr(192, calldataload(0)))
+            if iszero(
+                call(
+                    gas(),
+                    0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+                    0, /* wei */
+                    0, /* in pos */
+                    68, /* in len */
+                    0, /* out pos */
+                    0 /* out size */
+                )
+            ) {
+                revert("Native Token Withdraw failed", balanceWeth)
+            }
+
+            sufficient := iszero(lt(amountOutRequired, selfbalance()))
+
+            if sufficient {
+                mstore(
+                    0x00,
+                    0xa9059cbb00000000000000000000000000000000000000000000000000000000
+                )
+
+                mstore(4, caller())
+                mstore(36, selfbalance())
+
+                pop(
+                    call(
+                        gas(),
+                        0x0, /* WETH address */
+                        0, /* wei */
+                        0, /* in pos */
+                        68, /* in len */
+                        0, /* out pos */
+                        0 /* out size */
+                    )
+                )
+                transferSuccess := iszero(returndatasize())
+            }
+        }
+
+        if(!sufficient) {
             revert InsufficientOutputAmount(
-                ethAmountRequired - address(this).balance,
+                amountOutRequired - address(this).balance,
                 amountOutMin
             );
         }
 
-        (bool success, ) = address(WETH).call{value: address(this).balance}(
-            abi.encodeWithSignature("withdraw(uint256)", address(this).balance)
-        );
-
-        require(success, "WETH withdraw failed");
-
-        payable(msg.sender).transfer(address(this).balance);
-        
+        require(transferSuccess, "Native transfer failed");
     }
+
+    receive() external payable {}
 }
 
 contract ConveyorSwapExecutor {
