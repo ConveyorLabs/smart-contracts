@@ -64,12 +64,23 @@ contract ConveyorSwapAggregator {
         uint256 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable {
-        (bool success, ) = address(WETH).call{value: msg.value}(
-            abi.encodeWithSignature("deposit()")
-        );
-
-        require(success, "Native token deposit failed");
-
+        assembly {
+            mstore(0x0, shl(224, 0xd0e30db0))
+            if iszero(
+                call(
+                    gas(),
+                    0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+                    callvalue(),
+                    0,
+                    0,
+                    0,
+                    0
+                )
+            ) {
+                revert("Native token deposit failed", 0)
+            }
+        }
+      
         IERC20(WETH).transfer(
             swapAggregatorMulticall.tokenInDestination,
             msg.value
@@ -82,9 +93,16 @@ contract ConveyorSwapAggregator {
             swapAggregatorMulticall.calls
         );
 
-        if (IERC20(tokenOut).balanceOf(msg.sender) < tokenOutAmountRequired) {
+        bool sufficient;
+        uint256 balanceOut = IERC20(tokenOut).balanceOf(msg.sender);
+
+        assembly {
+            sufficient := iszero(lt(tokenOutAmountRequired, balanceOut))
+        }
+        
+        if (!sufficient) {
             revert InsufficientOutputAmount(
-                tokenOutAmountRequired - IERC20(tokenOut).balanceOf(msg.sender),
+                tokenOutAmountRequired - balanceOut,
                 amountOutMin
             );
         }
@@ -117,7 +135,6 @@ contract ConveyorSwapAggregator {
         assembly {
             mstore(0x0, shl(224, 0x2e1a7d4d))
             mstore(4, balanceWeth)
-            mstore(36, shr(192, calldataload(0)))
             if iszero(
                 call(
                     gas(),
@@ -146,7 +163,7 @@ contract ConveyorSwapAggregator {
                 pop(
                     call(
                         gas(),
-                        0x0, /* WETH address */
+                        0, /* to */
                         0, /* wei */
                         0, /* in pos */
                         68, /* in len */
@@ -158,7 +175,7 @@ contract ConveyorSwapAggregator {
             }
         }
 
-        if(!sufficient) {
+        if (!sufficient) {
             revert InsufficientOutputAmount(
                 amountOutRequired - address(this).balance,
                 amountOutMin

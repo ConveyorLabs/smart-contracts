@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {BitMath} from "./BitMath.sol";
 import "../../interfaces/uniswap-v3/IUniswapV3Pool.sol";
+
 /// @title Packed tick initialized state library
 /// @notice Stores a packed mapping of tick index to its initialized state
 /// @dev The mapping uses int16 for keys since ticks are represented as int24 and there are 256 (2^8) values per word.
@@ -51,7 +52,14 @@ library TickBitmap {
         int24 tickSpacing,
         bool lte,
         address pool
-    ) internal view returns (int24 next, bool initialized) {
+    )
+        internal
+        view
+        returns (
+            int24 next,
+            bool initialized
+        )
+    {
         unchecked {
             int24 compressed = tick / tickSpacing;
             if (tick < 0 && tick % tickSpacing != 0) compressed--; // round towards negative infinity
@@ -93,6 +101,8 @@ library TickBitmap {
                         1 +
                         int24(uint24(type(uint8).max - bitPos))) * tickSpacing;
             }
+
+            
         }
     }
 }

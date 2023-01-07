@@ -295,7 +295,7 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
                 WETH,
                 lpAddressAToWeth,
                 feeIn,
-                order.quantity,
+                orderQuantity,
                 amountOutMinAToWeth,
                 address(this),
                 order.owner

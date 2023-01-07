@@ -914,7 +914,7 @@ contract LimitOrderExecutorTest is DSTest {
         cheatCodes.prank(tx.origin);
         limitOrderExecutor.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, TAXED_TOKEN);
+        swapHelper.swapEthForTokenWithUniV2(100 ether, TAXED_TOKEN);
 
         IERC20(TAXED_TOKEN).approve(address(limitOrderExecutor), MAX_UINT);
 
@@ -924,9 +924,9 @@ contract LimitOrderExecutorTest is DSTest {
             1,
             false,
             true,
-            4000,
+            1000,
             1,
-            20000000000000000, //2,000,000
+            200000000000000, //2,000,000
             3000,
             3000,
             0,
