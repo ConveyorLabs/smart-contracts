@@ -110,7 +110,7 @@ contract ConveyorTickMathTest is DSTest {
     ///@notice Test simulateAmountOutOnSqrtPriceX96 Quoted Amount out calculation.
     ///@dev This tests the case when swapping token0 for token1 in the v3 pool.
     function testSimulateAmountOutOnSqrtPriceX96__ZeroForOneFalse(
-        uint256 _alphaX
+        uint128 _alphaX
     ) public {
         bool run = true;
         if (_alphaX == 0) {
@@ -150,7 +150,7 @@ contract ConveyorTickMathTest is DSTest {
     ///@notice Test simulateAmountOutOnSqrtPriceX96 Quoted Amount out calculation.
     ///@dev This tests the case when swapping token1 for token0 in the v3 pool.
     function testSimulateAmountOutOnSqrtPriceX96__ZeroForOneTrue(
-        uint256 _alphaX
+        uint128 _alphaX
     ) public {
         if (_alphaX > 0) {
             int24 tickSpacing = IUniswapV3Pool(daiWethPoolV3).tickSpacing();
@@ -184,7 +184,7 @@ contract ConveyorTickMathTest is DSTest {
 
     ///@notice Test simulateAmountOutOnSqrtPriceX96 on an input quantity that crosses to the next initialized tick in the pool.
     ///@dev The liquditiy should change in the pool upon crossing a tick, and therefore the exchange rate.
-    function testSimulateAmountOutOnSqrtPriceX96CrossTick(uint256 _alphaX)
+    function testSimulateAmountOutOnSqrtPriceX96CrossTick(uint128 _alphaX)
         public
     {
         bool run = true;
