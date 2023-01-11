@@ -19,14 +19,6 @@ contract ConveyorTickMath {
     ///@notice Initialize all libraries.
     using SafeCast for uint256;
     using LowGasSafeMath for int256;
-    using Tick for mapping(int24 => Tick.Info);
-    using TickBitmap for mapping(int16 => uint256);
-
-    ///@notice Storage mapping to hold the tickBitmap for a v3 pool.
-    mapping(int16 => uint256) public tickBitmap;
-
-    ///@notice Storage mapping to map a tick to the relevant liquidity data on that tick in a pool.
-    mapping(int24 => Tick.Info) public ticks;
 
     /// @notice maximum uint128 64.64 fixed point number
     uint128 private constant MAX_64x64 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
