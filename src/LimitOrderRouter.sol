@@ -82,6 +82,16 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
     /// @notice Function to refresh an order for another 30 days.
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
     function refreshOrder(bytes32[] calldata orderIds) external nonReentrant {
+        ///@notice Get the last checkin time of the executor.
+        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
+            .lastCheckIn(msg.sender);
+
+        ///@notice Check if the last checkin time is greater than the checkin interval.
+        if (block.timestamp - lastCheckInTime > CHECK_IN_INTERVAL) {
+            ///@notice If the last checkin time is greater than the checkin interval, revert.
+            revert ExecutorNotCheckedIn();
+        }
+
         ///@notice Initialize totalRefreshFees;
         uint256 totalRefreshFees;
 
@@ -166,6 +176,16 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         nonReentrant
         returns (bool success)
     {
+        ///@notice Get the last checkin time of the executor.
+        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
+            .lastCheckIn(msg.sender);
+
+        ///@notice Check if the last checkin time is greater than the checkin interval.
+        if (block.timestamp - lastCheckInTime > CHECK_IN_INTERVAL) {
+            ///@notice If the last checkin time is greater than the checkin interval, revert.
+            revert ExecutorNotCheckedIn();
+        }
+
         LimitOrder memory order = getLimitOrderById(orderId);
 
         if (IERC20(order.tokenIn).balanceOf(order.owner) < order.quantity) {
@@ -289,6 +309,16 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         nonReentrant
         onlyEOA
     {
+        ///@notice Get the last checkin time of the executor.
+        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
+            .lastCheckIn(msg.sender);
+
+        ///@notice Check if the last checkin time is greater than the checkin interval.
+        if (block.timestamp - lastCheckInTime > CHECK_IN_INTERVAL) {
+            ///@notice If the last checkin time is greater than the checkin interval, revert.
+            revert ExecutorNotCheckedIn();
+        }
+
         ///@notice Revert if the length of the orderIds array is 0.
         if (orderIds.length == 0) {
             revert InvalidCalldata();
@@ -350,7 +380,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         }
 
         ///@notice Emit an order fufilled event to notify the off-chain executors.
-        emit OrderFufilled(orderIds);
+        emit OrderFilled(orderIds);
 
         ///@notice Calculate the execution gas compensation.
         uint256 executionGasCompensation;

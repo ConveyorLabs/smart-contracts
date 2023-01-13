@@ -169,16 +169,17 @@ contract SandboxLimitOrderBookTest is DSTest {
     }
 
     function testGetOrderIds() public {
+        cheatCodes.deal(address(this), MAX_UINT);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
         //if the fuzzed amount is enough to complete the swap
-        swapHelper.swapEthForTokenWithUniV2(1000 ether, swapToken);
+        swapHelper.swapEthForTokenWithUniV2(10000 ether, swapToken);
 
         bytes32 orderId1 = placeMockSandboxLimitOrder(
-            newSandboxLimitOrder(swapToken, WETH, 10e21, uint112(1))
+            newSandboxLimitOrder(swapToken, WETH, 10e20, uint112(1))
         );
 
         bytes32 orderId2 = placeMockSandboxLimitOrder(
-            newSandboxLimitOrder(swapToken, WETH, 10e21, uint112(1))
+            newSandboxLimitOrder(swapToken, WETH, 10e20, uint112(1))
         );
 
         sandboxLimitOrderBook.cancelOrder(orderId2);
@@ -212,6 +213,7 @@ contract SandboxLimitOrderBookTest is DSTest {
 
     ///@notice Refresh order test
     function testRefreshOrder() public {
+        
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, swapToken);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
@@ -237,7 +239,8 @@ contract SandboxLimitOrderBookTest is DSTest {
         }
 
         cheatCodes.warp(block.timestamp + 2592000);
-
+        cheatCodes.prank(address(this));
+        limitOrderExecutor.checkIn();
         sandboxLimitOrderBook.refreshOrder(orderBatch);
 
         //Ensure the order was not canceled and lastRefresh timestamp is updated to block.timestamp
@@ -483,6 +486,8 @@ contract SandboxLimitOrderBookTest is DSTest {
 
     ///Test refresh order, cancel order since order has expired test
     function testRefreshOrder_CancelOrderOrderExpired() public {
+        cheatCodes.prank(address(this));
+        limitOrderExecutor.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, swapToken);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
@@ -522,6 +527,8 @@ contract SandboxLimitOrderBookTest is DSTest {
     //block 15233771
     ///Test refresh order, Order not refreshable since last refresh timestamp isn't beyond the refresh threshold from the current block.timestamp
     function testFailRefreshOrder_OrderNotEligibleForRefresh() public {
+        cheatCodes.prank(address(this));
+        limitOrderExecutor.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, swapToken);
         IERC20(swapToken).approve(address(limitOrderExecutor), MAX_UINT);
@@ -871,6 +878,8 @@ contract SandboxLimitOrderBookTest is DSTest {
     }
 
     function testValidateAndCancelOrder() public {
+        cheatCodes.prank(address(this));
+        limitOrderExecutor.checkIn();
         SandboxLimitOrderBook.SandboxLimitOrder
             memory order = newSandboxLimitOrder(WETH, swapToken, 1 ether, 0);
 
@@ -900,6 +909,8 @@ contract SandboxLimitOrderBookTest is DSTest {
 
     //Should fail validateAndCancel since user has the min credit balance
     function testFailValidateAndCancelOrder() public {
+        cheatCodes.prank(address(this));
+        limitOrderExecutor.checkIn();
         SandboxLimitOrderBook.SandboxLimitOrder
             memory order = newSandboxLimitOrder(WETH, swapToken, 10e16, 0);
 

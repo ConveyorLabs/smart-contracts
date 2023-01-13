@@ -218,6 +218,8 @@ contract LimitOrderRouterTest is DSTest {
     }
 
     function testValidateAndCancelOrder() public {
+        cheatCodes.prank(address(this));
+        limitOrderExecutor.checkIn();
         LimitOrderBook.LimitOrder memory order = newOrder(
             WETH,
             USDC,
@@ -252,6 +254,8 @@ contract LimitOrderRouterTest is DSTest {
 
     //Should fail validateAndCancel since user has the min credit balance
     function testFailValidateAndCancelOrder() public {
+        cheatCodes.prank(address(this));
+        limitOrderExecutor.checkIn();
         LimitOrderBook.LimitOrder memory order = newOrder(
             WETH,
             USDC,
@@ -315,7 +319,8 @@ contract LimitOrderRouterTest is DSTest {
         }
 
         cheatCodes.warp(block.timestamp + 2592000);
-
+        cheatCodes.prank(address(this));
+        limitOrderExecutor.checkIn();
         limitOrderRouter.refreshOrder(orderBatch);
 
         //Ensure the order was not canceled and lastRefresh timestamp is updated to block.timestamp
@@ -331,6 +336,8 @@ contract LimitOrderRouterTest is DSTest {
 
     ///Test refresh order, cancel order since order has expired test
     function testRefreshOrder_CancelOrderOrderExpired() public {
+        cheatCodes.prank(address(this));
+        limitOrderExecutor.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
@@ -380,6 +387,8 @@ contract LimitOrderRouterTest is DSTest {
     //block 15233771
     ///Test refresh order, Order not refreshable since last refresh timestamp isn't beyond the refresh threshold from the current block.timestamp
     function testFailRefreshOrder_OrderNotEligibleForRefresh() public {
+        cheatCodes.prank(address(this));
+        limitOrderExecutor.checkIn();
         cheatCodes.deal(address(swapHelper), MAX_UINT);
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);

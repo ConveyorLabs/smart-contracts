@@ -110,11 +110,10 @@ contract ConveyorTickMathTest is DSTest {
     ///@notice Test simulateAmountOutOnSqrtPriceX96 Quoted Amount out calculation.
     ///@dev This tests the case when swapping token0 for token1 in the v3 pool.
     function testSimulateAmountOutOnSqrtPriceX96__ZeroForOneFalse(
-        uint64 _alphaX
+        uint128 _alphaX
     ) public {
         bool run = true;
-        //range 10-10000 dai
-        if (_alphaX < 10000000000000000) {
+        if (_alphaX == 0) {
             run = false;
         }
 
@@ -131,8 +130,8 @@ contract ConveyorTickMathTest is DSTest {
                 _alphaX,
                 TickMath.MAX_SQRT_RATIO - 1
             );
-            uint256 amountOutToValidate = uint256(
-                -conveyorTickMath._simulateAmountOutOnSqrtPriceX96(
+            (uint128 amountOutToValidate,)=
+                conveyorTickMath._simulateAmountOutOnSqrtPriceX96(
                     token0,
                     WETH,
                     daiWethPoolV3,
@@ -140,31 +139,20 @@ contract ConveyorTickMathTest is DSTest {
                     tickSpacing,
                     liquidity,
                     3000
-                )
+                
             );
 
-            {
-                int256 errorAmount = int256(amountOutExpected) -
-                    int256(amountOutToValidate);
-                uint256 absErrorAmount = uint256(ConveyorMath.abs(errorAmount));
-                //Ensure they are equal within 10000 wei
-                assert(absErrorAmount < 250000);
-            }
+          
+            assertEq(amountOutToValidate, amountOutExpected);
         }
     }
 
     ///@notice Test simulateAmountOutOnSqrtPriceX96 Quoted Amount out calculation.
     ///@dev This tests the case when swapping token1 for token0 in the v3 pool.
-    function testSimulateAmountOutOnSqrtPriceX96__ZeroForOneTrue(uint64 _alphaX)
-        public
-    {
-        bool run = true;
-        //range 10-10000 dai
-        if (_alphaX < 100000000000000000000) {
-            run = false;
-        }
-
-        if (run) {
+    function testSimulateAmountOutOnSqrtPriceX96__ZeroForOneTrue(
+        uint128 _alphaX
+    ) public {
+        if (_alphaX > 0) {
             int24 tickSpacing = IUniswapV3Pool(daiWethPoolV3).tickSpacing();
             address token0 = IUniswapV3Pool(daiWethPoolV3).token0();
             uint128 liquidity = IUniswapV3Pool(daiWethPoolV3).liquidity();
@@ -179,8 +167,7 @@ contract ConveyorTickMathTest is DSTest {
             );
 
             //Get the quoted amount out from _simulateAmountOutOnSqrtPriceX96.
-            uint256 amountOutToValidate = uint256(
-                -conveyorTickMath._simulateAmountOutOnSqrtPriceX96(
+            (uint128 amountOutToValidate,)=conveyorTickMath._simulateAmountOutOnSqrtPriceX96(
                     token0,
                     DAI,
                     daiWethPoolV3,
@@ -188,36 +175,21 @@ contract ConveyorTickMathTest is DSTest {
                     tickSpacing,
                     liquidity,
                     3000
-                )
+                
             );
 
-            {
-                int256 errorAmount = int256(amountOutExpected) -
-                    int256(amountOutToValidate);
-                uint256 absErrorAmount = uint256(ConveyorMath.abs(errorAmount));
-                //Ensure they are equal within 10000 wei
-                assert(absErrorAmount < 150000);
-            }
+            assertEq(amountOutToValidate, amountOutExpected);
         }
     }
 
     ///@notice Test simulateAmountOutOnSqrtPriceX96 on an input quantity that crosses to the next initialized tick in the pool.
     ///@dev The liquditiy should change in the pool upon crossing a tick, and therefore the exchange rate.
-    function testSimulateAmountOutOnSqrtPriceX96CrossTick(uint112 _alphaX)
+    function testSimulateAmountOutOnSqrtPriceX96CrossTick(uint128 _alphaX)
         public
     {
         bool run = true;
-
-        {
-            uint112 MAX_INPUT = 100000000000000000000; //1000 WETH
-            //Input quantities range between 100-1000 WETH to hopefully always have enough to cross a tick
-            if (
-                _alphaX == 0 ||
-                _alphaX > MAX_INPUT ||
-                _alphaX < 100000000000000000000
-            ) {
-                run = false;
-            }
+        if (_alphaX == 0) {
+            run = false;
         }
         if (run) {
             //Get the tick spacing on the pool
@@ -228,8 +200,8 @@ contract ConveyorTickMathTest is DSTest {
             uint128 liquidity = IUniswapV3Pool(usdcWethPoolV3).liquidity();
 
             //Calculate the simulated amountOut to validate accuracy on from ConveyorTickMath
-            uint256 amountOutToValidate = uint256(
-                -conveyorTickMath._simulateAmountOutOnSqrtPriceX96(
+            (uint128 amountOutToValidate,) = 
+                conveyorTickMath._simulateAmountOutOnSqrtPriceX96(
                     token0,
                     WETH,
                     usdcWethPoolV3,
@@ -237,8 +209,8 @@ contract ConveyorTickMathTest is DSTest {
                     tickSpacing,
                     liquidity,
                     500
-                )
-            );
+                );
+            
 
             //Get the expected amountOut in Dai from the v3 quoter.
             uint256 amountOutExpected = iQuoter.quoteExactInputSingle(
@@ -249,11 +221,7 @@ contract ConveyorTickMathTest is DSTest {
                 TickMath.MAX_SQRT_RATIO - 1
             );
 
-            int256 errorAmount = int256(amountOutExpected) -
-                int256(amountOutToValidate);
-            uint256 absErrorAmount = uint256(ConveyorMath.abs(errorAmount));
-            //Ensure they are equal within 100000 wei
-            assert(absErrorAmount < 100000);
+            assertEq(amountOutToValidate, amountOutExpected);
         }
     }
 
@@ -307,7 +275,7 @@ contract ConveyorTickMathWrapper is ConveyorTickMath {
         int24 tickSpacing,
         uint128 liquidity,
         uint24 fee
-    ) public returns (int256 amountOut) {
+    ) public view returns (uint128 amountOut, uint160 sqrtPriceX96Next) {
         return
             simulateAmountOutOnSqrtPriceX96(
                 token0,

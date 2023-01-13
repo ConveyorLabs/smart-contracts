@@ -173,6 +173,9 @@ contract SandboxLimitOrderRouterTest is DSTest {
             WETH
         );
 
+        cheatCodes.prank(tx.origin);
+        limitOrderExecutor.checkIn();
+
         dealSandboxRouterExecutionFee();
 
         ///@notice Initialize Arrays for Multicall struct.
@@ -243,8 +246,8 @@ contract SandboxLimitOrderRouterTest is DSTest {
                 address(limitOrderExecutor)
             );
             ///@notice Prank tx.origin to mock an external executor
-            cheatCodes.prank(tx.origin);
 
+            cheatCodes.prank(tx.origin);
             ///@notice Execute the SandboxMulticall on the sandboxRouter
             sandboxRouter.executeSandboxMulticall(multiCall);
             address[] memory owners = new address[](1);
@@ -272,7 +275,8 @@ contract SandboxLimitOrderRouterTest is DSTest {
     ///@notice ExecuteMulticallOrder Sandbox Router test
     function testExecuteMulticallOrderSingleV3() public {
         cheatCodes.deal(address(swapHelper), type(uint256).max);
-
+        cheatCodes.prank(tx.origin);
+        limitOrderExecutor.checkIn();
         ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         ///@notice Max approve the executor on the input token.
@@ -396,7 +400,8 @@ contract SandboxLimitOrderRouterTest is DSTest {
     ///@notice ExecuteMulticallOrder Sandbox Router test
     function testExecuteMulticallOrderBatch() public {
         cheatCodes.deal(address(swapHelper), type(uint256).max);
-
+        cheatCodes.prank(tx.origin);
+        limitOrderExecutor.checkIn();
         // IERC20(DAI).approve(address(sandboxRouter), type(uint256).max);
         dealSandboxRouterExecutionFee();
 
@@ -476,7 +481,8 @@ contract SandboxLimitOrderRouterTest is DSTest {
     ///@notice ExecuteMulticallOrder Sandbox Router test
     function testExecuteMulticallOrdersSameOwnerBundleInputToken() public {
         cheatCodes.deal(address(swapHelper), type(uint256).max);
-
+        cheatCodes.prank(tx.origin);
+        limitOrderExecutor.checkIn();
         ///@notice Swap 1000 Ether into Dai to fund the test contract on the input token
         swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
         ///@notice Max approve the executor on the input token.
@@ -609,6 +615,12 @@ contract SandboxLimitOrderRouterTest is DSTest {
             ///@notice Assert the protocol fees were compensated as expected
             validatePostExecutionProtocolFees(wethBalanceBefore, orders);
         }
+    }
+
+    function testFailExecuteMulticallOrder_ExecutorNotCheckedIn() public {
+        SandboxLimitOrderRouter.SandboxMulticall memory multiCall;
+        ///Should revert because the executor is not checked in
+        sandboxRouter.executeSandboxMulticall(multiCall);
     }
 
     function createMockOrdersSameInputToken()
@@ -1243,6 +1255,7 @@ contract SandboxLimitOrderRouterTest is DSTest {
         address txOrigin
     )
         internal
+        view
         returns (
             uint256 txOriginBalanceBefore,
             uint256 gasCompensationUpperBound

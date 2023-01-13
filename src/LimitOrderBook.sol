@@ -16,6 +16,9 @@ contract LimitOrderBook {
     address immutable WETH;
     address immutable USDC;
 
+    ///@notice Minimum time between checkins.
+    uint256 public constant CHECK_IN_INTERVAL = 1 days;
+    
     uint256 minExecutionCredit;
 
     ///@notice Boolean responsible for indicating if a function has been entered when the nonReentrant modifier is used.
@@ -81,7 +84,7 @@ contract LimitOrderBook {
     /**@notice Event that is emitted when an order is filled. For each order that is filled, the corresponding orderId is added
     to the orderIds param. 
      */
-    event OrderFufilled(bytes32[] orderIds);
+    event OrderFilled(bytes32[] orderIds);
 
     ///@notice Event that notifies off-chain executors when an order has been refreshed.
     event OrderRefreshed(

@@ -14,8 +14,10 @@ interface IConveyorSwapExecutor {
 /// @notice Multicall contract for token Swaps.
 contract ConveyorSwapAggregator {
     address public immutable CONVEYOR_SWAP_EXECUTOR;
+    address public immutable WETH;
 
-    constructor() {
+    constructor(address _weth) {
+        WETH = _weth;
         CONVEYOR_SWAP_EXECUTOR = address(new ConveyorSwapExecutor());
     }
 
@@ -56,6 +58,134 @@ contract ConveyorSwapAggregator {
             );
         }
     }
+
+    function swapExactEthForToken(
+        address tokenOut,
+        uint256 amountOutMin,
+        SwapAggregatorMulticall calldata swapAggregatorMulticall
+    ) external payable {
+        assembly {
+            mstore(0x0, shl(224, 0xd0e30db0))
+            if iszero(
+                call(
+                    gas(),
+                    0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+                    callvalue(),
+                    0,
+                    0,
+                    0,
+                    0
+                )
+            ) {
+                revert("Native token deposit failed", 0)
+            }
+        }
+      
+        IERC20(WETH).transfer(
+            swapAggregatorMulticall.tokenInDestination,
+            msg.value
+        );
+
+        uint256 tokenOutBalance = IERC20(tokenOut).balanceOf(msg.sender);
+        uint256 tokenOutAmountRequired = tokenOutBalance + amountOutMin;
+
+        IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
+            swapAggregatorMulticall.calls
+        );
+
+        bool sufficient;
+        uint256 balanceOut = IERC20(tokenOut).balanceOf(msg.sender);
+
+        assembly {
+            sufficient := iszero(lt(tokenOutAmountRequired, balanceOut))
+        }
+        
+        if (!sufficient) {
+            revert InsufficientOutputAmount(
+                tokenOutAmountRequired - balanceOut,
+                amountOutMin
+            );
+        }
+    }
+
+    function swapExactTokenForEth(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        SwapAggregatorMulticall calldata swapAggregatorMulticall
+    ) external {
+        IERC20(tokenIn).transferFrom(
+            msg.sender,
+            swapAggregatorMulticall.tokenInDestination,
+            amountIn
+        );
+
+        uint256 amountOutRequired;
+        assembly {
+            amountOutRequired := add(selfbalance(), amountOutMin)
+        }
+
+        IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
+            swapAggregatorMulticall.calls
+        );
+
+        bool sufficient;
+        bool transferSuccess;
+        uint256 balanceWeth = IERC20(WETH).balanceOf(address(this));
+        assembly {
+            mstore(0x0, shl(224, 0x2e1a7d4d))
+            mstore(4, balanceWeth)
+            if iszero(
+                call(
+                    gas(),
+                    0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+                    0, /* wei */
+                    0, /* in pos */
+                    68, /* in len */
+                    0, /* out pos */
+                    0 /* out size */
+                )
+            ) {
+                revert("Native Token Withdraw failed", balanceWeth)
+            }
+
+            sufficient := iszero(lt(amountOutRequired, selfbalance()))
+
+            if sufficient {
+                mstore(
+                    0x00,
+                    0xa9059cbb00000000000000000000000000000000000000000000000000000000
+                )
+
+                mstore(4, caller())
+                mstore(36, selfbalance())
+
+                pop(
+                    call(
+                        gas(),
+                        0, /* to */
+                        0, /* wei */
+                        0, /* in pos */
+                        68, /* in len */
+                        0, /* out pos */
+                        0 /* out size */
+                    )
+                )
+                transferSuccess := iszero(returndatasize())
+            }
+        }
+
+        if (!sufficient) {
+            revert InsufficientOutputAmount(
+                amountOutRequired - address(this).balance,
+                amountOutMin
+            );
+        }
+
+        require(transferSuccess, "Native transfer failed");
+    }
+
+    receive() external payable {}
 }
 
 contract ConveyorSwapExecutor {

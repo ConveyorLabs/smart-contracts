@@ -94,3 +94,5 @@ error MsgValueIsNotCumulativeExecutionCredit(
     uint256 msgValue,
     uint256 cumulativeExecutionCredit
 );
+
+error ExecutorNotCheckedIn();

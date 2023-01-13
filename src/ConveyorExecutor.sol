@@ -96,6 +96,14 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
     ///@notice Boolean responsible for indicating if a function has been entered when the nonReentrant modifier is used.
     bool reentrancyStatus = false;
 
+    ///@notice Mapping of addresses to their last checkin time.
+    mapping(address => uint256) public lastCheckIn;
+
+    ///====================================Events==============================================//
+    /**@notice Event that is emitted when an offchain execution checks into the contract
+     */
+    event ExecutorCheckIn(address executor, uint256 timestamp);
+
     ///@param _weth The wrapped native token on the chain.
     ///@param _usdc Pegged stable token on the chain.
     ///@param _limitOrderQuoterAddress The address of the LimitOrderQuoter contract.
@@ -147,6 +155,13 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
 
         ///@notice assign the owner address
         owner = msg.sender;
+    }
+
+    ///@notice Function to monitor Executor checkin.
+    function checkIn() external {
+        ///@notice Set the lastCheckIn time to the current block timestamp.
+        lastCheckIn[msg.sender] = block.timestamp;
+        emit ExecutorCheckIn(msg.sender, block.timestamp);
     }
 
     ///@notice Function to execute a batch of Token to Weth Orders.
@@ -280,7 +295,7 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
                 WETH,
                 lpAddressAToWeth,
                 feeIn,
-                order.quantity,
+                orderQuantity,
                 amountOutMinAToWeth,
                 address(this),
                 order.owner
