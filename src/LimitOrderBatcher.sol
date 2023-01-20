@@ -600,10 +600,7 @@ contract LimitOrderBatcher is ILimitOrderBatcher, ConveyorTickMath {
         bool isTokenToWeth,
         address pool,
         uint256 alphaX
-    ) internal returns (uint128 spotPrice, uint128 amountOut) {
-        ///@notice sqrtPrice Fixed point 64.96 form token1/token0 exchange rate
-        (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(pool).slot0();
-
+    ) internal view returns (uint128 spotPrice, uint128 amountOut) {
         ///@notice Concentrated liquidity in current price tick range
         uint128 liquidity = IUniswapV3Pool(pool).liquidity();
 
@@ -614,129 +611,36 @@ contract LimitOrderBatcher is ILimitOrderBatcher, ConveyorTickMath {
         ///@notice Boolean indicating whether weth is token0 or token1
         bool wethIsToken0 = token0 == WETH ? true : false;
 
-        ///@notice Instantiate nextSqrtPriceX96 to hold adjusted price after simulated swap
-        uint160 nextSqrtPriceX96;
-
         ///@notice Cache pool fee
         uint24 fee = IUniswapV3Pool(pool).fee();
 
-        {
-            int24 tickSpacing = IUniswapV3Pool(pool).tickSpacing();
+        uint160 price;
+        int24 tickSpacing = IUniswapV3Pool(pool).tickSpacing();
 
-            if (isTokenToWeth) {
-                amountOut = uint128(
-                    uint256(
-                        -simulateAmountOutOnSqrtPriceX96(
-                            wethIsToken0 ? token0 : token1,
-                            wethIsToken0 ? token1 : token0,
-                            pool,
-                            alphaX,
-                            tickSpacing,
-                            liquidity,
-                            fee
-                        )
-                    )
-                );
-            } else {
-                amountOut = uint128(
-                    uint256(
-                        -simulateAmountOutOnSqrtPriceX96(
-                            wethIsToken0 ? token0 : token1,
-                            wethIsToken0 ? token0 : token1,
-                            pool,
-                            alphaX,
-                            tickSpacing,
-                            liquidity,
-                            fee
-                        )
-                    )
-                );
-            }
-        }
-
-        ///@notice Conditional whether swap is happening from tokenToWeth or wethToToken
         if (isTokenToWeth) {
-            if (wethIsToken0) {
-                ///@notice tokenIn is token1 therefore 0for1 is false & alphaX is input into tokenIn liquidity ==> rounding down
-                nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
-                    sqrtPriceX96,
-                    liquidity,
-                    alphaX,
-                    false
-                );
-
-                ///@notice Convert output to 128.128 fixed point representation
-                uint256 sqrtSpotPrice128x128 = fromSqrtX96(
-                    nextSqrtPriceX96,
-                    false,
-                    token0,
-                    token1
-                );
-
-                ///@notice sqrtSpotPrice64x64 == token1/token0 spot
-                spotPrice = uint128(sqrtSpotPrice128x128 >> 64);
-            } else {
-                ///@notice calculate nextSqrtPriceX96 price change on wethOutAmount add false since we are removing the weth liquidity from the pool
-                nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
-                    sqrtPriceX96,
-                    liquidity,
-                    alphaX,
-                    true
-                );
-
-                ///@notice Convert output to 128.128 fixed point representation
-                uint256 sqrtSpotPrice128x128 = fromSqrtX96(
-                    nextSqrtPriceX96,
-                    true,
-                    token0,
-                    token1
-                );
-
-                ///@notice Spot price 64.64 fixed point.
-                spotPrice = uint128(sqrtSpotPrice128x128 >> 64);
-            }
+            (amountOut, price) = simulateAmountOutOnSqrtPriceX96(
+                wethIsToken0 ? token0 : token1,
+                wethIsToken0 ? token1 : token0,
+                pool,
+                alphaX,
+                tickSpacing,
+                liquidity,
+                fee
+            );
         } else {
-            ///@notice isTokenToWeth =false ==> we are exchanging weth -> token
-            if (wethIsToken0) {
-                ///@notice amountOut is in our out token, so set nextSqrtPriceX96 to change in price on amountOut value
-                ///@notice weth is token 0 so set add to false since we are removing token1 liquidity from the pool
-                nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
-                    sqrtPriceX96,
-                    liquidity,
-                    alphaX,
-                    true
-                );
-                ///@notice Convert output to 128.128 fixed point representation
-                uint256 sqrtSpotPrice128x128 = fromSqrtX96(
-                    nextSqrtPriceX96,
-                    true,
-                    token0,
-                    token1
-                );
-
-                ///@notice Spot price 64.64 fixed point.
-                spotPrice = uint128(sqrtSpotPrice128x128 >> 64);
-            } else {
-                ///@notice set nextSqrtPriceX96 to change on Input alphaX which will be in Weth, since weth is token1 0To1=false
-                nextSqrtPriceX96 = SqrtPriceMath.getNextSqrtPriceFromInput(
-                    sqrtPriceX96,
-                    liquidity,
-                    alphaX,
-                    false
-                );
-
-                ///@notice Convert output to 128.128 fixed point representation
-                uint256 sqrtSpotPrice128x128 = fromSqrtX96(
-                    nextSqrtPriceX96,
-                    false,
-                    token0,
-                    token1
-                );
-
-                ///@notice Spot price 64.64 fixed point.
-                spotPrice = uint128(sqrtSpotPrice128x128 >> 64);
-            }
+            (amountOut, price) = simulateAmountOutOnSqrtPriceX96(
+                wethIsToken0 ? token0 : token1,
+                wethIsToken0 ? token0 : token1,
+                pool,
+                alphaX,
+                tickSpacing,
+                liquidity,
+                fee
+            );
         }
+        spotPrice = uint128(
+            fromSqrtX96(price, wethIsToken0, token0, token1) >> 64
+        );
     }
 
     ///@notice Helper function to calculate amountOutMin value agnostically across dexes on the first hop from tokenA to WETH.
@@ -766,8 +670,8 @@ contract LimitOrderBatcher is ILimitOrderBatcher, ConveyorTickMath {
             uint128 liquidity = IUniswapV3Pool(lpAddressAToWeth).liquidity();
             int24 tickSpacing = IUniswapV3Pool(lpAddressAToWeth).tickSpacing();
 
-            ///@notice Calculate the amountOutMin for the swap.
-            int256 _amountOutMinAToWeth = ConveyorTickMath
+            ///@notice Negate the simulated amount and convert to an unsigned integer.
+            (amountOutMinAToWeth, ) = ConveyorTickMath
                 .simulateAmountOutOnSqrtPriceX96(
                     token0,
                     tokenIn,
@@ -777,8 +681,6 @@ contract LimitOrderBatcher is ILimitOrderBatcher, ConveyorTickMath {
                     liquidity,
                     feeIn
                 );
-            ///@notice Negate the simulated amount and convert to an unsigned integer.
-            amountOutMinAToWeth = uint256(-_amountOutMinAToWeth);
         } else {
             ///@notice Otherwise if the lp is a UniV2 LP.
 
