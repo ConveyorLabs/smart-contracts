@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {SafeCast} from './SafeCast.sol';
 
 import {TickMath} from './TickMath.sol';
+import "../../interfaces/uniswap-v3/IUniswapV3Pool.sol";
 
 /// @title Tick
 /// @notice Contains functions for managing tick processes and relevant calculations
@@ -160,15 +161,16 @@ library Tick {
     }
 
     /// @notice Transitions to next tick as needed by price movement
-    /// @param self The mapping containing all tick information for initialized ticks
     /// @param tick The destination tick of the transition
-    function cross(
-        mapping(int24 => Tick.Info) storage self,
-        int24 tick
-    ) internal returns (int128 liquidityNet) {
+    /// @param pool The address of the pool
+    function cross(int24 tick, address pool)
+        internal
+        view
+        returns (int128 liquidityNet)
+    {
         unchecked {
-            Tick.Info storage info = self[tick];
-            liquidityNet = info.liquidityNet;
+            (, liquidityNet, , , , , , ) = IUniswapV3Pool(pool)
+                .ticks(tick);
         }
-    }
+    }      
 }

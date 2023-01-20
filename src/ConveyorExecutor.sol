@@ -168,7 +168,10 @@ contract ConveyorExecutor is IConveyorExecutor, SwapRouter {
                 totalBeaconReward += beaconReward;
                 totalConveyorReward += conveyorReward;
             }
-
+            ///@notice Break out of the loop if the last order has been executed.
+            if (i == orders.length - 1) {
+                break;
+            }
             ///@notice Update the best execution price.
             executionPrices[bestPriceIndex] = ILimitOrderBatcher(
                 LIMIT_ORDER_QUOTER
@@ -329,7 +332,6 @@ contract ConveyorExecutor is IConveyorExecutor, SwapRouter {
             {
                 ///@notice Pass the order, maxBeaconReward, and TokenToWethExecutionPrice into _executeTokenToWethSingle for execution.
                 (
-                    
                     uint256 conveyorReward,
                     uint256 beaconReward
                 ) = _executeTokenToTokenOrder(
@@ -339,7 +341,10 @@ contract ConveyorExecutor is IConveyorExecutor, SwapRouter {
                 totalBeaconReward += beaconReward;
                 totalConveyorReward += conveyorReward;
             }
-
+            ///@notice Break out of the loop if the last order has been executed.
+            if (i == orders.length - 1) {
+                break;
+            }
             ///@notice Update the best execution price.
             executionPrices[bestPriceIndex] = ILimitOrderBatcher(
                 LIMIT_ORDER_QUOTER
