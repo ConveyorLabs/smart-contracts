@@ -202,8 +202,8 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
             {
                 ///@notice Pass the order, maxBeaconReward, and TokenToWethExecutionPrice into _executeTokenToWethSingle for execution.
                 (
-                    uint256 beaconReward,
-                    uint256 conveyorReward
+                    uint256 conveyorReward,
+                    uint256 beaconReward
                 ) = _executeTokenToWethOrder(
                         orders[i],
                         executionPrices[bestPriceIndex]
@@ -374,8 +374,8 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
             {
                 ///@notice Pass the order, maxBeaconReward, and TokenToWethExecutionPrice into _executeTokenToWethSingle for execution.
                 (
-                    uint256 beaconReward,
-                    uint256 conveyorReward
+                    uint256 conveyorReward,
+                    uint256 beaconReward
                 ) = _executeTokenToTokenOrder(
                         orders[i],
                         executionPrices[bestPriceIndex]

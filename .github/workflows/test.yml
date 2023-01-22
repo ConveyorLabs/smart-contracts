@@ -3,12 +3,12 @@ name: test
 on:
   push:
     branches:
-      - production-sandbox
-      - staging-sandbox
+      - production
+      - staging
   pull_request:
     branches:
-      - production-sandbox
-      - staging-sandbox
+      - production
+      - staging
 
 jobs:
   check:
