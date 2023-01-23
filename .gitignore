@@ -8,3 +8,4 @@ out/
 
 .vscode
 .vscode/settings.json
+.env
