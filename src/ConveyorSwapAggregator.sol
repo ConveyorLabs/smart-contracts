@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
@@ -64,12 +64,13 @@ contract ConveyorSwapAggregator {
         uint256 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable {
+        address _weth = WETH;
         assembly {
             mstore(0x0, shl(224, 0xd0e30db0))
             if iszero(
                 call(
                     gas(),
-                    0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+                    _weth,
                     callvalue(),
                     0,
                     0,
@@ -79,6 +80,7 @@ contract ConveyorSwapAggregator {
             ) {
                 revert("Native token deposit failed", 0)
             }
+            
         }
       
         IERC20(WETH).transfer(
@@ -132,13 +134,15 @@ contract ConveyorSwapAggregator {
         bool sufficient;
         bool transferSuccess;
         uint256 balanceWeth = IERC20(WETH).balanceOf(address(this));
+
+        address _weth = WETH;
         assembly {
             mstore(0x0, shl(224, 0x2e1a7d4d))
             mstore(4, balanceWeth)
             if iszero(
                 call(
                     gas(),
-                    0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+                    _weth,
                     0, /* wei */
                     0, /* in pos */
                     68, /* in len */
