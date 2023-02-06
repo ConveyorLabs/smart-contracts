@@ -2,19 +2,20 @@
 pragma solidity 0.8.16;
 
 import {Script} from "../lib/forge-std/src/Script.sol";
-import {ConveyorExecutor} from "../src/ConveyorExecutor.sol";
-import {SandboxLimitOrderBook} from "../src/SandboxLimitOrderBook.sol";
-import {SandboxLimitOrderRouter} from "../src/SandboxLimitOrderRouter.sol";
-import {ConveyorSwapAggregator} from "../src/ConveyorSwapAggregator.sol";
-import {LimitOrderRouter} from "../src/LimitOrderRouter.sol";
-import {LimitOrderQuoter} from "../src/LimitOrderQuoter.sol";
+import {ConveyorExecutor} from "./ConveyorExecutor.sol";
+import {SandboxLimitOrderBook} from "./SandboxLimitOrderBook.sol";
+import {SandboxLimitOrderRouter} from "./SandboxLimitOrderRouter.sol";
+import {ConveyorSwapAggregator} from "./ConveyorSwapAggregator.sol";
+import {LimitOrderRouter} from "./LimitOrderRouter.sol";
+import {LimitOrderQuoter} from "./LimitOrderQuoter.sol";
+import "./test/utils/Console.sol"; 
 
 contract Deploy is Script {
     /// @dev The salt used for the deployment of the Contracts
-    bytes32 internal constant SALT = bytes32(0);
+    bytes32 internal constant SALT = bytes32("0x2efa_abde");
 
     ///@dev Minimum Execution Credits
-    uint256 constant MINIMUM_EXECUTION_CREDITS = 0;
+    uint256 constant MINIMUM_EXECUTION_CREDITS = 1500000000000000;
 
     ///@dev Polygon Constructor Constants
     address constant WMATIC = 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270;
@@ -29,7 +30,7 @@ contract Deploy is Script {
         0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
     address constant UNISWAP_V3_POLYGON =
         0x1F98431c8aD98523631AE4a59f267346ea31F984;
-    bytes32 constant UNISWAP_V3_POLYGON_DEPLOYMENT_HASH = bytes32(0);
+    bytes32 constant UNISWAP_V3_POLYGON_DEPLOYMENT_HASH = 0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
 
     function run()
         public
@@ -57,8 +58,11 @@ contract Deploy is Script {
         _deploymentByteCodes[0] = SUSHI_POLYGON_DEPLOYMENT_HASH;
         _deploymentByteCodes[1] = QUICK_POLYGON_DEPLOYMENT_HASH;
         _deploymentByteCodes[2] = UNISWAP_V3_POLYGON_DEPLOYMENT_HASH;
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        vm.startBroadcast(deployerPrivateKey);
+        console.log(WMATIC);
+        console.logBytes32(_deploymentByteCodes[0]);
 
-        vm.startBroadcast();
         /// Deploy LimitOrderQuoter
         limitOrderQuoter = new LimitOrderQuoter{salt: SALT}(WMATIC);
         /// Deploy ConveyorExecutor
