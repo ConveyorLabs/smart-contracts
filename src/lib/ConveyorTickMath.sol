@@ -23,6 +23,7 @@ contract ConveyorTickMath {
     /// @notice maximum uint128 64.64 fixed point number
     uint128 private constant MAX_64x64 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
     uint256 internal constant Q96 = 0x1000000000000000000000000;
+
     ///@notice Struct holding the current simulated swap state.
     struct CurrentState {
         ///@notice Amount remaining to be swapped upon cross tick simulation.
@@ -210,7 +211,7 @@ contract ConveyorTickMath {
         }
         {
             ///@notice Return the simulated amount out as a negative value representing the amount recieved in the swap.
-            amountOut = uint128(int128(-currentState.amountCalculated));
+            amountOut = uint128(SafeCast.toInt128(-currentState.amountCalculated));
             sqrtPriceX96 = currentState.sqrtPriceX96;
         }
     }
