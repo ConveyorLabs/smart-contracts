@@ -60,7 +60,6 @@ contract Deploy is Script {
         _deploymentByteCodes[2] = UNISWAP_V3_POLYGON_DEPLOYMENT_HASH;
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
-        console.log(WMATIC);
         console.logBytes32(_deploymentByteCodes[0]);
 
         /// Deploy LimitOrderQuoter
