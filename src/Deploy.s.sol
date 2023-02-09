@@ -21,6 +21,9 @@ contract Deploy is Script {
     address constant WMATIC = 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270;
     address constant USDC_POLYGON = 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174;
 
+    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address constant USDC_MAINNET = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
     ///@dev Cfmm Factory addresses & deployment hashes
     address constant SUSHI_POLYGON = 0xc35DADB65012eC5796536bD9864eD8773aBc74C4;
     bytes32 constant SUSHI_POLYGON_DEPLOYMENT_HASH =
@@ -32,7 +35,15 @@ contract Deploy is Script {
         0x1F98431c8aD98523631AE4a59f267346ea31F984;
     bytes32 constant UNISWAP_V3_POLYGON_DEPLOYMENT_HASH = 0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
 
-    function run()
+    address constant SUSHI_MAINNET  = 0xc35DADB65012eC5796536bD9864eD8773aBc74C4;
+    bytes32 constant SUSHI_MAINNET_DEPLOYMENT_HASH =
+        0xe18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303;
+
+    address constant UNISWAP_V3_MAINNET =
+        0x1F98431c8aD98523631AE4a59f267346ea31F984;
+    bytes32 constant UNISWAP_V3_MAINNET_DEPLOYMENT_HASH = 0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
+
+    function run_polygon()
         public
         returns (
             ConveyorExecutor conveyorExecutor,
@@ -58,7 +69,9 @@ contract Deploy is Script {
         _deploymentByteCodes[0] = SUSHI_POLYGON_DEPLOYMENT_HASH;
         _deploymentByteCodes[1] = QUICK_POLYGON_DEPLOYMENT_HASH;
         _deploymentByteCodes[2] = UNISWAP_V3_POLYGON_DEPLOYMENT_HASH;
+
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        
         vm.startBroadcast(deployerPrivateKey);
         console.logBytes32(_deploymentByteCodes[0]);
 
@@ -93,6 +106,81 @@ contract Deploy is Script {
             address(conveyorExecutor),
             WMATIC,
             USDC_POLYGON,
+            MINIMUM_EXECUTION_CREDITS
+        );
+
+        /// Deploy SandboxLimitOrderRouter
+        sandboxLimitOrderRouter = new SandboxLimitOrderRouter{salt: SALT}(
+            address(sandboxLimitOrderBook),
+            address(conveyorExecutor)
+        );
+
+        vm.stopBroadcast();
+    }
+
+    function run_mainnet()
+        public
+        returns (
+            ConveyorExecutor conveyorExecutor,
+            LimitOrderRouter limitOrderRouter,
+            SandboxLimitOrderBook sandboxLimitOrderBook,
+            SandboxLimitOrderRouter sandboxLimitOrderRouter,
+            LimitOrderQuoter limitOrderQuoter,
+            ConveyorSwapAggregator conveyorSwapAggregator
+        )
+    {
+        bytes32[] memory _deploymentByteCodes = new bytes32[](3);
+        address[] memory _dexFactories = new address[](3);
+        bool[] memory _isUniV2 = new bool[](3);
+
+        _isUniV2[0] = true;
+        _isUniV2[1] = true;
+        _isUniV2[2] = false;
+
+        _dexFactories[0] = SUSHI_MAINNET;
+        _dexFactories[1] = SUSHI_MAINNET; //TBD
+        _dexFactories[2] = UNISWAP_V3_MAINNET;
+
+        _deploymentByteCodes[0] = SUSHI_MAINNET_DEPLOYMENT_HASH;
+        _deploymentByteCodes[1] = SUSHI_MAINNET_DEPLOYMENT_HASH;
+        _deploymentByteCodes[2] = UNISWAP_V3_MAINNET_DEPLOYMENT_HASH;
+
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        
+        vm.startBroadcast(deployerPrivateKey);
+        console.logBytes32(_deploymentByteCodes[0]);
+
+        /// Deploy LimitOrderQuoter
+        limitOrderQuoter = new LimitOrderQuoter{salt: SALT}(WETH);
+        /// Deploy ConveyorExecutor
+        conveyorExecutor = new ConveyorExecutor{salt: SALT}(
+            WETH,
+            USDC_MAINNET,
+            address(limitOrderQuoter),
+            _deploymentByteCodes,
+            _dexFactories,
+            _isUniV2,
+            MINIMUM_EXECUTION_CREDITS
+        );
+
+        /// Deploy ConveyorSwapAggregator
+        conveyorSwapAggregator = new ConveyorSwapAggregator{salt: SALT}(
+            address(conveyorExecutor)
+        );
+
+        /// Deploy LimitOrderRouter
+        limitOrderRouter = new LimitOrderRouter{salt: SALT}(
+            WETH,
+            USDC_MAINNET,
+            address(conveyorExecutor),
+            MINIMUM_EXECUTION_CREDITS
+        );
+
+        /// Deploy SandboxLimitOrderBook
+        sandboxLimitOrderBook = new SandboxLimitOrderBook{salt: SALT}(
+            address(conveyorExecutor),
+            WETH,
+            USDC_MAINNET,
             MINIMUM_EXECUTION_CREDITS
         );
 
