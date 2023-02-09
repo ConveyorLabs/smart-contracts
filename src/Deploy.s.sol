@@ -192,4 +192,79 @@ contract Deploy is Script {
 
         vm.stopBroadcast();
     }
+
+    function run_bsc()
+        public
+        returns (
+            ConveyorExecutor conveyorExecutor,
+            LimitOrderRouter limitOrderRouter,
+            SandboxLimitOrderBook sandboxLimitOrderBook,
+            SandboxLimitOrderRouter sandboxLimitOrderRouter,
+            LimitOrderQuoter limitOrderQuoter,
+            ConveyorSwapAggregator conveyorSwapAggregator
+        )
+    {
+        bytes32[] memory _deploymentByteCodes = new bytes32[](3);
+        address[] memory _dexFactories = new address[](3);
+        bool[] memory _isUniV2 = new bool[](3);
+
+        _isUniV2[0] = true;
+        _isUniV2[1] = true;
+        _isUniV2[2] = false;
+
+        _dexFactories[0] = SUSHI_MAINNET;
+        _dexFactories[1] = SUSHI_MAINNET; //TBD
+        _dexFactories[2] = UNISWAP_V3_MAINNET;
+
+        _deploymentByteCodes[0] = SUSHI_MAINNET_DEPLOYMENT_HASH;
+        _deploymentByteCodes[1] = SUSHI_MAINNET_DEPLOYMENT_HASH;
+        _deploymentByteCodes[2] = UNISWAP_V3_MAINNET_DEPLOYMENT_HASH;
+
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        
+        vm.startBroadcast(deployerPrivateKey);
+        console.logBytes32(_deploymentByteCodes[0]);
+
+        /// Deploy LimitOrderQuoter
+        limitOrderQuoter = new LimitOrderQuoter{salt: SALT}(WETH);
+        /// Deploy ConveyorExecutor
+        conveyorExecutor = new ConveyorExecutor{salt: SALT}(
+            WETH,
+            USDC_MAINNET,
+            address(limitOrderQuoter),
+            _deploymentByteCodes,
+            _dexFactories,
+            _isUniV2,
+            MINIMUM_EXECUTION_CREDITS
+        );
+
+        /// Deploy ConveyorSwapAggregator
+        conveyorSwapAggregator = new ConveyorSwapAggregator{salt: SALT}(
+            address(conveyorExecutor)
+        );
+
+        /// Deploy LimitOrderRouter
+        limitOrderRouter = new LimitOrderRouter{salt: SALT}(
+            WETH,
+            USDC_MAINNET,
+            address(conveyorExecutor),
+            MINIMUM_EXECUTION_CREDITS
+        );
+
+        /// Deploy SandboxLimitOrderBook
+        sandboxLimitOrderBook = new SandboxLimitOrderBook{salt: SALT}(
+            address(conveyorExecutor),
+            WETH,
+            USDC_MAINNET,
+            MINIMUM_EXECUTION_CREDITS
+        );
+
+        /// Deploy SandboxLimitOrderRouter
+        sandboxLimitOrderRouter = new SandboxLimitOrderRouter{salt: SALT}(
+            address(sandboxLimitOrderBook),
+            address(conveyorExecutor)
+        );
+
+        vm.stopBroadcast();
+    }
 }
