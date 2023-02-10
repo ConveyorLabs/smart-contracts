@@ -102,7 +102,7 @@ contract ConveyorTickMathTest is DSTest {
         iQuoter = IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
         //Initialize the Sw
 
-        swapRouter = new SwapRouterWrapper(_hexDems, _dexFactories, _isUniV2);
+        swapRouter = new SwapRouterWrapper(_dexFactories, _isUniV2);
         cheatCodes.makePersistent(address(swapRouter));
         cheatCodes.makePersistent(address(conveyorTickMath));
     }
@@ -291,10 +291,9 @@ contract ConveyorTickMathWrapper is ConveyorTickMath {
 
 contract SwapRouterWrapper is LimitOrderSwapRouter {
     constructor(
-        bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2
-    ) LimitOrderSwapRouter(_initBytecodes, _dexFactories, _isUniV2) {}
+    ) LimitOrderSwapRouter(_dexFactories, _isUniV2) {}
 
     function swapV3(
         address _lp,
