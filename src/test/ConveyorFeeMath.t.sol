@@ -69,7 +69,6 @@ contract ConveyorFeeMathTest is DSTest {
         scriptRunner = new ScriptRunner();
 
         limitOrderExecutor = new LimitOrderExecutorWrapper(
-            _hexDems,
             _dexFactories,
             _isUniV2
         );
@@ -177,11 +176,9 @@ contract ConveyorFeeMathTest is DSTest {
 
 //wrapper around LimitOrderSwapRouter to expose internal functions for testing
 contract LimitOrderExecutorWrapper is LimitOrderSwapRouter {
-    constructor(
-        bytes32[] memory _initBytecodes,
-        address[] memory _dexFactories,
-        bool[] memory _isUniV2
-    ) LimitOrderSwapRouter(_initBytecodes, _dexFactories, _isUniV2) {}
+    constructor(address[] memory _dexFactories, bool[] memory _isUniV2)
+        LimitOrderSwapRouter(_dexFactories, _isUniV2)
+    {}
 
     function getV3PoolFee(address pairAddress)
         public
@@ -244,10 +241,9 @@ contract LimitOrderExecutorWrapper is LimitOrderSwapRouter {
     function calculateV2SpotPrice(
         address token0,
         address token1,
-        address _factory,
-        bytes32 _initBytecode
+        address _factory
     ) public view returns (SpotReserve memory spRes, address poolAddress) {
-        return _calculateV2SpotPrice(token0, token1, _factory, _initBytecode);
+        return _calculateV2SpotPrice(token0, token1, _factory);
     }
 
     function calculateV3SpotPrice(

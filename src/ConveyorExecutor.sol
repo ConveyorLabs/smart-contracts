@@ -107,18 +107,16 @@ contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
     ///@param _weth The wrapped native token on the chain.
     ///@param _usdc Pegged stable token on the chain.
     ///@param _limitOrderQuoterAddress The address of the LimitOrderQuoter contract.
-    ///@param _deploymentByteCodes The deployment bytecodes of all dex factory contracts.
     ///@param _dexFactories The Dex factory addresses.
     ///@param _isUniV2 Array of booleans indication whether the Dex is V2 architecture.
     constructor(
         address _weth,
         address _usdc,
         address _limitOrderQuoterAddress,
-        bytes32[] memory _deploymentByteCodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
         uint256 _minExecutionCredit
-    ) LimitOrderSwapRouter(_deploymentByteCodes, _dexFactories, _isUniV2) {
+    ) LimitOrderSwapRouter(_dexFactories, _isUniV2) {
         require(_weth != address(0), "Invalid weth address");
         require(_usdc != address(0), "Invalid usdc address");
         require(
