@@ -24,8 +24,7 @@ contract Deploy is Script {
     ///@dev Cfmm Factory addresses & deployment hashes
     address constant SUSHI_POLYGON = 0xc35DADB65012eC5796536bD9864eD8773aBc74C4;
     address constant QUICK_POLYGON = 0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32;
-    address constant UNISWAP_V3_POLYGON =
-        0x1F98431c8aD98523631AE4a59f267346ea31F984;
+    address constant UNISWAP_V3_POLYGON = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 
     function run()
         public
