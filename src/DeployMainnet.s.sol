@@ -12,17 +12,16 @@ import "../src/test/utils/Console.sol";
 
 contract Deploy is Script {
     /// @dev The salt used for the deployment of the Contracts
-    bytes32 internal constant SALT = bytes32("0x2efa_abda");
+    bytes32 internal constant SALT = bytes32("0x2efa_abdc");
 
     ///@dev Minimum Execution Credits
     uint256 constant MINIMUM_EXECUTION_CREDITS = 1500000000000000;
 
     address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-
+    address constant UNISWAP_V2 = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant PANCAKESWAP_V2 =
         0x1097053Fd2ea711dad45caCcc45EfF7548fCB362;
-    address constant UNISWAP_V2 = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant SUSHISWAP_V2 = 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac;
     address constant UNISWAP_V3 = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 
