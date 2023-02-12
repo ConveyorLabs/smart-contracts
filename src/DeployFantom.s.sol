@@ -12,7 +12,7 @@ import "../src/test/utils/Console.sol";
 
 contract Deploy is Script {
     /// @dev The salt used for the deployment of the Contracts
-    bytes32 internal constant SALT = bytes32("0x2efa_abdc");
+    bytes32 internal constant SALT = bytes32("0x2efa_abdd");
 
     ///@dev Minimum Execution Credits
     uint256 constant MINIMUM_EXECUTION_CREDITS = 1500000000000000;
