@@ -11,18 +11,15 @@ import {LimitOrderQuoter} from "../src/LimitOrderQuoter.sol";
 import "../src/test/utils/Console.sol";
 
 contract Deploy is Script {
-    /// @dev The salt used for the deployment of the Contracts
-    bytes32 internal constant SALT = bytes32("0x2efa_abdd");
-
     ///@dev Minimum Execution Credits
     uint256 constant MINIMUM_EXECUTION_CREDITS = 1500000000000000;
 
-    address constant WETH = 0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83;
+    address constant WFTM = 0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83;
     address constant USDC = 0x04068DA6C83AFCFA0e13ba15A6696662335D5B75;
 
-    address constant SPIRIT_SWAP = 0xEF45d134b73241eDa7703fa787148D9C9F4950b0;
-    address constant SPOOKY_SWAP = 0x152eE697f2E276fA89E96742e9bB9aB1F2E61bE3;
-    address constant SUSHI_SWAP = 0xc35DADB65012eC5796536bD9864eD8773aBc74C4;
+    address constant SPIRITSWAP = 0xEF45d134b73241eDa7703fa787148D9C9F4950b0;
+    address constant SPOOKYSWAP = 0x152eE697f2E276fA89E96742e9bB9aB1F2E61bE3;
+    address constant SUSHISWAP = 0xc35DADB65012eC5796536bD9864eD8773aBc74C4;
 
     function run()
         public
@@ -42,9 +39,9 @@ contract Deploy is Script {
         _isUniV2[1] = true;
         _isUniV2[2] = true;
 
-        _dexFactories[0] = SPIRIT_SWAP;
-        _dexFactories[1] = SPOOKY_SWAP;
-        _dexFactories[2] = SUSHI_SWAP;
+        _dexFactories[0] = SPIRITSWAP;
+        _dexFactories[1] = SPOOKYSWAP;
+        _dexFactories[2] = SUSHISWAP;
 
 
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -52,10 +49,10 @@ contract Deploy is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         /// Deploy LimitOrderQuoter
-        limitOrderQuoter = new LimitOrderQuoter{salt: SALT}(WETH);
+        limitOrderQuoter = new LimitOrderQuoter(WFTM);
         /// Deploy ConveyorExecutor
-        conveyorExecutor = new ConveyorExecutor{salt: SALT}(
-            WETH,
+        conveyorExecutor = new ConveyorExecutor(
+            WFTM,
             USDC,
             address(limitOrderQuoter),
             _dexFactories,
@@ -64,28 +61,28 @@ contract Deploy is Script {
         );
 
         /// Deploy ConveyorSwapAggregator
-        conveyorSwapAggregator = new ConveyorSwapAggregator{salt: SALT}(
+        conveyorSwapAggregator = new ConveyorSwapAggregator(
             address(conveyorExecutor)
         );
 
         /// Deploy LimitOrderRouter
-        limitOrderRouter = new LimitOrderRouter{salt: SALT}(
-            WETH,
+        limitOrderRouter = new LimitOrderRouter(
+            WFTM,
             USDC,
             address(conveyorExecutor),
             MINIMUM_EXECUTION_CREDITS
         );
 
         /// Deploy SandboxLimitOrderBook
-        sandboxLimitOrderBook = new SandboxLimitOrderBook{salt: SALT}(
+        sandboxLimitOrderBook = new SandboxLimitOrderBook(
             address(conveyorExecutor),
-            WETH,
+            WFTM,
             USDC,
             MINIMUM_EXECUTION_CREDITS
         );
 
         /// Deploy SandboxLimitOrderRouter
-        sandboxLimitOrderRouter = new SandboxLimitOrderRouter{salt: SALT}(
+        sandboxLimitOrderRouter = new SandboxLimitOrderRouter(
             address(sandboxLimitOrderBook),
             address(conveyorExecutor)
         );

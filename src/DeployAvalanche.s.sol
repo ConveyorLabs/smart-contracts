@@ -11,13 +11,10 @@ import {LimitOrderQuoter} from "../src/LimitOrderQuoter.sol";
 import "../src/test/utils/Console.sol";
 
 contract Deploy is Script {
-    /// @dev The salt used for the deployment of the Contracts
-    bytes32 internal constant SALT = bytes32("0x2efa_abdd");
-
     ///@dev Minimum Execution Credits
     uint256 constant MINIMUM_EXECUTION_CREDITS = 1500000000000000;
 
-    address constant WETH = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
+    address constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
     address constant USDC = 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E;
 
     address constant TRADER_JOE = 0x9Ad6C38BE94206cA50bb0d90783181662f0Cfa10;
@@ -50,10 +47,10 @@ contract Deploy is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         /// Deploy LimitOrderQuoter
-        limitOrderQuoter = new LimitOrderQuoter{salt: SALT}(WETH);
+        limitOrderQuoter = new LimitOrderQuoter(WAVAX);
         /// Deploy ConveyorExecutor
-        conveyorExecutor = new ConveyorExecutor{salt: SALT}(
-            WETH,
+        conveyorExecutor = new ConveyorExecutor(
+            WAVAX,
             USDC,
             address(limitOrderQuoter),
             _dexFactories,
@@ -62,28 +59,28 @@ contract Deploy is Script {
         );
 
         /// Deploy ConveyorSwapAggregator
-        conveyorSwapAggregator = new ConveyorSwapAggregator{salt: SALT}(
+        conveyorSwapAggregator = new ConveyorSwapAggregator(
             address(conveyorExecutor)
         );
 
         /// Deploy LimitOrderRouter
-        limitOrderRouter = new LimitOrderRouter{salt: SALT}(
-            WETH,
+        limitOrderRouter = new LimitOrderRouter(
+            WAVAX,
             USDC,
             address(conveyorExecutor),
             MINIMUM_EXECUTION_CREDITS
         );
 
         /// Deploy SandboxLimitOrderBook
-        sandboxLimitOrderBook = new SandboxLimitOrderBook{salt: SALT}(
+        sandboxLimitOrderBook = new SandboxLimitOrderBook(
             address(conveyorExecutor),
-            WETH,
+            WAVAX,
             USDC,
             MINIMUM_EXECUTION_CREDITS
         );
 
         /// Deploy SandboxLimitOrderRouter
-        sandboxLimitOrderRouter = new SandboxLimitOrderRouter{salt: SALT}(
+        sandboxLimitOrderRouter = new SandboxLimitOrderRouter(
             address(sandboxLimitOrderBook),
             address(conveyorExecutor)
         );
