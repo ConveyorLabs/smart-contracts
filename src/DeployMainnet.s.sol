@@ -11,9 +11,6 @@ import {LimitOrderQuoter} from "../src/LimitOrderQuoter.sol";
 import "../src/test/utils/Console.sol";
 
 contract Deploy is Script {
-    /// @dev The salt used for the deployment of the Contracts
-    bytes32 internal constant SALT = bytes32("0x2efa_abdd");
-
     ///@dev Minimum Execution Credits
     uint256 constant MINIMUM_EXECUTION_CREDITS = 1500000000000000;
 
@@ -21,7 +18,7 @@ contract Deploy is Script {
     address constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address constant UNISWAP_V2 = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant PANCAKESWAP_V2 =
-        0x1097053Fd2ea711dad45caCcc45EfF7548fCB362;
+0x1097053Fd2ea711dad45caCcc45EfF7548fCB362;
     address constant SUSHISWAP_V2 = 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac;
     address constant UNISWAP_V3 = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 
@@ -54,9 +51,9 @@ contract Deploy is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         /// Deploy LimitOrderQuoter
-        limitOrderQuoter = new LimitOrderQuoter{salt: SALT}(WETH);
+        limitOrderQuoter = new LimitOrderQuoter(WETH);
         /// Deploy ConveyorExecutor
-        conveyorExecutor = new ConveyorExecutor{salt: SALT}(
+        conveyorExecutor = new ConveyorExecutor(
             WETH,
             USDC,
             address(limitOrderQuoter),
@@ -66,12 +63,12 @@ contract Deploy is Script {
         );
 
         /// Deploy ConveyorSwapAggregator
-        conveyorSwapAggregator = new ConveyorSwapAggregator{salt: SALT}(
+        conveyorSwapAggregator = new ConveyorSwapAggregator(
             address(conveyorExecutor)
         );
 
         /// Deploy LimitOrderRouter
-        limitOrderRouter = new LimitOrderRouter{salt: SALT}(
+        limitOrderRouter = new LimitOrderRouter(
             WETH,
             USDC,
             address(conveyorExecutor),
@@ -79,7 +76,7 @@ contract Deploy is Script {
         );
 
         /// Deploy SandboxLimitOrderBook
-        sandboxLimitOrderBook = new SandboxLimitOrderBook{salt: SALT}(
+        sandboxLimitOrderBook = new SandboxLimitOrderBook(
             address(conveyorExecutor),
             WETH,
             USDC,
@@ -87,7 +84,7 @@ contract Deploy is Script {
         );
 
         /// Deploy SandboxLimitOrderRouter
-        sandboxLimitOrderRouter = new SandboxLimitOrderRouter{salt: SALT}(
+        sandboxLimitOrderRouter = new SandboxLimitOrderRouter(
             address(sandboxLimitOrderBook),
             address(conveyorExecutor)
         );

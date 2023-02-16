@@ -11,9 +11,6 @@ import {LimitOrderQuoter} from "../src/LimitOrderQuoter.sol";
 import "../src/test/utils/Console.sol";
 
 contract Deploy is Script {
-    /// @dev The salt used for the deployment of the Contracts
-    bytes32 internal constant SALT = bytes32("0x2efa_abdd");
-
     ///@dev Minimum Execution Credits
     uint256 constant MINIMUM_EXECUTION_CREDITS = 1500000000000000;
 
@@ -44,9 +41,9 @@ contract Deploy is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         /// Deploy LimitOrderQuoter
-        limitOrderQuoter = new LimitOrderQuoter{salt: SALT}(WETH);
+        limitOrderQuoter = new LimitOrderQuoter(WETH);
         /// Deploy ConveyorExecutor
-        conveyorExecutor = new ConveyorExecutor{salt: SALT}(
+        conveyorExecutor = new ConveyorExecutor(
             WETH,
             USDC,
             address(limitOrderQuoter),
@@ -56,12 +53,12 @@ contract Deploy is Script {
         );
 
         /// Deploy ConveyorSwapAggregator
-        conveyorSwapAggregator = new ConveyorSwapAggregator{salt: SALT}(
+        conveyorSwapAggregator = new ConveyorSwapAggregator(
             address(conveyorExecutor)
         );
 
         /// Deploy LimitOrderRouter
-        limitOrderRouter = new LimitOrderRouter{salt: SALT}(
+        limitOrderRouter = new LimitOrderRouter(
             WETH,
             USDC,
             address(conveyorExecutor),
@@ -69,7 +66,7 @@ contract Deploy is Script {
         );
 
         /// Deploy SandboxLimitOrderBook
-        sandboxLimitOrderBook = new SandboxLimitOrderBook{salt: SALT}(
+        sandboxLimitOrderBook = new SandboxLimitOrderBook(
             address(conveyorExecutor),
             WETH,
             USDC,
@@ -77,7 +74,7 @@ contract Deploy is Script {
         );
 
         /// Deploy SandboxLimitOrderRouter
-        sandboxLimitOrderRouter = new SandboxLimitOrderRouter{salt: SALT}(
+        sandboxLimitOrderRouter = new SandboxLimitOrderRouter(
             address(sandboxLimitOrderBook),
             address(conveyorExecutor)
         );
