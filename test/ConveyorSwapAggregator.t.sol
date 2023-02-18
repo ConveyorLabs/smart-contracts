@@ -4,8 +4,8 @@ pragma solidity 0.8.16;
 import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Swap.sol";
-import "../interfaces/IConveyorSwapAggregator.sol";
-import "../lib/ConveyorTickMath.sol";
+import "../src/interfaces/IConveyorSwapAggregator.sol";
+import "../src/lib/ConveyorTickMath.sol";
 
 interface CheatCodes {
     function prank(address) external;

@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import {Script} from "../lib/forge-std/src/Script.sol";
-import {ConveyorSwapAggregator} from "../src/ConveyorSwapAggregator.sol";
-import "../src/test/utils/Console.sol";
-
+import {Script} from "../../lib/forge-std/src/Script.sol";
+import {ConveyorSwapAggregator} from "../ConveyorSwapAggregator.sol";
 contract Deploy is Script {
-    
-    ///@dev Polygon Constructor Constants
-    address constant WMATIC = 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270;
+    ///@dev BSC Constructor Constants
+    address constant WETH = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
 
     function run()
         public
@@ -17,8 +14,12 @@ contract Deploy is Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
         vm.startBroadcast(deployerPrivateKey);
+
         /// Deploy ConveyorSwapAggregator
-        conveyorSwapAggregator = new ConveyorSwapAggregator(WMATIC);
+        conveyorSwapAggregator = new ConveyorSwapAggregator(
+            WETH
+        );
+
         vm.stopBroadcast();
     }
 }

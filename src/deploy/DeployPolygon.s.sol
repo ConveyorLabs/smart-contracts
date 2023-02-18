@@ -1,24 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import {Script} from "../lib/forge-std/src/Script.sol";
-import {ConveyorExecutor} from "../src/ConveyorExecutor.sol";
-import {SandboxLimitOrderBook} from "../src/SandboxLimitOrderBook.sol";
-import {SandboxLimitOrderRouter} from "../src/SandboxLimitOrderRouter.sol";
-import {ConveyorSwapAggregator} from "../src/ConveyorSwapAggregator.sol";
-import {LimitOrderRouter} from "../src/LimitOrderRouter.sol";
-import {LimitOrderQuoter} from "../src/LimitOrderQuoter.sol";
-import "../src/test/utils/Console.sol";
+import {Script} from "../../lib/forge-std/src/Script.sol";
+import {ConveyorExecutor} from "../ConveyorExecutor.sol";
+import {SandboxLimitOrderBook} from "../SandboxLimitOrderBook.sol";
+import {SandboxLimitOrderRouter} from "../SandboxLimitOrderRouter.sol";
+import {ConveyorSwapAggregator} from "../ConveyorSwapAggregator.sol";
+import {LimitOrderRouter} from "../LimitOrderRouter.sol";
+import {LimitOrderQuoter} from "../LimitOrderQuoter.sol";
+import "../../test/utils/Console.sol";
 
 contract Deploy is Script {
     ///@dev Minimum Execution Credits
     uint256 constant MINIMUM_EXECUTION_CREDITS = 1500000000000000;
 
-    address constant WETH = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
-    address constant USDC = 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
+    ///@dev Polygon Constructor Constants
+    address constant WMATIC = 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270;
+    address constant USDC = 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174;
 
-    address constant CAMELOT = 0x6EcCab422D763aC031210895C81787E87B43A652;
-    address constant SUSHISWAP_V2 = 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac;
+    ///@dev Cfmm Factory addresses & deployment hashes
+    address constant SUSHISWAP = 0xc35DADB65012eC5796536bD9864eD8773aBc74C4;
+    address constant QUICKSWAP = 0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32;
     address constant UNISWAP_V3 = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 
     function run()
@@ -39,8 +41,8 @@ contract Deploy is Script {
         _isUniV2[1] = true;
         _isUniV2[2] = false;
 
-        _dexFactories[0] = CAMELOT;
-        _dexFactories[1] = SUSHISWAP_V2;
+        _dexFactories[0] = SUSHISWAP;
+        _dexFactories[1] = QUICKSWAP;
         _dexFactories[2] = UNISWAP_V3;
 
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -48,10 +50,10 @@ contract Deploy is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         /// Deploy LimitOrderQuoter
-        limitOrderQuoter = new LimitOrderQuoter(WETH);
+        limitOrderQuoter = new LimitOrderQuoter(WMATIC);
         /// Deploy ConveyorExecutor
         conveyorExecutor = new ConveyorExecutor(
-            WETH,
+            WMATIC,
             USDC,
             address(limitOrderQuoter),
             _dexFactories,
@@ -66,7 +68,7 @@ contract Deploy is Script {
 
         /// Deploy LimitOrderRouter
         limitOrderRouter = new LimitOrderRouter(
-            WETH,
+            WMATIC,
             USDC,
             address(conveyorExecutor),
             MINIMUM_EXECUTION_CREDITS
@@ -75,7 +77,7 @@ contract Deploy is Script {
         /// Deploy SandboxLimitOrderBook
         sandboxLimitOrderBook = new SandboxLimitOrderBook(
             address(conveyorExecutor),
-            WETH,
+            WMATIC,
             USDC,
             MINIMUM_EXECUTION_CREDITS
         );
@@ -88,4 +90,5 @@ contract Deploy is Script {
 
         vm.stopBroadcast();
     }
+    
 }

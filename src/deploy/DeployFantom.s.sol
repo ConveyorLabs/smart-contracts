@@ -1,26 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import {Script} from "../lib/forge-std/src/Script.sol";
-import {ConveyorExecutor} from "../src/ConveyorExecutor.sol";
-import {SandboxLimitOrderBook} from "../src/SandboxLimitOrderBook.sol";
-import {SandboxLimitOrderRouter} from "../src/SandboxLimitOrderRouter.sol";
-import {ConveyorSwapAggregator} from "../src/ConveyorSwapAggregator.sol";
-import {LimitOrderRouter} from "../src/LimitOrderRouter.sol";
-import {LimitOrderQuoter} from "../src/LimitOrderQuoter.sol";
-import "../src/test/utils/Console.sol";
+import {Script} from "../../lib/forge-std/src/Script.sol";
+import {ConveyorExecutor} from "../ConveyorExecutor.sol";
+import {SandboxLimitOrderBook} from "../SandboxLimitOrderBook.sol";
+import {SandboxLimitOrderRouter} from "../SandboxLimitOrderRouter.sol";
+import {ConveyorSwapAggregator} from "../ConveyorSwapAggregator.sol";
+import {LimitOrderRouter} from "../LimitOrderRouter.sol";
+import {LimitOrderQuoter} from "../LimitOrderQuoter.sol";
+import "../../test/utils/Console.sol";
 
 contract Deploy is Script {
     ///@dev Minimum Execution Credits
     uint256 constant MINIMUM_EXECUTION_CREDITS = 1500000000000000;
 
-    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    address constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address constant UNISWAP_V2 = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
-    address constant PANCAKESWAP_V2 =
-0x1097053Fd2ea711dad45caCcc45EfF7548fCB362;
-    address constant SUSHISWAP_V2 = 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac;
-    address constant UNISWAP_V3 = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
+    address constant WFTM = 0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83;
+    address constant USDC = 0x04068DA6C83AFCFA0e13ba15A6696662335D5B75;
+
+    address constant SPIRITSWAP = 0xEF45d134b73241eDa7703fa787148D9C9F4950b0;
+    address constant SPOOKYSWAP = 0x152eE697f2E276fA89E96742e9bB9aB1F2E61bE3;
+    address constant SUSHISWAP = 0xc35DADB65012eC5796536bD9864eD8773aBc74C4;
 
     function run()
         public
@@ -33,28 +32,27 @@ contract Deploy is Script {
             ConveyorSwapAggregator conveyorSwapAggregator
         )
     {
-        address[] memory _dexFactories = new address[](4);
-        bool[] memory _isUniV2 = new bool[](4);
+        address[] memory _dexFactories = new address[](3);
+        bool[] memory _isUniV2 = new bool[](3);
 
         _isUniV2[0] = true;
         _isUniV2[1] = true;
         _isUniV2[2] = true;
-        _isUniV2[3] = false;
 
-        _dexFactories[0] = UNISWAP_V2;
-        _dexFactories[1] = SUSHISWAP_V2;
-        _dexFactories[2] = PANCAKESWAP_V2;
-        _dexFactories[3] = UNISWAP_V3;
+        _dexFactories[0] = SPIRITSWAP;
+        _dexFactories[1] = SPOOKYSWAP;
+        _dexFactories[2] = SUSHISWAP;
+
 
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
         vm.startBroadcast(deployerPrivateKey);
 
         /// Deploy LimitOrderQuoter
-        limitOrderQuoter = new LimitOrderQuoter(WETH);
+        limitOrderQuoter = new LimitOrderQuoter(WFTM);
         /// Deploy ConveyorExecutor
         conveyorExecutor = new ConveyorExecutor(
-            WETH,
+            WFTM,
             USDC,
             address(limitOrderQuoter),
             _dexFactories,
@@ -69,7 +67,7 @@ contract Deploy is Script {
 
         /// Deploy LimitOrderRouter
         limitOrderRouter = new LimitOrderRouter(
-            WETH,
+            WFTM,
             USDC,
             address(conveyorExecutor),
             MINIMUM_EXECUTION_CREDITS
@@ -78,7 +76,7 @@ contract Deploy is Script {
         /// Deploy SandboxLimitOrderBook
         sandboxLimitOrderBook = new SandboxLimitOrderBook(
             address(conveyorExecutor),
-            WETH,
+            WFTM,
             USDC,
             MINIMUM_EXECUTION_CREDITS
         );
