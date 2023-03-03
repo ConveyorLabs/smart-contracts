@@ -84,23 +84,7 @@ contract ConveyorSwapAggregator {
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable {
         ///@notice Deposit the msg.value into WETH.
-        address _weth = WETH;
-        assembly {
-            mstore(0x0, shl(224, 0xd0e30db0)) /* keccak256("deposit()") */
-            if iszero(
-                call(
-                    gas(), /* gas */
-                    _weth, /* to */
-                    callvalue(), /* value */
-                    0, /* in */
-                    0, /* in size */
-                    0, /* out */
-                    0 /* out size */
-                )
-            ) {
-                revert("Native token deposit failed", 0)
-            }
-        }
+        _depositWeth(msg.value, WETH);
 
         ///@notice Transfer WETH from WETH to tokenInDestination address.
         IERC20(WETH).transfer(
@@ -118,18 +102,11 @@ contract ConveyorSwapAggregator {
             swapAggregatorMulticall.calls
         );
 
-        bool sufficient;
-
         ///@notice Get tokenOut balance of msg.sender after multicall execution.
         uint256 balanceOut = IERC20(tokenOut).balanceOf(msg.sender);
 
-        // Check if tokenOut balance of msg.sender is sufficient.
-        assembly {
-            sufficient := iszero(gt(tokenOutAmountRequired, balanceOut))
-        }
-
         ///@notice Revert if tokenOut balance of msg.sender is insufficient.
-        if (!sufficient) {
+        if (balanceOut < tokenOutAmountRequired) {
             revert InsufficientOutputAmount(
                 tokenOutAmountRequired - balanceOut,
                 amountOutMin
@@ -156,7 +133,7 @@ contract ConveyorSwapAggregator {
         );
         ///@notice Calculate amountOutRequired.
         uint256 amountOutRequired = msg.sender.balance + amountOutMin;
-        
+
         ///@notice Execute Multicall.
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall.calls
@@ -166,36 +143,10 @@ contract ConveyorSwapAggregator {
         uint256 balanceWeth = IERC20(WETH).balanceOf(address(this));
 
         ///@notice Withdraw WETH from this contract.
-        address _weth = WETH;
-        assembly {
-            mstore(0x0, shl(224, 0x2e1a7d4d)) /* keccak256("withdraw(uint256)") */
-            mstore(4, balanceWeth)
-            if iszero(
-                call(
-                    gas(), /* gas */
-                    _weth, /* to */
-                    0, /* value */
-                    0, /* in */
-                    68, /* in size */
-                    0, /* out */
-                    0 /* out size */
-                )
-            ) {
-                revert("Native Token Withdraw failed", balanceWeth)
-            }
-        }
+        _withdrawWeth(balanceWeth, WETH);
 
-        bool success;
-
-        assembly {
-            // Transfer the ETH and store if it succeeded or not.
-            success := call(gas(), caller(), selfbalance(), 0, 0, 0, 0)
-        }
-
-        if (!success) {
-            revert ETHTransferFailed();
-        }
-
+        ///@notice Transfer ETH to msg.sender.
+        _safeTransferETH(msg.sender, address(this).balance);
 
         ///@notice Revert if Eth balance of the caller is insufficient.
         if (msg.sender.balance < amountOutRequired) {
@@ -206,9 +157,62 @@ contract ConveyorSwapAggregator {
         }
     }
 
+    ///@notice Helper function to transfer ETH.
+    function _safeTransferETH(address to, uint256 amount) internal {
+        bool success;
+        assembly {
+            // Transfer the ETH and store if it succeeded or not.
+            success := call(gas(), to, amount, 0, 0, 0, 0)
+        }
+
+        if (!success) {
+            revert ETHTransferFailed();
+        }
+    }
+
+    /// @notice Helper function to Withdraw ETH from WETH.
+    function _withdrawWeth(uint256 amount, address weth) internal {
+        assembly {
+            mstore(0x0, shl(224, 0x2e1a7d4d)) /* keccak256("withdraw(uint256)") */
+            mstore(4, amount)
+            if iszero(
+                call(
+                    gas(), /* gas */
+                    weth, /* to */
+                    0, /* value */
+                    0, /* in */
+                    68, /* in size */
+                    0, /* out */
+                    0 /* out size */
+                )
+            ) {
+                revert("Native Token Withdraw failed", amount)
+            }
+        }
+    }
+
+    /// @notice Helper function to Deposit ETH into WETH.
+    function _depositWeth(uint256 amount, address weth) internal {
+        assembly {
+            mstore(0x0, shl(224, 0xd0e30db0)) /* keccak256("deposit()") */
+            if iszero(
+                call(
+                    gas(), /* gas */
+                    weth, /* to */
+                    amount, /* value */
+                    0, /* in */
+                    0, /* in size */
+                    0, /* out */
+                    0 /* out size */
+                )
+            ) {
+                revert("Native token deposit failed", 0)
+            }
+        }
+    }
+
     receive() external payable {}
 }
-
 
 contract ConveyorSwapExecutor {
     ///@notice Executes a multicall.
