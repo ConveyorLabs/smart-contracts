@@ -130,8 +130,9 @@ contract ConveyorSwapAggregatorTest is DSTest {
         address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint256 amountIn = 1900000000000000000000;
         uint256 amountOutMin = 54776144172760093;
+  
         address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
-
+        uint256 balanceBefore = address(this).balance;
         swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
         IERC20(tokenIn).approve(
             address(conveyorSwapAggregator),
@@ -150,6 +151,8 @@ contract ConveyorSwapAggregatorTest is DSTest {
             );
 
         conveyorSwapAggregator.swapExactTokenForEth(tokenIn, amountIn, amountOutMin, multicall);
+        console.log("balance before", balanceBefore);
+        console.log("balance after", address(this).balance);
            
     }
     receive() external payable {}
@@ -164,7 +167,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         uint256 amountOutMin = 4948702184313056519683340;
         address firstLP = 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0;
         address secondLP = 0xdC1D67Bc953Bf67F007243c7DED42d67410a6De5;
-
+        
         swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
         IERC20(tokenIn).approve(
             address(conveyorSwapAggregator),
@@ -195,6 +198,8 @@ contract ConveyorSwapAggregatorTest is DSTest {
             amountOutMin,
             multicall
         );
+     
+
     }
 
     function testSwapUniv3SingleLP() public {

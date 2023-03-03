@@ -16,9 +16,9 @@ contract ConveyorSwapAggregator {
     address public immutable CONVEYOR_SWAP_EXECUTOR;
     address public immutable WETH;
 
-    constructor(address _weth) {
+    constructor(address _weth, address _conveyorSwapExecutor) {
         WETH = _weth;
-        CONVEYOR_SWAP_EXECUTOR = address(new ConveyorSwapExecutor());
+        CONVEYOR_SWAP_EXECUTOR = _conveyorSwapExecutor;
     }
 
     /// @notice Multicall struct for token Swaps.
