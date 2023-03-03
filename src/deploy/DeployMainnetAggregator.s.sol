@@ -1,25 +1,26 @@
-// // SPDX-License-Identifier: MIT
-// pragma solidity 0.8.16;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.16;
 
-// import {Script} from "../../lib/forge-std/src/Script.sol";
-// import {ConveyorSwapAggregator} from "../ConveyorSwapAggregator.sol";
+import {Script} from "../../lib/forge-std/src/Script.sol";
+import {ConveyorSwapAggregator} from "../ConveyorSwapAggregator.sol";
 
+contract Deploy is Script {
+    ///@dev Mainnet Constructor Constants
+    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address constant CONVEYOR_SWAP_EXECUTOR =
+        0xD4c5F21A568e5e856A658829B581fe37029e699c;
 
-// contract Deploy is Script {
-//     ///@dev Mainnet Constructor Constants
-//     address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    function run()
+        public
+        returns (ConveyorSwapAggregator conveyorSwapAggregator)
+    {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
-//     function run()
-//         public
-//         returns (ConveyorSwapAggregator conveyorSwapAggregator)
-//     {
-//         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        vm.startBroadcast(deployerPrivateKey);
 
-//         vm.startBroadcast(deployerPrivateKey);
+        /// Deploy ConveyorSwapAggregator
+        conveyorSwapAggregator = new ConveyorSwapAggregator(WETH, CONVEYOR_SWAP_EXECUTOR);
 
-//         /// Deploy ConveyorSwapAggregator
-//         conveyorSwapAggregator = new ConveyorSwapAggregator(WETH);
-
-//         vm.stopBroadcast();
-//     }
-// }
+        vm.stopBroadcast();
+    }
+}
