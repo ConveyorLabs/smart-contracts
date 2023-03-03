@@ -1,21 +1,21 @@
-// SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+// // SPDX-License-Identifier: MIT
+// pragma solidity 0.8.16;
 
-import {Script} from "../../lib/forge-std/src/Script.sol";
-import {UniswapInterfaceMulticall} from "../UniswapInterfaceMulticall.sol";
-contract Deploy is Script {
+// import {Script} from "../../lib/forge-std/src/Script.sol";
+// import {UniswapInterfaceMulticall} from "../UniswapInterfaceMulticall.sol";
+// contract Deploy is Script {
 
-    function run()
-        public
-        returns (UniswapInterfaceMulticall uniswapInterfaceMulticall)
-    {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+//     function run()
+//         public
+//         returns (UniswapInterfaceMulticall uniswapInterfaceMulticall)
+//     {
+//         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
-        vm.startBroadcast(deployerPrivateKey);
+//         vm.startBroadcast(deployerPrivateKey);
 
-        /// Deploy ConveyorSwapAggregator
-        uniswapInterfaceMulticall = new UniswapInterfaceMulticall();
+//         /// Deploy ConveyorSwapAggregator
+//         uniswapInterfaceMulticall = new UniswapInterfaceMulticall();
 
-        vm.stopBroadcast();
-    }
-}
+//         vm.stopBroadcast();
+//     }
+// }
