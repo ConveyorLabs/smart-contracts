@@ -92,10 +92,10 @@ contract ConveyorSwapAggregator {
             msg.value
         );
 
-        ///@notice Get tokenOut balance of msg.sender.
-        uint256 tokenOutBalance = IERC20(tokenOut).balanceOf(msg.sender);
         ///@notice Calculate tokenOut amount required.
-        uint256 tokenOutAmountRequired = tokenOutBalance + amountOutMin;
+        uint256 tokenOutAmountRequired = IERC20(tokenOut).balanceOf(
+            msg.sender
+        ) + amountOutMin;
 
         ///@notice Execute Multicall.
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
