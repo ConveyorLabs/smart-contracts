@@ -84,7 +84,7 @@ contract ConveyorSwapAggregator {
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable {
         ///@notice Deposit the msg.value into WETH.
-        _depositWeth(msg.value, WETH);
+        _depositEth(msg.value, WETH);
 
         ///@notice Transfer WETH from WETH to tokenInDestination address.
         IERC20(WETH).transfer(
@@ -143,7 +143,7 @@ contract ConveyorSwapAggregator {
         uint256 balanceWeth = IERC20(WETH).balanceOf(address(this));
 
         ///@notice Withdraw WETH from this contract.
-        _withdrawWeth(balanceWeth, WETH);
+        _withdrawEth(balanceWeth, WETH);
 
         ///@notice Transfer ETH to msg.sender.
         _safeTransferETH(msg.sender, address(this).balance);
@@ -171,7 +171,7 @@ contract ConveyorSwapAggregator {
     }
 
     /// @notice Helper function to Withdraw ETH from WETH.
-    function _withdrawWeth(uint256 amount, address weth) internal {
+    function _withdrawEth(uint256 amount, address weth) internal {
         assembly {
             mstore(0x0, shl(224, 0x2e1a7d4d)) /* keccak256("withdraw(uint256)") */
             mstore(4, amount)
@@ -192,7 +192,7 @@ contract ConveyorSwapAggregator {
     }
 
     /// @notice Helper function to Deposit ETH into WETH.
-    function _depositWeth(uint256 amount, address weth) internal {
+    function _depositEth(uint256 amount, address weth) internal {
         assembly {
             mstore(0x0, shl(224, 0xd0e30db0)) /* keccak256("deposit()") */
             if iszero(
