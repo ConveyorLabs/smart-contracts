@@ -125,7 +125,7 @@ contract ConveyorSwapAggregator {
 
         // Check if tokenOut balance of msg.sender is sufficient.
         assembly {
-            sufficient := not(gt(tokenOutAmountRequired, balanceOut))
+            sufficient := iszero(gt(tokenOutAmountRequired, balanceOut))
         }
 
         ///@notice Revert if tokenOut balance of msg.sender is insufficient.
