@@ -4,15 +4,15 @@ pragma solidity 0.8.16;
 import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Utils.sol";
-import "../LimitOrderBook.sol";
-import "../interfaces/ILimitOrderBook.sol";
-import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
-import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
-import "../../lib/interfaces/token/IERC20.sol";
+import "../src/LimitOrderBook.sol";
+import "../src/interfaces/ILimitOrderBook.sol";
+import "../src/../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
+import "../src/../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
+import "../src/../lib/interfaces/token/IERC20.sol";
 import "./utils/Swap.sol";
-import "../LimitOrderQuoter.sol";
-import "../ConveyorExecutor.sol";
-import "../LimitOrderSwapRouter.sol";
+import "../src/LimitOrderQuoter.sol";
+import "../src/ConveyorExecutor.sol";
+import "../src/LimitOrderSwapRouter.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -99,7 +99,6 @@ contract LimitOrderBookTest is DSTest {
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             address(limitOrderQuoter),
-            _hexDems,
             _dexFactories,
             _isUniV2,
             minExecutionCredit

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import "../../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
-import "../../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
-import "../../../lib/interfaces/token/IWETH.sol";
+import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
+import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
+import "../../lib/interfaces/token/IWETH.sol";
 
 contract Swap {
     address WETH;

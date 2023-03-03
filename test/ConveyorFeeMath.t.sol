@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import "../lib/ConveyorFeeMath.sol";
+import "../src/lib/ConveyorFeeMath.sol";
 import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Utils.sol";
 import "./utils/Swap.sol";
-import "../../lib/interfaces/uniswap-v3/ISwapRouter.sol";
-import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
-import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
-import "../../lib/interfaces/token/IERC20.sol";
-import "../LimitOrderSwapRouter.sol";
+import "../lib/interfaces/uniswap-v3/ISwapRouter.sol";
+import "../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
+import "../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
+import "../lib/interfaces/token/IERC20.sol";
+import "../src/LimitOrderSwapRouter.sol";
 import "./utils/ScriptRunner.sol";
-import "../../lib/libraries/Uniswap/LowGasSafeMath.sol";
-import "../../lib/libraries/Uniswap/FullMath.sol";
-import "../LimitOrderBook.sol";
-import "../LimitOrderQuoter.sol";
-import "../ConveyorExecutor.sol";
+import "../lib/libraries/Uniswap/LowGasSafeMath.sol";
+import "../lib/libraries/Uniswap/FullMath.sol";
+import "../src/LimitOrderBook.sol";
+import "../src/LimitOrderQuoter.sol";
+import "../src/ConveyorExecutor.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -69,7 +69,6 @@ contract ConveyorFeeMathTest is DSTest {
         scriptRunner = new ScriptRunner();
 
         limitOrderExecutor = new LimitOrderExecutorWrapper(
-            _hexDems,
             _dexFactories,
             _isUniV2
         );
@@ -177,11 +176,9 @@ contract ConveyorFeeMathTest is DSTest {
 
 //wrapper around LimitOrderSwapRouter to expose internal functions for testing
 contract LimitOrderExecutorWrapper is LimitOrderSwapRouter {
-    constructor(
-        bytes32[] memory _initBytecodes,
-        address[] memory _dexFactories,
-        bool[] memory _isUniV2
-    ) LimitOrderSwapRouter(_initBytecodes, _dexFactories, _isUniV2) {}
+    constructor(address[] memory _dexFactories, bool[] memory _isUniV2)
+        LimitOrderSwapRouter(_dexFactories, _isUniV2)
+    {}
 
     function getV3PoolFee(address pairAddress)
         public
@@ -244,10 +241,9 @@ contract LimitOrderExecutorWrapper is LimitOrderSwapRouter {
     function calculateV2SpotPrice(
         address token0,
         address token1,
-        address _factory,
-        bytes32 _initBytecode
+        address _factory
     ) public view returns (SpotReserve memory spRes, address poolAddress) {
-        return _calculateV2SpotPrice(token0, token1, _factory, _initBytecode);
+        return _calculateV2SpotPrice(token0, token1, _factory);
     }
 
     function calculateV3SpotPrice(

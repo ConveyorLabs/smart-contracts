@@ -5,7 +5,7 @@
 cache/
 out/
 .gas-snapshot
-
+src/artifacts
 .vscode
 .vscode/settings.json
 .env
