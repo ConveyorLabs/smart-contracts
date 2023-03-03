@@ -155,10 +155,8 @@ contract ConveyorSwapAggregator {
             amountIn
         );
         ///@notice Calculate amountOutRequired.
-        uint256 amountOutRequired;
-        assembly {
-            amountOutRequired := add(balance(caller()), amountOutMin)
-        }
+        uint256 amountOutRequired = msg.sender.balance + amountOutMin;
+        
         ///@notice Execute Multicall.
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall.calls
