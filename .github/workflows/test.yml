@@ -5,10 +5,12 @@ on:
     branches:
       - production
       - staging
+      - deployment
   pull_request:
     branches:
       - production
       - staging
+      - deployment
 
 jobs:
   check:

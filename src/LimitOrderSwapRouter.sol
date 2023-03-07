@@ -33,7 +33,6 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     ///@param isUniV2 - Boolean to distinguish if the DEX is UniV2 compatible.
     struct Dex {
         address factoryAddress;
-        bytes32 initBytecode;
         bool isUniV2;
     }
 
@@ -121,28 +120,21 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
 
     /**@dev It is important to note that a univ2 compatible DEX must be initialized in the 0th index.
         The calculateFee function relies on a uniV2 DEX to be in the 0th index.*/
-    ///@param _deploymentByteCodes - Array of DEX creation init bytecodes.
     ///@param _dexFactories - Array of DEX factory addresses.
     ///@param _isUniV2 - Array of booleans indicating if the DEX is UniV2 compatible.
-    constructor(
-        bytes32[] memory _deploymentByteCodes,
-        address[] memory _dexFactories,
-        bool[] memory _isUniV2
-    ) {
+    constructor(address[] memory _dexFactories, bool[] memory _isUniV2) {
         ///@notice Initialize DEXs and other variables
-        for (uint256 i = 0; i < _deploymentByteCodes.length; ++i) {
+        for (uint256 i = 0; i < _dexFactories.length; ++i) {
             if (i == 0) {
                 require(_isUniV2[i], "First Dex must be uniswap v2");
             }
             require(
-                _deploymentByteCodes[i] != bytes32(0) &&
-                    _dexFactories[i] != address(0),
+                _dexFactories[i] != address(0),
                 "Zero values in constructor"
             );
             dexes.push(
                 Dex({
                     factoryAddress: _dexFactories[i],
-                    initBytecode: _deploymentByteCodes[i],
                     isUniV2: _isUniV2[i]
                 })
             );
@@ -195,8 +187,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
         (SpotReserve memory _spRes, ) = _calculateV2SpotPrice(
             weth,
             usdc,
-            dexes[0].factoryAddress,
-            dexes[0].initBytecode
+            dexes[0].factoryAddress
         );
 
         ///@notice Cache the spot price
@@ -493,12 +484,10 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     /// @param token0 - Address of token1.
     /// @param token1 - Address of token2.
     /// @param _factory - Factory address.
-    /// @param _initBytecode - Initialization bytecode of the v2 factory contract.
     function _calculateV2SpotPrice(
         address token0,
         address token1,
-        address _factory,
-        bytes32 _initBytecode
+        address _factory
     ) internal view returns (SpotReserve memory spRes, address poolAddress) {
         ///@notice Require token address's are not identical
 
@@ -517,12 +506,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
         SpotReserve memory _spRes;
 
         ///@notice Get pool address on the token pair.
-        address pairAddress = _getV2PairAddress(
-            _factory,
-            tok0,
-            tok1,
-            _initBytecode
-        );
+        address pairAddress = _getV2PairAddress(_factory, tok0, tok1);
 
         bool token0IsReserve0 = tok0 == token0 ? true : false;
 
@@ -633,27 +617,12 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     ///@param _factory - Factory address of the Dex.
     ///@param token0 - Token0 address.
     ///@param token1 - Token1 address.
-    ///@param _initBytecode - Initialization bytecode of the factory contract.
     function _getV2PairAddress(
         address _factory,
         address token0,
-        address token1,
-        bytes32 _initBytecode
-    ) internal pure returns (address pairAddress) {
-        pairAddress = address(
-            uint160(
-                uint256(
-                    keccak256(
-                        abi.encodePacked(
-                            hex"ff",
-                            _factory,
-                            keccak256(abi.encodePacked(token0, token1)),
-                            _initBytecode
-                        )
-                    )
-                )
-            )
-        );
+        address token1
+    ) internal view returns (address pairAddress) {
+        pairAddress = IUniswapV2Factory(_factory).getPair(token0, token1);
     }
 
     /// @notice Helper function to return sorted token addresses.
@@ -732,8 +701,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
                         ) = _calculateV2SpotPrice(
                                 token0,
                                 token1,
-                                dexes[i].factoryAddress,
-                                dexes[i].initBytecode
+                                dexes[i].factoryAddress
                             );
                         ///@notice Set SpotReserve and lp values if the returned values are not null.
                         if (spotPrice.spotPrice != 0) {

@@ -4,17 +4,17 @@ pragma solidity 0.8.16;
 import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Utils.sol";
-import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
-import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
-import "../../lib/interfaces/token/IERC20.sol";
+import "../src/../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
+import "../src/../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
+import "../src/../lib/interfaces/token/IERC20.sol";
 import "./utils/Swap.sol";
-import "../../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
+import "../src/../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "./utils/ScriptRunner.sol";
-import "../LimitOrderRouter.sol";
-import "../LimitOrderQuoter.sol";
-import "../ConveyorExecutor.sol";
-import "../interfaces/ILimitOrderRouter.sol";
-import "../interfaces/ILimitOrderBook.sol";
+import "../src/LimitOrderRouter.sol";
+import "../src/LimitOrderQuoter.sol";
+import "../src/ConveyorExecutor.sol";
+import "../src/interfaces/ILimitOrderRouter.sol";
+import "../src/interfaces/ILimitOrderBook.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -98,7 +98,6 @@ contract LimitOrderExecutorTest is DSTest {
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
             address(limitOrderQuoter),
-            _hexDems,
             _dexFactories,
             _isUniV2,
             1
@@ -251,7 +250,7 @@ contract LimitOrderExecutorTest is DSTest {
         }
         if (run) {
             cheatCodes.prank(tx.origin);
-        limitOrderExecutor.checkIn();
+            limitOrderExecutor.checkIn();
             cheatCodes.deal(address(swapHelper), MAX_UINT);
             swapHelper.swapEthForTokenWithUniV2(1000 ether, DAI);
             IERC20(DAI).approve(address(limitOrderExecutor), MAX_UINT);
@@ -594,8 +593,7 @@ contract LimitOrderExecutorTest is DSTest {
             ) = limitOrderExecutor.calculateV2SpotPrice(
                     WETH,
                     TAXED_TOKEN,
-                    _uniV2FactoryAddress,
-                    _uniswapV2HexDem
+                    _uniV2FactoryAddress
                 );
 
             ///@notice Slippage
@@ -2942,7 +2940,6 @@ contract LimitOrderExecutorWrapper is ConveyorExecutor {
         address _weth,
         address _usdc,
         address _limitOrderQuoter,
-        bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2,
         uint256 _minExecutionCredit
@@ -2951,7 +2948,6 @@ contract LimitOrderExecutorWrapper is ConveyorExecutor {
             _weth,
             _usdc,
             _limitOrderQuoter,
-            _initBytecodes,
             _dexFactories,
             _isUniV2,
             _minExecutionCredit
@@ -3019,10 +3015,9 @@ contract LimitOrderExecutorWrapper is ConveyorExecutor {
     function calculateV2SpotPrice(
         address token0,
         address token1,
-        address _factory,
-        bytes32 _initBytecode
+        address _factory
     ) public view returns (SpotReserve memory spRes, address poolAddress) {
-        return _calculateV2SpotPrice(token0, token1, _factory, _initBytecode);
+        return _calculateV2SpotPrice(token0, token1, _factory);
     }
 
     function calculateV3SpotPrice(

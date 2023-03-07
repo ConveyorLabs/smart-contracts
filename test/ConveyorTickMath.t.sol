@@ -4,15 +4,15 @@ pragma solidity ^0.8.16;
 import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Utils.sol";
-import "../../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
-import "../../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
-import "../../lib/interfaces/token/IERC20.sol";
+import "../src/../lib/interfaces/uniswap-v2/IUniswapV2Router02.sol";
+import "../src/../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
+import "../src/../lib/interfaces/token/IERC20.sol";
 import "./utils/Swap.sol";
-import "../../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
+import "../src/../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "./utils/ScriptRunner.sol";
-import "../lib/ConveyorTickMath.sol";
-import "../../lib/interfaces/uniswap-v3/IQuoter.sol";
-import "../LimitOrderSwapRouter.sol";
+import "../src/lib/ConveyorTickMath.sol";
+import "../src/../lib/interfaces/uniswap-v3/IQuoter.sol";
+import "../src/LimitOrderSwapRouter.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -102,7 +102,7 @@ contract ConveyorTickMathTest is DSTest {
         iQuoter = IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
         //Initialize the Sw
 
-        swapRouter = new SwapRouterWrapper(_hexDems, _dexFactories, _isUniV2);
+        swapRouter = new SwapRouterWrapper(_dexFactories, _isUniV2);
         cheatCodes.makePersistent(address(swapRouter));
         cheatCodes.makePersistent(address(conveyorTickMath));
     }
@@ -291,10 +291,9 @@ contract ConveyorTickMathWrapper is ConveyorTickMath {
 
 contract SwapRouterWrapper is LimitOrderSwapRouter {
     constructor(
-        bytes32[] memory _initBytecodes,
         address[] memory _dexFactories,
         bool[] memory _isUniV2
-    ) LimitOrderSwapRouter(_initBytecodes, _dexFactories, _isUniV2) {}
+    ) LimitOrderSwapRouter(_dexFactories, _isUniV2) {}
 
     function swapV3(
         address _lp,
