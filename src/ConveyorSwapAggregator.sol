@@ -5,8 +5,9 @@ import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 
 interface IConveyorSwapExecutor {
-    function executeMulticall(ConveyorSwapAggregator.Call[] memory calls)
-        external;
+    function executeMulticall(
+        ConveyorSwapAggregator.Call[] memory calls
+    ) external;
 }
 
 /// @title ConveyorSwapAggregator
@@ -49,12 +50,15 @@ contract ConveyorSwapAggregator {
         uint256 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external {
-        ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
-        IERC20(tokenIn).transferFrom(
-            msg.sender,
-            swapAggregatorMulticall.tokenInDestination,
-            amountIn
-        );
+        ///@dev Ignore if the tokenInDestination is address(0).
+        if (swapAggregatorMulticall.tokenInDestination != address(0)) {
+            ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
+            IERC20(tokenIn).transferFrom(
+                msg.sender,
+                swapAggregatorMulticall.tokenInDestination,
+                amountIn
+            );
+        }
 
         ///@notice Get tokenOut balance of msg.sender.
         uint256 tokenOutBalance = IERC20(tokenOut).balanceOf(msg.sender);
@@ -125,12 +129,16 @@ contract ConveyorSwapAggregator {
         uint256 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external {
-        ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
-        IERC20(tokenIn).transferFrom(
-            msg.sender,
-            swapAggregatorMulticall.tokenInDestination,
-            amountIn
-        );
+        ///@dev Ignore if the tokenInDestination is address(0).
+        if (swapAggregatorMulticall.tokenInDestination != address(0)) {
+            ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
+            IERC20(tokenIn).transferFrom(
+                msg.sender,
+                swapAggregatorMulticall.tokenInDestination,
+                amountIn
+            );
+        }
+
         ///@notice Calculate amountOutRequired.
         uint256 amountOutRequired = msg.sender.balance + amountOutMin;
 
@@ -173,16 +181,19 @@ contract ConveyorSwapAggregator {
     /// @notice Helper function to Withdraw ETH from WETH.
     function _withdrawEth(uint256 amount, address weth) internal {
         assembly {
-            mstore(0x0, shl(224, 0x2e1a7d4d)) /* keccak256("withdraw(uint256)") */
+            mstore(
+                0x0,
+                shl(224, 0x2e1a7d4d)
+            ) /* keccak256("withdraw(uint256)") */
             mstore(4, amount)
             if iszero(
                 call(
-                    gas(), /* gas */
-                    weth, /* to */
-                    0, /* value */
-                    0, /* in */
-                    68, /* in size */
-                    0, /* out */
+                    gas() /* gas */,
+                    weth /* to */,
+                    0 /* value */,
+                    0 /* in */,
+                    68 /* in size */,
+                    0 /* out */,
                     0 /* out size */
                 )
             ) {
@@ -197,12 +208,12 @@ contract ConveyorSwapAggregator {
             mstore(0x0, shl(224, 0xd0e30db0)) /* keccak256("deposit()") */
             if iszero(
                 call(
-                    gas(), /* gas */
-                    weth, /* to */
-                    amount, /* value */
-                    0, /* in */
-                    0, /* in size */
-                    0, /* out */
+                    gas() /* gas */,
+                    weth /* to */,
+                    amount /* value */,
+                    0 /* in */,
+                    0 /* in size */,
+                    0 /* out */,
                     0 /* out size */
                 )
             ) {
@@ -216,9 +227,9 @@ contract ConveyorSwapAggregator {
 
 contract ConveyorSwapExecutor {
     ///@notice Executes a multicall.
-    function executeMulticall(ConveyorSwapAggregator.Call[] calldata calls)
-        public
-    {
+    function executeMulticall(
+        ConveyorSwapAggregator.Call[] calldata calls
+    ) public {
         uint256 callsLength = calls.length;
         for (uint256 i = 0; i < callsLength; ) {
             ConveyorSwapAggregator.Call memory call = calls[i];
