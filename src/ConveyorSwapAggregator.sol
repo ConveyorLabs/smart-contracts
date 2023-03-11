@@ -25,6 +25,8 @@ contract ConveyorSwapAggregator {
     /// @param tokenInDestination Address to send tokenIn to.
     /// @param calls Array of calls to be executed.
     struct SwapAggregatorMulticall {
+        uint64 zeroForOneBitMap
+        uint128 toAddressBitMap;
         address tokenInDestination;
         Call[] calls;
     }
@@ -73,6 +75,39 @@ contract ConveyorSwapAggregator {
             );
         }
     }
+
+
+
+    //Note: In human readable format, this is read from right to left, with the right most binary digit being the first representation 
+    //of tokenIsToken0 for the first pool in the route
+    function deriveZeroForOne(uint64 zeroForOneBitmap,  uint256 i) public pure returns (bool){
+
+        if ( 2**i & zeroForOneBitmap == 0){
+            return false;
+        }else{
+            return true;
+        }
+        
+
+    }
+
+    
+    //01 = msg.sender, 10 = executor, 11 = next pool
+    function deriveToAddress(uint128 toAddressBitMap, uint256 i) public pure returns (uint256) {
+
+        if ( 3 << i & toAddressBitMap == 3<<i){
+            return 0x3;
+        }else if (2 << i & toAddressBitMap == 2<<i) {
+            return 0x2;
+        } else if  (1 << i & toAddressBitMap  ==  1 <<i) {
+            return 0x1;
+        }else{
+            //TODO: revert
+        }
+    }
+
+
+
 
     /// @notice Swap ETH for tokens.
     /// @param tokenOut Address of token to receive.
