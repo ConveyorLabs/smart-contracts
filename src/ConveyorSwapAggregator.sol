@@ -63,12 +63,15 @@ contract ConveyorSwapAggregator {
         uint256 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external {
-        ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
-        IERC20(tokenIn).transferFrom(
-            msg.sender,
-            swapAggregatorMulticall.tokenInDestination,
-            amountIn
-        );
+        ///@dev Ignore if the tokenInDestination is address(0).
+        if (swapAggregatorMulticall.tokenInDestination != address(0)) {
+            ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
+            IERC20(tokenIn).transferFrom(
+                msg.sender,
+                swapAggregatorMulticall.tokenInDestination,
+                amountIn
+            );
+        }
 
         ///@notice Get tokenOut balance of msg.sender.
         uint256 tokenOutBalance = IERC20(tokenOut).balanceOf(msg.sender);
@@ -143,12 +146,16 @@ contract ConveyorSwapAggregator {
         uint256 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external {
-        ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
-        IERC20(tokenIn).transferFrom(
-            msg.sender,
-            swapAggregatorMulticall.tokenInDestination,
-            amountIn
-        );
+        ///@dev Ignore if the tokenInDestination is address(0).
+        if (swapAggregatorMulticall.tokenInDestination != address(0)) {
+            ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
+            IERC20(tokenIn).transferFrom(
+                msg.sender,
+                swapAggregatorMulticall.tokenInDestination,
+                amountIn
+            );
+        }
+
         ///@notice Calculate amountOutRequired.
         uint256 amountOutRequired = msg.sender.balance + amountOutMin;
 
@@ -246,6 +253,7 @@ contract ConveyorSwapExecutor {
 
     ///@notice Executes a multicall.
     function executeMulticall(
+
         ConveyorSwapAggregator.SwapAggregatorMulticall
             calldata swapAggregatorMulticall,
         uint256 amountIn,
@@ -257,6 +265,7 @@ contract ConveyorSwapExecutor {
         ///@notice Create a bytes array to store the calldata for v2 swaps.
         bytes memory callData;
         ///@notice Iterate through the calls array.
+
         for (uint256 i = 0; i < callsLength; ) {
             ///@notice Get the call from the calls array.
             ConveyorSwapAggregator.Call memory call = swapAggregatorMulticall
