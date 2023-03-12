@@ -4,12 +4,13 @@ pragma solidity 0.8.16;
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
-
+import "../test/utils/Console.sol";
 interface IConveyorSwapExecutor {
     function executeMulticall(
         ConveyorSwapAggregator.SwapAggregatorMulticall
             calldata swapAggregatorMulticall,
-        uint256 amountIn
+        uint256 amountIn,
+        address receiver
     ) external;
 }
 
@@ -47,7 +48,6 @@ contract ConveyorSwapAggregator {
     struct Call {
         address target;
         bytes callData;
-        bool isUniV2;
     }
 
     /// @notice Swap tokens for tokens.
@@ -78,7 +78,8 @@ contract ConveyorSwapAggregator {
         ///@notice Execute Multicall.
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall,
-            amountIn
+            amountIn,
+            msg.sender
         );
         ///@notice Check if tokenOut balance of msg.sender is sufficient.
         if (IERC20(tokenOut).balanceOf(msg.sender) < tokenOutAmountRequired) {
@@ -115,7 +116,8 @@ contract ConveyorSwapAggregator {
         ///@notice Execute Multicall.
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall,
-            msg.value
+            msg.value,
+            msg.sender
         );
 
         ///@notice Get tokenOut balance of msg.sender after multicall execution.
@@ -153,7 +155,8 @@ contract ConveyorSwapAggregator {
         ///@notice Execute Multicall.
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall,
-            amountIn
+            amountIn,
+            msg.sender
         );
 
         ///@notice Get WETH balance of this contract.
@@ -245,7 +248,8 @@ contract ConveyorSwapExecutor {
     function executeMulticall(
         ConveyorSwapAggregator.SwapAggregatorMulticall
             calldata swapAggregatorMulticall,
-        uint256 amountIn
+        uint256 amountIn,
+        address payable recipient
     ) public {
         ///@notice Get the length of the calls array.
         uint256 callsLength = swapAggregatorMulticall.calls.length;
@@ -266,6 +270,7 @@ contract ConveyorSwapExecutor {
             if (
                 deriveBoolFromBitmap(swapAggregatorMulticall.isUniV2BitMap, i)
             ) {
+
                 ///@notice Instantiate the receiver address for the v2 swap.
                 address receiver;
                 {
@@ -283,11 +288,12 @@ contract ConveyorSwapExecutor {
                     } else if (toAddressBitPattern == 0x2) {
                         receiver = address(this);
                     } else if (toAddressBitPattern == 0x1) {
-                        receiver = msg.sender;
+                        receiver = recipient;
                     } else {
                         receiver = CONVEYOR_SWAP_AGGREGATOR;
                     }
                 }
+
 
                 ///@notice Construct the calldata for the v2 swap.
                 (callData, amountIn) = constructV2SwapCalldata(
@@ -296,6 +302,7 @@ contract ConveyorSwapExecutor {
                     receiver,
                     call.target
                 );
+                
                 ///@notice Execute the v2 swap.
                 (bool success, ) = call.target.call(callData);
 
@@ -369,10 +376,15 @@ contract ConveyorSwapExecutor {
             zeroForOne ? reserve0 : reserve1,
             zeroForOne ? reserve1 : reserve0
         );
+        console.log("amountOut", amountOut);
+        console.log(zeroForOne ? 0 : amountOut);
+        console.log(zeroForOne ? amountOut : 0);
+        console.log(to);
+
 
         ///@notice Get the callData for the swap.
         callData = abi.encodeWithSignature(
-            "swap(uint amount0Out, uint amount1Out, address to, bytes calldata data)",
+            "swap(uint256,uint256,address,bytes)",
             zeroForOne ? 0 : amountOut,
             zeroForOne ? amountOut : 0,
             to,
@@ -397,12 +409,13 @@ contract ConveyorSwapExecutor {
     function deriveToAddress(
         uint128 toAddressBitMap,
         uint256 i
-    ) public pure returns (uint256) {
+    ) public  returns (uint256) {
         if ((3 << i) & toAddressBitMap == 3 << i) {
             return 0x3;
         } else if ((2 << i) & toAddressBitMap == 2 << i) {
             return 0x2;
         } else if ((1 << i) & toAddressBitMap == 1 << i) {
+            console.log("here");
             return 0x1;
         } else {
             return 0x0;
