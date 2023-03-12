@@ -125,7 +125,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 0, //zeroForOne
                 1,  //univ2
                 1, //msg.sender
-                0,
+                300,
                 lp,
                 calls
             );
@@ -161,7 +161,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 1, //zeroForOne
                 1,  //univ2
                 0, //SwapAggregator
-                500,
+                300,
                 lp,
                 calls
             );
@@ -180,7 +180,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         uint256 amountIn = 825000000;
         address tokenOut = 0x2e85ae1C47602f7927bCabc2Ff99C40aA222aE15;
-        uint256 amountOutMin = 1;
+        uint256 amountOutMin = 1335082888253395999149663;
         address firstLP = 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0;
         address secondLP = 0xdC1D67Bc953Bf67F007243c7DED42d67410a6De5;
         
@@ -193,21 +193,22 @@ contract ConveyorSwapAggregatorTest is DSTest {
         ConveyorSwapAggregator.Call[]
             memory calls = new ConveyorSwapAggregator.Call[](2);
 
-        calls[0] = newUniV2Call(firstLP, 0, 6806414233752855, secondLP);
+        calls[0] = ConveyorSwapAggregator.Call({
+            target:firstLP,
+            callData:new bytes(0)
+        });
 
-        calls[1] = newUniV2Call(
-            secondLP,
-            1000,
-            0,
-            address(this)
-        );
+        calls[1] = ConveyorSwapAggregator.Call({
+            target:secondLP,
+            callData:new bytes(0)
+        });
 
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
                 1, //zeroForOne
                 3,  //univ2
                 7, //lp, msg.sender 
-                307200,
+                307500, //300, 300
                 firstLP,
                 calls
             );
