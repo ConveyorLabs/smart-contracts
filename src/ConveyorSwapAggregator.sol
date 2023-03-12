@@ -3,10 +3,14 @@ pragma solidity 0.8.16;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
+import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 
 interface IConveyorSwapExecutor {
     function executeMulticall(
-        ConveyorSwapAggregator.Call[] memory calls
+        ConveyorSwapAggregator.SwapAggregatorMulticall
+            calldata swapAggregatorMulticall,
+        uint256 amountIn,
+        address receiver
     ) external;
 }
 
@@ -17,15 +21,24 @@ contract ConveyorSwapAggregator {
     address public immutable CONVEYOR_SWAP_EXECUTOR;
     address public immutable WETH;
 
-    constructor(address _weth, address _conveyorSwapExecutor) {
+    ///@dev Deploys the ConveyorSwapExecutor contract.
+    constructor(address _weth) {
+        require(_weth != address(0), "WETH address is zero");
+        CONVEYOR_SWAP_EXECUTOR = address(
+            new ConveyorSwapExecutor(address(this))
+        );
         WETH = _weth;
-        CONVEYOR_SWAP_EXECUTOR = _conveyorSwapExecutor;
     }
 
-    /// @notice Multicall struct for token Swaps.
+    /// @notice SwapAggregatorMulticall struct for token Swaps.
+    /// @param zeroForOneBitmap for zeroForOne bool along the swap calls.
+    /// @param isUniV2Bitmap for isUniV2 bool along the swap calls.
     /// @param tokenInDestination Address to send tokenIn to.
     /// @param calls Array of calls to be executed.
     struct SwapAggregatorMulticall {
+        uint64 zeroForOneBitmap;
+        uint64 isUniV2Bitmap;
+        uint128 toAddressBitmap;
         address tokenInDestination;
         Call[] calls;
     }
@@ -67,7 +80,9 @@ contract ConveyorSwapAggregator {
 
         ///@notice Execute Multicall.
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
-            swapAggregatorMulticall.calls
+            swapAggregatorMulticall,
+            amountIn,
+            msg.sender
         );
         ///@notice Check if tokenOut balance of msg.sender is sufficient.
         if (IERC20(tokenOut).balanceOf(msg.sender) < tokenOutAmountRequired) {
@@ -103,7 +118,9 @@ contract ConveyorSwapAggregator {
 
         ///@notice Execute Multicall.
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
-            swapAggregatorMulticall.calls
+            swapAggregatorMulticall,
+            msg.value,
+            msg.sender
         );
 
         ///@notice Get tokenOut balance of msg.sender after multicall execution.
@@ -144,7 +161,9 @@ contract ConveyorSwapAggregator {
 
         ///@notice Execute Multicall.
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
-            swapAggregatorMulticall.calls
+            swapAggregatorMulticall,
+            amountIn,
+            msg.sender
         );
 
         ///@notice Get WETH balance of this contract.
@@ -226,17 +245,93 @@ contract ConveyorSwapAggregator {
 }
 
 contract ConveyorSwapExecutor {
+    address immutable CONVEYOR_SWAP_AGGREGATOR;
+
+    constructor(address conveyorSwapAggregator) {
+        CONVEYOR_SWAP_AGGREGATOR = conveyorSwapAggregator;
+    }
+
     ///@notice Executes a multicall.
     function executeMulticall(
-        ConveyorSwapAggregator.Call[] calldata calls
+
+        ConveyorSwapAggregator.SwapAggregatorMulticall
+            calldata swapAggregatorMulticall,
+        uint256 amountIn,
+        address payable recipient
     ) public {
-        uint256 callsLength = calls.length;
+        ///@notice Get the length of the calls array.
+        uint256 callsLength = swapAggregatorMulticall.calls.length;
+
+        ///@notice Create a bytes array to store the calldata for v2 swaps.
+        bytes memory callData;
+        ///@notice Iterate through the calls array.
+
         for (uint256 i = 0; i < callsLength; ) {
-            ConveyorSwapAggregator.Call memory call = calls[i];
+            ///@notice Get the call from the calls array.
+            ConveyorSwapAggregator.Call memory call = swapAggregatorMulticall
+                .calls[i];
+            ///@notice Get the zeroForOne value from the zeroForOneBitmap.
+            bool zeroForOne = deriveBoolFromBitmap(
+                swapAggregatorMulticall.zeroForOneBitmap,
+                i
+            );
+            ///@notice Check if the call is a v2 swap.
+            if (
+                deriveBoolFromBitmap(swapAggregatorMulticall.isUniV2Bitmap, i)
+            ) {
+                ///@notice Instantiate the receiver address for the v2 swap.
+                address receiver;
+                {
+                    ///@notice Get the toAddressBitPattern from the toAddressBitmap.
+                    uint256 toAddressBitPattern = deriveToAddressFromBitmap(
+                        swapAggregatorMulticall.toAddressBitmap,
+                        i
+                    );
+                    ///@notice Set the receiver address based on the toAddressBitPattern.
+                    if (toAddressBitPattern == 0x3) {
+                        if (i == callsLength - 1) {
+                            revert InvalidToAddressBits();
+                        }
+                        receiver = swapAggregatorMulticall.calls[i + 1].target;
+                    } else if (toAddressBitPattern == 0x2) {
+                        receiver = address(this);
+                    } else if (toAddressBitPattern == 0x1) {
+                        receiver = recipient;
+                    } else {
+                        receiver = CONVEYOR_SWAP_AGGREGATOR;
+                    }
+                }
 
-            (bool success, ) = call.target.call(call.callData);
+                ///@notice Construct the calldata for the v2 swap.
+                (callData, amountIn) = constructV2SwapCalldata(
+                    amountIn,
+                    zeroForOne,
+                    receiver,
+                    call.target
+                );
 
-            require(success, "call failed");
+                ///@notice Execute the v2 swap.
+                (bool success, ) = call.target.call(callData);
+
+                if (!success) {
+                    revert V2SwapFailed();
+                }
+            } else {
+                ///@notice Execute the v3 swap.
+                (bool success, bytes memory data) = call.target.call(
+                    call.callData
+                );
+                if (!success) {
+                    revert V3SwapFailed();
+                }
+                ///@notice Decode the amountIn from the v3 swap.
+                (int256 amount0, int256 amount1) = abi.decode(
+                    data,
+                    (int256, int256)
+                );
+
+                amountIn = zeroForOne ? uint256(-amount1) : uint256(-amount0);
+            }
 
             unchecked {
                 ++i;
@@ -270,5 +365,88 @@ contract ConveyorSwapExecutor {
         } else {
             IERC20(tokenIn).transfer(msg.sender, amountIn);
         }
+    }
+
+    function constructV2SwapCalldata(
+        uint256 amountIn,
+        bool zeroForOne,
+        address to,
+        address pool
+    ) internal view returns (bytes memory callData, uint256 amountOut) {
+        ///@notice Get the reserves for the pool.
+        (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(pool)
+            .getReserves();
+
+        ///@notice Get the amountOut from the reserves.
+        amountOut = getAmountOut(
+            amountIn,
+            zeroForOne ? reserve0 : reserve1,
+            zeroForOne ? reserve1 : reserve0
+        );
+        ///@notice Get the callData for the swap.
+        callData = abi.encodeWithSignature(
+            "swap(uint256,uint256,address,bytes)",
+            zeroForOne ? 0 : amountOut,
+            zeroForOne ? amountOut : 0,
+            to,
+            new bytes(0)
+        );
+    }
+
+    //Note: In human readable format, this is read from right to left, with the right most binary digit being the first representation
+    //of tokenIsToken0 for the first pool in the route
+    function deriveBoolFromBitmap(
+        uint64 bitmap,
+        uint256 position
+    ) internal pure returns (bool) {
+        if ((2 ** position) & bitmap == 0) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    //01 = msg.sender, 10 = executor, 11 = next pool, 00 = swapAggregator
+    function deriveToAddressFromBitmap(
+        uint128 toAddressBitmap,
+        uint256 i
+    ) internal pure returns (uint256) {
+        if ((3 << (2 * i)) & toAddressBitmap == 3 << (2 * i)) {
+            return 0x3;
+        } else if ((2 << (2 * i)) & toAddressBitmap == 2 << (2 * i)) {
+            return 0x2;
+        } else if ((1 << (2 * i)) & toAddressBitmap == 1 << (2 * i)) {
+            return 0x1;
+        } else {
+            return 0x0;
+        }
+    }
+
+    ///@notice Function to get the amountOut from a UniV2 lp.
+    ///@param amountIn - AmountIn for the swap.
+    ///@param reserveIn - tokenIn reserve for the swap.
+    ///@param reserveOut - tokenOut reserve for the swap.
+    ///@return amountOut - AmountOut from the given parameters.
+    function getAmountOut(
+        uint256 amountIn,
+        uint256 reserveIn,
+        uint256 reserveOut
+    ) internal pure returns (uint256 amountOut) {
+        if (amountIn == 0) {
+            revert InsufficientInputAmount(0, 1);
+        }
+
+        if (reserveIn == 0) {
+            revert InsufficientLiquidity();
+        }
+
+        if (reserveOut == 0) {
+            revert InsufficientLiquidity();
+        }
+
+        uint256 amountInWithFee = amountIn * 997;
+        uint256 numerator = amountInWithFee * reserveOut;
+        uint256 denominator = reserveIn * 1000 + (amountInWithFee);
+        amountOut = numerator / denominator;
     }
 }

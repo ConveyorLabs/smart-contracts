@@ -42,8 +42,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         conveyorSwapAggregator = IConveyorSwapAggregator(
             address(
                 new ConveyorSwapAggregator(
-                    0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-                    0xD4c5F21A568e5e856A658829B581fe37029e699c
+                    0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
                 )
             )
         );
@@ -73,7 +72,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         uint256 amountOutMin = 54776144172760093;
         address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
 
-        swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
+        swapHelper.swapEthForTokenWithUniV2(10 ether, tokenIn);
         IERC20(tokenIn).approve(
             address(conveyorSwapAggregator),
             type(uint256).max
@@ -82,10 +81,17 @@ contract ConveyorSwapAggregatorTest is DSTest {
         ConveyorSwapAggregator.Call[]
             memory calls = new ConveyorSwapAggregator.Call[](1);
 
-        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(this));
+        calls[0] = ConveyorSwapAggregator.Call({
+            target:lp,
+            callData:new bytes(0)
+        });
+            
 
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+                1, //zeroForOne
+                1,  //univ2
+                1, //msg.sender
                 lp,
                 calls
             );
@@ -115,6 +121,9 @@ contract ConveyorSwapAggregatorTest is DSTest {
 
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+                0, //zeroForOne
+                1,  //univ2
+                1, //msg.sender
                 lp,
                 calls
             );
@@ -147,6 +156,9 @@ contract ConveyorSwapAggregatorTest is DSTest {
 
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+                1, //zeroForOne
+                1,  //univ2
+                0, //SwapAggregator
                 lp,
                 calls
             );
@@ -189,6 +201,9 @@ contract ConveyorSwapAggregatorTest is DSTest {
 
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+                1, //zeroForOne
+                3,  //univ2
+                7, //lp, msg.sender 
                 firstLP,
                 calls
             );
@@ -248,6 +263,9 @@ contract ConveyorSwapAggregatorTest is DSTest {
         console.log(IERC20(tokenIn).balanceOf(address(this)));
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+                1, //zeroForOne
+                0,
+                0,
                 conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
                 calls
             );

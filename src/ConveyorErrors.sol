@@ -96,3 +96,6 @@ error MsgValueIsNotCumulativeExecutionCredit(
 );
 
 error ExecutorNotCheckedIn();
+error InvalidToAddressBits();
+error V2SwapFailed();
+error V3SwapFailed();
