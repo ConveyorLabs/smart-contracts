@@ -275,7 +275,7 @@ contract ConveyorSwapExecutor {
                 address receiver;
                 {
                     ///@notice Get the toAddressBitPattern from the toAddressBitMap.
-                    uint256 toAddressBitPattern = deriveToAddress(
+                    uint256 toAddressBitPattern = deriveToAddressFromBitmap(
                         swapAggregatorMulticall.toAddressBitMap,
                         i
                     );
@@ -406,7 +406,7 @@ contract ConveyorSwapExecutor {
     }
 
     //01 = msg.sender, 10 = executor, 11 = next pool, 00 = swapAggregator
-    function deriveToAddress(
+    function deriveToAddressFromBitmap(
         uint128 toAddressBitMap,
         uint256 i
     ) internal pure  returns (uint256) {
