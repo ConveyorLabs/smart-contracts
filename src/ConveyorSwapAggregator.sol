@@ -398,7 +398,7 @@ contract ConveyorSwapExecutor {
     function deriveBoolFromBitmap(
         uint64 bitmap,
         uint256 position
-    ) public pure returns (bool) {
+    ) internal pure returns (bool) {
         if ((2 ** position) & bitmap == 0) {
             return false;
         } else {
