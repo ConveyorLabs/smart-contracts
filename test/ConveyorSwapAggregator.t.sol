@@ -92,6 +92,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 1, //zeroForOne
                 1,  //univ2
                 1, //msg.sender
+                300,
                 lp,
                 calls
             );
@@ -124,6 +125,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 0, //zeroForOne
                 1,  //univ2
                 1, //msg.sender
+                0,
                 lp,
                 calls
             );
@@ -159,6 +161,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 1, //zeroForOne
                 1,  //univ2
                 0, //SwapAggregator
+                500,
                 lp,
                 calls
             );
@@ -194,7 +197,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
 
         calls[1] = newUniV2Call(
             secondLP,
-            1,
+            1000,
             0,
             address(this)
         );
@@ -204,6 +207,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 1, //zeroForOne
                 3,  //univ2
                 7, //lp, msg.sender 
+                307200,
                 firstLP,
                 calls
             );
@@ -266,6 +270,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 1, //zeroForOne
                 0,
                 0,
+                300,
                 conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
                 calls
             );

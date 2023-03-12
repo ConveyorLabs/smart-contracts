@@ -36,9 +36,10 @@ contract ConveyorSwapAggregator {
     /// @param tokenInDestination Address to send tokenIn to.
     /// @param calls Array of calls to be executed.
     struct SwapAggregatorMulticall {
-        uint64 zeroForOneBitmap;
-        uint64 isUniV2Bitmap;
-        uint128 toAddressBitmap;
+        uint32 zeroForOneBitmap;
+        uint32 isUniV2Bitmap;
+        uint64 toAddressBitmap;
+        uint128 feeBitmap;
         address tokenInDestination;
         Call[] calls;
     }
@@ -48,6 +49,7 @@ contract ConveyorSwapAggregator {
     struct Call {
         address target;
         bytes callData;
+
     }
 
     /// @notice Swap tokens for tokens.
@@ -264,12 +266,16 @@ contract ConveyorSwapExecutor {
 
         ///@notice Create a bytes array to store the calldata for v2 swaps.
         bytes memory callData;
-        ///@notice Iterate through the calls array.
 
+        ///@notice Cache the feeBitmap in memory.
+        uint128 feeBitmap = swapAggregatorMulticall.feeBitmap;
+        ///@notice Iterate through the calls array.
         for (uint256 i = 0; i < callsLength; ) {
             ///@notice Get the call from the calls array.
             ConveyorSwapAggregator.Call memory call = swapAggregatorMulticall
                 .calls[i];
+
+          
             ///@notice Get the zeroForOne value from the zeroForOneBitmap.
             bool zeroForOne = deriveBoolFromBitmap(
                 swapAggregatorMulticall.zeroForOneBitmap,
@@ -301,13 +307,14 @@ contract ConveyorSwapExecutor {
                         receiver = CONVEYOR_SWAP_AGGREGATOR;
                     }
                 }
-
+                
                 ///@notice Construct the calldata for the v2 swap.
-                (callData, amountIn) = constructV2SwapCalldata(
+                (callData, amountIn, feeBitmap) = constructV2SwapCalldata(
                     amountIn,
                     zeroForOne,
                     receiver,
-                    call.target
+                    call.target,
+                    feeBitmap
                 );
 
                 ///@notice Execute the v2 swap.
@@ -371,17 +378,22 @@ contract ConveyorSwapExecutor {
         uint256 amountIn,
         bool zeroForOne,
         address to,
-        address pool
-    ) internal view returns (bytes memory callData, uint256 amountOut) {
+        address pool,
+        uint128 _feeBitmap
+    ) internal view returns (bytes memory callData, uint256 amountOut, uint128 feeBitmap) {
         ///@notice Get the reserves for the pool.
         (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(pool)
             .getReserves();
+        uint24 fee;
+
+        (fee, feeBitmap) = deriveFeeFromBitmap(_feeBitmap);
 
         ///@notice Get the amountOut from the reserves.
         amountOut = getAmountOut(
             amountIn,
             zeroForOne ? reserve0 : reserve1,
-            zeroForOne ? reserve1 : reserve0
+            zeroForOne ? reserve1 : reserve0,
+            fee
         );
         ///@notice Get the callData for the swap.
         callData = abi.encodeWithSignature(
@@ -404,6 +416,18 @@ contract ConveyorSwapExecutor {
         } else {
             return true;
         }
+    }
+
+    function deriveFeeFromBitmap(
+        uint128 bitmap
+    ) internal pure returns (uint24 fee, uint128 feeBitmap) {
+        if ((bitmap & 0x1==0)) {
+            fee = 300;
+            feeBitmap = bitmap >> 1;
+        } else  {
+            fee = uint24(bitmap & 0x400);
+            feeBitmap = bitmap >> 10;
+        } 
     }
 
     //01 = msg.sender, 10 = executor, 11 = next pool, 00 = swapAggregator
@@ -430,7 +454,8 @@ contract ConveyorSwapExecutor {
     function getAmountOut(
         uint256 amountIn,
         uint256 reserveIn,
-        uint256 reserveOut
+        uint256 reserveOut,
+        uint24 fee
     ) internal pure returns (uint256 amountOut) {
         if (amountIn == 0) {
             revert InsufficientInputAmount(0, 1);
@@ -444,9 +469,9 @@ contract ConveyorSwapExecutor {
             revert InsufficientLiquidity();
         }
 
-        uint256 amountInWithFee = amountIn * 997;
+        uint256 amountInWithFee = amountIn * (100000-fee);
         uint256 numerator = amountInWithFee * reserveOut;
-        uint256 denominator = reserveIn * 1000 + (amountInWithFee);
+        uint256 denominator = reserveIn * 100000 + (amountInWithFee);
         amountOut = numerator / denominator;
     }
 }
