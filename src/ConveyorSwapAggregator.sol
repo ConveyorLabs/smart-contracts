@@ -31,14 +31,14 @@ contract ConveyorSwapAggregator {
     }
 
     /// @notice SwapAggregatorMulticall struct for token Swaps.
-    /// @param zeroForOneBitMap BitMap for zeroForOne bool along the swap calls.
-    /// @param isUniV2BitMap BitMap for isUniV2 bool along the swap calls.
+    /// @param zeroForOneBitmap for zeroForOne bool along the swap calls.
+    /// @param isUniV2Bitmap for isUniV2 bool along the swap calls.
     /// @param tokenInDestination Address to send tokenIn to.
     /// @param calls Array of calls to be executed.
     struct SwapAggregatorMulticall {
-        uint64 zeroForOneBitMap;
-        uint64 isUniV2BitMap;
-        uint128 toAddressBitMap;
+        uint64 zeroForOneBitmap;
+        uint64 isUniV2Bitmap;
+        uint128 toAddressBitmap;
         address tokenInDestination;
         Call[] calls;
     }
@@ -270,21 +270,21 @@ contract ConveyorSwapExecutor {
             ///@notice Get the call from the calls array.
             ConveyorSwapAggregator.Call memory call = swapAggregatorMulticall
                 .calls[i];
-            ///@notice Get the zeroForOne value from the zeroForOneBitMap.
+            ///@notice Get the zeroForOne value from the zeroForOneBitmap.
             bool zeroForOne = deriveBoolFromBitmap(
-                swapAggregatorMulticall.zeroForOneBitMap,
+                swapAggregatorMulticall.zeroForOneBitmap,
                 i
             );
             ///@notice Check if the call is a v2 swap.
             if (
-                deriveBoolFromBitmap(swapAggregatorMulticall.isUniV2BitMap, i)
+                deriveBoolFromBitmap(swapAggregatorMulticall.isUniV2Bitmap, i)
             ) {
                 ///@notice Instantiate the receiver address for the v2 swap.
                 address receiver;
                 {
-                    ///@notice Get the toAddressBitPattern from the toAddressBitMap.
+                    ///@notice Get the toAddressBitPattern from the toAddressBitmap.
                     uint256 toAddressBitPattern = deriveToAddressFromBitmap(
-                        swapAggregatorMulticall.toAddressBitMap,
+                        swapAggregatorMulticall.toAddressBitmap,
                         i
                     );
                     ///@notice Set the receiver address based on the toAddressBitPattern.
@@ -408,14 +408,14 @@ contract ConveyorSwapExecutor {
 
     //01 = msg.sender, 10 = executor, 11 = next pool, 00 = swapAggregator
     function deriveToAddressFromBitmap(
-        uint128 toAddressBitMap,
+        uint128 toAddressBitmap,
         uint256 i
     ) internal pure returns (uint256) {
-        if ((3 << (2 * i)) & toAddressBitMap == 3 << (2 * i)) {
+        if ((3 << (2 * i)) & toAddressBitmap == 3 << (2 * i)) {
             return 0x3;
-        } else if ((2 << (2 * i)) & toAddressBitMap == 2 << (2 * i)) {
+        } else if ((2 << (2 * i)) & toAddressBitmap == 2 << (2 * i)) {
             return 0x2;
-        } else if ((1 << (2 * i)) & toAddressBitMap == 1 << (2 * i)) {
+        } else if ((1 << (2 * i)) & toAddressBitmap == 1 << (2 * i)) {
             return 0x1;
         } else {
             return 0x0;
