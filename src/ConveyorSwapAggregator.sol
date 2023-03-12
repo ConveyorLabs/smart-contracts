@@ -4,7 +4,6 @@ pragma solidity 0.8.16;
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
-import "../test/utils/Console.sol";
 
 interface IConveyorSwapExecutor {
     function executeMulticall(
@@ -115,7 +114,7 @@ contract ConveyorSwapAggregator {
             msg.sender
         );
 
-        uint256 balanceAfter =IERC20(tokenOut).balanceOf(msg.sender);
+        uint256 balanceAfter = IERC20(tokenOut).balanceOf(msg.sender);
 
         ///@notice Check if tokenOut balance of msg.sender is sufficient.
         if (balanceAfter < tokenOutAmountRequired) {
@@ -387,7 +386,6 @@ contract ConveyorSwapExecutor {
                 if (!success) {
                     revert V2SwapFailed();
                 }
-                console.log(amountIn);
             } else {
                 ///@notice Execute the v3 swap.
                 (bool success, bytes memory data) = call.target.call(
