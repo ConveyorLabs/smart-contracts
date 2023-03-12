@@ -409,13 +409,12 @@ contract ConveyorSwapExecutor {
     function deriveToAddress(
         uint128 toAddressBitMap,
         uint256 i
-    ) public  returns (uint256) {
-        if ((3 << i) & toAddressBitMap == 3 << i) {
+    ) internal pure  returns (uint256) {
+        if ((3 << 2*i) & toAddressBitMap == 3 << 2*i) {
             return 0x3;
-        } else if ((2 << i) & toAddressBitMap == 2 << i) {
+        } else if ((2 << 2*i) & toAddressBitMap == 2 << 2*i) {
             return 0x2;
-        } else if ((1 << i) & toAddressBitMap == 1 << i) {
-            console.log("here");
+        } else if ((1 << 2*i) & toAddressBitMap == 1 << 2*i) {
             return 0x1;
         } else {
             return 0x0;
