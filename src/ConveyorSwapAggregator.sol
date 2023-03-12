@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
-import "../test/utils/Console.sol";
+
 interface IConveyorSwapExecutor {
     function executeMulticall(
         ConveyorSwapAggregator.SwapAggregatorMulticall
@@ -270,7 +270,6 @@ contract ConveyorSwapExecutor {
             if (
                 deriveBoolFromBitmap(swapAggregatorMulticall.isUniV2BitMap, i)
             ) {
-
                 ///@notice Instantiate the receiver address for the v2 swap.
                 address receiver;
                 {
@@ -294,7 +293,6 @@ contract ConveyorSwapExecutor {
                     }
                 }
 
-
                 ///@notice Construct the calldata for the v2 swap.
                 (callData, amountIn) = constructV2SwapCalldata(
                     amountIn,
@@ -302,7 +300,7 @@ contract ConveyorSwapExecutor {
                     receiver,
                     call.target
                 );
-                
+
                 ///@notice Execute the v2 swap.
                 (bool success, ) = call.target.call(callData);
 
@@ -376,12 +374,6 @@ contract ConveyorSwapExecutor {
             zeroForOne ? reserve0 : reserve1,
             zeroForOne ? reserve1 : reserve0
         );
-        console.log("amountOut", amountOut);
-        console.log(zeroForOne ? 0 : amountOut);
-        console.log(zeroForOne ? amountOut : 0);
-        console.log(to);
-
-
         ///@notice Get the callData for the swap.
         callData = abi.encodeWithSignature(
             "swap(uint256,uint256,address,bytes)",
@@ -409,12 +401,12 @@ contract ConveyorSwapExecutor {
     function deriveToAddressFromBitmap(
         uint128 toAddressBitMap,
         uint256 i
-    ) internal pure  returns (uint256) {
-        if ((3 << 2*i) & toAddressBitMap == 3 << 2*i) {
+    ) internal pure returns (uint256) {
+        if ((3 << (2 * i)) & toAddressBitMap == 3 << (2 * i)) {
             return 0x3;
-        } else if ((2 << 2*i) & toAddressBitMap == 2 << 2*i) {
+        } else if ((2 << (2 * i)) & toAddressBitMap == 2 << (2 * i)) {
             return 0x2;
-        } else if ((1 << 2*i) & toAddressBitMap == 1 << 2*i) {
+        } else if ((1 << (2 * i)) & toAddressBitMap == 1 << (2 * i)) {
             return 0x1;
         } else {
             return 0x0;
