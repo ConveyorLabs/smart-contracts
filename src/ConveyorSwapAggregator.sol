@@ -222,6 +222,7 @@ contract ConveyorSwapAggregator {
             swapAggregatorMulticall.tokenInDestination,
             msg.value
         );
+
         ///@notice Get tokenOut balance of msg.sender.
         uint256 balanceBefore = IERC20(tokenOut).balanceOf(msg.sender);
 
@@ -396,7 +397,7 @@ contract ConveyorSwapAggregator {
         uint256 referralFee = referralInfo.referralFee;
 
         ///@notice Transfer referral fee to referrer.
-        if (referralInfo.referrer != address(0) && referralFee < msg.value) {
+        if (referralInfo.referrer != address(0) && referralFee <= msg.value) {
             _safeTransferETH(referralInfo.referrer, referralFee);
         } else {
             revert InvalidReferral();
