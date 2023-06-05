@@ -23,7 +23,9 @@ contract ConveyorSwapAggregator {
 
     /// @notice Restricts ETH withdrawals to the owner address. 
     modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner can call this function.");
+        if (msg.sender != owner) {
+            revert UnauthorizedCaller();
+        }
         _;
     }
 
@@ -73,6 +75,7 @@ contract ConveyorSwapAggregator {
         CONVEYOR_SWAP_EXECUTOR = address(
             new ConveyorSwapExecutor(address(this))
         );
+        owner = tx.origin;
         WETH = _weth;
     }
 
