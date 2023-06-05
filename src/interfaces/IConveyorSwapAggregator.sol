@@ -12,6 +12,15 @@ interface IConveyorSwapAggregator {
             calldata swapAggregatorMulticall
     ) external;
 
+    function swapWithReferral(
+        address tokenIn,
+        uint256 amountIn,
+        address tokenOut,
+        uint256 amountOutMin,
+        ConveyorSwapAggregator.SwapAggregatorMulticall calldata swapAggregatorMulticall,
+        ConveyorSwapAggregator.ReferralInfo calldata referralInfo
+    ) external;
+
     function swapExactEthForToken(
         address tokenOut,
         uint256 amountOutMin,

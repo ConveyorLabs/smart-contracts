@@ -4,6 +4,7 @@ pragma solidity 0.8.16;
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
+import "../lib/libraries/token/SafeERC20.sol";
 
 interface IConveyorSwapExecutor {
     function executeMulticall(
@@ -18,6 +19,8 @@ interface IConveyorSwapExecutor {
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Multicall contract for token Swaps.
 contract ConveyorSwapAggregator {
+    using SafeERC20 for IERC20;
+
     /// @notice Owner of the contract. Address permitted to withdraw ETH from the contract.
     address owner;
 
@@ -181,7 +184,7 @@ contract ConveyorSwapAggregator {
         uint256 referralFee = referralInfo.referralFee;
 
         ///@notice Transfer referral fee to referrer.
-        if (referralInfo.referrer != address(0) && referralFee < msg.value) {
+        if (referralInfo.referrer != address(0) && referralFee <= msg.value) {
             /// @dev The remaining amount is stored in the contract for withdrawal.
             _safeTransferETH(referralInfo.referrer, referralFee);
         } else {
