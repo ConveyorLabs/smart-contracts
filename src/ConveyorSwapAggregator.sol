@@ -181,7 +181,8 @@ contract ConveyorSwapAggregator {
 
         ///@notice Transfer referral fee to referrer.
         if (referralInfo.referrer != address(0) && referralFee < msg.value) {
-            _safeTransferETH(referralInfo.referrer, msg.value - referralFee);
+            /// @dev The remaining amount is stored in the contract for withdrawal.
+            _safeTransferETH(referralInfo.referrer, referralFee);
         } else {
             revert InvalidReferral();
         }
@@ -391,7 +392,7 @@ contract ConveyorSwapAggregator {
 
         ///@notice Transfer referral fee to referrer.
         if (referralInfo.referrer != address(0) && referralFee < msg.value) {
-            _safeTransferETH(referralInfo.referrer, msg.value - referralFee);
+            _safeTransferETH(referralInfo.referrer, referralFee);
         } else {
             revert InvalidReferral();
         }
