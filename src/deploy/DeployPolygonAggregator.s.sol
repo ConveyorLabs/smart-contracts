@@ -8,11 +8,7 @@ contract Deploy is Script {
     ///@dev Polygon Constructor Constants
     address constant WMATIC = 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270;
 
-
-    function run()
-        public
-        returns (ConveyorSwapAggregator conveyorSwapAggregator)
-    {
+    function run() public returns (ConveyorSwapAggregator conveyorSwapAggregator) {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
         vm.startBroadcast(deployerPrivateKey);

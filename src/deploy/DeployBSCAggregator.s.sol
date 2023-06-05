@@ -8,10 +8,7 @@ contract Deploy is Script {
     ///@dev BSC Constructor Constants
     address constant WETH = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
 
-    function run()
-        public
-        returns (ConveyorSwapAggregator conveyorSwapAggregator)
-    {
+    function run() public returns (ConveyorSwapAggregator conveyorSwapAggregator) {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
         vm.startBroadcast(deployerPrivateKey);

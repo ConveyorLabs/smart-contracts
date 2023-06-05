@@ -27,9 +27,7 @@ interface CheatCodes {
 
     function makePersistent(address) external;
 
-    function createSelectFork(string calldata, uint256)
-        external
-        returns (uint256);
+    function createSelectFork(string calldata, uint256) external returns (uint256);
 
     function rollFork(uint256 forkId, uint256 blockNumber) external;
 
@@ -65,21 +63,15 @@ contract SwapRouterTest is DSTest {
     address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     //pancake, sushi, uni create2 factory initialization bytecode
-    bytes32 _sushiHexDem =
-        0xe18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303;
-    bytes32 _uniswapV2HexDem =
-        0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
+    bytes32 _sushiHexDem = 0xe18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303;
+    bytes32 _uniswapV2HexDem = 0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
 
     //MAX_UINT for testing
-    uint256 constant MAX_UINT = 2**256 - 1;
+    uint256 constant MAX_UINT = 2 ** 256 - 1;
 
     //Dex[] dexes array of dex structs
     bytes32[] _hexDems = [_uniswapV2HexDem, _sushiHexDem, _uniswapV2HexDem];
-    address[] _dexFactories = [
-        _uniV2FactoryAddress,
-        _sushiFactoryAddress,
-        _uniV3FactoryAddress
-    ];
+    address[] _dexFactories = [_uniV2FactoryAddress, _sushiFactoryAddress, _uniV3FactoryAddress];
     bool[] _isUniV2 = [true, true, false];
     uint256 alphaXDivergenceThreshold = 3402823669209385000000000000000000; //3402823669209385000000000000000000000
     uint256 forkId;
@@ -120,26 +112,16 @@ contract SwapRouterTest is DSTest {
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
         //Get Reserve0 & Reserve1 from sushi pool
-        (uint112 reserve0Usdc, uint112 reserve1Weth, ) = IUniswapV2Pair(
-            0x397FF1542f962076d0BFE58eA045FfA2d347ACa0
-        ).getReserves();
+        (uint112 reserve0Usdc, uint112 reserve1Weth,) =
+            IUniswapV2Pair(0x397FF1542f962076d0BFE58eA045FfA2d347ACa0).getReserves();
 
         ///@notice Convert usdcReserve to common 18 decimal base
-        uint128 reserve0UsdcCommon = reserve0Usdc * 10**12;
+        uint128 reserve0UsdcCommon = reserve0Usdc * 10 ** 12;
 
-        (
-            LimitOrderSwapRouter.SpotReserve memory priceWethUsdc,
-            address poolAddressWethUsdc
-        ) = limitOrderExecutor.calculateV2SpotPrice(
-                weth,
-                usdc,
-                _sushiFactoryAddress
-            );
+        (LimitOrderSwapRouter.SpotReserve memory priceWethUsdc, address poolAddressWethUsdc) =
+            limitOrderExecutor.calculateV2SpotPrice(weth, usdc, _sushiFactoryAddress);
 
-        assertEq(
-            priceWethUsdc.spotPrice,
-            593525979047872548219266386638161406066688
-        );
+        assertEq(priceWethUsdc.spotPrice, 593525979047872548219266386638161406066688);
     }
 
     ///@notice Test calculate v2 spot price sushi weth/kope
@@ -149,19 +131,10 @@ contract SwapRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address kope = 0x8CC9b5406049D2b66106bb39C5047666E50F06FE;
 
-        (
-            LimitOrderSwapRouter.SpotReserve memory priceWethKope,
+        (LimitOrderSwapRouter.SpotReserve memory priceWethKope,) =
+            limitOrderExecutor.calculateV2SpotPrice(kope, weth, _sushiFactoryAddress);
 
-        ) = limitOrderExecutor.calculateV2SpotPrice(
-                kope,
-                weth,
-                _sushiFactoryAddress
-            );
-
-        assertEq(
-            priceWethKope.spotPrice,
-            9457943135647822527192493517503987712
-        );
+        assertEq(priceWethKope.spotPrice, 9457943135647822527192493517503987712);
     }
 
     ///@notice Test calculate v2 spot price sushi dai/ohm
@@ -171,14 +144,8 @@ contract SwapRouterTest is DSTest {
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         address ohm = 0x64aa3364F17a4D01c6f1751Fd97C2BD3D7e7f1D5;
 
-        (
-            LimitOrderSwapRouter.SpotReserve memory priceOhmDai,
-
-        ) = limitOrderExecutor.calculateV2SpotPrice(
-                dai,
-                ohm,
-                _sushiFactoryAddress
-            );
+        (LimitOrderSwapRouter.SpotReserve memory priceOhmDai,) =
+            limitOrderExecutor.calculateV2SpotPrice(dai, ohm, _sushiFactoryAddress);
 
         assertEq(priceOhmDai.spotPrice, 21888402763315038097036358416236281856);
     }
@@ -191,15 +158,8 @@ contract SwapRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
-        (
-            LimitOrderSwapRouter.SpotReserve memory priceDaiWeth,
-            address poolAddressDaiWeth
-        ) = limitOrderExecutor.calculateV3SpotPrice(
-                dai,
-                weth,
-                3000,
-                _uniV3FactoryAddress
-            );
+        (LimitOrderSwapRouter.SpotReserve memory priceDaiWeth, address poolAddressDaiWeth) =
+            limitOrderExecutor.calculateV3SpotPrice(dai, weth, 3000, _uniV3FactoryAddress);
 
         assertEq(priceDaiWeth.spotPrice, 195219315785396777134689842230198271);
     }
@@ -213,19 +173,9 @@ contract SwapRouterTest is DSTest {
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
-        (
-            LimitOrderSwapRouter.SpotReserve memory priceDaiUsdc,
-
-        ) = limitOrderExecutor.calculateV3SpotPrice(
-                dai,
-                usdc,
-                3000,
-                _uniV3FactoryAddress
-            );
-        assertEq(
-            priceDaiUsdc.spotPrice,
-            341140785248087661355983754903316070398
-        );
+        (LimitOrderSwapRouter.SpotReserve memory priceDaiUsdc,) =
+            limitOrderExecutor.calculateV3SpotPrice(dai, usdc, 3000, _uniV3FactoryAddress);
+        assertEq(priceDaiUsdc.spotPrice, 341140785248087661355983754903316070398);
     }
 
     ///@notice Test calculate v2 spot price Uni
@@ -236,14 +186,8 @@ contract SwapRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-        (
-            LimitOrderSwapRouter.SpotReserve memory price1,
-            address poolAddress0
-        ) = limitOrderExecutor.calculateV2SpotPrice(
-                usdc,
-                weth,
-                0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f
-            );
+        (LimitOrderSwapRouter.SpotReserve memory price1, address poolAddress0) =
+            limitOrderExecutor.calculateV2SpotPrice(usdc, weth, 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
 
         uint256 spotPriceWethUsdc = price1.spotPrice;
 
@@ -257,19 +201,10 @@ contract SwapRouterTest is DSTest {
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
-        (
-            LimitOrderSwapRouter.SpotReserve memory spotPriceDaiUsdc,
+        (LimitOrderSwapRouter.SpotReserve memory spotPriceDaiUsdc,) =
+            limitOrderExecutor.calculateV2SpotPrice(usdc, dai, 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
 
-        ) = limitOrderExecutor.calculateV2SpotPrice(
-                usdc,
-                dai,
-                0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f
-            );
-
-        assertEq(
-            spotPriceDaiUsdc.spotPrice,
-            340481350396253814427678140089094897664
-        );
+        assertEq(spotPriceDaiUsdc.spotPrice, 340481350396253814427678140089094897664);
     }
 
     ///@notice v2 spot price assertion test
@@ -279,34 +214,19 @@ contract SwapRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address wax = 0x7a2Bc711E19ba6aff6cE8246C546E8c4B4944DFD;
 
-        (
-            LimitOrderSwapRouter.SpotReserve memory spotPriceWethWax,
+        (LimitOrderSwapRouter.SpotReserve memory spotPriceWethWax,) =
+            limitOrderExecutor.calculateV2SpotPrice(wax, weth, 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
 
-        ) = limitOrderExecutor.calculateV2SpotPrice(
-                wax,
-                weth,
-                0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f
-            );
-
-        assertEq(
-            spotPriceWethWax.spotPrice,
-            20238613147511897623021403873923301376
-        );
+        assertEq(spotPriceWethWax.spotPrice, 20238613147511897623021403873923301376);
     }
 
     function testGetAllPrices2() public view {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-        (
-            LimitOrderSwapRouter.SpotReserve[] memory pricesWethUsdc,
+        (LimitOrderSwapRouter.SpotReserve[] memory pricesWethUsdc,) = limitOrderExecutor.getAllPrices(weth, usdc, 500);
 
-        ) = limitOrderExecutor.getAllPrices(weth, usdc, 500);
-
-        (
-            LimitOrderSwapRouter.SpotReserve[] memory pricesUsdcWeth,
-
-        ) = limitOrderExecutor.getAllPrices(usdc, weth, 500);
+        (LimitOrderSwapRouter.SpotReserve[] memory pricesUsdcWeth,) = limitOrderExecutor.getAllPrices(usdc, weth, 500);
 
         console.log("weth/usdc");
         console.log(pricesWethUsdc[0].spotPrice);
@@ -327,21 +247,13 @@ contract SwapRouterTest is DSTest {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         if (_amount > 0) {
-            (
-                LimitOrderSwapRouter.SpotReserve memory price1,
-
-            ) = limitOrderExecutor.calculateV2SpotPrice(
-                    weth,
-                    usdc,
-                    0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f
-                );
+            (LimitOrderSwapRouter.SpotReserve memory price1,) =
+                limitOrderExecutor.calculateV2SpotPrice(weth, usdc, 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
             uint256 spotPrice = price1.spotPrice;
 
             ///@notice Calculate the weth amount in usd
-            uint256 amountInUsdcDollarValue = uint256(
-                ConveyorMath.mul128U(spotPrice, uint256(_amount)) /
-                    uint256(10**18)
-            );
+            uint256 amountInUsdcDollarValue =
+                uint256(ConveyorMath.mul128U(spotPrice, uint256(_amount)) / uint256(10 ** 18));
             console.logUint(amountInUsdcDollarValue);
 
             ///@notice Pack the args
@@ -359,16 +271,8 @@ contract SwapRouterTest is DSTest {
         }
     }
 
-    function testFailUniswapV3Callback_UnauthorizedUniswapV3CallbackCaller()
-        public
-    {
-        bytes memory data = abi.encode(
-            100,
-            true,
-            address(this),
-            address(this),
-            address(this)
-        );
+    function testFailUniswapV3Callback_UnauthorizedUniswapV3CallbackCaller() public {
+        bytes memory data = abi.encode(100, true, address(this), address(this), address(this));
 
         limitOrderExecutor.uniswapV3SwapCallback(0, 0, data);
     }
@@ -377,10 +281,7 @@ contract SwapRouterTest is DSTest {
     function bytesToUint(bytes memory b) internal pure returns (uint256) {
         uint256 number;
         for (uint256 i = 0; i < b.length; i++) {
-            number =
-                number +
-                uint256(uint8(b[i])) *
-                (2**(8 * (b.length - (i + 1))));
+            number = number + uint256(uint8(b[i])) * (2 ** (8 * (b.length - (i + 1))));
         }
         return number;
     }
@@ -389,17 +290,10 @@ contract SwapRouterTest is DSTest {
     function testCalculateOrderRewardBeacon(uint64 wethValue) public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        if (!(wethValue < 10**18)) {
-            uint128 fee = limitOrderExecutor.calculateFee(
-                wethValue,
-                usdc,
-                weth
-            );
+        if (!(wethValue < 10 ** 18)) {
+            uint128 fee = limitOrderExecutor.calculateFee(wethValue, usdc, weth);
             //1.8446744073709550
-            (, uint128 rewardBeacon) = ConveyorFeeMath.calculateReward(
-                fee,
-                wethValue
-            );
+            (, uint128 rewardBeacon) = ConveyorFeeMath.calculateReward(fee, wethValue);
 
             //Pack the args
             string memory path = "scripts/calculateRewardBeacon.py";
@@ -412,7 +306,7 @@ contract SwapRouterTest is DSTest {
             uint256 beaconRewardExpected = bytesToUint(spotOut);
 
             //Assert the values
-            assertEq(rewardBeacon / 10**3, beaconRewardExpected / 10**3);
+            assertEq(rewardBeacon / 10 ** 3, beaconRewardExpected / 10 ** 3);
         }
     }
 
@@ -420,17 +314,10 @@ contract SwapRouterTest is DSTest {
     function testCalculateOrderRewardConveyor(uint64 wethValue) public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        if (!(wethValue < 10**18)) {
-            uint128 fee = limitOrderExecutor.calculateFee(
-                wethValue,
-                usdc,
-                weth
-            );
+        if (!(wethValue < 10 ** 18)) {
+            uint128 fee = limitOrderExecutor.calculateFee(wethValue, usdc, weth);
             //1.8446744073709550
-            (uint128 rewardConveyor, ) = ConveyorFeeMath.calculateReward(
-                fee,
-                wethValue
-            );
+            (uint128 rewardConveyor,) = ConveyorFeeMath.calculateReward(fee, wethValue);
 
             //Pack the arguments
             string memory path = "scripts/calculateRewardConveyor.py";
@@ -443,7 +330,7 @@ contract SwapRouterTest is DSTest {
             uint256 conveyorRewardExpected = bytesToUint(spotOut);
 
             //Assert the outputs with a precision buffer on fuzz
-            assertEq(rewardConveyor / 10**3, conveyorRewardExpected / 10**3);
+            assertEq(rewardConveyor / 10 ** 3, conveyorRewardExpected / 10 ** 3);
         }
     }
 
@@ -517,10 +404,7 @@ contract SwapRouterTest is DSTest {
 
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            10000000000000000,
-            tokenIn
-        );
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(10000000000000000, tokenIn);
 
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address lp = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
@@ -528,15 +412,7 @@ contract SwapRouterTest is DSTest {
 
         IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
         address receiver = address(this);
-        limitOrderExecutor.swapV2(
-            tokenIn,
-            tokenOut,
-            lp,
-            amountReceived,
-            amountOutMin,
-            receiver,
-            address(this)
-        );
+        limitOrderExecutor.swapV2(tokenIn, tokenOut, lp, amountReceived, amountOutMin, receiver, address(this));
     }
 
     function testSwapV2_2() public {
@@ -544,10 +420,7 @@ contract SwapRouterTest is DSTest {
 
         address tokenIn = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            10000000000000000,
-            tokenIn
-        );
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(10000000000000000, tokenIn);
 
         address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address lp = 0xAE461cA67B15dc8dc81CE7615e0320dA1A9aB8D5;
@@ -555,15 +428,7 @@ contract SwapRouterTest is DSTest {
 
         IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
         address receiver = address(this);
-        limitOrderExecutor.swapV2(
-            tokenIn,
-            tokenOut,
-            lp,
-            amountReceived,
-            amountOutMin,
-            receiver,
-            address(this)
-        );
+        limitOrderExecutor.swapV2(tokenIn, tokenOut, lp, amountReceived, amountOutMin, receiver, address(this));
     }
 
     function testSwapV2_3() public {
@@ -571,10 +436,7 @@ contract SwapRouterTest is DSTest {
 
         address tokenIn = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
         //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            10000000000000000,
-            tokenIn
-        );
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(10000000000000000, tokenIn);
 
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address lp = 0xa2107FA5B38d9bbd2C461D6EDf11B11A50F6b974;
@@ -583,15 +445,7 @@ contract SwapRouterTest is DSTest {
 
         IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
         address receiver = address(this);
-        limitOrderExecutor.swapV2(
-            tokenIn,
-            tokenOut,
-            lp,
-            amountReceived,
-            amountOutMin,
-            receiver,
-            address(this)
-        );
+        limitOrderExecutor.swapV2(tokenIn, tokenOut, lp, amountReceived, amountOutMin, receiver, address(this));
     }
 
     function testFailSwapV2_InsufficientOutputAmount() public {
@@ -599,10 +453,7 @@ contract SwapRouterTest is DSTest {
 
         address tokenIn = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
         //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            10000000000000000,
-            tokenIn
-        );
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(10000000000000000, tokenIn);
 
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address lp = 0xa2107FA5B38d9bbd2C461D6EDf11B11A50F6b974;
@@ -611,15 +462,8 @@ contract SwapRouterTest is DSTest {
 
         IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
         address receiver = address(this);
-        uint256 amountOut = limitOrderExecutor.swapV2(
-            tokenIn,
-            tokenOut,
-            lp,
-            amountReceived,
-            amountOutMin,
-            receiver,
-            address(this)
-        );
+        uint256 amountOut =
+            limitOrderExecutor.swapV2(tokenIn, tokenOut, lp, amountReceived, amountOutMin, receiver, address(this));
         require(amountOut != 0, "InsufficientOutputAmount");
     }
 
@@ -630,30 +474,16 @@ contract SwapRouterTest is DSTest {
         //get the token in
         cheatCodes.deal(address(this), MAX_UINT);
 
-        (bool depositSuccess, ) = address(WETH).call{value: 500000000000 ether}(
-            abi.encodeWithSignature("deposit()")
-        );
+        (bool depositSuccess,) = address(WETH).call{value: 500000000000 ether}(abi.encodeWithSignature("deposit()"));
         address tokenIn = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        IERC20(tokenIn).approve(
-            address(limitOrderExecutor),
-            1000000000000000000
-        );
+        IERC20(tokenIn).approve(address(limitOrderExecutor), 1000000000000000000);
 
         address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
         address _lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
 
         address receiver = address(this);
-        limitOrderExecutor.swapV3(
-            _lp,
-            tokenIn,
-            tokenOut,
-            500,
-            1000000000000000000,
-            1,
-            receiver,
-            address(this)
-        );
+        limitOrderExecutor.swapV3(_lp, tokenIn, tokenOut, 500, 1000000000000000000, 1, receiver, address(this));
     }
 
     //Uniswap V3 LimitOrderSwapRouter Tests
@@ -661,10 +491,7 @@ contract SwapRouterTest is DSTest {
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         cheatCodes.deal(address(swapHelper), MAX_UINT);
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            1000 ether,
-            tokenIn
-        );
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(1000 ether, tokenIn);
 
         IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
 
@@ -672,16 +499,7 @@ contract SwapRouterTest is DSTest {
 
         address receiver = address(this);
 
-        limitOrderExecutor.swapV3(
-            _lp,
-            tokenIn,
-            tokenOut,
-            500,
-            amountReceived,
-            1,
-            receiver,
-            address(this)
-        );
+        limitOrderExecutor.swapV3(_lp, tokenIn, tokenOut, 500, amountReceived, 1, receiver, address(this));
     }
 
     function testSwap() public {
@@ -689,10 +507,7 @@ contract SwapRouterTest is DSTest {
 
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            1000000000000000,
-            tokenIn
-        );
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(1000000000000000, tokenIn);
 
         IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
 
@@ -703,16 +518,7 @@ contract SwapRouterTest is DSTest {
         uint256 amountInMaximum = amountReceived - 1;
         address receiver = address(this);
 
-        limitOrderExecutor.swap(
-            tokenIn,
-            tokenOut,
-            lp,
-            500,
-            amountReceived,
-            amountInMaximum,
-            receiver,
-            address(this)
-        );
+        limitOrderExecutor.swap(tokenIn, tokenOut, lp, 500, amountReceived, amountInMaximum, receiver, address(this));
     }
 
     function testFailSwap_InsufficientOutputAmount() public {
@@ -720,10 +526,7 @@ contract SwapRouterTest is DSTest {
 
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         //get the token in
-        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(
-            1000000000000000,
-            tokenIn
-        );
+        uint256 amountReceived = swapHelper.swapEthForTokenWithUniV2(1000000000000000, tokenIn);
 
         IERC20(tokenIn).approve(address(limitOrderExecutor), amountReceived);
 
@@ -734,14 +537,7 @@ contract SwapRouterTest is DSTest {
         address receiver = address(this);
 
         uint256 amountOut = limitOrderExecutor.swap(
-            tokenIn,
-            tokenOut,
-            lp,
-            300,
-            amountReceived,
-            1000000000000000,
-            receiver,
-            address(this)
+            tokenIn, tokenOut, lp, 300, amountReceived, 1000000000000000, receiver, address(this)
         );
 
         require(amountOut != 0, "InsufficientOutputAmount");
@@ -752,15 +548,9 @@ contract SwapRouterTest is DSTest {
 
 //wrapper around LimitOrderSwapRouter to expose internal functions for testing
 contract LimitOrderExecutorWrapper is LimitOrderSwapRouter {
-    constructor(address[] memory _dexFactories, bool[] memory _isUniV2)
-        LimitOrderSwapRouter(_dexFactories, _isUniV2)
-    {}
+    constructor(address[] memory _dexFactories, bool[] memory _isUniV2) LimitOrderSwapRouter(_dexFactories, _isUniV2) {}
 
-    function getV3PoolFee(address pairAddress)
-        public
-        view
-        returns (uint24 poolFee)
-    {
+    function getV3PoolFee(address pairAddress) public view returns (uint24 poolFee) {
         return getV3PoolFee(pairAddress);
     }
 
@@ -779,16 +569,7 @@ contract LimitOrderExecutorWrapper is LimitOrderSwapRouter {
         address _receiver,
         address _sender
     ) public returns (uint256) {
-        return
-            _swapV2(
-                _tokenIn,
-                _tokenOut,
-                _lp,
-                _amountIn,
-                _amountOutMin,
-                _receiver,
-                _sender
-            );
+        return _swapV2(_tokenIn, _tokenOut, _lp, _amountIn, _amountOutMin, _receiver, _sender);
     }
 
     function swapV3(
@@ -801,33 +582,21 @@ contract LimitOrderExecutorWrapper is LimitOrderSwapRouter {
         address _receiver,
         address _sender
     ) public returns (uint256) {
-        return
-            _swapV3(
-                _lp,
-                _tokenIn,
-                _tokenOut,
-                _fee,
-                _amountIn,
-                _amountOutMin,
-                _receiver,
-                _sender
-            );
+        return _swapV3(_lp, _tokenIn, _tokenOut, _fee, _amountIn, _amountOutMin, _receiver, _sender);
     }
 
-    function calculateV2SpotPrice(
-        address token0,
-        address token1,
-        address _factory
-    ) public view returns (SpotReserve memory spRes, address poolAddress) {
+    function calculateV2SpotPrice(address token0, address token1, address _factory)
+        public
+        view
+        returns (SpotReserve memory spRes, address poolAddress)
+    {
         return _calculateV2SpotPrice(token0, token1, _factory);
     }
 
-    function calculateV3SpotPrice(
-        address token0,
-        address token1,
-        uint24 FEE,
-        address _factory
-    ) public returns (SpotReserve memory, address) {
+    function calculateV3SpotPrice(address token0, address token1, uint24 FEE, address _factory)
+        public
+        returns (SpotReserve memory, address)
+    {
         return _calculateV3SpotPrice(token0, token1, FEE, _factory);
     }
 
@@ -841,16 +610,6 @@ contract LimitOrderExecutorWrapper is LimitOrderSwapRouter {
         address _receiver,
         address _sender
     ) public returns (uint256 amountReceived) {
-        return
-            _swap(
-                _tokenIn,
-                _tokenOut,
-                _lp,
-                _fee,
-                _amountIn,
-                _amountOutMin,
-                _receiver,
-                _sender
-            );
+        return _swap(_tokenIn, _tokenOut, _lp, _fee, _amountIn, _amountOutMin, _receiver, _sender);
     }
 }

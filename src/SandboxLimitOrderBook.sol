@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.16;
+
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/token/IERC20.sol";
 import "./interfaces/ILimitOrderBook.sol";
@@ -54,6 +55,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         }
         _;
     }
+
     bool reentrancyStatus = false;
 
     ///@notice Modifier to restrict reentrancy into a function.
@@ -88,53 +90,48 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     ///@param _weth The address of the wrapped native token.
     ///@param _usdc The address of the wrapped pegged token.
     ///@param _minExecutionCredit The amount of gas initally alloted during executeLimitOrders.
-    constructor(
-        address _limitOrderExecutor,
-        address _weth,
-        address _usdc,
-        uint256 _minExecutionCredit
-    ) {
-        require(
-            _limitOrderExecutor != address(0),
-            "limitOrderExecutor address is address(0)"
-        );
+    constructor(address _limitOrderExecutor, address _weth, address _usdc, uint256 _minExecutionCredit) {
+        require(_limitOrderExecutor != address(0), "limitOrderExecutor address is address(0)");
         require(_minExecutionCredit != 0, "Minimum Execution Credit is 0");
         minExecutionCredit = _minExecutionCredit;
         WETH = _weth;
         USDC = _usdc;
         LIMIT_ORDER_EXECUTOR = _limitOrderExecutor;
 
-        SANDBOX_LIMIT_ORDER_ROUTER = address(
-            new SandboxLimitOrderRouter(_limitOrderExecutor, address(this))
-        );
+        SANDBOX_LIMIT_ORDER_ROUTER = address(new SandboxLimitOrderRouter(_limitOrderExecutor, address(this)));
 
         owner = tx.origin;
     }
 
     // ========================================= Events =============================================
 
-    /**@notice Event that is emitted when a new order is placed. For each order that is placed, the corresponding orderId is added
-    to the orderIds param. 
+    /**
+     * @notice Event that is emitted when a new order is placed. For each order that is placed, the corresponding orderId is added
+     * to the orderIds param.
      */
     event OrderPlaced(bytes32[] orderIds);
 
-    /**@notice Event that is emitted when an order is canceled. For each order that is canceled, the corresponding orderId is added
-    to the orderIds param. 
+    /**
+     * @notice Event that is emitted when an order is canceled. For each order that is canceled, the corresponding orderId is added
+     * to the orderIds param.
      */
     event OrderCanceled(bytes32[] orderIds);
 
-    /**@notice Event that is emitted when a new order is update. For each order that is updated, the corresponding orderId is added
-    to the orderIds param. 
+    /**
+     * @notice Event that is emitted when a new order is update. For each order that is updated, the corresponding orderId is added
+     * to the orderIds param.
      */
     event OrderUpdated(bytes32[] orderIds);
 
-    /**@notice Event that is emitted when an order is filled. For each order that is filled, the corresponding orderId is added
-    to the orderIds param. 
+    /**
+     * @notice Event that is emitted when an order is filled. For each order that is filled, the corresponding orderId is added
+     * to the orderIds param.
      */
     event OrderFilled(bytes32[] orderIds);
 
-    /**@notice Event that is emitted when an order is partially filled. For each order that is parital filled, the corresponding orderId is added
-    to the orderIds param. 
+    /**
+     * @notice Event that is emitted when an order is partially filled. For each order that is parital filled, the corresponding orderId is added
+     * to the orderIds param.
      */
     event OrderPartialFilled(
         bytes32 indexed orderId,
@@ -146,24 +143,18 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
 
     ///@notice Event that notifies off-chain executors when an order has been refreshed.
     event OrderRefreshed(
-        bytes32 indexed orderId,
-        uint32 indexed lastRefreshTimestamp,
-        uint32 indexed expirationTimestamp
+        bytes32 indexed orderId, uint32 indexed lastRefreshTimestamp, uint32 indexed expirationTimestamp
     );
 
-    /**@notice Event that is emitted when a an orders execution credits are updated.
+    /**
+     * @notice Event that is emitted when a an orders execution credits are updated.
      */
-    event OrderExecutionCreditUpdated(
-        bytes32 orderId,
-        uint256 newExecutionCredit
-    );
+    event OrderExecutionCreditUpdated(bytes32 orderId, uint256 newExecutionCredit);
 
-    /**@notice Event that is emitted when the minExecutionCredit Storage variable is changed by the contract owner.
+    /**
+     * @notice Event that is emitted when the minExecutionCredit Storage variable is changed by the contract owner.
      */
-    event MinExecutionCreditUpdated(
-        uint256 newMinExecutionCredit,
-        uint256 oldMinExecutionCredit
-    );
+    event MinExecutionCreditUpdated(uint256 newMinExecutionCredit, uint256 oldMinExecutionCredit);
 
     // ========================================= Structs =============================================
 
@@ -197,6 +188,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     ///@param orderOwners - Array of order owners.
     ///@param initialTokenInBalances - Array of initial tokenIn balances for each order owner.
     ///@param initialTokenOutBalances - Array of initial tokenOut balances for each order owner.
+
     struct PreSandboxExecutionState {
         SandboxLimitOrder[] sandboxLimitOrders;
         address[] orderOwners;
@@ -243,10 +235,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     //===========================================================================
     //====================== Order State Functions ==============================
     //===========================================================================
-    function decreaseExecutionCredit(bytes32 orderId, uint128 amount)
-        external
-        nonReentrant
-    {
+    function decreaseExecutionCredit(bytes32 orderId, uint128 amount) external nonReentrant {
         SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
 
         if (order.orderId == bytes32(0)) {
@@ -258,35 +247,20 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         ///@notice Cache the credits.
         uint128 executionCreditRemaining = order.executionCreditRemaining;
         if (executionCreditRemaining < amount) {
-            revert WithdrawAmountExceedsExecutionCredit(
-                amount,
-                executionCreditRemaining
-            );
+            revert WithdrawAmountExceedsExecutionCredit(amount, executionCreditRemaining);
         } else {
             if (executionCreditRemaining - amount < minExecutionCredit) {
-                revert InsufficientExecutionCredit(
-                    executionCreditRemaining - amount,
-                    minExecutionCredit
-                );
+                revert InsufficientExecutionCredit(executionCreditRemaining - amount, minExecutionCredit);
             }
         }
         ///@notice Update the order execution Credit state.
-        orderIdToSandboxLimitOrder[orderId].executionCreditRemaining =
-            executionCreditRemaining -
-            amount;
+        orderIdToSandboxLimitOrder[orderId].executionCreditRemaining = executionCreditRemaining - amount;
         ///@notice Pay the sender the amount withdrawed.
         _safeTransferETH(msg.sender, amount);
-        emit OrderExecutionCreditUpdated(
-            orderId,
-            executionCreditRemaining - amount
-        );
+        emit OrderExecutionCreditUpdated(orderId, executionCreditRemaining - amount);
     }
 
-    function increaseExecutionCredit(bytes32 orderId)
-        external
-        payable
-        nonReentrant
-    {
+    function increaseExecutionCredit(bytes32 orderId) external payable nonReentrant {
         SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
         if (msg.value == 0) {
             revert InsufficientMsgValue();
@@ -298,11 +272,10 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
             revert MsgSenderIsNotOrderOwner();
         }
 
-        uint128 newExecutionCreditBalance = orderIdToSandboxLimitOrder[orderId]
-            .executionCreditRemaining + uint128(msg.value);
+        uint128 newExecutionCreditBalance =
+            orderIdToSandboxLimitOrder[orderId].executionCreditRemaining + uint128(msg.value);
         ///@notice Update the order execution Credit state.
-        orderIdToSandboxLimitOrder[orderId]
-            .executionCreditRemaining = newExecutionCreditBalance;
+        orderIdToSandboxLimitOrder[orderId].executionCreditRemaining = newExecutionCreditBalance;
 
         emit OrderExecutionCreditUpdated(orderId, newExecutionCreditBalance);
     }
@@ -316,14 +289,10 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         returns (bytes32[] memory)
     {
         ///@notice Set the minimum credits for placement to minimumExecutionCredit * # of Orders
-        uint256 minimumExecutionCreditForOrderGroup = minExecutionCredit *
-            orderGroup.length;
+        uint256 minimumExecutionCreditForOrderGroup = minExecutionCredit * orderGroup.length;
         ///@notice Revert if the msg.value is under the minimumExecutionCreditForOrderGroup.
         if (msg.value < minimumExecutionCreditForOrderGroup) {
-            revert InsufficientExecutionCredit(
-                msg.value,
-                minimumExecutionCreditForOrderGroup
-            );
+            revert InsufficientExecutionCredit(msg.value, minimumExecutionCreditForOrderGroup);
         }
         ///@notice Initialize cumulativeExecutionCredit to store the total executionCreditRemaining set through the order group.
         uint256 cumulativeExecutionCredit;
@@ -331,9 +300,11 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         bytes32[] memory orderIds = new bytes32[](orderGroup.length);
 
         ///@notice Initialize the orderToken for the newly placed orders.
-        /**@dev When placing a new group of orders, the tokenIn and tokenOut must be the same on each order. New orders are placed
-        this way to securely validate if the msg.sender has the tokens required when placing a new order as well as enough gas credits
-        to cover order execution cost.*/
+        /**
+         * @dev When placing a new group of orders, the tokenIn and tokenOut must be the same on each order. New orders are placed
+         *     this way to securely validate if the msg.sender has the tokens required when placing a new order as well as enough gas credits
+         *     to cover order execution cost.
+         */
         address orderToken = orderGroup[0].tokenIn;
 
         ///@notice Get the value of all orders on the orderToken that are currently placed for the msg.sender.
@@ -343,7 +314,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         uint256 tokenBalance = IERC20(orderToken).balanceOf(msg.sender);
 
         ///@notice For each order within the list of orders passed into the function.
-        for (uint256 i = 0; i < orderGroup.length; ) {
+        for (uint256 i = 0; i < orderGroup.length;) {
             ///@notice Get the order details from the orderGroup.
             SandboxLimitOrder memory newOrder = orderGroup[i];
 
@@ -354,13 +325,10 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
                 ///@notice Boolean indicating if user wants to cover the fee from the fee credit balance, or by calling placeOrder with payment.
                 if (!(newOrder.tokenIn == WETH)) {
                     ///@notice Calculate the spot price of the input token to WETH on Uni v2.
-                    (
-                        LimitOrderSwapRouter.SpotReserve[] memory spRes,
-
-                    ) = ILimitOrderSwapRouter(LIMIT_ORDER_EXECUTOR)
-                            .getAllPrices(newOrder.tokenIn, WETH, 500);
+                    (LimitOrderSwapRouter.SpotReserve[] memory spRes,) =
+                        ILimitOrderSwapRouter(LIMIT_ORDER_EXECUTOR).getAllPrices(newOrder.tokenIn, WETH, 500);
                     uint256 tokenAWethSpotPrice;
-                    for (uint256 k = 0; k < spRes.length; ) {
+                    for (uint256 k = 0; k < spRes.length;) {
                         if (spRes[k].spotPrice != 0) {
                             tokenAWethSpotPrice = spRes[k].spotPrice;
                             break;
@@ -376,18 +344,13 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
 
                     if (!(tokenAWethSpotPrice == 0)) {
                         ///@notice Get the tokenIn decimals to normalize the relativeWethValue.
-                        uint8 tokenInDecimals = IERC20(newOrder.tokenIn)
-                            .decimals();
+                        uint8 tokenInDecimals = IERC20(newOrder.tokenIn).decimals();
                         ///@notice Multiply the amountIn*spotPrice to get the value of the input amount in weth.
                         relativeWethValue = tokenInDecimals <= 18
-                            ? ConveyorMath.mul128U(
-                                tokenAWethSpotPrice,
-                                newOrder.amountInRemaining
-                            ) * 10**(18 - tokenInDecimals)
-                            : ConveyorMath.mul128U(
-                                tokenAWethSpotPrice,
-                                newOrder.amountInRemaining
-                            ) / 10**(tokenInDecimals - 18);
+                            ? ConveyorMath.mul128U(tokenAWethSpotPrice, newOrder.amountInRemaining)
+                                * 10 ** (18 - tokenInDecimals)
+                            : ConveyorMath.mul128U(tokenAWethSpotPrice, newOrder.amountInRemaining)
+                                / 10 ** (tokenInDecimals - 18);
                     }
                 } else {
                     relativeWethValue = newOrder.amountInRemaining;
@@ -400,12 +363,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
                 ///@notice Set the minimum fee to the fee*wethValue*subsidy.
                 uint128 minFeeReceived = uint128(
                     ConveyorMath.mul64U(
-                        ILimitOrderSwapRouter(LIMIT_ORDER_EXECUTOR)
-                            .calculateFee(
-                                uint128(relativeWethValue),
-                                USDC,
-                                WETH
-                            ),
+                        ILimitOrderSwapRouter(LIMIT_ORDER_EXECUTOR).calculateFee(uint128(relativeWethValue), USDC, WETH),
                         relativeWethValue
                     )
                 );
@@ -415,30 +373,22 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
 
             ///@notice If the newOrder's tokenIn does not match the orderToken, revert.
             if ((orderToken != newOrder.tokenIn)) {
-                revert IncongruentInputTokenInOrderGroup(
-                    newOrder.tokenIn,
-                    orderToken
-                );
+                revert IncongruentInputTokenInOrderGroup(newOrder.tokenIn, orderToken);
             }
 
             ///@notice If the msg.sender does not have a sufficent balance to cover the order, revert.
             if (tokenBalance < updatedTotalOrdersValue) {
-                revert InsufficientWalletBalance(
-                    msg.sender,
-                    tokenBalance,
-                    updatedTotalOrdersValue
-                );
+                revert InsufficientWalletBalance(msg.sender, tokenBalance, updatedTotalOrdersValue);
             }
 
             ///@notice Create a new orderId from the orderNonce and current block timestamp
-            bytes32 orderId = keccak256(
-                abi.encode(orderNonce, block.timestamp)
-            );
+            bytes32 orderId = keccak256(abi.encode(orderNonce, block.timestamp));
 
             ///@notice increment the orderNonce
-            /**@dev This is unchecked because the orderNonce and block.timestamp will never be the same, so even if the 
-            orderNonce overflows, it will still produce unique orderIds because the timestamp will be different.
-            */
+            /**
+             * @dev This is unchecked because the orderNonce and block.timestamp will never be the same, so even if the 
+             *         orderNonce overflows, it will still produce unique orderIds because the timestamp will be different.
+             */
             unchecked {
                 orderNonce += 2;
             }
@@ -460,8 +410,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
             orderIdToSandboxLimitOrder[orderId] = newOrder;
 
             ///@notice Add the orderId to the addressToOrderIds mapping
-            addressToOrderIds[msg.sender][orderId] = OrderType
-                .PendingSandboxLimitOrder;
+            addressToOrderIds[msg.sender][orderId] = OrderType.PendingSandboxLimitOrder;
 
             ///@notice Increment the total orders per address for the msg.sender
             ++totalOrdersPerAddress[msg.sender];
@@ -479,32 +428,18 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
 
         ///@notice Assert that the cumulative execution credits == msg.value;
         if (cumulativeExecutionCredit != msg.value) {
-            revert MsgValueIsNotCumulativeExecutionCredit(
-                msg.value,
-                cumulativeExecutionCredit
-            );
+            revert MsgValueIsNotCumulativeExecutionCredit(msg.value, cumulativeExecutionCredit);
         }
 
         ///@notice Update the total orders value on the orderToken for the msg.sender.
-        _updateTotalOrdersQuantity(
-            orderToken,
-            msg.sender,
-            updatedTotalOrdersValue
-        );
+        _updateTotalOrdersQuantity(orderToken, msg.sender, updatedTotalOrdersValue);
 
         ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
-        uint256 totalApprovedQuantity = IERC20(orderToken).allowance(
-            msg.sender,
-            address(LIMIT_ORDER_EXECUTOR)
-        );
+        uint256 totalApprovedQuantity = IERC20(orderToken).allowance(msg.sender, address(LIMIT_ORDER_EXECUTOR));
 
         ///@notice If the total approved quantity is less than the updatedTotalOrdersValue, revert.
         if (totalApprovedQuantity < updatedTotalOrdersValue) {
-            revert InsufficientAllowanceForOrderPlacement(
-                orderToken,
-                totalApprovedQuantity,
-                updatedTotalOrdersValue
-            );
+            revert InsufficientAllowanceForOrderPlacement(orderToken, totalApprovedQuantity, updatedTotalOrdersValue);
         }
 
         ///@notice Emit an OrderPlaced event to notify the off-chain executors that a new order has been placed.
@@ -517,11 +452,10 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     ///@param orderId - The orderId of the Sandbox Limit Order.
     ///@param amountInRemaining - The new amountInRemaining.
     ///@param amountOutRemaining - The new amountOutRemaining.
-    function updateSandboxLimitOrder(
-        bytes32 orderId,
-        uint128 amountInRemaining,
-        uint128 amountOutRemaining
-    ) external payable {
+    function updateSandboxLimitOrder(bytes32 orderId, uint128 amountInRemaining, uint128 amountOutRemaining)
+        external
+        payable
+    {
         ///@notice Get the existing order that will be replaced with the new order
         SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
         if (order.orderId == bytes32(0)) {
@@ -534,11 +468,9 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
 
         ///@notice Update the executionCredits if msg.value !=0.
         if (msg.value != 0) {
-            uint128 newExecutionCredit = orderIdToSandboxLimitOrder[
-                order.orderId
-            ].executionCreditRemaining + uint128(msg.value);
-            orderIdToSandboxLimitOrder[order.orderId]
-                .executionCreditRemaining = newExecutionCredit;
+            uint128 newExecutionCredit =
+                orderIdToSandboxLimitOrder[order.orderId].executionCreditRemaining + uint128(msg.value);
+            orderIdToSandboxLimitOrder[order.orderId].executionCreditRemaining = newExecutionCredit;
             emit OrderExecutionCreditUpdated(order.orderId, newExecutionCredit);
         }
 
@@ -551,36 +483,23 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
 
         ///@notice If the wallet does not have a sufficient balance for the updated total orders value, revert.
         if (IERC20(order.tokenIn).balanceOf(msg.sender) < totalOrdersValue) {
-            revert InsufficientWalletBalance(
-                msg.sender,
-                IERC20(order.tokenIn).balanceOf(msg.sender),
-                totalOrdersValue
-            );
+            revert InsufficientWalletBalance(msg.sender, IERC20(order.tokenIn).balanceOf(msg.sender), totalOrdersValue);
         }
 
         ///@notice Update the total orders quantity
         _updateTotalOrdersQuantity(order.tokenIn, msg.sender, totalOrdersValue);
 
         ///@notice Get the total amount approved for the ConveyorLimitOrder contract to spend on the orderToken.
-        uint256 totalApprovedQuantity = IERC20(order.tokenIn).allowance(
-            msg.sender,
-            address(LIMIT_ORDER_EXECUTOR)
-        );
+        uint256 totalApprovedQuantity = IERC20(order.tokenIn).allowance(msg.sender, address(LIMIT_ORDER_EXECUTOR));
 
         ///@notice If the total approved quantity is less than the newOrder.quantity, revert.
         if (totalApprovedQuantity < amountInRemaining) {
-            revert InsufficientAllowanceForOrderUpdate(
-                order.tokenIn,
-                totalApprovedQuantity,
-                amountInRemaining
-            );
+            revert InsufficientAllowanceForOrderUpdate(order.tokenIn, totalApprovedQuantity, amountInRemaining);
         }
 
         ///@notice Update the order details stored in the system.
-        orderIdToSandboxLimitOrder[order.orderId]
-            .amountInRemaining = amountInRemaining;
-        orderIdToSandboxLimitOrder[order.orderId]
-            .amountOutRemaining = amountOutRemaining;
+        orderIdToSandboxLimitOrder[order.orderId].amountInRemaining = amountInRemaining;
+        orderIdToSandboxLimitOrder[order.orderId].amountOutRemaining = amountOutRemaining;
 
         ///@notice Emit an updated order event with the orderId that was updated
         bytes32[] memory orderIds = new bytes32[](1);
@@ -591,7 +510,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     /// @notice cancel all orders relevant in ActiveOrders mapping to the msg.sender i.e the function caller
     function cancelOrders(bytes32[] calldata orderIds) public {
         //check that there is one or more orders
-        for (uint256 i = 0; i < orderIds.length; ) {
+        for (uint256 i = 0; i < orderIds.length;) {
             cancelOrder(orderIds[i]);
 
             unchecked {
@@ -624,15 +543,10 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         --totalOrdersPerAddress[msg.sender];
 
         ///@notice Decrement the order quantity from the total orders quantity
-        decrementTotalOrdersQuantity(
-            order.tokenIn,
-            order.owner,
-            order.amountInRemaining
-        );
+        decrementTotalOrdersQuantity(order.tokenIn, order.owner, order.amountInRemaining);
 
         ///@notice Update the status of the order to canceled
-        addressToOrderIds[order.owner][order.orderId] = OrderType
-            .CanceledSandboxLimitOrder;
+        addressToOrderIds[order.owner][order.orderId] = OrderType.CanceledSandboxLimitOrder;
 
         ///@notice Emit an event to notify the off-chain executors that the order has been canceled.
         bytes32[] memory orderIds = new bytes32[](1);
@@ -643,14 +557,9 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     /// @notice Function for off-chain executors to cancel an Order that does not have the minimum gas credit balance for order execution.
     /// @param orderId - Order Id of the order to cancel.
     /// @return success - Boolean to indicate if the order was successfully canceled and compensation was sent to the off-chain executor.
-    function validateAndCancelOrder(bytes32 orderId)
-        external
-        nonReentrant
-        returns (bool success)
-    {
+    function validateAndCancelOrder(bytes32 orderId) external nonReentrant returns (bool success) {
         ///@notice Get the last checkin time of the executor.
-        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
-            .lastCheckIn(msg.sender);
+        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR).lastCheckIn(msg.sender);
 
         ///@notice Check if the last checkin time is greater than the checkin interval.
         if (block.timestamp - lastCheckInTime > CHECK_IN_INTERVAL) {
@@ -661,17 +570,11 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         SandboxLimitOrder memory order = getSandboxLimitOrderById(orderId);
 
         ///@notice If the order owner does not have min gas credits, cancel the order
-        if (
-            IERC20(order.tokenIn).balanceOf(order.owner) <
-            order.amountInRemaining
-        ) {
+        if (IERC20(order.tokenIn).balanceOf(order.owner) < order.amountInRemaining) {
             ///@notice Remove the order from the limit order system.
 
             ///@notice Remove the order from the limit order system.
-            _safeTransferETH(
-                msg.sender,
-                _cancelSandboxLimitOrderViaExecutor(order)
-            );
+            _safeTransferETH(msg.sender, _cancelSandboxLimitOrderViaExecutor(order));
 
             return true;
         }
@@ -689,8 +592,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         ///@notice Remove the order from the limit order system.
         _removeOrderFromSystem(order.orderId);
 
-        addressToOrderIds[msg.sender][order.orderId] = OrderType
-            .CanceledSandboxLimitOrder;
+        addressToOrderIds[msg.sender][order.orderId] = OrderType.CanceledSandboxLimitOrder;
 
         uint128 executionCreditRemaining = order.executionCreditRemaining;
 
@@ -698,17 +600,12 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         if (executionCreditRemaining > REFRESH_FEE) {
             ///@notice Decrement from the order owner's gas credit balance.
             orderIdToSandboxLimitOrder[order.orderId].executionCreditRemaining =
-                executionCreditRemaining -
-                uint128(REFRESH_FEE);
+                executionCreditRemaining - uint128(REFRESH_FEE);
             executorFee = REFRESH_FEE;
-            _safeTransferETH(
-                order.owner,
-                executionCreditRemaining - REFRESH_FEE
-            );
+            _safeTransferETH(order.owner, executionCreditRemaining - REFRESH_FEE);
         } else {
             ///@notice Otherwise, decrement the entire gas credit balance.
-            orderIdToSandboxLimitOrder[order.orderId]
-                .executionCreditRemaining = 0;
+            orderIdToSandboxLimitOrder[order.orderId].executionCreditRemaining = 0;
             executorFee = executionCreditRemaining;
         }
 
@@ -722,8 +619,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
     function refreshOrder(bytes32[] calldata orderIds) external nonReentrant {
         ///@notice Get the last checkin time of the executor.
-        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
-            .lastCheckIn(msg.sender);
+        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR).lastCheckIn(msg.sender);
 
         ///@notice Check if the last checkin time is greater than the checkin interval.
         if (block.timestamp - lastCheckInTime > CHECK_IN_INTERVAL) {
@@ -735,7 +631,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         uint256 totalRefreshFees;
 
         ///@notice For each order in the orderIds array.
-        for (uint256 i = 0; i < orderIds.length; ) {
+        for (uint256 i = 0; i < orderIds.length;) {
             ///@notice Get the current orderId.
             bytes32 orderId = orderIds[i];
 
@@ -756,10 +652,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     ///@notice Internal helper function to refresh a Sandbox Limit Order.
     ///@param order - The Sandbox Limit Order to be refreshed.
     ///@return uint256 - The refresh fee to be compensated to the off-chain executor.
-    function _refreshSandboxLimitOrder(SandboxLimitOrder memory order)
-        internal
-        returns (uint256)
-    {
+    function _refreshSandboxLimitOrder(SandboxLimitOrder memory order) internal returns (uint256) {
         uint128 executionCreditBalance = order.executionCreditRemaining;
         ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
         if (block.timestamp > order.expirationTimestamp) {
@@ -775,10 +668,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
             }
         }
 
-        if (
-            IERC20(order.tokenIn).balanceOf(order.owner) <
-            order.amountInRemaining
-        ) {
+        if (IERC20(order.tokenIn).balanceOf(order.owner) < order.amountInRemaining) {
             return _cancelSandboxLimitOrderViaExecutor(order);
         }
 
@@ -788,24 +678,14 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         }
 
         orderIdToSandboxLimitOrder[order.orderId].executionCreditRemaining =
-            executionCreditBalance -
-            uint128(REFRESH_FEE);
-        emit OrderExecutionCreditUpdated(
-            order.orderId,
-            executionCreditBalance - REFRESH_FEE
-        );
+            executionCreditBalance - uint128(REFRESH_FEE);
+        emit OrderExecutionCreditUpdated(order.orderId, executionCreditBalance - REFRESH_FEE);
         ///@notice update the order's last refresh timestamp
         ///@dev uint32(block.timestamp).
-        orderIdToSandboxLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
-            block.timestamp
-        );
+        orderIdToSandboxLimitOrder[order.orderId].lastRefreshTimestamp = uint32(block.timestamp);
 
         ///@notice Emit an event to notify the off-chain executors that the order has been refreshed.
-        emit OrderRefreshed(
-            order.orderId,
-            order.lastRefreshTimestamp,
-            order.expirationTimestamp
-        );
+        emit OrderRefreshed(order.orderId, order.lastRefreshTimestamp, order.expirationTimestamp);
 
         return REFRESH_FEE;
     }
@@ -820,28 +700,24 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
      */
 
     ///@param sandboxMulticall -
-    function executeOrdersViaSandboxMulticall(
-        SandboxLimitOrderRouter.SandboxMulticall calldata sandboxMulticall
-    ) external onlySandboxLimitOrderRouter nonReentrant {
+    function executeOrdersViaSandboxMulticall(SandboxLimitOrderRouter.SandboxMulticall calldata sandboxMulticall)
+        external
+        onlySandboxLimitOrderRouter
+        nonReentrant
+    {
         ///@notice Initialize arrays to hold pre execution validation state.
-        PreSandboxExecutionState
-            memory preSandboxExecutionState = _initializePreSandboxExecutionState(
-                sandboxMulticall.orderIdBundles,
-                sandboxMulticall.fillAmounts
-            );
+        PreSandboxExecutionState memory preSandboxExecutionState =
+            _initializePreSandboxExecutionState(sandboxMulticall.orderIdBundles, sandboxMulticall.fillAmounts);
 
         ///@notice Call the limit order executor to transfer all of the order owners tokens to the contract.
         IConveyorExecutor(LIMIT_ORDER_EXECUTOR).executeSandboxLimitOrders(
-            preSandboxExecutionState.sandboxLimitOrders,
-            sandboxMulticall
+            preSandboxExecutionState.sandboxLimitOrders, sandboxMulticall
         );
 
         ///@notice Post execution, assert that all of the order owners have received >= their exact amount out
         uint256 executionGasCompensation = _validateSandboxExecutionAndFillOrders(
-                sandboxMulticall.orderIdBundles,
-                sandboxMulticall.fillAmounts,
-                preSandboxExecutionState
-            );
+            sandboxMulticall.orderIdBundles, sandboxMulticall.fillAmounts, preSandboxExecutionState
+        );
 
         _safeTransferETH(tx.origin, executionGasCompensation);
     }
@@ -850,10 +726,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     ///@param orderIdBundles - The order ids to execute.
     ///@param fillAmounts - The fill amounts for each order.
     ///@return preSandboxExecutionState - The PreSandboxExecution state.
-    function _initializePreSandboxExecutionState(
-        bytes32[][] calldata orderIdBundles,
-        uint128[] calldata fillAmounts
-    )
+    function _initializePreSandboxExecutionState(bytes32[][] calldata orderIdBundles, uint128[] calldata fillAmounts)
         internal
         view
         returns (PreSandboxExecutionState memory preSandboxExecutionState)
@@ -874,58 +747,41 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
 
         uint256 arrayIndex = 0;
         {
-            for (uint256 i = 0; i < orderIdBundles.length; ) {
+            for (uint256 i = 0; i < orderIdBundles.length;) {
                 bytes32[] memory orderIdBundle = orderIdBundles[i];
 
-                for (uint256 j = 0; j < orderIdBundle.length; ) {
+                for (uint256 j = 0; j < orderIdBundle.length;) {
                     bytes32 orderId = orderIdBundle[j];
 
                     ///@notice Transfer the tokens from the order owners to the sandbox router contract.
                     ///@dev This function is executed in the context of ConveyorExecutor as a delegatecall.
 
                     ///@notice Get the current order
-                    SandboxLimitOrder
-                        memory currentOrder = orderIdToSandboxLimitOrder[
-                            orderId
-                        ];
+                    SandboxLimitOrder memory currentOrder = orderIdToSandboxLimitOrder[orderId];
 
                     if (currentOrder.orderId == bytes32(0)) {
                         revert OrderDoesNotExist(orderId);
                     }
 
-                    preSandboxExecutionState.orderOwners[
-                        arrayIndex
-                    ] = currentOrder.owner;
+                    preSandboxExecutionState.orderOwners[arrayIndex] = currentOrder.owner;
 
-                    preSandboxExecutionState.sandboxLimitOrders[
-                        arrayIndex
-                    ] = currentOrder;
+                    preSandboxExecutionState.sandboxLimitOrders[arrayIndex] = currentOrder;
 
                     ///@notice Cache amountSpecifiedToFill for intermediate calculations
                     uint128 amountSpecifiedToFill = fillAmounts[arrayIndex];
                     ///@notice Require the amountSpecifiedToFill is less than or equal to the amountInRemaining of the order.
-                    if (
-                        amountSpecifiedToFill > currentOrder.amountInRemaining
-                    ) {
+                    if (amountSpecifiedToFill > currentOrder.amountInRemaining) {
                         revert FillAmountSpecifiedGreaterThanAmountRemaining(
-                            amountSpecifiedToFill,
-                            currentOrder.amountInRemaining,
-                            currentOrder.orderId
+                            amountSpecifiedToFill, currentOrder.amountInRemaining, currentOrder.orderId
                         );
                     }
 
                     ///@notice Cache the the pre execution state of the order details
-                    preSandboxExecutionState.initialTokenInBalances[
-                        arrayIndex
-                    ] = IERC20(currentOrder.tokenIn).balanceOf(
-                        currentOrder.owner
-                    );
+                    preSandboxExecutionState.initialTokenInBalances[arrayIndex] =
+                        IERC20(currentOrder.tokenIn).balanceOf(currentOrder.owner);
 
-                    preSandboxExecutionState.initialTokenOutBalances[
-                        arrayIndex
-                    ] = IERC20(currentOrder.tokenOut).balanceOf(
-                        currentOrder.owner
-                    );
+                    preSandboxExecutionState.initialTokenOutBalances[arrayIndex] =
+                        IERC20(currentOrder.tokenOut).balanceOf(currentOrder.owner);
 
                     unchecked {
                         ++arrayIndex;
@@ -956,16 +812,12 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         ///@dev orderIdIndex is used to track the current index of the sandboxLimitOrders array in the preSandboxExecutionState.
         uint256 orderIdIndex = 0;
         ///@notice Iterate through each bundle in the order id bundles.
-        for (uint256 i = 0; i < orderIdBundles.length; ) {
+        for (uint256 i = 0; i < orderIdBundles.length;) {
             bytes32[] memory orderIdBundle = orderIdBundles[i];
             ///@notice If the bundle length is greater than 1, then the validate a multi-order bundle.
             if (orderIdBundle.length > 1) {
-                cumulativeExecutionCreditCompensation += _validateMultiOrderBundle(
-                    orderIdIndex,
-                    orderIdBundle.length,
-                    fillAmounts,
-                    preSandboxExecutionState
-                );
+                cumulativeExecutionCreditCompensation +=
+                    _validateMultiOrderBundle(orderIdIndex, orderIdBundle.length, fillAmounts, preSandboxExecutionState);
                 ///@notice Increment the orderIdIndex by the length of the bundle.
                 orderIdIndex += orderIdBundle.length - 1;
                 ///@notice Else validate a single order bundle.
@@ -973,12 +825,8 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
                 cumulativeExecutionCreditCompensation += _validateSingleOrderBundle(
                     preSandboxExecutionState.sandboxLimitOrders[orderIdIndex],
                     fillAmounts[orderIdIndex],
-                    preSandboxExecutionState.initialTokenInBalances[
-                        orderIdIndex
-                    ],
-                    preSandboxExecutionState.initialTokenOutBalances[
-                        orderIdIndex
-                    ]
+                    preSandboxExecutionState.initialTokenInBalances[orderIdIndex],
+                    preSandboxExecutionState.initialTokenOutBalances[orderIdIndex]
                 );
                 ///@notice Increment the orderIdIndex by 1.
                 ++orderIdIndex;
@@ -1004,11 +852,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         ///@notice Cache values for post execution assertions
         uint128 amountOutRequired = uint128(
             ConveyorMath.mul64U(
-                ConveyorMath.divUU(
-                    currentOrder.amountOutRemaining,
-                    currentOrder.amountInRemaining
-                ),
-                fillAmount
+                ConveyorMath.divUU(currentOrder.amountOutRemaining, currentOrder.amountInRemaining), fillAmount
             )
         );
         ///@notice If amountOutRemaining/amountInRemaining rounds to 0 revert the tx.
@@ -1016,30 +860,21 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
             revert AmountOutRequiredIsZero(currentOrder.orderId);
         }
         ///@notice Get the current tokenIn/Out balances of the order owner.
-        uint256 currentTokenInBalance = IERC20(currentOrder.tokenIn).balanceOf(
-            currentOrder.owner
-        );
+        uint256 currentTokenInBalance = IERC20(currentOrder.tokenIn).balanceOf(currentOrder.owner);
 
-        uint256 currentTokenOutBalance = IERC20(currentOrder.tokenOut)
-            .balanceOf(currentOrder.owner);
+        uint256 currentTokenOutBalance = IERC20(currentOrder.tokenOut).balanceOf(currentOrder.owner);
 
         ///@notice Assert that the tokenIn balance is decremented by the fill amount exactly
         if (initialTokenInBalance - currentTokenInBalance > fillAmount) {
             revert SandboxFillAmountNotSatisfied(
-                currentOrder.orderId,
-                initialTokenInBalance - currentTokenInBalance,
-                fillAmount
+                currentOrder.orderId, initialTokenInBalance - currentTokenInBalance, fillAmount
             );
         }
 
         ///@notice Assert that the tokenOut balance is greater than or equal to the amountOutRequired
-        if (
-            currentTokenOutBalance - initialTokenOutBalance != amountOutRequired
-        ) {
+        if (currentTokenOutBalance - initialTokenOutBalance != amountOutRequired) {
             revert SandboxAmountOutRequiredNotSatisfied(
-                currentOrder.orderId,
-                currentTokenOutBalance - initialTokenOutBalance,
-                amountOutRequired
+                currentOrder.orderId, currentTokenOutBalance - initialTokenOutBalance, amountOutRequired
             );
         }
 
@@ -1069,17 +904,12 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         PreSandboxExecutionState memory preSandboxExecutionState
     ) internal returns (uint256 cumulativeExecutionCompensation) {
         ///@notice Cache the first order in the bundle
-        SandboxLimitOrder memory prevOrder = preSandboxExecutionState
-            .sandboxLimitOrders[orderIdIndex];
+        SandboxLimitOrder memory prevOrder = preSandboxExecutionState.sandboxLimitOrders[orderIdIndex];
 
         ///@notice Cacluate the amountOut required for the first order in the bundle
         uint128 amountOutRequired = uint128(
             ConveyorMath.mul64U(
-                ConveyorMath.divUU(
-                    prevOrder.amountOutRemaining,
-                    prevOrder.amountInRemaining
-                ),
-                fillAmounts[orderIdIndex]
+                ConveyorMath.divUU(prevOrder.amountOutRemaining, prevOrder.amountInRemaining), fillAmounts[orderIdIndex]
             )
         );
 
@@ -1098,25 +928,19 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
 
         {
             ///@notice For each order in the bundle
-            for (uint256 i = 1; i < bundleLength; ) {
+            for (uint256 i = 1; i < bundleLength;) {
                 ///@notice Cache the order
-                SandboxLimitOrder memory currentOrder = preSandboxExecutionState
-                    .sandboxLimitOrders[offset + 1];
+                SandboxLimitOrder memory currentOrder = preSandboxExecutionState.sandboxLimitOrders[offset + 1];
 
                 ///@notice Cache the tokenIn and tokenOut balance for the current order
-                uint256 currentTokenInBalance = IERC20(prevOrder.tokenIn)
-                    .balanceOf(orderOwner);
+                uint256 currentTokenInBalance = IERC20(prevOrder.tokenIn).balanceOf(orderOwner);
 
-                uint256 currentTokenOutBalance = IERC20(prevOrder.tokenOut)
-                    .balanceOf(orderOwner);
+                uint256 currentTokenOutBalance = IERC20(prevOrder.tokenOut).balanceOf(orderOwner);
 
                 ///@notice Cache the amountOutRequired for the current order
                 amountOutRequired = uint128(
                     ConveyorMath.mul64U(
-                        ConveyorMath.divUU(
-                            currentOrder.amountOutRemaining,
-                            currentOrder.amountInRemaining
-                        ),
+                        ConveyorMath.divUU(currentOrder.amountOutRemaining, currentOrder.amountInRemaining),
                         fillAmounts[offset + 1]
                     )
                 );
@@ -1129,17 +953,12 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
                 if (currentOrder.tokenIn != prevOrder.tokenIn) {
                     ///@notice Assert that the tokenIn balance is decremented by the fill amount exactly.
                     if (
-                        preSandboxExecutionState.initialTokenInBalances[
-                            offset
-                        ] -
-                            currentTokenInBalance >
-                        cumulativeFillAmount
+                        preSandboxExecutionState.initialTokenInBalances[offset] - currentTokenInBalance
+                            > cumulativeFillAmount
                     ) {
                         revert SandboxFillAmountNotSatisfied(
                             prevOrder.orderId,
-                            preSandboxExecutionState.initialTokenInBalances[
-                                offset
-                            ] - currentTokenInBalance,
+                            preSandboxExecutionState.initialTokenInBalances[offset] - currentTokenInBalance,
                             cumulativeFillAmount
                         );
                     }
@@ -1153,17 +972,12 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
                 if (currentOrder.tokenOut != prevOrder.tokenOut) {
                     ///@notice Assert that the tokenOut balance is greater than or equal to the amountOutRequired.
                     if (
-                        currentTokenOutBalance -
-                            preSandboxExecutionState.initialTokenOutBalances[
-                                offset
-                            ] !=
-                        cumulativeAmountOutRequired
+                        currentTokenOutBalance - preSandboxExecutionState.initialTokenOutBalances[offset]
+                            != cumulativeAmountOutRequired
                     ) {
                         revert SandboxAmountOutRequiredNotSatisfied(
                             prevOrder.orderId,
-                            currentTokenOutBalance -
-                                preSandboxExecutionState
-                                    .initialTokenOutBalances[offset],
+                            currentTokenOutBalance - preSandboxExecutionState.initialTokenOutBalances[offset],
                             cumulativeAmountOutRequired
                         );
                     }
@@ -1173,12 +987,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
                     ///@notice Update the cumulativeAmountOutRequired to include the amountOutRequired for the current order.
                     cumulativeAmountOutRequired += amountOutRequired;
                 }
-                _resolveOrPartialFillOrder(
-                    prevOrder,
-                    offset,
-                    fillAmounts,
-                    cumulativeExecutionCompensation
-                );
+                _resolveOrPartialFillOrder(prevOrder, offset, fillAmounts, cumulativeExecutionCompensation);
                 ///@notice Set prevOrder to the currentOrder and increment the offset.
                 prevOrder = currentOrder;
                 ++offset;
@@ -1187,12 +996,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
                     ++i;
                 }
             }
-            _resolveOrPartialFillOrder(
-                prevOrder,
-                offset - 1,
-                fillAmounts,
-                cumulativeExecutionCompensation
-            );
+            _resolveOrPartialFillOrder(prevOrder, offset - 1, fillAmounts, cumulativeExecutionCompensation);
         }
     }
 
@@ -1205,18 +1009,14 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         ///@notice Update the sandboxLimitOrder after the execution requirements have been met.
         if (prevOrder.amountInRemaining == fillAmounts[offset]) {
             _resolveCompletedOrder(prevOrder.orderId);
-            cumulativeExecutionCompensation += prevOrder
-                .executionCreditRemaining;
+            cumulativeExecutionCompensation += prevOrder.executionCreditRemaining;
         } else {
             ///@notice Update the state of the order to parial filled quantities.
             cumulativeExecutionCompensation += _partialFillSandboxLimitOrder(
                 uint128(fillAmounts[offset]),
                 uint128(
                     ConveyorMath.mul64U(
-                        ConveyorMath.divUU(
-                            prevOrder.amountOutRemaining,
-                            prevOrder.amountInRemaining
-                        ),
+                        ConveyorMath.divUU(prevOrder.amountOutRemaining, prevOrder.amountInRemaining),
                         fillAmounts[offset]
                     )
                 ),
@@ -1235,67 +1035,45 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     ///@param amountInFilled - The amount in that was filled for the order.
     ///@param amountOutFilled - The amount out that was filled for the order.
     ///@param orderId - The orderId of the order that was filled.
-    function _partialFillSandboxLimitOrder(
-        uint128 amountInFilled,
-        uint128 amountOutFilled,
-        bytes32 orderId
-    ) internal returns (uint256) {
+    function _partialFillSandboxLimitOrder(uint128 amountInFilled, uint128 amountOutFilled, bytes32 orderId)
+        internal
+        returns (uint256)
+    {
         SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
         uint128 executionCreditRemaining = order.executionCreditRemaining;
         ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-        decrementTotalOrdersQuantity(
-            order.tokenIn,
-            order.owner,
-            amountInFilled
-        );
+        decrementTotalOrdersQuantity(order.tokenIn, order.owner, amountInFilled);
 
         ///@notice Cache the Orders amountInRemaining.
         uint128 amountInRemaining = order.amountInRemaining;
         ///@notice Cache the Orders feeRemaining.
         uint128 feeRemaining = order.feeRemaining;
         uint128 percentFilled = order.fillPercent != 0
-            ? ConveyorMath.mul64x64(
-                order.fillPercent,
-                ConveyorMath.divUU(amountInFilled, amountInRemaining)
-            )
+            ? ConveyorMath.mul64x64(order.fillPercent, ConveyorMath.divUU(amountInFilled, amountInRemaining))
             : ConveyorMath.divUU(amountInFilled, amountInRemaining);
         ///@notice Update the orders fillPercent to amountInFilled/amountInRemaining as 16.16 fixed point
         orderIdToSandboxLimitOrder[orderId].fillPercent += percentFilled;
 
         ///@notice Update the orders amountInRemaining to amountInRemaining - amountInFilled.
-        orderIdToSandboxLimitOrder[orderId].amountInRemaining =
-            order.amountInRemaining -
-            amountInFilled;
+        orderIdToSandboxLimitOrder[orderId].amountInRemaining = order.amountInRemaining - amountInFilled;
         ///@notice Update the orders amountOutRemaining to amountOutRemaining - amountOutFilled.
-        orderIdToSandboxLimitOrder[orderId].amountOutRemaining =
-            order.amountOutRemaining -
-            amountOutFilled;
+        orderIdToSandboxLimitOrder[orderId].amountOutRemaining = order.amountOutRemaining - amountOutFilled;
 
         ///@notice Update the status of the order to PartialFilled
-        addressToOrderIds[order.owner][order.orderId] = OrderType
-            .PartialFilledSandboxLimitOrder;
+        addressToOrderIds[order.owner][order.orderId] = OrderType.PartialFilledSandboxLimitOrder;
 
-        uint128 updatedFeeRemaining = feeRemaining -
-            uint128(
-                ConveyorMath.mul64U(
-                    ConveyorMath.divUU(amountInFilled, amountInRemaining),
-                    feeRemaining
-                )
-            );
+        uint128 updatedFeeRemaining = feeRemaining
+            - uint128(ConveyorMath.mul64U(ConveyorMath.divUU(amountInFilled, amountInRemaining), feeRemaining));
 
         ///@notice Update the orders feeRemaining to feeRemaining - feeRemaining * amountInFilled/amountInRemaining.
         orderIdToSandboxLimitOrder[orderId].feeRemaining = updatedFeeRemaining;
 
-        uint128 executionCreditCompensation = uint128(
-            ConveyorMath.mul64U(percentFilled, executionCreditRemaining)
-        );
+        uint128 executionCreditCompensation = uint128(ConveyorMath.mul64U(percentFilled, executionCreditRemaining));
 
-        uint128 updatedExecutionCreditRemaining = executionCreditRemaining -
-            executionCreditCompensation;
+        uint128 updatedExecutionCreditRemaining = executionCreditRemaining - executionCreditCompensation;
 
         ///@notice Decrement the execution credit by the proportion of the fillAmount/amountInRemaining(at placement time)
-        orderIdToSandboxLimitOrder[order.orderId]
-            .executionCreditRemaining = updatedExecutionCreditRemaining;
+        orderIdToSandboxLimitOrder[order.orderId].executionCreditRemaining = updatedExecutionCreditRemaining;
 
         emit OrderPartialFilled(
             order.orderId,
@@ -1303,7 +1081,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
             order.amountOutRemaining - amountOutFilled,
             updatedExecutionCreditRemaining,
             updatedFeeRemaining
-        );
+            );
 
         return executionCreditCompensation;
     }
@@ -1321,11 +1099,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         --totalOrdersPerAddress[order.owner];
 
         ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-        decrementTotalOrdersQuantity(
-            order.tokenIn,
-            order.owner,
-            order.amountInRemaining
-        );
+        decrementTotalOrdersQuantity(order.tokenIn, order.owner, order.amountInRemaining);
     }
 
     ///@notice Function to resolve an order as completed.
@@ -1348,15 +1122,10 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         --totalOrdersPerAddress[order.owner];
 
         ///@notice Decrement totalOrdersQuantity on order.tokenIn for order owner
-        decrementTotalOrdersQuantity(
-            order.tokenIn,
-            order.owner,
-            order.amountInRemaining
-        );
+        decrementTotalOrdersQuantity(order.tokenIn, order.owner, order.amountInRemaining);
 
         ///@notice Update the status of the order to filled
-        addressToOrderIds[order.owner][order.orderId] = OrderType
-            .FilledSandboxLimitOrder;
+        addressToOrderIds[order.owner][order.orderId] = OrderType.FilledSandboxLimitOrder;
 
         ///@notice Emit the event that the order has been filled.
         bytes32[] memory filledOrderIds = new bytes32[](1);
@@ -1369,11 +1138,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     ///@param token - Token address to decrement the total order value on.
     ///@param orderOwner - Account address to decrement the total order value from.
     ///@param quantity - Amount to decrement the total order value by.
-    function decrementTotalOrdersQuantity(
-        address token,
-        address orderOwner,
-        uint256 quantity
-    ) internal {
+    function decrementTotalOrdersQuantity(address token, address orderOwner, uint256 quantity) internal {
         bytes32 totalOrdersValueKey = keccak256(abi.encode(orderOwner, token));
         totalOrdersQuantity[totalOrdersValueKey] -= quantity;
     }
@@ -1382,11 +1147,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     ///@param token - Token address to update the total order value on.
     ///@param orderOwner - Account address to update the total order value from.
     ///@param newQuantity - Amount set the the new total order value to.
-    function _updateTotalOrdersQuantity(
-        address token,
-        address orderOwner,
-        uint256 newQuantity
-    ) internal {
+    function _updateTotalOrdersQuantity(address token, address orderOwner, uint256 newQuantity) internal {
         bytes32 totalOrdersValueKey = keccak256(abi.encode(orderOwner, token));
         totalOrdersQuantity[totalOrdersValueKey] = newQuantity;
     }
@@ -1414,20 +1175,12 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     /// @notice Helper function to get the total order value on a specific token for the msg.sender.
     /// @param token - Token address to get total order value on.
     /// @return totalOrderValue - The total value of orders that exist for the msg.sender on the specified token.
-    function getTotalOrdersValue(address token)
-        public
-        view
-        returns (uint256 totalOrderValue)
-    {
+    function getTotalOrdersValue(address token) public view returns (uint256 totalOrderValue) {
         bytes32 totalOrdersValueKey = keccak256(abi.encode(msg.sender, token));
         return totalOrdersQuantity[totalOrdersValueKey];
     }
 
-    function getAllOrderIdsLength(address orderOwner)
-        public
-        view
-        returns (uint256)
-    {
+    function getAllOrderIdsLength(address orderOwner) public view returns (uint256) {
         return addressToAllOrderIds[orderOwner].length;
     }
 
@@ -1435,11 +1188,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         return SANDBOX_LIMIT_ORDER_ROUTER;
     }
 
-    function getSandboxLimitOrderById(bytes32 orderId)
-        public
-        view
-        returns (SandboxLimitOrder memory)
-    {
+    function getSandboxLimitOrderById(bytes32 orderId) public view returns (SandboxLimitOrder memory) {
         SandboxLimitOrder memory order = orderIdToSandboxLimitOrder[orderId];
         if (order.orderId == bytes32(0)) {
             revert OrderDoesNotExist(orderId);
@@ -1454,12 +1203,11 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
     ///@param orderOffset - The first order to start from when checking orderstatus. For example, if order offset is 2, the function will start checking orderId status from the second order.
     ///@param length - The amount of orders to check order status for.
     ///@return - Array of orderIds matching the targetOrderType
-    function getOrderIds(
-        address orderOwner,
-        OrderType targetOrderType,
-        uint256 orderOffset,
-        uint256 length
-    ) public view returns (bytes32[] memory) {
+    function getOrderIds(address orderOwner, OrderType targetOrderType, uint256 orderOffset, uint256 length)
+        public
+        view
+        returns (bytes32[] memory)
+    {
         bytes32[] memory allOrderIds = addressToAllOrderIds[orderOwner];
 
         uint256 orderIdIndex = 0;
@@ -1468,13 +1216,10 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         uint256 orderOffsetSlot;
         assembly {
             //Adjust the offset slot to be the beginning of the allOrderIds array + 0x20 to get the first order + the order Offset * the size of each order
-            orderOffsetSlot := add(
-                add(allOrderIds, 0x20),
-                mul(orderOffset, 0x20)
-            )
+            orderOffsetSlot := add(add(allOrderIds, 0x20), mul(orderOffset, 0x20))
         }
 
-        for (uint256 i = 0; i < length; ) {
+        for (uint256 i = 0; i < length;) {
             bytes32 orderId;
             assembly {
                 //Get the orderId at the orderOffsetSlot
@@ -1503,16 +1248,10 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
         return orderIds;
     }
 
-    function setMinExecutionCredit(uint256 newMinExecutionCredit)
-        external
-        onlyOwner
-    {
+    function setMinExecutionCredit(uint256 newMinExecutionCredit) external onlyOwner {
         uint256 oldMinExecutionCredit = minExecutionCredit;
         minExecutionCredit = newMinExecutionCredit;
-        emit MinExecutionCreditUpdated(
-            newMinExecutionCredit,
-            oldMinExecutionCredit
-        );
+        emit MinExecutionCreditUpdated(newMinExecutionCredit, oldMinExecutionCredit);
     }
 
     ///@notice Function to confirm ownership transfer of the contract.

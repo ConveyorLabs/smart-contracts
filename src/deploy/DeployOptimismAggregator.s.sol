@@ -8,10 +8,7 @@ contract Deploy is Script {
     ///@dev Fantom Constructor Constants
     address constant WETH = 0x4200000000000000000000000000000000000006;
 
-    function run()
-        public
-        returns (ConveyorSwapAggregator conveyorSwapAggregator)
-    {
+    function run() public returns (ConveyorSwapAggregator conveyorSwapAggregator) {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
         vm.startBroadcast(deployerPrivateKey);

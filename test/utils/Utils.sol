@@ -3,11 +3,7 @@ pragma solidity 0.8.16;
 
 library utils {
     /// @notice Function to calculate the gas cost of call data
-    function callDataCost(bytes memory _callData)
-        public
-        pure
-        returns (uint256)
-    {
+    function callDataCost(bytes memory _callData) public pure returns (uint256) {
         uint256 i = 0;
         uint256 gasCost;
         uint256 callDataLength = _callData.length;
@@ -24,17 +20,11 @@ library utils {
         return gasCost;
     }
 
-    function hexStrToBytes(string memory hex_str)
-        public
-        pure
-        returns (bytes memory)
-    {
+    function hexStrToBytes(string memory hex_str) public pure returns (bytes memory) {
         //Check hex string is valid
         if (
-            bytes(hex_str)[0] != "0" ||
-            bytes(hex_str)[1] != "x" ||
-            bytes(hex_str).length % 2 != 0 ||
-            bytes(hex_str).length < 4
+            bytes(hex_str)[0] != "0" || bytes(hex_str)[1] != "x" || bytes(hex_str).length % 2 != 0
+                || bytes(hex_str).length < 4
         ) {
             revert("Hex string not valid");
         }
@@ -46,40 +36,34 @@ library utils {
             uint256 tetrad2 = 16;
 
             //left digit
-            if (
-                uint256(uint8(bytes(hex_str)[i])) >= 48 &&
-                uint256(uint8(bytes(hex_str)[i])) <= 57
-            ) tetrad1 = uint256(uint8(bytes(hex_str)[i])) - 48;
+            if (uint256(uint8(bytes(hex_str)[i])) >= 48 && uint256(uint8(bytes(hex_str)[i])) <= 57) {
+                tetrad1 = uint256(uint8(bytes(hex_str)[i])) - 48;
+            }
 
             //right digit
-            if (
-                uint256(uint8(bytes(hex_str)[i + 1])) >= 48 &&
-                uint256(uint8(bytes(hex_str)[i + 1])) <= 57
-            ) tetrad2 = uint256(uint8(bytes(hex_str)[i + 1])) - 48;
+            if (uint256(uint8(bytes(hex_str)[i + 1])) >= 48 && uint256(uint8(bytes(hex_str)[i + 1])) <= 57) {
+                tetrad2 = uint256(uint8(bytes(hex_str)[i + 1])) - 48;
+            }
 
             //left A->F
-            if (
-                uint256(uint8(bytes(hex_str)[i])) >= 65 &&
-                uint256(uint8(bytes(hex_str)[i])) <= 70
-            ) tetrad1 = uint256(uint8(bytes(hex_str)[i])) - 65 + 10;
+            if (uint256(uint8(bytes(hex_str)[i])) >= 65 && uint256(uint8(bytes(hex_str)[i])) <= 70) {
+                tetrad1 = uint256(uint8(bytes(hex_str)[i])) - 65 + 10;
+            }
 
             //right A->F
-            if (
-                uint256(uint8(bytes(hex_str)[i + 1])) >= 65 &&
-                uint256(uint8(bytes(hex_str)[i + 1])) <= 70
-            ) tetrad2 = uint256(uint8(bytes(hex_str)[i + 1])) - 65 + 10;
+            if (uint256(uint8(bytes(hex_str)[i + 1])) >= 65 && uint256(uint8(bytes(hex_str)[i + 1])) <= 70) {
+                tetrad2 = uint256(uint8(bytes(hex_str)[i + 1])) - 65 + 10;
+            }
 
             //left a->f
-            if (
-                uint256(uint8(bytes(hex_str)[i])) >= 97 &&
-                uint256(uint8(bytes(hex_str)[i])) <= 102
-            ) tetrad1 = uint256(uint8(bytes(hex_str)[i])) - 97 + 10;
+            if (uint256(uint8(bytes(hex_str)[i])) >= 97 && uint256(uint8(bytes(hex_str)[i])) <= 102) {
+                tetrad1 = uint256(uint8(bytes(hex_str)[i])) - 97 + 10;
+            }
 
             //right a->f
-            if (
-                uint256(uint8(bytes(hex_str)[i + 1])) >= 97 &&
-                uint256(uint8(bytes(hex_str)[i + 1])) <= 102
-            ) tetrad2 = uint256(uint8(bytes(hex_str)[i + 1])) - 97 + 10;
+            if (uint256(uint8(bytes(hex_str)[i + 1])) >= 97 && uint256(uint8(bytes(hex_str)[i + 1])) <= 102) {
+                tetrad2 = uint256(uint8(bytes(hex_str)[i + 1])) - 97 + 10;
+            }
 
             //Check all symbols are allowed
             if (tetrad1 == 16 || tetrad2 == 16) revert();
