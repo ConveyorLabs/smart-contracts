@@ -118,11 +118,10 @@ contract ConveyorSwapAggregatorTest is DSTest {
 
     function testSwapExactEthForTokens() public {
         cheatCodes.rollFork(forkId, 16749139);
-
         cheatCodes.deal(address(this), type(uint128).max);
         uint256 amountIn = 1900000000000000000000;
         address tokenOut = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
-        uint256 amountOutMin = 54776144172760093;
+        uint128 amountOutMin = 54776144172760093;
         address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
 
         ConveyorSwapAggregator.Call[] memory calls = new ConveyorSwapAggregator.Call[](1);

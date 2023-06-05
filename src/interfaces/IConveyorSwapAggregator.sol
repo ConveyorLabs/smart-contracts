@@ -23,7 +23,7 @@ interface IConveyorSwapAggregator {
 
     function swapExactEthForToken(
         address tokenOut,
-        uint256 amountOutMin,
+        uint128 amountOutMin,
         uint128 protocolFee,
         ConveyorSwapAggregator.SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable;
