@@ -67,7 +67,7 @@ error SandboxAmountOutRequiredNotSatisfied(
     uint256 amountOut,
     uint256 amountOutRequired
 );
-
+error InvalidReferral();
 error AmountOutRequiredIsZero(bytes32 orderId);
 
 error FillAmountSpecifiedGreaterThanAmountRemaining(

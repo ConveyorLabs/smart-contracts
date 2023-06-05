@@ -21,7 +21,7 @@ contract ConveyorSwapAggregator {
     /// @notice Owner of the contract. Address permitted to withdraw ETH from the contract.
     address owner;
 
-    /// @notice Restricts ETH withdrawals to the owner address. 
+    /// @notice Restricts ETH withdrawals to the owner address.
     modifier onlyOwner() {
         if (msg.sender != owner) {
             revert UnauthorizedCaller();
@@ -79,6 +79,14 @@ contract ConveyorSwapAggregator {
         WETH = _weth;
     }
 
+    /// @notice ReferralInfo struct for token Swaps with Referrer.
+    /// @param Referrer address.
+    /// @param Amount sent to the referral address.
+    struct ReferralInfo {
+        address referrer;
+        uint256 referralFee;
+    }
+
     /// @notice SwapAggregatorMulticall struct for token Swaps.
     /// @param zeroForOneBitmap for zeroForOne bool along the swap calls.
     /// @param isUniV2Bitmap for isUniV2 bool along the swap calls.
@@ -115,7 +123,7 @@ contract ConveyorSwapAggregator {
         address tokenOut,
         uint256 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
-    ) external payable {
+    ) public payable {
         ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
         IERC20(tokenIn).transferFrom(
             msg.sender,
@@ -155,6 +163,39 @@ contract ConveyorSwapAggregator {
         );
     }
 
+    /// @notice Swap tokens for tokens with referral.
+    /// @param tokenIn Address of token to swap.
+    /// @param amountIn Amount of tokenIn to swap.
+    /// @param tokenOut Address of token to receive.
+    /// @param amountOutMin Minimum amount of tokenOut to receive.
+    /// @param swapAggregatorMulticall Multicall to be executed.
+    function swapWithReferral(
+        address tokenIn,
+        uint256 amountIn,
+        address tokenOut,
+        uint256 amountOutMin,
+        SwapAggregatorMulticall calldata swapAggregatorMulticall,
+        ReferralInfo calldata referralInfo
+    ) external payable {
+        uint256 referralFee = referralInfo.referralFee;
+
+        ///@notice Transfer referral fee to referrer.
+        if (referralInfo.referrer != address(0) && referralFee < msg.value) {
+            _safeTransferETH(referralInfo.referrer, msg.value - referralFee);
+        } else {
+            revert InvalidReferral();
+        }
+
+        ///@notice Swap tokens for tokens.
+        swap(
+            tokenIn,
+            amountIn,
+            tokenOut,
+            amountOutMin,
+            swapAggregatorMulticall
+        );
+    }
+
     /// @notice Swap ETH for tokens.
     /// @param tokenOut Address of token to receive.
     /// @param amountOutMin Minimum amount of tokenOut to receive.
@@ -169,7 +210,72 @@ contract ConveyorSwapAggregator {
             revert InsufficientMsgValue();
         }
         ///@notice Deposit the msg.value-protocolFee into WETH.
-        _depositEth(msg.value- protocolFee, WETH);
+        _depositEth(msg.value - protocolFee, WETH);
+
+        ///@notice Transfer WETH from WETH to tokenInDestination address.
+        IERC20(WETH).transfer(
+            swapAggregatorMulticall.tokenInDestination,
+            msg.value
+        );
+        ///@notice Get tokenOut balance of msg.sender.
+        uint256 balanceBefore = IERC20(tokenOut).balanceOf(msg.sender);
+
+        ///@notice Calculate tokenOut amount required.
+        uint256 tokenOutAmountRequired = balanceBefore + amountOutMin;
+
+        ///@notice Execute Multicall.
+        IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
+            swapAggregatorMulticall,
+            msg.value,
+            msg.sender
+        );
+
+        ///@notice Get tokenOut balance of msg.sender after multicall execution.
+        uint256 balanceAfter = IERC20(tokenOut).balanceOf(msg.sender);
+
+        ///@notice Revert if tokenOut balance of msg.sender is insufficient.
+        if (balanceAfter < tokenOutAmountRequired) {
+            revert InsufficientOutputAmount(
+                tokenOutAmountRequired - balanceAfter,
+                amountOutMin
+            );
+        }
+
+        ///@notice Emit SwapExactEthForToken event.
+        emit SwapExactEthForToken(
+            msg.value,
+            tokenOut,
+            balanceAfter - balanceBefore,
+            msg.sender
+        );
+    }
+
+    /// @notice Swap ETH for tokens with Referral.
+    /// @param tokenOut Address of token to receive.
+    /// @param amountOutMin Minimum amount of tokenOut to receive.
+    /// @param swapAggregatorMulticall Multicall to be executed.
+    function swapExactEthForTokenWithReferral(
+        address tokenOut,
+        uint128 amountOutMin,
+        uint128 protocolFee,
+        SwapAggregatorMulticall calldata swapAggregatorMulticall,
+        ReferralInfo calldata referralInfo
+    ) external payable {
+        if (protocolFee > msg.value) {
+            revert InsufficientMsgValue();
+        }
+
+        uint256 referralFee = referralInfo.referralFee;
+
+        ///@notice Transfer referral fee to referrer.
+        if (referralInfo.referrer != address(0) && referralFee < protocolFee) {
+            _safeTransferETH(referralInfo.referrer, protocolFee - referralFee);
+        } else {
+            revert InvalidReferral();
+        }
+
+        ///@notice Deposit the msg.value-protocolFee into WETH.
+        _depositEth(msg.value - protocolFee, WETH);
 
         ///@notice Transfer WETH from WETH to tokenInDestination address.
         IERC20(WETH).transfer(
@@ -219,7 +325,7 @@ contract ConveyorSwapAggregator {
         uint256 amountIn,
         uint256 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
-    ) external payable {
+    ) public payable {
         ///@dev Ignore if the tokenInDestination is address(0).
         if (swapAggregatorMulticall.tokenInDestination != address(0)) {
             ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
@@ -265,6 +371,36 @@ contract ConveyorSwapAggregator {
             amountIn,
             msg.sender.balance - balanceBefore,
             msg.sender
+        );
+    }
+
+    /// @notice Swap tokens for ETH.
+    /// @param tokenIn Address of token to swap.
+    /// @param amountIn Amount of tokenIn to swap.
+    /// @param amountOutMin Minimum amount of ETH to receive.
+    /// @param swapAggregatorMulticall Multicall to be executed.
+    /// @param referralInfo Referral information.
+    function swapExactTokenForEthWithReferral(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        SwapAggregatorMulticall calldata swapAggregatorMulticall,
+        ReferralInfo calldata referralInfo
+    ) external payable {
+        uint256 referralFee = referralInfo.referralFee;
+
+        ///@notice Transfer referral fee to referrer.
+        if (referralInfo.referrer != address(0) && referralFee < msg.value) {
+            _safeTransferETH(referralInfo.referrer, msg.value - referralFee);
+        } else {
+            revert InvalidReferral();
+        }
+
+        swapExactTokenForEth(
+            tokenIn,
+            amountIn,
+            amountOutMin,
+            swapAggregatorMulticall
         );
     }
 
