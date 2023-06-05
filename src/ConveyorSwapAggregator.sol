@@ -162,10 +162,14 @@ contract ConveyorSwapAggregator {
     function swapExactEthForToken(
         address tokenOut,
         uint128 amountOutMin,
+        uint128 protocolFee,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable {
-        ///@notice Deposit the msg.value into WETH.
-        _depositEth(msg.value, WETH);
+        if (protocolFee > msg.value) {
+            revert InsufficientMsgValue();
+        }
+        ///@notice Deposit the msg.value-protocolFee into WETH.
+        _depositEth(msg.value- protocolFee, WETH);
 
         ///@notice Transfer WETH from WETH to tokenInDestination address.
         IERC20(WETH).transfer(
@@ -215,7 +219,7 @@ contract ConveyorSwapAggregator {
         uint256 amountIn,
         uint256 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
-    ) external {
+    ) external payable {
         ///@dev Ignore if the tokenInDestination is address(0).
         if (swapAggregatorMulticall.tokenInDestination != address(0)) {
             ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
