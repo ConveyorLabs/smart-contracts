@@ -269,7 +269,7 @@ contract ConveyorSwapAggregator {
 
         ///@notice Transfer referral fee to referrer.
         if (referralInfo.referrer != address(0) && referralFee < protocolFee) {
-            _safeTransferETH(referralInfo.referrer, protocolFee - referralFee);
+            _safeTransferETH(referralInfo.referrer, referralFee);
         } else {
             revert InvalidReferral();
         }
