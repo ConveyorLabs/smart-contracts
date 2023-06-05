@@ -18,8 +18,19 @@ interface IConveyorSwapExecutor {
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Multicall contract for token Swaps.
 contract ConveyorSwapAggregator {
-    address public immutable CONVEYOR_SWAP_EXECUTOR;
-    address public immutable WETH;
+    /// @notice Owner of the contract. Address permitted to withdraw ETH from the contract.
+    address owner;
+
+    /// @notice Restricts ETH withdrawals to the owner address. 
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can call this function.");
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
     /**@notice Event that is emitted when a token to token swap has filled successfully.
      **/
     event Swap(
@@ -47,6 +58,13 @@ contract ConveyorSwapAggregator {
         uint256 amountOut,
         address indexed receiver
     );
+
+    /*//////////////////////////////////////////////////////////////
+                               IMMUTABLES
+    //////////////////////////////////////////////////////////////*/
+
+    address public immutable CONVEYOR_SWAP_EXECUTOR;
+    address public immutable WETH;
 
     ///@dev Deploys the ConveyorSwapExecutor contract.
     ///@param _weth Address of Wrapped Native Asset.
@@ -94,7 +112,7 @@ contract ConveyorSwapAggregator {
         address tokenOut,
         uint256 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
-    ) external {
+    ) external payable {
         ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
         IERC20(tokenIn).transferFrom(
             msg.sender,
@@ -140,7 +158,7 @@ contract ConveyorSwapAggregator {
     /// @param swapAggregatorMulticall Multicall to be executed.
     function swapExactEthForToken(
         address tokenOut,
-        uint256 amountOutMin,
+        uint128 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable {
         ///@notice Deposit the msg.value into WETH.
@@ -298,6 +316,11 @@ contract ConveyorSwapAggregator {
                 revert("Native token deposit failed", amount)
             }
         }
+    }
+
+    ///@notice Witdraws ETH from the contract.
+    function withdraw() external onlyOwner {
+        _safeTransferETH(msg.sender, address(this).balance);
     }
 
     /// @notice Fallback receiver function.
