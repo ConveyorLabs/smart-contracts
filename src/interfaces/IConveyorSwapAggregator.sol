@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import "../ConveyorSwapAggregator.sol";
 
 interface IConveyorSwapAggregator {
-    function swap(
+    function swapExactTokenForToken(
         address tokenIn,
         uint256 amountIn,
         address tokenOut,
@@ -12,7 +12,7 @@ interface IConveyorSwapAggregator {
         ConveyorSwapAggregator.SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable;
 
-    function swapWithReferral(
+    function swapExactTokenForTokenWithReferral(
         address tokenIn,
         uint256 amountIn,
         address tokenOut,

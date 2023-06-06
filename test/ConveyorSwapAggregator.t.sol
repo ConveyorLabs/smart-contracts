@@ -99,7 +99,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 calls
             );
 
-        conveyorSwapAggregator.swap(
+        conveyorSwapAggregator.swapExactTokenForToken(
             tokenIn,
             amountIn,
             tokenOut,
@@ -185,7 +185,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 calls
             );
 
-        conveyorSwapAggregator.swap(
+        conveyorSwapAggregator.swapExactTokenForToken(
             WETH,
             1000000000000000000,
             address(0x02D928E68D8F10C0358566152677Db51E1e2Dc8C),
@@ -234,7 +234,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 0
             );
 
-        conveyorSwapAggregator.swapWithReferral(
+        conveyorSwapAggregator.swapExactTokenForTokenWithReferral(
             tokenIn,
             amountIn,
             tokenOut,
