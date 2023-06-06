@@ -453,7 +453,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 calls
             );
 
-        conveyorSwapAggregator.swap(
+        conveyorSwapAggregator.swapExactTokenForToken(
             tokenIn,
             amountIn,
             tokenOut,
@@ -514,7 +514,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 calls
             );
 
-        conveyorSwapAggregator.swap(
+        conveyorSwapAggregator.swapExactTokenForToken(
             tokenIn,
             amountIn,
             tokenOut,
