@@ -28,11 +28,27 @@ interface IConveyorSwapAggregator {
         ConveyorSwapAggregator.SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable;
 
+    function swapExactEthForTokenWithReferral(
+        address tokenOut,
+        uint128 amountOutMin,
+        uint128 protocolFee,
+        ConveyorSwapAggregator.SwapAggregatorMulticall calldata swapAggregatorMulticall,
+        ConveyorSwapAggregator.ReferralInfo calldata referralInfo
+    ) external payable;
+
     function swapExactTokenForEth(
         address tokenIn,
         uint256 amountIn,
         uint256 amountOutMin,
         ConveyorSwapAggregator.SwapAggregatorMulticall calldata swapAggregatorMulticall
+    ) external payable;
+
+    function swapExactTokenForEthWithReferral(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        ConveyorSwapAggregator.SwapAggregatorMulticall calldata swapAggregatorMulticall,
+        ConveyorSwapAggregator.ReferralInfo calldata referralInfo
     ) external payable;
 
     function CONVEYOR_SWAP_EXECUTOR() external view returns (address);
