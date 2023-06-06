@@ -156,32 +156,41 @@ contract ConveyorSwapAggregatorTest is DSTest {
             amount: 1000000000000000000,
             userData: abi.encode(0, 0)
         });
-        
+
+        IVault.FundManagement memory funds = IVault.FundManagement({
+            sender: address(this),
+            fromInternalBalance: false,
+            recipient: payable(address(this)),
+            toInternalBalance: false
+        });
+
+        bytes memory data=abi.encodeWithSignature("swap(SingleSwap memory singleSwap,FundManagement memory funds,uint256 limit,uint256 deadline)" , singleSwap, funds, 0, 0);
+
         ConveyorSwapAggregator.Call[]
             memory calls = new ConveyorSwapAggregator.Call[](1);
 
         calls[0] = ConveyorSwapAggregator.Call({
             target: balancerVault,
-            callData: new bytes(0)
+            callData: data
         });
 
-        // ConveyorSwapAggregator.SwapAggregatorMulticall
-        //     memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
-        //         1, //zeroForOne
-        //         1, //univ2
-        //         1, //msg.sender
-        //         300,
-        //         lp,
-        //         calls
-        //     );
+        ConveyorSwapAggregator.SwapAggregatorMulticall
+            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+                1, //zeroForOne
+                0, //univ2
+                1, //msg.sender
+                300,
+                balancerVault,
+                calls
+            );
 
-        // conveyorSwapAggregator.swap(
-        //     tokenIn,
-        //     amountIn,
-        //     tokenOut,
-        //     amountOutMin,
-        //     multicall
-        // );
+        conveyorSwapAggregator.swap(
+            WETH,
+            1000000000000000000,
+            address(0x02D928E68D8F10C0358566152677Db51E1e2Dc8C),
+            1,
+            multicall
+        );
     }
 
     function testSwapUniv2SingleLPWithReferral() public {
