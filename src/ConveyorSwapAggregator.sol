@@ -173,6 +173,9 @@ contract ConveyorSwapAggregator {
 
         ///@notice Swap tokens for tokens.
         swap(tokenIn, amountIn, tokenOut, amountOutMin, swapAggregatorMulticall);
+
+        ///@notice Emit Referral event.
+        emit Referral(referralInfo.referrer, msg.sender, referralFee);
     }
 
     /// @notice Swap ETH for tokens.
@@ -264,6 +267,9 @@ contract ConveyorSwapAggregator {
 
         ///@notice Emit SwapExactEthForToken event.
         emit SwapExactEthForToken(msg.value, tokenOut, balanceAfter - balanceBefore, msg.sender);
+
+        ///@notice Emit Referral event.
+        emit Referral(referralInfo.referrer, msg.sender, referralFee);
     }
 
     /// @notice Swap tokens for ETH.
@@ -332,6 +338,9 @@ contract ConveyorSwapAggregator {
         }
 
         swapExactTokenForEth(tokenIn, amountIn, amountOutMin, swapAggregatorMulticall);
+
+        ///@notice Emit Referral event.
+        emit Referral(referralInfo.referrer, msg.sender, referralFee);
     }
 
     ///@notice Helper function to transfer ETH.
