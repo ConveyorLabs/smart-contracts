@@ -117,7 +117,7 @@ contract ConveyorSwapAggregator {
     /// @param tokenOut Address of token to receive.
     /// @param amountOutMin Minimum amount of tokenOut to receive.
     /// @param swapAggregatorMulticall Multicall to be executed.
-    function swap(
+    function swapExactTokenToToken(
         address tokenIn,
         uint256 amountIn,
         address tokenOut,
@@ -153,7 +153,7 @@ contract ConveyorSwapAggregator {
     /// @param amountOutMin Minimum amount of tokenOut to receive.
     /// @param swapAggregatorMulticall Multicall to be executed.
     /// @param referralInfo Referral information.
-    function swapWithReferral(
+    function swapExactTokenToTokenWithReferral(
         address tokenIn,
         uint256 amountIn,
         address tokenOut,
@@ -173,7 +173,7 @@ contract ConveyorSwapAggregator {
         }
 
         ///@notice Swap tokens for tokens.
-        swap(tokenIn, amountIn, tokenOut, amountOutMin, swapAggregatorMulticall);
+        swapExactTokenToToken(tokenIn, amountIn, tokenOut, amountOutMin, swapAggregatorMulticall);
 
         ///@notice Emit Referral event.
         emit Referral(referrer, msg.sender, referralFee);
