@@ -139,19 +139,29 @@ contract ConveyorSwapAggregatorTest is DSTest {
         cheatCodes.deal(address(this), type(uint128).max);
         address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         _depositEth(address(this).balance, WETH);
-        bytes32
-            memory balancerPoolId = 0x02d928e68d8f10c0358566152677db51e1e2dc8c00000000000000000000051e;
+        bytes32 balancerPoolId = 0x02d928e68d8f10c0358566152677db51e1e2dc8c00000000000000000000051e;
         address balancerVault = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
         IERC20(WETH).approve(
             address(conveyorSwapAggregator),
             type(uint256).max
         );
 
+        IERC20(WETH).approve(balancerVault, type(uint256).max);
+
+        IVault.SingleSwap memory singleSwap = IVault.SingleSwap({
+            kind: IVault.SwapKind.GIVEN_IN,
+            poolId: balancerPoolId,
+            assetIn: IAsset(WETH),
+            assetOut: IAsset(address(0x02D928E68D8F10C0358566152677Db51E1e2Dc8C)),
+            amount: 1000000000000000000,
+            userData: abi.encode(0, 0)
+        });
+        
         ConveyorSwapAggregator.Call[]
             memory calls = new ConveyorSwapAggregator.Call[](1);
 
         calls[0] = ConveyorSwapAggregator.Call({
-            target: lp,
+            target: balancerVault,
             callData: new bytes(0)
         });
 
