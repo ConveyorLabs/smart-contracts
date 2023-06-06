@@ -55,6 +55,14 @@ contract ConveyorSwapAggregator {
      */
     event SwapExactEthForToken(uint256 amountIn, address indexed tokenOut, uint256 amountOut, address indexed receiver);
 
+    /**
+     * @notice Event that is emitted when a referral reward has been received.
+     *
+     */
+    event Referral(
+        address indexed referrer, address indexed referee, uint256 reward
+    );
+
     /*//////////////////////////////////////////////////////////////
                                IMMUTABLES
     //////////////////////////////////////////////////////////////*/
