@@ -159,15 +159,16 @@ contract ConveyorSwapAggregatorTest is DSTest {
 
         IVault.FundManagement memory funds = IVault.FundManagement({
             sender: address(this),
-            fromInternalBalance: false,
+            fromInternalBalance: true,
             recipient: payable(address(this)),
-            toInternalBalance: false
+            toInternalBalance: true
         });
 
         bytes memory data=abi.encodeWithSignature("swap(SingleSwap memory singleSwap,FundManagement memory funds,uint256 limit,uint256 deadline)" , singleSwap, funds, 0, 0);
 
         ConveyorSwapAggregator.Call[]
             memory calls = new ConveyorSwapAggregator.Call[](1);
+        IERC20(WETH).transfer(balancerVault, 1000000000000000000);
 
         calls[0] = ConveyorSwapAggregator.Call({
             target: balancerVault,
@@ -271,6 +272,44 @@ contract ConveyorSwapAggregatorTest is DSTest {
             amountOutMin,
             0,
             multicall
+        );
+    }
+
+    function testSwapExactEthForTokensWithReferral() public {
+        cheatCodes.rollFork(forkId, 16749139);
+        cheatCodes.deal(address(this), type(uint128).max);
+        uint256 amountIn = 1900000000000000000000;
+        address tokenOut = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+        uint128 amountOutMin = 54776144172760093;
+        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+
+        ConveyorSwapAggregator.Call[]
+            memory calls = new ConveyorSwapAggregator.Call[](1);
+
+        calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this));
+
+        ConveyorSwapAggregator.SwapAggregatorMulticall
+            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+                0, //zeroForOne
+                1, //univ2
+                1, //msg.sender
+                300,
+                lp,
+                calls
+            );
+        ConveyorSwapAggregator.ReferralInfo
+            memory referralInfo = ConveyorSwapAggregator.ReferralInfo(
+                address(this),
+                0
+            );
+
+
+        conveyorSwapAggregator.swapExactEthForTokenWithReferral{value: amountIn}(
+            tokenOut,
+            amountOutMin,
+            0,
+            multicall,
+            referralInfo
         );
     }
 
