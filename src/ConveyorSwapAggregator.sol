@@ -226,7 +226,7 @@ contract ConveyorSwapAggregator {
         uint256 referralFee = referralInfo.referralFee;
 
         ///@notice Transfer referral fee to referrer.
-        if (referralInfo.referrer != address(0) && referralFee < protocolFee) {
+        if (referralInfo.referrer != address(0) && referralFee <= protocolFee) {
             _safeTransferETH(referralInfo.referrer, referralFee);
         } else {
             revert InvalidReferral();
@@ -456,7 +456,7 @@ contract ConveyorSwapExecutor {
                 ///@notice Execute the v3 swap.
                 (bool success, bytes memory data) = call.target.call(call.callData);
                 if (!success) {
-                    revert V3SwapFailed();
+                    revert CallFailed();
                 }
                 ///@notice Decode the amountIn from the v3 swap.
                 (int256 amount0, int256 amount1) = abi.decode(data, (int256, int256));
