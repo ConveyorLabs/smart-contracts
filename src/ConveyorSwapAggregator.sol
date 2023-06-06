@@ -352,8 +352,7 @@ contract ConveyorSwapAggregator {
         _withdrawEth(balanceWeth, WETH);
 
         ///@notice Transfer ETH to msg.sender.
-        ///TODO: FIXME: We cannot do it this way anymore.
-        _safeTransferETH(msg.sender, address(this).balance);
+        _safeTransferETH(msg.sender, balanceWeth);
 
         ///@notice Revert if Eth balance of the caller is insufficient.
         if (msg.sender.balance < amountOutRequired) {
