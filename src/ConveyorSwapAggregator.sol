@@ -450,7 +450,7 @@ contract ConveyorSwapExecutor {
                 (bool success,) = call.target.call(callData);
 
                 if (!success) {
-                    revert V2SwapFailed();
+                    revert CallFailed();
                 }
             } else {
                 ///@notice Execute the v3 swap.
