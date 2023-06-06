@@ -162,9 +162,10 @@ contract ConveyorSwapAggregator {
         ReferralInfo calldata referralInfo
     ) external payable {
         uint256 referralFee = referralInfo.referralFee;
+        address referrer = referralInfo.referrer;
 
         ///@notice Transfer referral fee to referrer.
-        if (referralInfo.referrer != address(0) && referralFee <= msg.value) {
+        if (referrer != address(0) && referralFee <= msg.value) {
             /// @dev The remaining amount is stored in the contract for withdrawal.
             _safeTransferETH(referralInfo.referrer, referralFee);
         } else {
@@ -175,7 +176,7 @@ contract ConveyorSwapAggregator {
         swap(tokenIn, amountIn, tokenOut, amountOutMin, swapAggregatorMulticall);
 
         ///@notice Emit Referral event.
-        emit Referral(referralInfo.referrer, msg.sender, referralFee);
+        emit Referral(referrer, msg.sender, referralFee);
     }
 
     /// @notice Swap ETH for tokens.
@@ -235,10 +236,11 @@ contract ConveyorSwapAggregator {
         }
 
         uint256 referralFee = referralInfo.referralFee;
+        address referrer = referralInfo.referrer;
 
         ///@notice Transfer referral fee to referrer.
         if (referralInfo.referrer != address(0) && referralFee <= protocolFee) {
-            _safeTransferETH(referralInfo.referrer, referralFee);
+            _safeTransferETH(referrer, referralFee);
         } else {
             revert InvalidReferral();
         }
@@ -269,7 +271,7 @@ contract ConveyorSwapAggregator {
         emit SwapExactEthForToken(msg.value, tokenOut, balanceAfter - balanceBefore, msg.sender);
 
         ///@notice Emit Referral event.
-        emit Referral(referralInfo.referrer, msg.sender, referralFee);
+        emit Referral(referrer, msg.sender, referralFee);
     }
 
     /// @notice Swap tokens for ETH.
@@ -329,10 +331,10 @@ contract ConveyorSwapAggregator {
         ReferralInfo calldata referralInfo
     ) external payable {
         uint256 referralFee = referralInfo.referralFee;
-
+        address referrer = referralInfo.referrer;
         ///@notice Transfer referral fee to referrer.
         if (referralInfo.referrer != address(0) && referralFee <= msg.value) {
-            _safeTransferETH(referralInfo.referrer, referralFee);
+            _safeTransferETH(referrer, referralFee);
         } else {
             revert InvalidReferral();
         }
@@ -340,7 +342,7 @@ contract ConveyorSwapAggregator {
         swapExactTokenForEth(tokenIn, amountIn, amountOutMin, swapAggregatorMulticall);
 
         ///@notice Emit Referral event.
-        emit Referral(referralInfo.referrer, msg.sender, referralFee);
+        emit Referral(referrer, msg.sender, referralFee);
     }
 
     ///@notice Helper function to transfer ETH.
