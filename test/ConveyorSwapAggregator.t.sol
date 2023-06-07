@@ -108,6 +108,55 @@ contract ConveyorSwapAggregatorTest is DSTest {
         );
     }
 
+    function testSwapCurveSingleLP() public {
+        cheatCodes.rollFork(forkId, 16749139);
+
+        cheatCodes.deal(address(this), type(uint128).max);
+        address tokenIn = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+        uint256 amountIn = 1900000000000000000000;
+        address tokenOut = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+        uint256 amountOutMin = 54776144172760093;
+        address lp = 0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7;
+
+        swapHelper.swapEthForTokenWithUniV2(100 ether, tokenIn);
+        IERC20(tokenIn).approve(
+            address(conveyorSwapAggregator),
+            type(uint256).max
+        );
+
+        ConveyorSwapAggregator.Call[]
+            memory calls = new ConveyorSwapAggregator.Call[](1);
+        bytes memory callData = abi.encodeWithSignature(
+            "exchange(int128,int128,uint256,uint256)",
+            0,
+            1,
+            1900000000000000000000,
+            1
+        );
+        calls[0] = ConveyorSwapAggregator.Call({
+            target: lp,
+            callData: callData
+        });
+
+        ConveyorSwapAggregator.SwapAggregatorMulticall
+            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+                1, //zeroForOne
+                0, //univ2
+                1, //msg.sender
+                300,
+                conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
+                calls
+            );
+
+        conveyorSwapAggregator.swapExactTokenForToken(
+            tokenIn,
+            amountIn,
+            tokenOut,
+            amountOutMin,
+            multicall
+        );
+    }
+
     /// @notice Helper function to Deposit ETH into WETH.
     function _depositEth(uint256 amount, address weth) internal {
         assembly {

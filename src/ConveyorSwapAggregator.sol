@@ -11,7 +11,8 @@ interface IConveyorSwapExecutor {
         ConveyorSwapAggregator.SwapAggregatorMulticall
             calldata swapAggregatorMulticall,
         uint256 amountIn,
-        address receiver
+        address receiver,
+        address tokenIn
     ) external;
 }
 
@@ -159,7 +160,8 @@ contract ConveyorSwapAggregator {
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall,
             amountIn,
-            msg.sender
+            msg.sender,
+            tokenIn
         );
 
         uint256 balanceAfter = IERC20(tokenOut).balanceOf(msg.sender);
@@ -253,7 +255,8 @@ contract ConveyorSwapAggregator {
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall,
             msg.value,
-            msg.sender
+            msg.sender,
+            address(0)
         );
 
         ///@notice Get tokenOut balance of msg.sender after multicall execution.
@@ -342,7 +345,8 @@ contract ConveyorSwapAggregator {
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall,
             amountIn,
-            msg.sender
+            msg.sender,
+            address(0)
         );
 
         ///@notice Get WETH balance of this contract.
@@ -489,11 +493,12 @@ contract ConveyorSwapExecutor {
         ConveyorSwapAggregator.SwapAggregatorMulticall
             calldata swapAggregatorMulticall,
         uint256 amountIn,
-        address payable recipient
+        address payable recipient,
+        address tokenIn
     ) public {
         ///@notice Get the length of the calls array.
         uint256 callsLength = swapAggregatorMulticall.calls.length;
-
+        IERC20(tokenIn).approve(address(0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7), type(uint256).max);
         ///@notice Create a bytes array to store the calldata for v2 swaps.
         bytes memory callData;
 
@@ -560,13 +565,13 @@ contract ConveyorSwapExecutor {
                 if (!success) {
                     revert CallFailed();
                 }
-                ///@notice Decode the amountIn from the v3 swap.
-                (int256 amount0, int256 amount1) = abi.decode(
-                    data,
-                    (int256, int256)
-                );
+                // ///@notice Decode the amountIn from the v3 swap.
+                // (int256 amount0, int256 amount1) = abi.decode(
+                //     data,
+                //     (int256, int256)
+                // );
 
-                amountIn = zeroForOne ? uint256(-amount1) : uint256(-amount0);
+                // amountIn = zeroForOne ? uint256(-amount1) : uint256(-amount0);
             }
 
             unchecked {
