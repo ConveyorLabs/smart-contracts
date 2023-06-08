@@ -517,7 +517,8 @@ contract ConveyorSwapExecutor {
         for (uint256 i = 0; i < callsLength; ) {
             ///@notice Get the call from the calls array.
             ConveyorSwapAggregator.Call memory call = swapAggregatorMulticall
-                .executions[i].call;
+                .executions[i]
+                .call;
 
             ///@notice Get the zeroForOne value from the zeroForOneBitmap.
             bool zeroForOne = deriveBoolFromBitmap(
@@ -529,9 +530,7 @@ contract ConveyorSwapExecutor {
                 i
             );
             ///@notice Check if the call is a v2 swap.
-            if (
-                protocol == 0x0
-            ) {
+            if (protocol == 0x0) {
                 ///@notice Instantiate the receiver address for the v2 swap.
                 address receiver;
                 {
@@ -545,7 +544,10 @@ contract ConveyorSwapExecutor {
                         if (i == callsLength - 1) {
                             revert InvalidToAddressBits();
                         }
-                        receiver = swapAggregatorMulticall.executions[i + 1].call.target;
+                        receiver = swapAggregatorMulticall
+                            .executions[i + 1]
+                            .call
+                            .target;
                     } else if (toAddressBitPattern == 0x2) {
                         receiver = address(this);
                     } else if (toAddressBitPattern == 0x1) {
@@ -724,22 +726,37 @@ contract ConveyorSwapExecutor {
 
     ///@dev Bit Patterns: 01 => msg.sender, 10 => ConveyorSwapExecutor, 11 = next pool, 00 = ConveyorSwapAggregator
     ///@notice Derives the protocol from the protocolBitmap.
-    ///@param protocolBitmap - The bitmap of toAddresses to use for the swap.
+    ///@param bitmap - The bitmap of toAddresses to use for the swap.
     ///@param i - The index of the toAddress to derive.
-    ///@return unsigned - 2 bit pattern representing the receiver of the current swap.
-    function deriveProtocolFromBitmap(
-        uint64 protocolBitmap,
+    ///@return identifier - 2 bit pattern representing the receiver of the current swap.
+    function deriveIdentifierFromBitmap(
+        uint64 bitmap,
         uint256 i
-    ) internal pure returns (uint256) {
-        if ((3 << (2 * i)) & protocolBitmap == 3 << (2 * i)) {
-            return 0x3;
-        } else if ((2 << (2 * i)) & protocolBitmap == 2 << (2 * i)) {
-            return 0x2;
-        } else if ((1 << (2 * i)) & protocolBitmap == 1 << (2 * i)) {
-            return 0x1;
-        } else {
-            return 0x0;
+    ) internal pure returns (uint256 identifier) {
+        assembly {
+            switch shr(and(shl(3, mul(2, i)), protocolBitmap),mul(2,i))
+            case 0x3 {
+                identifier := 0x3
+            }
+            case 0x2 {
+                identifier := 0x2
+            }
+            case 0x1 {
+                identifier := 0x1
+            }
+            default {
+                identifier := 0x0
+            }
         }
+        // if ((3 << (2 * i)) & protocolBitmap == 3 << (2 * i)) {
+        //     return 0x3;
+        // } else if ((2 << (2 * i)) & protocolBitmap == 2 << (2 * i)) {
+        //     return 0x2;
+        // } else if ((1 << (2 * i)) & protocolBitmap == 1 << (2 * i)) {
+        //     return 0x1;
+        // } else {
+        //     return 0x0;
+        // }
     }
 
     ///@notice Function to get the amountOut from a UniV2 lp.
