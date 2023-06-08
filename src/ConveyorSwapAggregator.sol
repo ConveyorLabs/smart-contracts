@@ -109,14 +109,14 @@ contract ConveyorSwapAggregator {
 
     /// @notice SwapAggregatorMulticall struct for token Swaps.
     /// @param zeroForOneBitmap for zeroForOne bool along the swap calls.
-    /// @param isUniV2Bitmap for isUniV2 bool along the swap calls.
+    /// @param protocolBitmap for isUniV2 bool along the swap calls.
     /// @param toAddressBitmap for toAddress address along the swap calls.
     /// @param feeBitmap for uniV2 custom fee's along the swap calls.
     /// @param tokenInDestination Address to send tokenIn to.
     /// @param calls Array of calls to be executed.
     struct SwapAggregatorMulticall {
         uint32 zeroForOneBitmap;
-        uint32 isUniV2Bitmap;
+        uint32 protocolBitmap;
         uint64 toAddressBitmap;
         uint128 feeBitmap;
         address tokenInDestination;
@@ -125,11 +125,9 @@ contract ConveyorSwapAggregator {
 
     /// @notice Execution struct for token Swaps.
     /// @param source TokenIn for the swap.
-    /// @param dest TokenOut for the swap.
     /// @param call Call to be executed.
     struct Execution {
         address source;
-        address dest;
         Call call;
     }
 
@@ -520,13 +518,13 @@ contract ConveyorSwapExecutor {
                 .executions[i].call;
 
             ///@notice Get the zeroForOne value from the zeroForOneBitmap.
-            bool zeroForOne = deriveBoolFromBitmap(
+            bool zeroForOne = deriveProtocolFromBitmap(
                 swapAggregatorMulticall.zeroForOneBitmap,
                 i
             );
             ///@notice Check if the call is a v2 swap.
             if (
-                deriveBoolFromBitmap(swapAggregatorMulticall.isUniV2Bitmap, i)
+                deriveProtocolFromBitmap(swapAggregatorMulticall.protocolBitmap, i)
             ) {
                 ///@notice Instantiate the receiver address for the v2 swap.
                 address receiver;
@@ -670,7 +668,7 @@ contract ConveyorSwapExecutor {
     ///@notice Derives a boolean at a specific bit position from a bitmap.
     ///@param bitmap - The bitmap to derive the boolean from.
     ///@param position - The bit position.
-    function deriveBoolFromBitmap(
+    function deriveProtocolFromBitmap(
         uint64 bitmap,
         uint256 position
     ) internal pure returns (bool) {
