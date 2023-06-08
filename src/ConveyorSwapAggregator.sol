@@ -115,10 +115,10 @@ contract ConveyorSwapAggregator {
     /// @param tokenInDestination Address to send tokenIn to.
     /// @param calls Array of calls to be executed.
     struct SwapAggregatorMulticall {
-        uint32 zeroForOneBitmap;
-        uint32 protocolBitmap;
+        uint16 zeroForOneBitmap;
+        uint64 protocolBitmap;
         uint64 toAddressBitmap;
-        uint128 feeBitmap;
+        uint112 feeBitmap;
         address tokenInDestination;
         Execution[] executions;
     }
@@ -510,7 +510,7 @@ contract ConveyorSwapExecutor {
         bytes memory callData;
 
         ///@notice Cache the feeBitmap in memory.
-        uint128 feeBitmap = swapAggregatorMulticall.feeBitmap;
+        uint112 feeBitmap = swapAggregatorMulticall.feeBitmap;
         ///@notice Iterate through the calls array.
         for (uint256 i = 0; i < callsLength; ) {
             ///@notice Get the call from the calls array.
@@ -518,13 +518,17 @@ contract ConveyorSwapExecutor {
                 .executions[i].call;
 
             ///@notice Get the zeroForOne value from the zeroForOneBitmap.
-            bool zeroForOne = deriveProtocolFromBitmap(
+            bool zeroForOne = deriveBoolFromBitmap(
                 swapAggregatorMulticall.zeroForOneBitmap,
+                i
+            );
+            uint256 protocol = deriveProtocolFromBitmap(
+                swapAggregatorMulticall.protocolBitmap,
                 i
             );
             ///@notice Check if the call is a v2 swap.
             if (
-                deriveProtocolFromBitmap(swapAggregatorMulticall.protocolBitmap, i)
+                protocol == 0x0
             ) {
                 ///@notice Instantiate the receiver address for the v2 swap.
                 address receiver;
@@ -629,14 +633,14 @@ contract ConveyorSwapExecutor {
         bool zeroForOne,
         address to,
         address pool,
-        uint128 feeBitmap
+        uint112 feeBitmap
     )
         internal
         view
         returns (
             bytes memory callData,
             uint256 amountOut,
-            uint128 updatedFeeBitmap
+            uint112 updatedFeeBitmap
         )
     {
         ///@notice Get the reserves for the pool.
@@ -668,8 +672,8 @@ contract ConveyorSwapExecutor {
     ///@notice Derives a boolean at a specific bit position from a bitmap.
     ///@param bitmap - The bitmap to derive the boolean from.
     ///@param position - The bit position.
-    function deriveProtocolFromBitmap(
-        uint64 bitmap,
+    function deriveBoolFromBitmap(
+        uint16 bitmap,
         uint256 position
     ) internal pure returns (bool) {
         if ((2 ** position) & bitmap == 0) {
@@ -686,8 +690,8 @@ contract ConveyorSwapExecutor {
     ///@return fee - The fee to use for the swap.
     ///@return updatedFeeBitmap - The updated feeBitmap.
     function deriveFeeFromBitmap(
-        uint128 feeBitmap
-    ) internal pure returns (uint24 fee, uint128 updatedFeeBitmap) {
+        uint112 feeBitmap
+    ) internal pure returns (uint24 fee, uint112 updatedFeeBitmap) {
         /**
          * @dev Retrieve the first 10 bits from the feeBitmap to get the fee, shift right to set the next
          *         fee in the first bit position.*
@@ -710,6 +714,26 @@ contract ConveyorSwapExecutor {
         } else if ((2 << (2 * i)) & toAddressBitmap == 2 << (2 * i)) {
             return 0x2;
         } else if ((1 << (2 * i)) & toAddressBitmap == 1 << (2 * i)) {
+            return 0x1;
+        } else {
+            return 0x0;
+        }
+    }
+
+    ///@dev Bit Patterns: 01 => msg.sender, 10 => ConveyorSwapExecutor, 11 = next pool, 00 = ConveyorSwapAggregator
+    ///@notice Derives the protocol from the protocolBitmap.
+    ///@param protocolBitmap - The bitmap of toAddresses to use for the swap.
+    ///@param i - The index of the toAddress to derive.
+    ///@return unsigned - 2 bit pattern representing the receiver of the current swap.
+    function deriveProtocolFromBitmap(
+        uint64 protocolBitmap,
+        uint256 i
+    ) internal pure returns (uint256) {
+        if ((3 << (2 * i)) & protocolBitmap == 3 << (2 * i)) {
+            return 0x3;
+        } else if ((2 << (2 * i)) & protocolBitmap == 2 << (2 * i)) {
+            return 0x2;
+        } else if ((1 << (2 * i)) & protocolBitmap == 1 << (2 * i)) {
             return 0x1;
         } else {
             return 0x0;
