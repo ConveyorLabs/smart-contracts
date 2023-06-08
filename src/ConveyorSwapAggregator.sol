@@ -519,13 +519,15 @@ contract ConveyorSwapExecutor {
             ConveyorSwapAggregator.Call memory call = swapAggregatorMulticall
                 .executions[i]
                 .call;
+            ConveyorSwapAggregator.Execution
+                memory execution = swapAggregatorMulticall.executions[i];
 
             ///@notice Get the zeroForOne value from the zeroForOneBitmap.
             bool zeroForOne = deriveBoolFromBitmap(
                 swapAggregatorMulticall.zeroForOneBitmap,
                 i
             );
-            uint256 protocol = deriveProtocolFromBitmap(
+            uint256 protocol = deriveIdentifierFromBitmap(
                 swapAggregatorMulticall.protocolBitmap,
                 i
             );
@@ -572,7 +574,7 @@ contract ConveyorSwapExecutor {
                 if (!success) {
                     revert CallFailed();
                 }
-            } else {
+            } else if (protocol == 0x1) {
                 ///@notice Execute the v3 swap.
                 (bool success, bytes memory data) = call.target.call(
                     call.callData
@@ -587,6 +589,18 @@ contract ConveyorSwapExecutor {
                 );
 
                 amountIn = zeroForOne ? uint256(-amount1) : uint256(-amount0);
+            } else if (protocol == 0x2) {
+                IERC20(execution.source).approve(
+                    execution.call.target,
+                    amountIn
+                );
+                (bool success, ) = execution.call.target.call(
+                    execution.call.callData
+                );
+                if (!success) {
+                    revert CallFailed();
+                }
+                amountIn = IERC20(execution.dest).balanceOf(address(this));
             }
 
             unchecked {
@@ -734,7 +748,7 @@ contract ConveyorSwapExecutor {
         uint256 i
     ) internal pure returns (uint256 identifier) {
         assembly {
-            switch shr(and(shl(3, mul(2, i)), protocolBitmap),mul(2,i))
+            switch shr(and(shl(3, mul(2, i)), protocolBitmap), mul(2, i))
             case 0x3 {
                 identifier := 0x3
             }
