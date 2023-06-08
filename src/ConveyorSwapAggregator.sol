@@ -125,9 +125,11 @@ contract ConveyorSwapAggregator {
 
     /// @notice Execution struct for token Swaps.
     /// @param source TokenIn for the swap.
+    /// @param dest TokenOut for the swap.
     /// @param call Call to be executed.
     struct Execution {
         address source;
+        address dest;
         Call call;
     }
 
@@ -576,13 +578,13 @@ contract ConveyorSwapExecutor {
                 if (!success) {
                     revert CallFailed();
                 }
-                // ///@notice Decode the amountIn from the v3 swap.
-                // (int256 amount0, int256 amount1) = abi.decode(
-                //     data,
-                //     (int256, int256)
-                // );
+                ///@notice Decode the amountIn from the v3 swap.
+                (int256 amount0, int256 amount1) = abi.decode(
+                    data,
+                    (int256, int256)
+                );
 
-                // amountIn = zeroForOne ? uint256(-amount1) : uint256(-amount0);
+                amountIn = zeroForOne ? uint256(-amount1) : uint256(-amount0);
             }
 
             unchecked {
