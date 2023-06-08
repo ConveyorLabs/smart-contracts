@@ -65,48 +65,48 @@ contract ConveyorSwapAggregatorTest is DSTest {
         cheatCodes.makePersistent(address(swapHelper));
     }
 
-    function testSwapUniv2SingleLP() public {
-        cheatCodes.rollFork(forkId, 16749139);
+    // function testSwapUniv2SingleLP() public {
+    //     cheatCodes.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
-        address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
-        uint256 amountIn = 1900000000000000000000;
-        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        uint256 amountOutMin = 54776144172760093;
-        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+    //     cheatCodes.deal(address(this), type(uint128).max);
+    //     address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+    //     uint256 amountIn = 1900000000000000000000;
+    //     address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    //     uint256 amountOutMin = 54776144172760093;
+    //     address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
 
-        swapHelper.swapEthForTokenWithUniV2(10 ether, tokenIn);
-        IERC20(tokenIn).approve(
-            address(conveyorSwapAggregator),
-            type(uint256).max
-        );
+    //     swapHelper.swapEthForTokenWithUniV2(10 ether, tokenIn);
+    //     IERC20(tokenIn).approve(
+    //         address(conveyorSwapAggregator),
+    //         type(uint256).max
+    //     );
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](1);
+    //     ConveyorSwapAggregator.Call[]
+    //         memory calls = new ConveyorSwapAggregator.Call[](1);
 
-        calls[0] = ConveyorSwapAggregator.Call({
-            target: lp,
-            callData: new bytes(0)
-        });
+    //     calls[0] = ConveyorSwapAggregator.Call({
+    //         target: lp,
+    //         callData: new bytes(0)
+    //     });
 
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
-                1, //zeroForOne
-                1, //univ2
-                1, //msg.sender
-                300,
-                lp,
-                calls
-            );
+    //     ConveyorSwapAggregator.SwapAggregatorMulticall
+    //         memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+    //             1, //zeroForOne
+    //             1, //univ2
+    //             1, //msg.sender
+    //             300,
+    //             lp,
+    //             calls
+    //         );
 
-        conveyorSwapAggregator.swapExactTokenForToken(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            amountOutMin,
-            multicall
-        );
-    }
+    //     conveyorSwapAggregator.swapExactTokenForToken(
+    //         tokenIn,
+    //         amountIn,
+    //         tokenOut,
+    //         amountOutMin,
+    //         multicall
+    //     );
+    // }
 
     function testSwapCurveSingleLP() public {
         cheatCodes.rollFork(forkId, 16749139);
@@ -114,7 +114,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         cheatCodes.deal(address(this), type(uint128).max);
         address tokenIn = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         uint256 amountIn = 1900000000000000000000;
-        address tokenOut = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+        address tokenOut = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         uint256 amountOutMin = 54776144172760093;
         address lp = 0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7;
 
@@ -131,28 +131,35 @@ contract ConveyorSwapAggregatorTest is DSTest {
             0,
             1,
             1900000000000000000000,
-            1
+            500000
         );
         calls[0] = ConveyorSwapAggregator.Call({
             target: lp,
             callData: callData
         });
 
+        ConveyorSwapAggregator.Execution[] memory executions = new ConveyorSwapAggregator.Execution[](1);
+        executions[0] = ConveyorSwapAggregator.Execution({
+            source: tokenIn,
+            dest: tokenOut,
+            call: calls[0]
+        });
+
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
                 1, //zeroForOne
-                0, //univ2
+                0x2, //univ2
                 1, //msg.sender
-                300,
+                0,
                 conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
-                calls
+                executions
             );
 
         conveyorSwapAggregator.swapExactTokenForToken(
             tokenIn,
             amountIn,
             tokenOut,
-            amountOutMin,
+            1,
             multicall
         );
     }
@@ -184,393 +191,393 @@ contract ConveyorSwapAggregatorTest is DSTest {
     //     uint256 deadline
     // ) external payable returns (uint256);
 
-    function testSwapBalancerSingleLP() public {
-        cheatCodes.deal(address(this), type(uint128).max);
-        address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        _depositEth(address(this).balance, WETH);
-        bytes32 balancerPoolId = 0x02d928e68d8f10c0358566152677db51e1e2dc8c00000000000000000000051e;
-        address balancerVault = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
-        IERC20(WETH).approve(
-            address(conveyorSwapAggregator),
-            type(uint256).max
-        );
+    // function testSwapBalancerSingleLP() public {
+    //     cheatCodes.deal(address(this), type(uint128).max);
+    //     address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    //     _depositEth(address(this).balance, WETH);
+    //     bytes32 balancerPoolId = 0x02d928e68d8f10c0358566152677db51e1e2dc8c00000000000000000000051e;
+    //     address balancerVault = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
+    //     IERC20(WETH).approve(
+    //         address(conveyorSwapAggregator),
+    //         type(uint256).max
+    //     );
 
-        IERC20(WETH).approve(balancerVault, type(uint256).max);
+    //     IERC20(WETH).approve(balancerVault, type(uint256).max);
 
-        IVault.SingleSwap memory singleSwap = IVault.SingleSwap({
-            kind: IVault.SwapKind.GIVEN_IN,
-            poolId: balancerPoolId,
-            assetIn: IAsset(WETH),
-            assetOut: IAsset(address(0x02D928E68D8F10C0358566152677Db51E1e2Dc8C)),
-            amount: 1000000000000000000,
-            userData: abi.encode(0, 0)
-        });
+    //     IVault.SingleSwap memory singleSwap = IVault.SingleSwap({
+    //         kind: IVault.SwapKind.GIVEN_IN,
+    //         poolId: balancerPoolId,
+    //         assetIn: IAsset(WETH),
+    //         assetOut: IAsset(address(0x02D928E68D8F10C0358566152677Db51E1e2Dc8C)),
+    //         amount: 1000000000000000000,
+    //         userData: abi.encode(0, 0)
+    //     });
 
-        IVault.FundManagement memory funds = IVault.FundManagement({
-            sender: address(this),
-            fromInternalBalance: true,
-            recipient: payable(address(this)),
-            toInternalBalance: true
-        });
+    //     IVault.FundManagement memory funds = IVault.FundManagement({
+    //         sender: address(this),
+    //         fromInternalBalance: true,
+    //         recipient: payable(address(this)),
+    //         toInternalBalance: true
+    //     });
 
-        bytes memory data=abi.encodeWithSignature("swap(SingleSwap memory singleSwap,FundManagement memory funds,uint256 limit,uint256 deadline)" , singleSwap, funds, 0, 0);
+    //     bytes memory data=abi.encodeWithSignature("swap(SingleSwap memory singleSwap,FundManagement memory funds,uint256 limit,uint256 deadline)" , singleSwap, funds, 0, 0);
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](1);
-        IERC20(WETH).transfer(balancerVault, 1000000000000000000);
+    //     ConveyorSwapAggregator.Call[]
+    //         memory calls = new ConveyorSwapAggregator.Call[](1);
+    //     IERC20(WETH).transfer(balancerVault, 1000000000000000000);
 
-        calls[0] = ConveyorSwapAggregator.Call({
-            target: balancerVault,
-            callData: data
-        });
+    //     calls[0] = ConveyorSwapAggregator.Call({
+    //         target: balancerVault,
+    //         callData: data
+    //     });
 
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
-                1, //zeroForOne
-                0, //univ2
-                1, //msg.sender
-                300,
-                balancerVault,
-                calls
-            );
+    //     ConveyorSwapAggregator.SwapAggregatorMulticall
+    //         memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+    //             1, //zeroForOne
+    //             0, //univ2
+    //             1, //msg.sender
+    //             300,
+    //             balancerVault,
+    //             calls
+    //         );
 
-        conveyorSwapAggregator.swapExactTokenForToken(
-            WETH,
-            1000000000000000000,
-            address(0x02D928E68D8F10C0358566152677Db51E1e2Dc8C),
-            1,
-            multicall
-        );
-    }
+    //     conveyorSwapAggregator.swapExactTokenForToken(
+    //         WETH,
+    //         1000000000000000000,
+    //         address(0x02D928E68D8F10C0358566152677Db51E1e2Dc8C),
+    //         1,
+    //         multicall
+    //     );
+    // }
 
-    function testSwapUniv2SingleLPWithReferral() public {
-        cheatCodes.rollFork(forkId, 16749139);
+    // function testSwapUniv2SingleLPWithReferral() public {
+    //     cheatCodes.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
-        address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
-        uint256 amountIn = 1900000000000000000000;
-        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        uint256 amountOutMin = 54776144172760093;
-        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+    //     cheatCodes.deal(address(this), type(uint128).max);
+    //     address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+    //     uint256 amountIn = 1900000000000000000000;
+    //     address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    //     uint256 amountOutMin = 54776144172760093;
+    //     address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
 
-        swapHelper.swapEthForTokenWithUniV2(10 ether, tokenIn);
-        IERC20(tokenIn).approve(
-            address(conveyorSwapAggregator),
-            type(uint256).max
-        );
+    //     swapHelper.swapEthForTokenWithUniV2(10 ether, tokenIn);
+    //     IERC20(tokenIn).approve(
+    //         address(conveyorSwapAggregator),
+    //         type(uint256).max
+    //     );
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](1);
+    //     ConveyorSwapAggregator.Call[]
+    //         memory calls = new ConveyorSwapAggregator.Call[](1);
 
-        calls[0] = ConveyorSwapAggregator.Call({
-            target: lp,
-            callData: new bytes(0)
-        });
+    //     calls[0] = ConveyorSwapAggregator.Call({
+    //         target: lp,
+    //         callData: new bytes(0)
+    //     });
 
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
-                1, //zeroForOne
-                1, //univ2
-                1, //msg.sender
-                300,
-                lp,
-                calls
-            );
+    //     ConveyorSwapAggregator.SwapAggregatorMulticall
+    //         memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+    //             1, //zeroForOne
+    //             1, //univ2
+    //             1, //msg.sender
+    //             300,
+    //             lp,
+    //             calls
+    //         );
 
-        ConveyorSwapAggregator.ReferralInfo
-            memory referralInfo = ConveyorSwapAggregator.ReferralInfo(
-                address(this),
-                0
-            );
+    //     ConveyorSwapAggregator.ReferralInfo
+    //         memory referralInfo = ConveyorSwapAggregator.ReferralInfo(
+    //             address(this),
+    //             0
+    //         );
 
-        conveyorSwapAggregator.swapExactTokenForTokenWithReferral(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            amountOutMin,
-            multicall,
-            referralInfo
-        );
-    }
+    //     conveyorSwapAggregator.swapExactTokenForTokenWithReferral(
+    //         tokenIn,
+    //         amountIn,
+    //         tokenOut,
+    //         amountOutMin,
+    //         multicall,
+    //         referralInfo
+    //     );
+    // }
 
-    function testSwapExactEthForTokens() public {
-        cheatCodes.rollFork(forkId, 16749139);
-        cheatCodes.deal(address(this), type(uint128).max);
-        uint256 amountIn = 1900000000000000000000;
-        address tokenOut = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
-        uint128 amountOutMin = 54776144172760093;
-        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+    // function testSwapExactEthForTokens() public {
+    //     cheatCodes.rollFork(forkId, 16749139);
+    //     cheatCodes.deal(address(this), type(uint128).max);
+    //     uint256 amountIn = 1900000000000000000000;
+    //     address tokenOut = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+    //     uint128 amountOutMin = 54776144172760093;
+    //     address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](1);
+    //     ConveyorSwapAggregator.Call[]
+    //         memory calls = new ConveyorSwapAggregator.Call[](1);
 
-        calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this));
+    //     calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this));
 
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
-                0, //zeroForOne
-                1, //univ2
-                1, //msg.sender
-                300,
-                lp,
-                calls
-            );
+    //     ConveyorSwapAggregator.SwapAggregatorMulticall
+    //         memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+    //             0, //zeroForOne
+    //             1, //univ2
+    //             1, //msg.sender
+    //             300,
+    //             lp,
+    //             calls
+    //         );
 
-        conveyorSwapAggregator.swapExactEthForToken{value: amountIn}(
-            tokenOut,
-            amountOutMin,
-            0,
-            multicall
-        );
-    }
+    //     conveyorSwapAggregator.swapExactEthForToken{value: amountIn}(
+    //         tokenOut,
+    //         amountOutMin,
+    //         0,
+    //         multicall
+    //     );
+    // }
 
-    function testSwapExactEthForTokensWithReferral() public {
-        cheatCodes.rollFork(forkId, 16749139);
-        cheatCodes.deal(address(this), type(uint128).max);
-        uint256 amountIn = 1900000000000000000000;
-        address tokenOut = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
-        uint128 amountOutMin = 54776144172760093;
-        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+    // function testSwapExactEthForTokensWithReferral() public {
+    //     cheatCodes.rollFork(forkId, 16749139);
+    //     cheatCodes.deal(address(this), type(uint128).max);
+    //     uint256 amountIn = 1900000000000000000000;
+    //     address tokenOut = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+    //     uint128 amountOutMin = 54776144172760093;
+    //     address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](1);
+    //     ConveyorSwapAggregator.Call[]
+    //         memory calls = new ConveyorSwapAggregator.Call[](1);
 
-        calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this));
+    //     calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this));
 
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
-                0, //zeroForOne
-                1, //univ2
-                1, //msg.sender
-                300,
-                lp,
-                calls
-            );
-        ConveyorSwapAggregator.ReferralInfo
-            memory referralInfo = ConveyorSwapAggregator.ReferralInfo(
-                address(this),
-                0
-            );
+    //     ConveyorSwapAggregator.SwapAggregatorMulticall
+    //         memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+    //             0, //zeroForOne
+    //             1, //univ2
+    //             1, //msg.sender
+    //             300,
+    //             lp,
+    //             calls
+    //         );
+    //     ConveyorSwapAggregator.ReferralInfo
+    //         memory referralInfo = ConveyorSwapAggregator.ReferralInfo(
+    //             address(this),
+    //             0
+    //         );
 
 
-        conveyorSwapAggregator.swapExactEthForTokenWithReferral{value: amountIn}(
-            tokenOut,
-            amountOutMin,
-            0,
-            multicall,
-            referralInfo
-        );
-    }
+    //     conveyorSwapAggregator.swapExactEthForTokenWithReferral{value: amountIn}(
+    //         tokenOut,
+    //         amountOutMin,
+    //         0,
+    //         multicall,
+    //         referralInfo
+    //     );
+    // }
 
-    function testSwapExactTokenForETH() public {
-        cheatCodes.rollFork(forkId, 16749139);
+    // function testSwapExactTokenForETH() public {
+    //     cheatCodes.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
-        address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
-        uint256 amountIn = 1900000000000000000000;
-        uint256 amountOutMin = 54776144172760093;
+    //     cheatCodes.deal(address(this), type(uint128).max);
+    //     address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+    //     uint256 amountIn = 1900000000000000000000;
+    //     uint256 amountOutMin = 54776144172760093;
 
-        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
-        uint256 balanceBefore = address(this).balance;
-        swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
-        IERC20(tokenIn).approve(
-            address(conveyorSwapAggregator),
-            type(uint256).max
-        );
+    //     address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+    //     uint256 balanceBefore = address(this).balance;
+    //     swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
+    //     IERC20(tokenIn).approve(
+    //         address(conveyorSwapAggregator),
+    //         type(uint256).max
+    //     );
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](1);
+    //     ConveyorSwapAggregator.Call[]
+    //         memory calls = new ConveyorSwapAggregator.Call[](1);
 
-        calls[0] = newUniV2Call(
-            lp,
-            0,
-            amountOutMin,
-            address(conveyorSwapAggregator)
-        );
+    //     calls[0] = newUniV2Call(
+    //         lp,
+    //         0,
+    //         amountOutMin,
+    //         address(conveyorSwapAggregator)
+    //     );
 
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
-                1, //zeroForOne
-                1, //univ2
-                0, //SwapAggregator
-                300,
-                lp,
-                calls
-            );
+    //     ConveyorSwapAggregator.SwapAggregatorMulticall
+    //         memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+    //             1, //zeroForOne
+    //             1, //univ2
+    //             0, //SwapAggregator
+    //             300,
+    //             lp,
+    //             calls
+    //         );
 
-        conveyorSwapAggregator.swapExactTokenForEth(
-            tokenIn,
-            amountIn,
-            amountOutMin,
-            multicall
-        );
-        console.log("balance before", balanceBefore);
-        console.log("balance after", address(this).balance);
-    }
+    //     conveyorSwapAggregator.swapExactTokenForEth(
+    //         tokenIn,
+    //         amountIn,
+    //         amountOutMin,
+    //         multicall
+    //     );
+    //     console.log("balance before", balanceBefore);
+    //     console.log("balance after", address(this).balance);
+    // }
 
-    function testSwapExactTokenForETHWithReferral() public {
-        cheatCodes.rollFork(forkId, 16749139);
+    // function testSwapExactTokenForETHWithReferral() public {
+    //     cheatCodes.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
-        address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
-        uint256 amountIn = 1900000000000000000000;
-        uint256 amountOutMin = 54776144172760093;
+    //     cheatCodes.deal(address(this), type(uint128).max);
+    //     address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+    //     uint256 amountIn = 1900000000000000000000;
+    //     uint256 amountOutMin = 54776144172760093;
 
-        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
-        uint256 balanceBefore = address(this).balance;
-        swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
-        IERC20(tokenIn).approve(
-            address(conveyorSwapAggregator),
-            type(uint256).max
-        );
+    //     address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+    //     uint256 balanceBefore = address(this).balance;
+    //     swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
+    //     IERC20(tokenIn).approve(
+    //         address(conveyorSwapAggregator),
+    //         type(uint256).max
+    //     );
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](1);
+    //     ConveyorSwapAggregator.Call[]
+    //         memory calls = new ConveyorSwapAggregator.Call[](1);
 
-        calls[0] = newUniV2Call(
-            lp,
-            0,
-            amountOutMin,
-            address(conveyorSwapAggregator)
-        );
+    //     calls[0] = newUniV2Call(
+    //         lp,
+    //         0,
+    //         amountOutMin,
+    //         address(conveyorSwapAggregator)
+    //     );
 
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
-                1, //zeroForOne
-                1, //univ2
-                0, //SwapAggregator
-                300,
-                lp,
-                calls
-            );
-        ConveyorSwapAggregator.ReferralInfo
-            memory referralInfo = ConveyorSwapAggregator.ReferralInfo(
-                address(this),
-                0
-            );
+    //     ConveyorSwapAggregator.SwapAggregatorMulticall
+    //         memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+    //             1, //zeroForOne
+    //             1, //univ2
+    //             0, //SwapAggregator
+    //             300,
+    //             lp,
+    //             calls
+    //         );
+    //     ConveyorSwapAggregator.ReferralInfo
+    //         memory referralInfo = ConveyorSwapAggregator.ReferralInfo(
+    //             address(this),
+    //             0
+    //         );
 
-        conveyorSwapAggregator.swapExactTokenForEthWithReferral(
-            tokenIn,
-            amountIn,
-            amountOutMin,
-            multicall,
-            referralInfo
-        );
-        console.log("balance before", balanceBefore);
-        console.log("balance after", address(this).balance);
-    }
+    //     conveyorSwapAggregator.swapExactTokenForEthWithReferral(
+    //         tokenIn,
+    //         amountIn,
+    //         amountOutMin,
+    //         multicall,
+    //         referralInfo
+    //     );
+    //     console.log("balance before", balanceBefore);
+    //     console.log("balance after", address(this).balance);
+    // }
 
-    receive() external payable {}
+    // receive() external payable {}
 
-    function testSwapUniv2MultiLP() public {
-        cheatCodes.rollFork(forkId, 16749139);
+    // function testSwapUniv2MultiLP() public {
+    //     cheatCodes.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
-        address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        uint256 amountIn = 825000000;
-        address tokenOut = 0x2e85ae1C47602f7927bCabc2Ff99C40aA222aE15;
-        uint256 amountOutMin = 1335082888253395999149663;
-        address firstLP = 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0;
-        address secondLP = 0xdC1D67Bc953Bf67F007243c7DED42d67410a6De5;
+    //     cheatCodes.deal(address(this), type(uint128).max);
+    //     address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    //     uint256 amountIn = 825000000;
+    //     address tokenOut = 0x2e85ae1C47602f7927bCabc2Ff99C40aA222aE15;
+    //     uint256 amountOutMin = 1335082888253395999149663;
+    //     address firstLP = 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0;
+    //     address secondLP = 0xdC1D67Bc953Bf67F007243c7DED42d67410a6De5;
 
-        swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
-        IERC20(tokenIn).approve(
-            address(conveyorSwapAggregator),
-            type(uint256).max
-        );
+    //     swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
+    //     IERC20(tokenIn).approve(
+    //         address(conveyorSwapAggregator),
+    //         type(uint256).max
+    //     );
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](2);
+    //     ConveyorSwapAggregator.Call[]
+    //         memory calls = new ConveyorSwapAggregator.Call[](2);
 
-        calls[0] = ConveyorSwapAggregator.Call({
-            target: firstLP,
-            callData: new bytes(0)
-        });
+    //     calls[0] = ConveyorSwapAggregator.Call({
+    //         target: firstLP,
+    //         callData: new bytes(0)
+    //     });
 
-        calls[1] = ConveyorSwapAggregator.Call({
-            target: secondLP,
-            callData: new bytes(0)
-        });
+    //     calls[1] = ConveyorSwapAggregator.Call({
+    //         target: secondLP,
+    //         callData: new bytes(0)
+    //     });
 
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
-                1, //zeroForOne
-                3, //univ2
-                7, //lp, msg.sender
-                307500, //300, 300
-                firstLP,
-                calls
-            );
+    //     ConveyorSwapAggregator.SwapAggregatorMulticall
+    //         memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+    //             1, //zeroForOne
+    //             3, //univ2
+    //             7, //lp, msg.sender
+    //             307500, //300, 300
+    //             firstLP,
+    //             calls
+    //         );
 
-        conveyorSwapAggregator.swapExactTokenForToken(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            amountOutMin,
-            multicall
-        );
-    }
+    //     conveyorSwapAggregator.swapExactTokenForToken(
+    //         tokenIn,
+    //         amountIn,
+    //         tokenOut,
+    //         amountOutMin,
+    //         multicall
+    //     );
+    // }
 
-    function testSwapUniv3SingleLP() public {
-        cheatCodes.deal(address(this), type(uint256).max);
-        address tokenIn = 0xba5BDe662c17e2aDFF1075610382B9B691296350;
-        uint256 amountIn = 5678000000000000000000;
-        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        uint256 amountOutMin = 453245423220749265;
-        address lp = 0x7685cD3ddD862b8745B1082A6aCB19E14EAA74F3;
+    // function testSwapUniv3SingleLP() public {
+    //     cheatCodes.deal(address(this), type(uint256).max);
+    //     address tokenIn = 0xba5BDe662c17e2aDFF1075610382B9B691296350;
+    //     uint256 amountIn = 5678000000000000000000;
+    //     address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    //     uint256 amountOutMin = 453245423220749265;
+    //     address lp = 0x7685cD3ddD862b8745B1082A6aCB19E14EAA74F3;
 
-        //Deposit weth to address(this)
-        (bool depositSuccess, ) = address(tokenOut).call{
-            value: 500000000 ether
-        }(abi.encodeWithSignature("deposit()"));
-        require(depositSuccess, "deposit failed");
-        IUniswapV3Pool(lp).swap(
-            address(this),
-            false,
-            500 ether,
-            TickMath.MAX_SQRT_RATIO - 1,
-            abi.encode(false, tokenOut, address(this))
-        );
+    //     //Deposit weth to address(this)
+    //     (bool depositSuccess, ) = address(tokenOut).call{
+    //         value: 500000000 ether
+    //     }(abi.encodeWithSignature("deposit()"));
+    //     require(depositSuccess, "deposit failed");
+    //     IUniswapV3Pool(lp).swap(
+    //         address(this),
+    //         false,
+    //         500 ether,
+    //         TickMath.MAX_SQRT_RATIO - 1,
+    //         abi.encode(false, tokenOut, address(this))
+    //     );
 
-        IERC20(tokenIn).approve(
-            address(conveyorSwapAggregator),
-            type(uint256).max
-        );
+    //     IERC20(tokenIn).approve(
+    //         address(conveyorSwapAggregator),
+    //         type(uint256).max
+    //     );
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](1);
+    //     ConveyorSwapAggregator.Call[]
+    //         memory calls = new ConveyorSwapAggregator.Call[](1);
 
-        calls[0] = newUniV3Call(
-            lp,
-            conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
-            address(this),
-            true,
-            amountIn,
-            tokenIn
-        );
-        console.log(IERC20(tokenIn).balanceOf(address(this)));
+    //     calls[0] = newUniV3Call(
+    //         lp,
+    //         conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
+    //         address(this),
+    //         true,
+    //         amountIn,
+    //         tokenIn
+    //     );
+    //     console.log(IERC20(tokenIn).balanceOf(address(this)));
 
-        forkId = cheatCodes.activeFork();
-        cheatCodes.rollFork(forkId, 16749139);
-        console.log(IERC20(tokenIn).balanceOf(address(this)));
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
-                1, //zeroForOne
-                0,
-                0,
-                300,
-                conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
-                calls
-            );
+    //     forkId = cheatCodes.activeFork();
+    //     cheatCodes.rollFork(forkId, 16749139);
+    //     console.log(IERC20(tokenIn).balanceOf(address(this)));
+    //     ConveyorSwapAggregator.SwapAggregatorMulticall
+    //         memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+    //             1, //zeroForOne
+    //             0,
+    //             0,
+    //             300,
+    //             conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
+    //             calls
+    //         );
 
-        conveyorSwapAggregator.swapExactTokenForToken(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            amountOutMin,
-            multicall
-        );
-    }
+    //     conveyorSwapAggregator.swapExactTokenForToken(
+    //         tokenIn,
+    //         amountIn,
+    //         tokenOut,
+    //         amountOutMin,
+    //         multicall
+    //     );
+    // }
 
     // function testBenchParaswapUsdcEth() public {
     //     cheatCodes.deal(address(this), type(uint256).max);

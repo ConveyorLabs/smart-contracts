@@ -11,8 +11,7 @@ interface IConveyorSwapExecutor {
         ConveyorSwapAggregator.SwapAggregatorMulticall
             calldata swapAggregatorMulticall,
         uint256 amountIn,
-        address receiver,
-        address tokenIn
+        address receiver
     ) external;
 }
 
@@ -170,8 +169,7 @@ contract ConveyorSwapAggregator {
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall,
             amountIn,
-            msg.sender,
-            tokenIn
+            msg.sender
         );
 
         uint256 balanceAfter = IERC20(tokenOut).balanceOf(msg.sender);
@@ -265,8 +263,7 @@ contract ConveyorSwapAggregator {
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall,
             msg.value,
-            msg.sender,
-            address(0)
+            msg.sender
         );
 
         ///@notice Get tokenOut balance of msg.sender after multicall execution.
@@ -355,8 +352,7 @@ contract ConveyorSwapAggregator {
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall,
             amountIn,
-            msg.sender,
-            address(0)
+            msg.sender
         );
 
         ///@notice Get WETH balance of this contract.
@@ -601,6 +597,37 @@ contract ConveyorSwapExecutor {
                     revert CallFailed();
                 }
                 amountIn = IERC20(execution.dest).balanceOf(address(this));
+                
+                ///@notice Instantiate the receiver address for the v2 swap.
+                address receiver;
+                {
+                    ///@notice Get the toAddressBitPattern from the toAddressBitmap.
+                    uint256 toAddressBitPattern = deriveToAddressFromBitmap(
+                        swapAggregatorMulticall.toAddressBitmap,
+                        i
+                    );
+                    ///@notice Set the receiver address based on the toAddressBitPattern.
+                    if (toAddressBitPattern == 0x3) {
+                        if (i == callsLength - 1) {
+                            revert InvalidToAddressBits();
+                        }
+                        receiver = swapAggregatorMulticall
+                            .executions[i + 1]
+                            .call
+                            .target;
+                    } else if (toAddressBitPattern == 0x2) {
+                        receiver = address(this);
+                    } else if (toAddressBitPattern == 0x1) {
+                        receiver = recipient;
+                    } else {
+                        receiver = CONVEYOR_SWAP_AGGREGATOR;
+                    }
+
+                    IERC20(execution.dest).transfer(
+                        receiver,
+                        IERC20(execution.dest).balanceOf(address(this))
+                    );
+                }
             }
 
             unchecked {
@@ -747,30 +774,30 @@ contract ConveyorSwapExecutor {
         uint64 bitmap,
         uint256 i
     ) internal pure returns (uint256 identifier) {
-        assembly {
-            switch shr(and(shl(3, mul(2, i)), protocolBitmap), mul(2, i))
-            case 0x3 {
-                identifier := 0x3
-            }
-            case 0x2 {
-                identifier := 0x2
-            }
-            case 0x1 {
-                identifier := 0x1
-            }
-            default {
-                identifier := 0x0
-            }
-        }
-        // if ((3 << (2 * i)) & protocolBitmap == 3 << (2 * i)) {
-        //     return 0x3;
-        // } else if ((2 << (2 * i)) & protocolBitmap == 2 << (2 * i)) {
-        //     return 0x2;
-        // } else if ((1 << (2 * i)) & protocolBitmap == 1 << (2 * i)) {
-        //     return 0x1;
-        // } else {
-        //     return 0x0;
+        // assembly {
+        //     switch shr(and(shl(3, mul(2, i)), protocolBitmap), mul(2, i))
+        //     case 0x3 {
+        //         identifier := 0x3
+        //     }
+        //     case 0x2 {
+        //         identifier := 0x2
+        //     }
+        //     case 0x1 {
+        //         identifier := 0x1
+        //     }
+        //     default {
+        //         identifier := 0x0
+        //     }
         // }
+        if ((3 << (2 * i)) & bitmap == 3 << (2 * i)) {
+            return 0x3;
+        } else if ((2 << (2 * i)) & bitmap == 2 << (2 * i)) {
+            return 0x2;
+        } else if ((1 << (2 * i)) & bitmap == 1 << (2 * i)) {
+            return 0x1;
+        } else {
+            return 0x0;
+        }
     }
 
     ///@notice Function to get the amountOut from a UniV2 lp.
