@@ -503,11 +503,11 @@ contract ConveyorSwapExecutor {
         ConveyorSwapAggregator.SwapAggregatorMulticall
             calldata swapAggregatorMulticall,
         uint256 amountIn,
-        address payable recipient,
-        address tokenIn
+        address payable recipient
     ) public {
         ///@notice Get the length of the calls array.
-        uint256 callsLength = swapAggregatorMulticall.calls.length;
+        uint256 callsLength = swapAggregatorMulticall.executions.length;
+
         ///@notice Create a bytes array to store the calldata for v2 swaps.
         bytes memory callData;
 
@@ -517,7 +517,7 @@ contract ConveyorSwapExecutor {
         for (uint256 i = 0; i < callsLength; ) {
             ///@notice Get the call from the calls array.
             ConveyorSwapAggregator.Call memory call = swapAggregatorMulticall
-                .calls[i];
+                .executions[i].call;
 
             ///@notice Get the zeroForOne value from the zeroForOneBitmap.
             bool zeroForOne = deriveBoolFromBitmap(
@@ -541,7 +541,7 @@ contract ConveyorSwapExecutor {
                         if (i == callsLength - 1) {
                             revert InvalidToAddressBits();
                         }
-                        receiver = swapAggregatorMulticall.calls[i + 1].target;
+                        receiver = swapAggregatorMulticall.executions[i + 1].call.target;
                     } else if (toAddressBitPattern == 0x2) {
                         receiver = address(this);
                     } else if (toAddressBitPattern == 0x1) {
