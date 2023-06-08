@@ -120,7 +120,17 @@ contract ConveyorSwapAggregator {
         uint64 toAddressBitmap;
         uint128 feeBitmap;
         address tokenInDestination;
-        Call[] calls;
+        Execution[] executions;
+    }
+
+    /// @notice Execution struct for token Swaps.
+    /// @param source TokenIn for the swap.
+    /// @param dest TokenOut for the swap.
+    /// @param call Call to be executed.
+    struct Execution {
+        address source;
+        address dest;
+        Call call;
     }
 
     /// @notice Call struct for token Swaps.
@@ -498,7 +508,6 @@ contract ConveyorSwapExecutor {
     ) public {
         ///@notice Get the length of the calls array.
         uint256 callsLength = swapAggregatorMulticall.calls.length;
-        IERC20(tokenIn).approve(address(0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7), type(uint256).max);
         ///@notice Create a bytes array to store the calldata for v2 swaps.
         bytes memory callData;
 
