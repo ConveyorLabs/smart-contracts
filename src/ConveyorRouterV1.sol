@@ -77,9 +77,7 @@ contract ConveyorRouterV1 {
     ///@param _weth Address of Wrapped Native Asset.
     constructor(address _weth) {
         require(_weth != address(0), "WETH address is zero");
-        CONVEYOR_MULTICALL = address(
-            new ConveyorMulticall(address(this))
-        );
+        CONVEYOR_MULTICALL = address(new ConveyorMulticall(address(this)));
         WETH = _weth;
         owner = msg.sender;
     }
@@ -221,6 +219,7 @@ contract ConveyorRouterV1 {
             revert InsufficientMsgValue();
         }
 
+        ///@notice Cache the amountIn to save gas.
         uint256 amountIn = msg.value - protocolFee;
 
         ///@notice Deposit the msg.value-protocolFee into WETH.
@@ -492,8 +491,9 @@ contract ConveyorMulticall {
         ///@notice Iterate through the calls array.
         for (uint256 i = 0; i < callsLength; ) {
             ///@notice Get the call from the calls array.
-            ConveyorRouterV1.Call memory call = swapAggregatorMulticall
-                .calls[i];
+            ConveyorRouterV1.Call memory call = swapAggregatorMulticall.calls[
+                i
+            ];
 
             ///@notice Get the zeroForOne value from the zeroForOneBitmap.
             bool zeroForOne = deriveBoolFromBitmap(
