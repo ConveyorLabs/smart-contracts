@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import {Script} from "../../lib/forge-std/src/Script.sol";
-import {ConveyorSwapAggregator} from "../ConveyorSwapAggregator.sol";
+import {ConveyorRouterV1} from "../ConveyorRouterV1.sol";
 
 contract Deploy is Script {
     ///@dev Polygon Constructor Constants
@@ -11,13 +11,13 @@ contract Deploy is Script {
 
     function run()
         public
-        returns (ConveyorSwapAggregator conveyorSwapAggregator)
+        returns (ConveyorRouterV1 conveyorRouterV1)
     {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
         vm.startBroadcast(deployerPrivateKey);
-        /// Deploy ConveyorSwapAggregator
-        conveyorSwapAggregator = new ConveyorSwapAggregator(
+        /// Deploy ConveyorRouterV1
+        conveyorRouterV1 = new ConveyorRouterV1(
             WMATIC
         );
         vm.stopBroadcast();

@@ -5,20 +5,20 @@ import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 
-interface IConveyorSwapExecutor {
+interface IConveyorMulticall {
     function executeMulticall(
-        ConveyorSwapAggregator.SwapAggregatorMulticall
+        ConveyorRouterV1.SwapAggregatorMulticall
             calldata swapAggregatorMulticall,
         uint256 amountIn,
         address receiver
     ) external;
 }
 
-/// @title ConveyorSwapAggregator
+/// @title ConveyorRouterV1
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Multicall contract for token Swaps.
-contract ConveyorSwapAggregator {
-    address public immutable CONVEYOR_SWAP_EXECUTOR;
+contract ConveyorRouterV1 {
+    address public immutable CONVEYOR_MULTICALL;
     address public immutable WETH;
     /**@notice Event that is emitted when a token to token swap has filled successfully.
      **/
@@ -60,8 +60,8 @@ contract ConveyorSwapAggregator {
     ///@param _weth Address of Wrapped Native Asset.
     constructor(address _weth) {
         require(_weth != address(0), "WETH address is zero");
-        CONVEYOR_SWAP_EXECUTOR = address(
-            new ConveyorSwapExecutor(address(this))
+        CONVEYOR_MULTICALL = address(
+            new ConveyorMulticall(address(this))
         );
         WETH = _weth;
     }
@@ -124,7 +124,7 @@ contract ConveyorSwapAggregator {
         uint256 tokenOutAmountRequired = balanceBefore + amountOutMin;
 
         ///@notice Execute Multicall.
-        IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(
             swapAggregatorMulticall,
             amountIn,
             msg.sender
@@ -219,7 +219,7 @@ contract ConveyorSwapAggregator {
         uint256 tokenOutAmountRequired = balanceBefore + amountOutMin;
 
         ///@notice Execute Multicall.
-        IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(
             swapAggregatorMulticall,
             msg.value - protocolFee,
             msg.sender
@@ -308,7 +308,7 @@ contract ConveyorSwapAggregator {
         uint256 amountOutRequired = balanceBefore + amountOutMin;
 
         ///@notice Execute Multicall.
-        IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(
             swapAggregatorMulticall,
             amountIn,
             msg.sender
@@ -437,12 +437,12 @@ contract ConveyorSwapAggregator {
 /// @title ConveyorSwapExecutor
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Optimized multicall execution contract.
-contract ConveyorSwapExecutor {
+contract ConveyorMulticall {
     address immutable CONVEYOR_SWAP_AGGREGATOR;
 
-    ///@param conveyorSwapAggregator Address of the ConveyorSwapAggregator contract.
-    constructor(address conveyorSwapAggregator) {
-        CONVEYOR_SWAP_AGGREGATOR = conveyorSwapAggregator;
+    ///@param conveyorRouterV1 Address of the ConveyorRouterV1 contract.
+    constructor(address conveyorRouterV1) {
+        CONVEYOR_SWAP_AGGREGATOR = conveyorRouterV1;
     }
 
     ///@notice Executes a multicall.
@@ -450,7 +450,7 @@ contract ConveyorSwapExecutor {
     ///@param amountIn Amount of tokenIn to swap.
     ///@param recipient Recipient of the output tokens.
     function executeMulticall(
-        ConveyorSwapAggregator.SwapAggregatorMulticall
+        ConveyorRouterV1.SwapAggregatorMulticall
             calldata swapAggregatorMulticall,
         uint256 amountIn,
         address payable recipient
@@ -466,7 +466,7 @@ contract ConveyorSwapExecutor {
         ///@notice Iterate through the calls array.
         for (uint256 i = 0; i < callsLength; ) {
             ///@notice Get the call from the calls array.
-            ConveyorSwapAggregator.Call memory call = swapAggregatorMulticall
+            ConveyorRouterV1.Call memory call = swapAggregatorMulticall
                 .calls[i];
 
             ///@notice Get the zeroForOne value from the zeroForOneBitmap.
@@ -646,7 +646,7 @@ contract ConveyorSwapExecutor {
         updatedFeeBitmap = feeBitmap >> 10;
     }
 
-    ///@dev Bit Patterns: 01 => msg.sender, 10 => ConveyorSwapExecutor, 11 = next pool, 00 = ConveyorSwapAggregator
+    ///@dev Bit Patterns: 01 => msg.sender, 10 => ConveyorSwapExecutor, 11 = next pool, 00 = ConveyorRouterV1
     ///@notice Derives the toAddress from the toAddressBitmap.
     ///@param toAddressBitmap - The bitmap of toAddresses to use for the swap.
     ///@param i - The index of the toAddress to derive.

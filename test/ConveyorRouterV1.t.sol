@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import "./utils/test.sol";
 import "./utils/Console.sol";
 import "./utils/Swap.sol";
-import "../src/interfaces/IConveyorSwapAggregator.sol";
+import "../src/interfaces/IConveyorRouterV1.sol";
 import "../src/lib/ConveyorTickMath.sol";
 
 interface CheatCodes {
@@ -24,8 +24,8 @@ interface CheatCodes {
     function makePersistent(address) external;
 }
 
-contract ConveyorSwapAggregatorTest is DSTest {
-    IConveyorSwapAggregator conveyorSwapAggregator;
+contract ConveyorRouterV1Test is DSTest {
+    IConveyorRouterV1 conveyorRouterV1;
 
     Swap swapHelper;
     CheatCodes cheatCodes;
@@ -40,15 +40,15 @@ contract ConveyorSwapAggregatorTest is DSTest {
         swapHelper = new Swap(uniV2Addr, WETH);
         cheatCodes.deal(address(swapHelper), type(uint256).max);
 
-        conveyorSwapAggregator = IConveyorSwapAggregator(
+        conveyorRouterV1 = IConveyorRouterV1(
             address(
-                new ConveyorSwapAggregator(
+                new ConveyorRouterV1(
                     0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
                 )
             )
         );
         forkId = cheatCodes.activeFork();
-        cheatCodes.makePersistent(address(conveyorSwapAggregator));
+        cheatCodes.makePersistent(address(conveyorRouterV1));
         cheatCodes.makePersistent(address(this));
 
         cheatCodes.makePersistent(
@@ -58,7 +58,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         //     address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48)
         // );
         cheatCodes.makePersistent(
-            address(conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR())
+            address(conveyorRouterV1.CONVEYOR_MULTICALL())
         );
         cheatCodes.makePersistent(address(swapHelper));
     }
@@ -75,20 +75,20 @@ contract ConveyorSwapAggregatorTest is DSTest {
 
         swapHelper.swapEthForTokenWithUniV2(10 ether, tokenIn);
         IERC20(tokenIn).approve(
-            address(conveyorSwapAggregator),
+            address(conveyorRouterV1),
             type(uint256).max
         );
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](1);
+        ConveyorRouterV1.Call[]
+            memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = ConveyorSwapAggregator.Call({
+        calls[0] = ConveyorRouterV1.Call({
             target: lp,
             callData: new bytes(0)
         });
 
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+        ConveyorRouterV1.SwapAggregatorMulticall
+            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
                 1, //univ2
                 1, //msg.sender
@@ -97,7 +97,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 calls
             );
 
-        conveyorSwapAggregator.swapExactTokenForToken(
+        conveyorRouterV1.swapExactTokenForToken(
             tokenIn,
             amountIn,
             tokenOut,
@@ -118,20 +118,20 @@ contract ConveyorSwapAggregatorTest is DSTest {
 
         swapHelper.swapEthForTokenWithUniV2(10 ether, tokenIn);
         IERC20(tokenIn).approve(
-            address(conveyorSwapAggregator),
+            address(conveyorRouterV1),
             type(uint256).max
         );
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](1);
+        ConveyorRouterV1.Call[]
+            memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = ConveyorSwapAggregator.Call({
+        calls[0] = ConveyorRouterV1.Call({
             target: lp,
             callData: new bytes(0)
         });
 
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+        ConveyorRouterV1.SwapAggregatorMulticall
+            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
                 1, //univ2
                 1, //msg.sender
@@ -143,13 +143,13 @@ contract ConveyorSwapAggregatorTest is DSTest {
         uint256 referralFee = 1e16;
         uint256 protocolFee = 5e16;
 
-        ConveyorSwapAggregator.ReferralInfo
-            memory referralInfo = ConveyorSwapAggregator.ReferralInfo({
+        ConveyorRouterV1.ReferralInfo
+            memory referralInfo = ConveyorRouterV1.ReferralInfo({
                 referrer: address(this),
                 referralFee: referralFee
             });
 
-        conveyorSwapAggregator.swapExactTokenForTokenWithReferral{
+        conveyorRouterV1.swapExactTokenForTokenWithReferral{
             value: protocolFee
         }(tokenIn, amountIn, tokenOut, amountOutMin, multicall, referralInfo);
     }
@@ -163,13 +163,13 @@ contract ConveyorSwapAggregatorTest is DSTest {
         uint128 amountOutMin = 54776144172760093;
         address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](1);
+        ConveyorRouterV1.Call[]
+            memory calls = new ConveyorRouterV1.Call[](1);
 
         calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this));
 
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+        ConveyorRouterV1.SwapAggregatorMulticall
+            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 0, //zeroForOne
                 1, //univ2
                 1, //msg.sender
@@ -178,7 +178,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 calls
             );
 
-        conveyorSwapAggregator.swapExactEthForToken{value: amountIn}(
+        conveyorRouterV1.swapExactEthForToken{value: amountIn}(
             tokenOut,
             amountOutMin,
             uint128(0),
@@ -195,13 +195,13 @@ contract ConveyorSwapAggregatorTest is DSTest {
         uint128 amountOutMin = 54776144172760093;
         address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](1);
+        ConveyorRouterV1.Call[]
+            memory calls = new ConveyorRouterV1.Call[](1);
 
         calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this));
 
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+        ConveyorRouterV1.SwapAggregatorMulticall
+            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 0, //zeroForOne
                 1, //univ2
                 1, //msg.sender
@@ -212,13 +212,13 @@ contract ConveyorSwapAggregatorTest is DSTest {
         uint128 protocolFee = 5e16;
         uint128 referralFee = 1e16;
 
-        ConveyorSwapAggregator.ReferralInfo
-            memory referralInfo = ConveyorSwapAggregator.ReferralInfo(
+        ConveyorRouterV1.ReferralInfo
+            memory referralInfo = ConveyorRouterV1.ReferralInfo(
                 address(this),
                 referralFee
             );
 
-        conveyorSwapAggregator.swapExactEthForTokenWithReferral{
+        conveyorRouterV1.swapExactEthForTokenWithReferral{
             value: amountIn + protocolFee
         }(tokenOut, amountOutMin, protocolFee, multicall, referralInfo);
     }
@@ -235,22 +235,22 @@ contract ConveyorSwapAggregatorTest is DSTest {
         uint256 balanceBefore = address(this).balance;
         swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
         IERC20(tokenIn).approve(
-            address(conveyorSwapAggregator),
+            address(conveyorRouterV1),
             type(uint256).max
         );
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](1);
+        ConveyorRouterV1.Call[]
+            memory calls = new ConveyorRouterV1.Call[](1);
 
         calls[0] = newUniV2Call(
             lp,
             0,
             amountOutMin,
-            address(conveyorSwapAggregator)
+            address(conveyorRouterV1)
         );
 
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+        ConveyorRouterV1.SwapAggregatorMulticall
+            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
                 1, //univ2
                 0, //SwapAggregator
@@ -259,7 +259,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 calls
             );
 
-        conveyorSwapAggregator.swapExactTokenForEth(
+        conveyorRouterV1.swapExactTokenForEth(
             tokenIn,
             amountIn,
             amountOutMin,
@@ -281,22 +281,22 @@ contract ConveyorSwapAggregatorTest is DSTest {
         uint256 balanceBefore = address(this).balance;
         swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
         IERC20(tokenIn).approve(
-            address(conveyorSwapAggregator),
+            address(conveyorRouterV1),
             type(uint256).max
         );
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](1);
+        ConveyorRouterV1.Call[]
+            memory calls = new ConveyorRouterV1.Call[](1);
 
         calls[0] = newUniV2Call(
             lp,
             0,
             amountOutMin,
-            address(conveyorSwapAggregator)
+            address(conveyorRouterV1)
         );
 
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+        ConveyorRouterV1.SwapAggregatorMulticall
+            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
                 1, //univ2
                 0, //SwapAggregator
@@ -307,13 +307,13 @@ contract ConveyorSwapAggregatorTest is DSTest {
 
         uint128 protocolFee = 5e16;
 
-        ConveyorSwapAggregator.ReferralInfo
-            memory referralInfo = ConveyorSwapAggregator.ReferralInfo(
+        ConveyorRouterV1.ReferralInfo
+            memory referralInfo = ConveyorRouterV1.ReferralInfo(
                 address(this),
                 1e16
             );
 
-        conveyorSwapAggregator.swapExactTokenForEthWithReferral{
+        conveyorRouterV1.swapExactTokenForEthWithReferral{
             value: protocolFee
         }(tokenIn, amountIn, amountOutMin, multicall, referralInfo);
         console.log("balance before", balanceBefore);
@@ -335,25 +335,25 @@ contract ConveyorSwapAggregatorTest is DSTest {
 
         swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
         IERC20(tokenIn).approve(
-            address(conveyorSwapAggregator),
+            address(conveyorRouterV1),
             type(uint256).max
         );
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](2);
+        ConveyorRouterV1.Call[]
+            memory calls = new ConveyorRouterV1.Call[](2);
 
-        calls[0] = ConveyorSwapAggregator.Call({
+        calls[0] = ConveyorRouterV1.Call({
             target: firstLP,
             callData: new bytes(0)
         });
 
-        calls[1] = ConveyorSwapAggregator.Call({
+        calls[1] = ConveyorRouterV1.Call({
             target: secondLP,
             callData: new bytes(0)
         });
 
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+        ConveyorRouterV1.SwapAggregatorMulticall
+            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
                 3, //univ2
                 7, //lp, msg.sender
@@ -362,7 +362,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 calls
             );
 
-        conveyorSwapAggregator.swapExactTokenForToken(
+        conveyorRouterV1.swapExactTokenForToken(
             tokenIn,
             amountIn,
             tokenOut,
@@ -393,16 +393,16 @@ contract ConveyorSwapAggregatorTest is DSTest {
         );
 
         IERC20(tokenIn).approve(
-            address(conveyorSwapAggregator),
+            address(conveyorRouterV1),
             type(uint256).max
         );
 
-        ConveyorSwapAggregator.Call[]
-            memory calls = new ConveyorSwapAggregator.Call[](1);
+        ConveyorRouterV1.Call[]
+            memory calls = new ConveyorRouterV1.Call[](1);
 
         calls[0] = newUniV3Call(
             lp,
-            conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
+            conveyorRouterV1.CONVEYOR_MULTICALL(),
             address(this),
             true,
             amountIn,
@@ -413,17 +413,17 @@ contract ConveyorSwapAggregatorTest is DSTest {
         forkId = cheatCodes.activeFork();
         cheatCodes.rollFork(forkId, 16749139);
         console.log(IERC20(tokenIn).balanceOf(address(this)));
-        ConveyorSwapAggregator.SwapAggregatorMulticall
-            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+        ConveyorRouterV1.SwapAggregatorMulticall
+            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
                 0,
                 0,
                 300,
-                conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
+                conveyorRouterV1.CONVEYOR_MULTICALL(),
                 calls
             );
 
-        conveyorSwapAggregator.swapExactTokenForToken(
+        conveyorRouterV1.swapExactTokenForToken(
             tokenIn,
             amountIn,
             tokenOut,
@@ -453,12 +453,12 @@ contract ConveyorSwapAggregatorTest is DSTest {
     //         abi.encode(false, tokenOut, address(this))
     //     );
 
-    //     ConveyorSwapAggregator.Call[]
-    //         memory calls = new ConveyorSwapAggregator.Call[](1);
+    //     ConveyorRouterV1.Call[]
+    //         memory calls = new ConveyorRouterV1.Call[](1);
 
     //     calls[0] = newUniV3Call(
     //         lp,
-    //         conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
+    //         conveyorRouterV1.CONVEYOR_SWAP_EXECUTOR(),
     //         address(this),
     //         true,
     //         amountIn,
@@ -469,17 +469,17 @@ contract ConveyorSwapAggregatorTest is DSTest {
     //     cheatCodes.rollFork(forkId, 16349359);
     //     console.log(IERC20(tokenIn).balanceOf(address(this)));
     //     IERC20(tokenIn).approve(
-    //         address(conveyorSwapAggregator),
+    //         address(conveyorRouterV1),
     //         type(uint256).max
     //     );
     //     console.log(IERC20(tokenIn).balanceOf(address(this)));
-    //     ConveyorSwapAggregator.SwapAggregatorMulticall
-    //         memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
-    //             conveyorSwapAggregator.CONVEYOR_SWAP_EXECUTOR(),
+    //     ConveyorRouterV1.SwapAggregatorMulticall
+    //         memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+    //             conveyorRouterV1.CONVEYOR_SWAP_EXECUTOR(),
     //             calls
     //         );
 
-    //     conveyorSwapAggregator.swapExactTokenForEth(tokenIn, amountIn, amountOutMin, multicall);
+    //     conveyorRouterV1.swapExactTokenForEth(tokenIn, amountIn, amountOutMin, multicall);
 
     // }
 
@@ -515,7 +515,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         bool _zeroForOne,
         uint256 _amountIn,
         address _tokenIn
-    ) public pure returns (ConveyorSwapAggregator.Call memory) {
+    ) public pure returns (ConveyorRouterV1.Call memory) {
         ///@notice Pack the required data for the call.
         bytes memory data = abi.encode(_zeroForOne, _tokenIn, _sender);
         ///@notice Encode the callData for the call.
@@ -530,7 +530,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
             data
         );
         ///@notice Return the call
-        return ConveyorSwapAggregator.Call({target: _lp, callData: callData});
+        return ConveyorRouterV1.Call({target: _lp, callData: callData});
     }
 
     ///@notice Helper function to create a single mock call for a v2 swap.
@@ -539,7 +539,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         uint256 amount0Out,
         uint256 amount1Out,
         address _receiver
-    ) public pure returns (ConveyorSwapAggregator.Call memory) {
+    ) public pure returns (ConveyorRouterV1.Call memory) {
         bytes memory callData = abi.encodeWithSignature(
             "swap(uint256,uint256,address,bytes)",
             amount0Out,
@@ -547,6 +547,6 @@ contract ConveyorSwapAggregatorTest is DSTest {
             _receiver,
             new bytes(0)
         );
-        return ConveyorSwapAggregator.Call({target: _lp, callData: callData});
+        return ConveyorRouterV1.Call({target: _lp, callData: callData});
     }
 }
