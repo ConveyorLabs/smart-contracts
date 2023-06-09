@@ -202,13 +202,14 @@ contract ConveyorSwapAggregator {
         if (protocolFee > msg.value) {
             revert InsufficientMsgValue();
         }
+
         ///@notice Deposit the msg.value-protocolFee into WETH.
         _depositEth(msg.value - protocolFee, WETH);
-
+        
         ///@notice Transfer WETH from WETH to tokenInDestination address.
         IERC20(WETH).transfer(
             swapAggregatorMulticall.tokenInDestination,
-            msg.value
+            msg.value - protocolFee
         );
 
         ///@notice Get tokenOut balance of msg.sender.
@@ -220,7 +221,7 @@ contract ConveyorSwapAggregator {
         ///@notice Execute Multicall.
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall,
-            msg.value,
+            msg.value - protocolFee,
             msg.sender
         );
 
