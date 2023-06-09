@@ -56,5 +56,7 @@ interface IConveyorRouterV1 {
         ConveyorRouterV1.ReferralInfo calldata referralInfo
     ) external payable;
 
+    function withdraw() external;
+
     function CONVEYOR_MULTICALL() external view returns (address);
 }

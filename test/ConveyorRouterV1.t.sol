@@ -40,6 +40,8 @@ contract ConveyorRouterV1Test is DSTest {
         swapHelper = new Swap(uniV2Addr, WETH);
         cheatCodes.deal(address(swapHelper), type(uint256).max);
 
+        
+        forkId = cheatCodes.activeFork();
         conveyorRouterV1 = IConveyorRouterV1(
             address(
                 new ConveyorRouterV1(
@@ -47,7 +49,6 @@ contract ConveyorRouterV1Test is DSTest {
                 )
             )
         );
-        forkId = cheatCodes.activeFork();
         cheatCodes.makePersistent(address(conveyorRouterV1));
         cheatCodes.makePersistent(address(this));
 
@@ -430,6 +431,19 @@ contract ConveyorRouterV1Test is DSTest {
             amountOutMin,
             multicall
         );
+    }
+
+    function testWithdrawal() public {
+        uint256 balanceBefore = address(this).balance;
+        cheatCodes.deal(address(conveyorRouterV1), type(uint128).max);
+        conveyorRouterV1.withdraw();
+        assertGt(address(this).balance, balanceBefore);
+    }
+
+    function testFailWithdrawal_MsgSenderIsNotOwner() public {
+        cheatCodes.deal(address(conveyorRouterV1), type(uint128).max);
+        cheatCodes.prank(address(1));
+        conveyorRouterV1.withdraw();
     }
 
     // function testBenchParaswapUsdcEth() public {
