@@ -141,13 +141,22 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 calls
             );
         
+        uint256 referralFee =1e16;
+        uint256 protocolFee = 5e16;
+    
+        ConveyorSwapAggregator.ReferralInfo memory referralInfo = ConveyorSwapAggregator.ReferralInfo({
+            referrer: address(this),
+            referralFee: referralFee
+        });
+        
 
-        conveyorSwapAggregator.swapExactTokenForToken(
+        conveyorSwapAggregator.swapExactTokenForTokenWithReferral{value: protocolFee}(
             tokenIn,
             amountIn,
             tokenOut,
             amountOutMin,
-            multicall
+            multicall,
+            referralInfo
         );
     }
 
