@@ -57,6 +57,10 @@ contract ConveyorRouterV1 {
         uint256 referralFee
     );
 
+    /** @notice Event that is emitted when ETH is withdrawn from the contract
+     **/
+    event Withdraw(address indexed receiver, uint256 amount);
+
     ///@notice Modifier function to only allow the owner of the contract to call specific functions
     ///@dev Functions with onlyOwner: withdraw
     modifier onlyOwner() {
@@ -444,6 +448,7 @@ contract ConveyorRouterV1 {
 
     function withdraw() external onlyOwner {
         _safeTransferETH(msg.sender, address(this).balance);
+        emit Withdraw(msg.sender, address(this).balance);
     }
 
     /// @notice Fallback receiver function.
