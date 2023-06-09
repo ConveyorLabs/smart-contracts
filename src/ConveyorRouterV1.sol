@@ -221,13 +221,15 @@ contract ConveyorRouterV1 {
             revert InsufficientMsgValue();
         }
 
+        uint256 amountIn = msg.value - protocolFee;
+        
         ///@notice Deposit the msg.value-protocolFee into WETH.
-        _depositEth(msg.value - protocolFee, WETH);
+        _depositEth(amountIn, WETH);
 
         ///@notice Transfer WETH from WETH to tokenInDestination address.
         IERC20(WETH).transfer(
             swapAggregatorMulticall.tokenInDestination,
-            msg.value - protocolFee
+            amountIn
         );
 
         ///@notice Get tokenOut balance of msg.sender.
@@ -239,7 +241,7 @@ contract ConveyorRouterV1 {
         ///@notice Execute Multicall.
         IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(
             swapAggregatorMulticall,
-            msg.value - protocolFee,
+            amountIn,
             msg.sender
         );
 
