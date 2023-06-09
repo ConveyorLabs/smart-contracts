@@ -222,7 +222,7 @@ contract ConveyorRouterV1 {
         }
 
         uint256 amountIn = msg.value - protocolFee;
-        
+
         ///@notice Deposit the msg.value-protocolFee into WETH.
         _depositEth(amountIn, WETH);
 
@@ -450,6 +450,7 @@ contract ConveyorRouterV1 {
         }
     }
 
+    /// @notice Withdraw ETH from this contract.
     function withdraw() external onlyOwner {
         _safeTransferETH(msg.sender, address(this).balance);
         emit Withdraw(msg.sender, address(this).balance);
