@@ -12,9 +12,10 @@ interface CheatCodes {
 
     function deal(address who, uint256 amount) external;
 
-    function createSelectFork(string calldata, uint256)
-        external
-        returns (uint256);
+    function createSelectFork(
+        string calldata,
+        uint256
+    ) external returns (uint256);
 
     function rollFork(uint256 forkId, uint256 blockNumber) external;
 
@@ -82,15 +83,14 @@ contract ConveyorSwapAggregatorTest is DSTest {
             memory calls = new ConveyorSwapAggregator.Call[](1);
 
         calls[0] = ConveyorSwapAggregator.Call({
-            target:lp,
-            callData:new bytes(0)
+            target: lp,
+            callData: new bytes(0)
         });
-            
 
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
                 1, //zeroForOne
-                1,  //univ2
+                1, //univ2
                 1, //msg.sender
                 300,
                 lp,
@@ -126,38 +126,32 @@ contract ConveyorSwapAggregatorTest is DSTest {
             memory calls = new ConveyorSwapAggregator.Call[](1);
 
         calls[0] = ConveyorSwapAggregator.Call({
-            target:lp,
-            callData:new bytes(0)
+            target: lp,
+            callData: new bytes(0)
         });
-            
 
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
                 1, //zeroForOne
-                1,  //univ2
+                1, //univ2
                 1, //msg.sender
                 300,
                 lp,
                 calls
             );
-        
-        uint256 referralFee =1e16;
-        uint256 protocolFee = 5e16;
-    
-        ConveyorSwapAggregator.ReferralInfo memory referralInfo = ConveyorSwapAggregator.ReferralInfo({
-            referrer: address(this),
-            referralFee: referralFee
-        });
-        
 
-        conveyorSwapAggregator.swapExactTokenForTokenWithReferral{value: protocolFee}(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            amountOutMin,
-            multicall,
-            referralInfo
-        );
+        uint256 referralFee = 1e16;
+        uint256 protocolFee = 5e16;
+
+        ConveyorSwapAggregator.ReferralInfo
+            memory referralInfo = ConveyorSwapAggregator.ReferralInfo({
+                referrer: address(this),
+                referralFee: referralFee
+            });
+
+        conveyorSwapAggregator.swapExactTokenForTokenWithReferral{
+            value: protocolFee
+        }(tokenIn, amountIn, tokenOut, amountOutMin, multicall, referralInfo);
     }
 
     function testSwapExactEthForTokens() public {
@@ -177,15 +171,19 @@ contract ConveyorSwapAggregatorTest is DSTest {
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
                 0, //zeroForOne
-                1,  //univ2
+                1, //univ2
                 1, //msg.sender
                 300,
                 lp,
                 calls
             );
 
-        conveyorSwapAggregator.swapExactEthForToken{value: amountIn}(tokenOut, amountOutMin, uint128(0), multicall);
-        
+        conveyorSwapAggregator.swapExactEthForToken{value: amountIn}(
+            tokenOut,
+            amountOutMin,
+            uint128(0),
+            multicall
+        );
     }
 
     function testSwapExactEthForTokensWithReferral() public {
@@ -205,7 +203,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
                 0, //zeroForOne
-                1,  //univ2
+                1, //univ2
                 1, //msg.sender
                 300,
                 lp,
@@ -214,15 +212,16 @@ contract ConveyorSwapAggregatorTest is DSTest {
         uint128 protocolFee = 5e16;
         uint128 referralFee = 1e16;
 
-        ConveyorSwapAggregator.ReferralInfo memory referralInfo = ConveyorSwapAggregator.ReferralInfo(
-            address(this),
-            referralFee
-        );
+        ConveyorSwapAggregator.ReferralInfo
+            memory referralInfo = ConveyorSwapAggregator.ReferralInfo(
+                address(this),
+                referralFee
+            );
 
-        conveyorSwapAggregator.swapExactEthForTokenWithReferral{value: amountIn + protocolFee}(tokenOut, amountOutMin, protocolFee, multicall, referralInfo);
-        
+        conveyorSwapAggregator.swapExactEthForTokenWithReferral{
+            value: amountIn + protocolFee
+        }(tokenOut, amountOutMin, protocolFee, multicall, referralInfo);
     }
-
 
     function testSwapExactTokenForETH() public {
         cheatCodes.rollFork(forkId, 16749139);
@@ -231,7 +230,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint256 amountIn = 1900000000000000000000;
         uint256 amountOutMin = 54776144172760093;
-  
+
         address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
         uint256 balanceBefore = address(this).balance;
         swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
@@ -243,33 +242,41 @@ contract ConveyorSwapAggregatorTest is DSTest {
         ConveyorSwapAggregator.Call[]
             memory calls = new ConveyorSwapAggregator.Call[](1);
 
-        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorSwapAggregator));
+        calls[0] = newUniV2Call(
+            lp,
+            0,
+            amountOutMin,
+            address(conveyorSwapAggregator)
+        );
 
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
                 1, //zeroForOne
-                1,  //univ2
+                1, //univ2
                 0, //SwapAggregator
                 300,
                 lp,
                 calls
             );
 
-        conveyorSwapAggregator.swapExactTokenForEth(tokenIn, amountIn, amountOutMin, multicall);
+        conveyorSwapAggregator.swapExactTokenForEth(
+            tokenIn,
+            amountIn,
+            amountOutMin,
+            multicall
+        );
         console.log("balance before", balanceBefore);
         console.log("balance after", address(this).balance);
-           
     }
 
-    function testSwapExactTokenForETHWithReferral
-    () public {
+    function testSwapExactTokenForETHWithReferral() public {
         cheatCodes.rollFork(forkId, 16749139);
 
         cheatCodes.deal(address(this), type(uint128).max);
         address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint256 amountIn = 1900000000000000000000;
         uint256 amountOutMin = 54776144172760093;
-  
+
         address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
         uint256 balanceBefore = address(this).balance;
         swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
@@ -281,30 +288,38 @@ contract ConveyorSwapAggregatorTest is DSTest {
         ConveyorSwapAggregator.Call[]
             memory calls = new ConveyorSwapAggregator.Call[](1);
 
-        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorSwapAggregator));
+        calls[0] = newUniV2Call(
+            lp,
+            0,
+            amountOutMin,
+            address(conveyorSwapAggregator)
+        );
 
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
                 1, //zeroForOne
-                1,  //univ2
+                1, //univ2
                 0, //SwapAggregator
                 300,
                 lp,
                 calls
             );
-        
-        uint128 protocolFee = 5e16;
-        
-        ConveyorSwapAggregator.ReferralInfo memory referralInfo = ConveyorSwapAggregator.ReferralInfo(
-            address(this),
-            1e16
-        );
 
-        conveyorSwapAggregator.swapExactTokenForEthWithReferral{value: protocolFee}(tokenIn, amountIn, amountOutMin, multicall, referralInfo);
+        uint128 protocolFee = 5e16;
+
+        ConveyorSwapAggregator.ReferralInfo
+            memory referralInfo = ConveyorSwapAggregator.ReferralInfo(
+                address(this),
+                1e16
+            );
+
+        conveyorSwapAggregator.swapExactTokenForEthWithReferral{
+            value: protocolFee
+        }(tokenIn, amountIn, amountOutMin, multicall, referralInfo);
         console.log("balance before", balanceBefore);
         console.log("balance after", address(this).balance);
-           
     }
+
     receive() external payable {}
 
     function testSwapUniv2MultiLP() public {
@@ -317,7 +332,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         uint256 amountOutMin = 1335082888253395999149663;
         address firstLP = 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0;
         address secondLP = 0xdC1D67Bc953Bf67F007243c7DED42d67410a6De5;
-        
+
         swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
         IERC20(tokenIn).approve(
             address(conveyorSwapAggregator),
@@ -328,20 +343,20 @@ contract ConveyorSwapAggregatorTest is DSTest {
             memory calls = new ConveyorSwapAggregator.Call[](2);
 
         calls[0] = ConveyorSwapAggregator.Call({
-            target:firstLP,
-            callData:new bytes(0)
+            target: firstLP,
+            callData: new bytes(0)
         });
 
         calls[1] = ConveyorSwapAggregator.Call({
-            target:secondLP,
-            callData:new bytes(0)
+            target: secondLP,
+            callData: new bytes(0)
         });
 
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
                 1, //zeroForOne
-                3,  //univ2
-                7, //lp, msg.sender 
+                3, //univ2
+                7, //lp, msg.sender
                 307500, //300, 300
                 firstLP,
                 calls
@@ -354,8 +369,6 @@ contract ConveyorSwapAggregatorTest is DSTest {
             amountOutMin,
             multicall
         );
-     
-
     }
 
     function testSwapUniv3SingleLP() public {
@@ -467,7 +480,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
     //         );
 
     //     conveyorSwapAggregator.swapExactTokenForEth(tokenIn, amountIn, amountOutMin, multicall);
-           
+
     // }
 
     function uniswapV3SwapCallback(

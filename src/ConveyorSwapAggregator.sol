@@ -205,7 +205,7 @@ contract ConveyorSwapAggregator {
 
         ///@notice Deposit the msg.value-protocolFee into WETH.
         _depositEth(msg.value - protocolFee, WETH);
-        
+
         ///@notice Transfer WETH from WETH to tokenInDestination address.
         IERC20(WETH).transfer(
             swapAggregatorMulticall.tokenInDestination,
