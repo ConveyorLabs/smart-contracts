@@ -4,6 +4,7 @@ pragma solidity 0.8.16;
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
+import "../lib/libraries/token/SafeERC20.sol";
 
 interface IConveyorMulticall {
     function executeMulticall(
@@ -18,6 +19,7 @@ interface IConveyorMulticall {
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Multicall contract for token Swaps.
 contract ConveyorRouterV1 {
+    using SafeERC20 for IERC20;
     address public immutable CONVEYOR_MULTICALL;
     address public immutable WETH;
     address owner;
@@ -455,7 +457,7 @@ contract ConveyorRouterV1 {
     receive() external payable {}
 }
 
-/// @title ConveyorSwapExecutor
+/// @title ConveyorMulticall
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Optimized multicall execution contract.
 contract ConveyorMulticall {
