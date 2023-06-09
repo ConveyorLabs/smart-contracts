@@ -122,13 +122,15 @@ contract ConveyorRouterV1Test is DSTest {
                 calls
             );
         
-        
+        ConveyorRouterV1.ReferralInfo memory referralInfo;
         uint256 gasConsumed = conveyorRouterV1.quoteSwapExactTokenForToken(
             tokenIn,
             amountIn,
             tokenOut,
             amountOutMin,
-            multicall
+            multicall,
+            referralInfo,
+            false
         );
         console.log(gasConsumed);
 

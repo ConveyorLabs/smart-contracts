@@ -61,7 +61,9 @@ interface IConveyorRouterV1 {
         uint256 amountIn,
         address tokenOut,
         uint256 amountOutMin,
-        ConveyorRouterV1.SwapAggregatorMulticall calldata swapAggregatorMulticall
+        ConveyorRouterV1.SwapAggregatorMulticall calldata swapAggregatorMulticall,
+        ConveyorRouterV1.ReferralInfo calldata referralInfo,
+        bool isReferral
     ) external returns (uint256 gasConsumed);
 
     function withdraw() external;
