@@ -95,6 +95,45 @@ contract ConveyorRouterV1Test is DSTest {
         );
     }
 
+    function testSwapUniv2SingleLPQuote() public {
+        cheatCodes.rollFork(forkId, 16749139);
+
+        cheatCodes.deal(address(this), type(uint128).max);
+        address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+        uint256 amountIn = 1900000000000000000000;
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        uint256 amountOutMin = 54776144172760093;
+        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+
+        swapHelper.swapEthForTokenWithUniV2(10 ether, tokenIn);
+        IERC20(tokenIn).approve(address(conveyorRouterV1), type(uint256).max);
+
+        ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
+
+        calls[0] = ConveyorRouterV1.Call({target: lp, callData: new bytes(0)});
+
+        ConveyorRouterV1.SwapAggregatorMulticall
+            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+                1, //zeroForOne
+                1, //univ2
+                1, //msg.sender
+                300,
+                lp,
+                calls
+            );
+        
+        
+        uint256 gasConsumed = conveyorRouterV1.quoteSwapExactTokenForToken(
+            tokenIn,
+            amountIn,
+            tokenOut,
+            amountOutMin,
+            multicall
+        );
+        console.log(gasConsumed);
+
+    }
+
     function testSwapUniv2SingleLPWithReferral() public {
         cheatCodes.rollFork(forkId, 16749139);
 

@@ -56,6 +56,14 @@ interface IConveyorRouterV1 {
         ConveyorRouterV1.ReferralInfo calldata referralInfo
     ) external payable;
 
+    function quoteSwapExactTokenForToken(
+        address tokenIn,
+        uint256 amountIn,
+        address tokenOut,
+        uint256 amountOutMin,
+        ConveyorRouterV1.SwapAggregatorMulticall calldata swapAggregatorMulticall
+    ) external returns (uint256 gasConsumed);
+
     function withdraw() external;
 
     function CONVEYOR_MULTICALL() external view returns (address);

@@ -180,7 +180,7 @@ contract ConveyorRouterV1 {
         uint256 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall,
         ReferralInfo calldata referralInfo
-    ) external payable {
+    ) public payable {
         uint256 referralFee = referralInfo.referralFee;
         address referrer = referralInfo.referrer;
 
@@ -390,6 +390,49 @@ contract ConveyorRouterV1 {
 
         ///@notice Emit Referral event.
         emit Referral(referrer, msg.sender, referralFee);
+    }
+
+    /// @notice Quotes the amount of gas used for a token to token swap.
+    function quoteSwapExactTokenForToken(
+        address tokenIn,
+        uint256 amountIn,
+        address tokenOut,
+        uint256 amountOutMin,
+        SwapAggregatorMulticall calldata swapAggregatorMulticall,
+        ReferralInfo calldata referralInfo,
+        bool isReferral
+    ) external returns (uint256 gasConsumed) {
+        uint256 initialTxGas = 0;
+        if (isReferral) {
+            assembly {
+                mstore(initialTxGas, gas())
+            }
+            swapExactTokenForTokenWithReferral(
+                tokenIn,
+                amountIn,
+                tokenOut,
+                amountOutMin,
+                swapAggregatorMulticall,
+                referralInfo
+            );
+            assembly {
+                gasConsumed := sub(mload(initialTxGas), gas())
+            }
+        } else {
+            assembly {
+                mstore(initialTxGas, gas())
+            }
+            swapExactTokenForToken(
+                tokenIn,
+                amountIn,
+                tokenOut,
+                amountOutMin,
+                swapAggregatorMulticall
+            );
+            assembly {
+                gasConsumed := sub(mload(initialTxGas), gas())
+            }
+        }
     }
 
     ///@notice Helper function to transfer ETH.
