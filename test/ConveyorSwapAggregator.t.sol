@@ -202,8 +202,8 @@ contract ConveyorSwapAggregatorTest is DSTest {
                 lp,
                 calls
             );
-        uint128 protocolFee = 1;
-        uint128 referralFee = 1;
+        uint128 protocolFee = 5e16;
+        uint128 referralFee = 1e16;
 
         ConveyorSwapAggregator.ReferralInfo memory referralInfo = ConveyorSwapAggregator.ReferralInfo(
             address(this),
