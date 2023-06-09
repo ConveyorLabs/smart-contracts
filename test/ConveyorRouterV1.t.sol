@@ -445,58 +445,7 @@ contract ConveyorRouterV1Test is DSTest {
         cheatCodes.prank(address(1));
         conveyorRouterV1.withdraw();
     }
-
-    // function testBenchParaswapUsdcEth() public {
-    //     cheatCodes.deal(address(this), type(uint256).max);
-    //     address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    //     uint256 amountIn = 572272000;
-    //     address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    //     uint256 amountOutMin = 1;
-    //     address lp = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
-
-    //     //Deposit weth to address(this)
-    //     (bool depositSuccess, ) = address(tokenOut).call{
-    //         value: 500000000 ether
-    //     }(abi.encodeWithSignature("deposit()"));
-    //     require(depositSuccess, "deposit failed");
-    //     IUniswapV3Pool(lp).swap(
-    //         address(this),
-    //         false,
-    //         5 ether,
-    //         TickMath.MAX_SQRT_RATIO - 1,
-    //         abi.encode(false, tokenOut, address(this))
-    //     );
-
-    //     ConveyorRouterV1.Call[]
-    //         memory calls = new ConveyorRouterV1.Call[](1);
-
-    //     calls[0] = newUniV3Call(
-    //         lp,
-    //         conveyorRouterV1.CONVEYOR_SWAP_EXECUTOR(),
-    //         address(this),
-    //         true,
-    //         amountIn,
-    //         tokenIn
-    //     );
-
-    //     forkId = cheatCodes.activeFork();
-    //     cheatCodes.rollFork(forkId, 16349359);
-    //     console.log(IERC20(tokenIn).balanceOf(address(this)));
-    //     IERC20(tokenIn).approve(
-    //         address(conveyorRouterV1),
-    //         type(uint256).max
-    //     );
-    //     console.log(IERC20(tokenIn).balanceOf(address(this)));
-    //     ConveyorRouterV1.SwapAggregatorMulticall
-    //         memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-    //             conveyorRouterV1.CONVEYOR_SWAP_EXECUTOR(),
-    //             calls
-    //         );
-
-    //     conveyorRouterV1.swapExactTokenForEth(tokenIn, amountIn, amountOutMin, multicall);
-
-    // }
-
+    
     function uniswapV3SwapCallback(
         int256 amount0Delta,
         int256 amount1Delta,

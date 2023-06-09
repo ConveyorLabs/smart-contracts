@@ -5,7 +5,6 @@ import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/libraries/token/SafeERC20.sol";
-import "../test/utils/Console.sol";
 
 interface IConveyorMulticall {
     function executeMulticall(
