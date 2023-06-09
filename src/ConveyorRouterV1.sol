@@ -20,6 +20,7 @@ interface IConveyorMulticall {
 contract ConveyorRouterV1 {
     address public immutable CONVEYOR_MULTICALL;
     address public immutable WETH;
+    address owner;
     /**@notice Event that is emitted when a token to token swap has filled successfully.
      **/
     event Swap(
@@ -64,6 +65,7 @@ contract ConveyorRouterV1 {
             new ConveyorMulticall(address(this))
         );
         WETH = _weth;
+        owner = tx.origin;
     }
 
     /// @notice SwapAggregatorMulticall struct for token Swaps.
