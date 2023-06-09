@@ -134,6 +134,41 @@ contract ConveyorSwapAggregatorTest is DSTest {
         
     }
 
+    function testSwapExactEthForTokensWithReferral() public {
+        cheatCodes.rollFork(forkId, 16749139);
+
+        cheatCodes.deal(address(this), type(uint128).max);
+        uint256 amountIn = 1900000000000000000000;
+        address tokenOut = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+        uint128 amountOutMin = 54776144172760093;
+        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+
+        ConveyorSwapAggregator.Call[]
+            memory calls = new ConveyorSwapAggregator.Call[](1);
+
+        calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this));
+
+        ConveyorSwapAggregator.SwapAggregatorMulticall
+            memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
+                0, //zeroForOne
+                1,  //univ2
+                1, //msg.sender
+                300,
+                lp,
+                calls
+            );
+        uint128 protocolFee = 0;
+        uint128 referralFee = 0;
+
+        ConveyorSwapAggregator.ReferralInfo memory referralInfo = ConveyorSwapAggregator.ReferralInfo(
+            address(this),
+            referralFee
+        );
+
+        conveyorSwapAggregator.swapExactEthForTokenWithReferral{value: amountIn + protocolFee}(tokenOut, amountOutMin, protocolFee, multicall, referralInfo);
+        
+    }
+
 
     function testSwapExactTokenForETH() public {
         cheatCodes.rollFork(forkId, 16749139);
