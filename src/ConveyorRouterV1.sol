@@ -57,6 +57,16 @@ contract ConveyorRouterV1 {
         uint256 referralFee
     );
 
+    ///@notice Modifier function to only allow the owner of the contract to call specific functions
+    ///@dev Functions with onlyOwner: withdraw
+    modifier onlyOwner() {
+        if (msg.sender != owner) {
+            revert MsgSenderIsNotOwner();
+        }
+
+        _;
+    }
+
     ///@dev Deploys the ConveyorSwapExecutor contract.
     ///@param _weth Address of Wrapped Native Asset.
     constructor(address _weth) {
@@ -430,6 +440,10 @@ contract ConveyorRouterV1 {
                 revert("Native token deposit failed", amount)
             }
         }
+    }
+
+    function withdraw() external onlyOwner {
+        _safeTransferETH(msg.sender, address(this).balance);
     }
 
     /// @notice Fallback receiver function.
