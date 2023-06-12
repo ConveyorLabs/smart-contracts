@@ -80,7 +80,7 @@ contract ConveyorRouterV1 {
         require(_weth != address(0), "WETH address is zero");
         CONVEYOR_MULTICALL = address(new ConveyorMulticall(address(this)));
         WETH = _weth;
-        owner = msg.sender;
+        owner = tx.origin;
     }
 
     /// @notice SwapAggregatorMulticall struct for token Swaps.
