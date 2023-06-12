@@ -34,7 +34,7 @@ jobs:
           version: nightly
   
       - name: Run tests
-        run: forge test -f "${{ secrets.MAINNET_RPC_ENDPOINT }}" --ffi
+        run: forge test -f "${{ secrets.MAINNET_RPC_ENDPOINT }}" 
 
       - name: Run snapshot
-        run: forge test -f "${{ secrets.MAINNET_RPC_ENDPOINT }}" --ffi
+        run: forge snapshot -f "${{ secrets.MAINNET_RPC_ENDPOINT }}" 
