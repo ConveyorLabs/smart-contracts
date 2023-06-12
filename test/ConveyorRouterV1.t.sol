@@ -520,9 +520,10 @@ contract ConveyorRouterV1Test is DSTest {
         ICREATE3Factory create3Factory = ICREATE3Factory(
             address(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1)
         );
+        bytes32 salt = bytes32("0xafafaf");
         address deployed = create3Factory.getDeployed(
-            address(this),
-            bytes32("0xc86ff6f")
+            address(0x72b60C6e9A8e26A9307291B8B26FeA8606fd8F3C),
+            salt
         );
         console.log(deployed);
     }

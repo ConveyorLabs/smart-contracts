@@ -5,6 +5,7 @@ import {Script} from "../../lib/forge-std/src/Script.sol";
 import {ConveyorRouterV1} from "../ConveyorRouterV1.sol";
 import {ICREATE3Factory} from "../../lib/create3-factory/src/ICREATE3Factory.sol";
 import "../../test/utils/Console.sol";
+import {ICREATE3Factory} from "../../lib/create3-factory/src/ICREATE3Factory.sol";
 
 contract Deploy is Script {
     ///@dev Polygon Constructor Constants
@@ -16,12 +17,19 @@ contract Deploy is Script {
         returns (ConveyorRouterV1 conveyorRouterV1)
     {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        /// Deploy ConveyorRouterV1
+        conveyorRouterV1 = new ConveyorRouterV1(
+            WMATIC
+        );
+        bytes32 salt = bytes32("0xafafaf");
+        bytes memory creationCode = abi.encodePacked(
+            type(ConveyorRouterV1).creationCode,
+            WMATIC
+        );
+        
 
-        // vm.startBroadcast(deployerPrivateKey);
-        // /// Deploy ConveyorRouterV1
-        // conveyorRouterV1 = new ConveyorRouterV1(
-        //     WMATIC
-        // );
-        // vm.stopBroadcast();
+        vm.startBroadcast(deployerPrivateKey);
+        ICREATE3Factory(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1).deploy(salt, creationCode);
+        vm.stopBroadcast();
     }
 }
