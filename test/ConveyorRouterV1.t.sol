@@ -60,11 +60,6 @@ contract ConveyorRouterV1Test is DSTest {
         cheatCodes.makePersistent(address(swapHelper));
     }
 
-    function testGetCreationCode() public view {
-        bytes memory creationCode = type(conveyorRouterV1).creationCode;
-        console.logBytes(creationCode);
-    }
-
     function testSwapUniv2SingleLP() public {
         cheatCodes.rollFork(forkId, 16749139);
 
@@ -522,11 +517,15 @@ contract ConveyorRouterV1Test is DSTest {
     }
 
     function testRouterDeployment() public {
-        ICREATE3Factory create3Factory = ICREATE3Factory(address(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1));
-        address deployed=create3Factory.getDeployed(address(this), bytes32("0xc86ff6f"));
+        ICREATE3Factory create3Factory = ICREATE3Factory(
+            address(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1)
+        );
+        address deployed = create3Factory.getDeployed(
+            address(this),
+            bytes32("0xc86ff6f")
+        );
         console.log(deployed);
-    }   
-
+    }
 
     receive() external payable {}
 
