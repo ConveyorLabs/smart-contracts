@@ -61,10 +61,29 @@ interface IConveyorRouterV1 {
         uint256 amountIn,
         address tokenOut,
         uint256 amountOutMin,
+        ConveyorRouterV1.SwapAggregatorMulticall
+            calldata swapAggregatorMulticall,
+        ConveyorRouterV1.ReferralInfo calldata referralInfo,
+        bool isReferral
+    ) external payable returns (uint256 gasConsumed);
+
+    function quoteSwapExactTokenForEth(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 amountOutMin,
         ConveyorRouterV1.SwapAggregatorMulticall calldata swapAggregatorMulticall,
         ConveyorRouterV1.ReferralInfo calldata referralInfo,
         bool isReferral
-    ) external returns (uint256 gasConsumed);
+    ) external payable returns (uint256 gasConsumed);
+
+    function quoteSwapExactEthForToken(
+        address tokenOut,
+        uint128 amountOutMin,
+        uint128 protocolFee,
+        ConveyorRouterV1.SwapAggregatorMulticall calldata swapAggregatorMulticall,
+        ConveyorRouterV1.ReferralInfo calldata referralInfo,
+        bool isReferral
+    ) external payable returns (uint256 gasConsumed);
 
     function withdraw() external;
 

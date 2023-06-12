@@ -5,6 +5,7 @@ import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/libraries/token/SafeERC20.sol";
+import "../test/utils/Console.sol";
 
 interface IConveyorMulticall {
     function executeMulticall(
@@ -391,88 +392,9 @@ contract ConveyorRouterV1 {
         ///@notice Emit Referral event.
         emit Referral(referrer, msg.sender, referralFee);
     }
-    
-    /// @notice Quotes the amount of gas used for a ETH to token swap.
-    function quoteSwapExactEthForToken(
-        address tokenOut,
-        uint128 amountOutMin,
-        uint128 protocolFee,
-        SwapAggregatorMulticall calldata swapAggregatorMulticall,
-        ReferralInfo calldata referralInfo,
-        bool isReferral
-    ) public payable returns (uint256 gasConsumed) {
-        uint256 initialTxGas = 0;
-        if (isReferral) {
-            assembly {
-                mstore(initialTxGas, gas())
-            }
-            swapExactEthForTokenWithReferral(
-                tokenOut,
-                amountOutMin,
-                protocolFee,
-                swapAggregatorMulticall,
-                referralInfo
-            );
-            assembly {
-                gasConsumed := sub(mload(initialTxGas), gas())
-            }
-        } else {
-            assembly {
-                mstore(initialTxGas, gas())
-            }
-            swapExactEthForToken(
-                tokenOut,
-                amountOutMin,
-                protocolFee,
-                swapAggregatorMulticall
-            );
-            assembly {
-                gasConsumed := sub(mload(initialTxGas), gas())
-            }
-        }
-    }
-
-    /// @notice Quotes the amount of gas used for a token to ETH swap.
-    function quoteSwapExactTokenForEth(
-        address tokenIn,
-        uint256 amountIn,
-        uint256 amountOutMin,
-        SwapAggregatorMulticall calldata swapAggregatorMulticall,
-        ReferralInfo calldata referralInfo,
-        bool isReferral
-    ) external payable returns (uint256 gasConsumed) {
-        uint256 initialTxGas = 0;
-        if (isReferral) {
-            assembly {
-                mstore(initialTxGas, gas())
-            }
-            swapExactTokenForEthWithReferral(
-                tokenIn,
-                amountIn,
-                amountOutMin,
-                swapAggregatorMulticall,
-                referralInfo
-            );
-            assembly {
-                gasConsumed := sub(mload(initialTxGas), gas())
-            }
-        } else {
-            assembly {
-                mstore(initialTxGas, gas())
-            }
-            swapExactTokenForEth(
-                tokenIn,
-                amountIn,
-                amountOutMin,
-                swapAggregatorMulticall
-            );
-            assembly {
-                gasConsumed := sub(mload(initialTxGas), gas())
-            }
-        }
-    }
 
     /// @notice Quotes the amount of gas used for a token to token swap.
+    /// @dev This function should be used off chain through a static call.
     function quoteSwapExactTokenForToken(
         address tokenIn,
         uint256 amountIn,
@@ -482,10 +404,9 @@ contract ConveyorRouterV1 {
         ReferralInfo calldata referralInfo,
         bool isReferral
     ) external payable returns (uint256 gasConsumed) {
-        uint256 initialTxGas = 0;
         if (isReferral) {
             assembly {
-                mstore(initialTxGas, gas())
+                mstore(0x60, gas())
             }
             swapExactTokenForTokenWithReferral(
                 tokenIn,
@@ -496,11 +417,11 @@ contract ConveyorRouterV1 {
                 referralInfo
             );
             assembly {
-                gasConsumed := sub(mload(initialTxGas), gas())
+                gasConsumed := sub(mload(0x60), gas())
             }
         } else {
             assembly {
-                mstore(initialTxGas, gas())
+                mstore(0x60, gas())
             }
             swapExactTokenForToken(
                 tokenIn,
@@ -510,7 +431,87 @@ contract ConveyorRouterV1 {
                 swapAggregatorMulticall
             );
             assembly {
-                gasConsumed := sub(mload(initialTxGas), gas())
+                gasConsumed := sub(mload(0x60), gas())
+            }
+        }
+    }
+
+    /// @notice Quotes the amount of gas used for a ETH to token swap.
+    /// @dev This function should be used off chain through a static call.
+    function quoteSwapExactEthForToken(
+        address tokenOut,
+        uint128 amountOutMin,
+        uint128 protocolFee,
+        SwapAggregatorMulticall calldata swapAggregatorMulticall,
+        ReferralInfo calldata referralInfo,
+        bool isReferral
+    ) external payable returns (uint256 gasConsumed) {
+        if (isReferral) {
+            assembly {
+                mstore(0x60, gas())
+            }
+            swapExactEthForTokenWithReferral(
+                tokenOut,
+                amountOutMin,
+                protocolFee,
+                swapAggregatorMulticall,
+                referralInfo
+            );
+            assembly {
+                gasConsumed := sub(mload(0x60), gas())
+            }
+        } else {
+            assembly {
+                mstore(0x60, gas())
+            }
+            swapExactEthForToken(
+                tokenOut,
+                amountOutMin,
+                protocolFee,
+                swapAggregatorMulticall
+            );
+            assembly {
+                gasConsumed := sub(mload(0x60), gas())
+            }
+        }
+    }
+
+    /// @notice Quotes the amount of gas used for a token to ETH swap.
+    /// @dev This function should be used off chain through a static call.
+    function quoteSwapExactTokenForEth(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        SwapAggregatorMulticall calldata swapAggregatorMulticall,
+        ReferralInfo calldata referralInfo,
+        bool isReferral
+    ) external payable returns (uint256 gasConsumed) {
+        if (isReferral) {
+            assembly {
+                mstore(0x60, gas())
+            }
+            swapExactTokenForEthWithReferral(
+                tokenIn,
+                amountIn,
+                amountOutMin,
+                swapAggregatorMulticall,
+                referralInfo
+            );
+            assembly {
+                gasConsumed := sub(mload(0x60), gas())
+            }
+        } else {
+            assembly {
+                mstore(0x60, gas())
+            }
+            swapExactTokenForEth(
+                tokenIn,
+                amountIn,
+                amountOutMin,
+                swapAggregatorMulticall
+            );
+            assembly {
+                gasConsumed := sub(mload(0x60), gas())
             }
         }
     }

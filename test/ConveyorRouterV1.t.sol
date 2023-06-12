@@ -121,7 +121,7 @@ contract ConveyorRouterV1Test is DSTest {
                 lp,
                 calls
             );
-        
+
         ConveyorRouterV1.ReferralInfo memory referralInfo;
         uint256 gasConsumed = conveyorRouterV1.quoteSwapExactTokenForToken(
             tokenIn,
@@ -133,7 +133,6 @@ contract ConveyorRouterV1Test is DSTest {
             false
         );
         console.log(gasConsumed);
-
     }
 
     function testSwapUniv2SingleLPWithReferral() public {
@@ -179,6 +178,54 @@ contract ConveyorRouterV1Test is DSTest {
         );
     }
 
+    function testSwapUniv2SingleLPWithReferralQuote() public {
+        cheatCodes.rollFork(forkId, 16749139);
+
+        cheatCodes.deal(address(this), type(uint128).max);
+        address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+        uint256 amountIn = 1900000000000000000000;
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        uint256 amountOutMin = 54776144172760093;
+        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+
+        swapHelper.swapEthForTokenWithUniV2(10 ether, tokenIn);
+        IERC20(tokenIn).approve(address(conveyorRouterV1), type(uint256).max);
+
+        ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
+
+        calls[0] = ConveyorRouterV1.Call({target: lp, callData: new bytes(0)});
+
+        ConveyorRouterV1.SwapAggregatorMulticall
+            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+                1, //zeroForOne
+                1, //univ2
+                1, //msg.sender
+                300,
+                lp,
+                calls
+            );
+
+        uint256 referralFee = 1e16;
+        uint256 protocolFee = 5e16;
+
+        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1
+            .ReferralInfo({referrer: address(this), referralFee: referralFee});
+
+        uint256 gasQuote = conveyorRouterV1.quoteSwapExactTokenForToken{
+            value: protocolFee
+        }(
+            tokenIn,
+            amountIn,
+            tokenOut,
+            amountOutMin,
+            multicall,
+            referralInfo,
+            true
+        );
+
+        console.log(gasQuote);
+    }
+
     function testSwapExactEthForTokens() public {
         cheatCodes.rollFork(forkId, 16749139);
 
@@ -208,6 +255,39 @@ contract ConveyorRouterV1Test is DSTest {
             uint128(0),
             multicall
         );
+    }
+
+    function testSwapExactEthForTokensQuote() public {
+        cheatCodes.rollFork(forkId, 16749139);
+
+        cheatCodes.deal(address(this), type(uint128).max);
+        uint256 amountIn = 1900000000000000000000;
+        address tokenOut = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+        uint128 amountOutMin = 54776144172760093;
+        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+
+        ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
+
+        calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this));
+
+        ConveyorRouterV1.SwapAggregatorMulticall
+            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+                0, //zeroForOne
+                1, //univ2
+                1, //msg.sender
+                300,
+                lp,
+                calls
+            );
+
+        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1
+            .ReferralInfo({referrer: address(this), referralFee: 0});
+
+        uint256 gasQuote = conveyorRouterV1.quoteSwapExactEthForToken{
+            value: amountIn
+        }(tokenOut, amountOutMin, uint128(0), multicall, referralInfo, false);
+
+        console.log(gasQuote);
     }
 
     function testSwapExactEthForTokensWithReferral() public {
@@ -243,6 +323,41 @@ contract ConveyorRouterV1Test is DSTest {
         }(tokenOut, amountOutMin, protocolFee, multicall, referralInfo);
     }
 
+    function testSwapExactEthForTokensWithReferralQuote() public {
+        cheatCodes.rollFork(forkId, 16749139);
+
+        cheatCodes.deal(address(this), type(uint128).max);
+        uint256 amountIn = 1900000000000000000000;
+        address tokenOut = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+        uint128 amountOutMin = 54776144172760093;
+        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+
+        ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
+
+        calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this));
+
+        ConveyorRouterV1.SwapAggregatorMulticall
+            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+                0, //zeroForOne
+                1, //univ2
+                1, //msg.sender
+                300,
+                lp,
+                calls
+            );
+        uint128 protocolFee = 5e16;
+        uint128 referralFee = 1e16;
+
+        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1
+            .ReferralInfo(address(this), referralFee);
+
+        uint256 gasQuote = conveyorRouterV1.quoteSwapExactEthForToken{
+            value: amountIn + protocolFee
+        }(tokenOut, amountOutMin, protocolFee, multicall, referralInfo, true);
+
+        console.log(gasQuote);
+    }
+
     function testSwapExactTokenForETH() public {
         cheatCodes.rollFork(forkId, 16749139);
 
@@ -276,6 +391,48 @@ contract ConveyorRouterV1Test is DSTest {
             amountOutMin,
             multicall
         );
+        console.log("balance before", balanceBefore);
+        console.log("balance after", address(this).balance);
+    }
+
+    function testSwapExactTokenForETHQuote() public {
+        cheatCodes.rollFork(forkId, 16749139);
+
+        cheatCodes.deal(address(this), type(uint128).max);
+        address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+        uint256 amountIn = 1900000000000000000000;
+        uint256 amountOutMin = 54776144172760093;
+
+        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+        uint256 balanceBefore = address(this).balance;
+        swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
+        IERC20(tokenIn).approve(address(conveyorRouterV1), type(uint256).max);
+
+        ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
+
+        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorRouterV1));
+
+        ConveyorRouterV1.SwapAggregatorMulticall
+            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+                1, //zeroForOne
+                1, //univ2
+                0, //SwapAggregator
+                300,
+                lp,
+                calls
+            );
+        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1
+            .ReferralInfo(address(this), 0);
+
+        uint256 gasQuote=conveyorRouterV1.quoteSwapExactTokenForEth{value: 6e17}(
+            tokenIn,
+            amountIn,
+            amountOutMin,
+            multicall,
+            referralInfo,
+            false
+        );
+        console.log(gasQuote);
         console.log("balance before", balanceBefore);
         console.log("balance after", address(this).balance);
     }
@@ -319,6 +476,51 @@ contract ConveyorRouterV1Test is DSTest {
             multicall,
             referralInfo
         );
+        console.log("balance before", balanceBefore);
+        console.log("balance after", address(this).balance);
+    }
+
+    function testSwapExactTokenForETHWithReferralQuote() public {
+        cheatCodes.rollFork(forkId, 16749139);
+
+        cheatCodes.deal(address(this), type(uint128).max);
+        address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
+        uint256 amountIn = 1900000000000000000000;
+        uint256 amountOutMin = 54776144172760093;
+
+        address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
+        uint256 balanceBefore = address(this).balance;
+        swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
+        IERC20(tokenIn).approve(address(conveyorRouterV1), type(uint256).max);
+
+        ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
+
+        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorRouterV1));
+
+        ConveyorRouterV1.SwapAggregatorMulticall
+            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+                1, //zeroForOne
+                1, //univ2
+                0, //SwapAggregator
+                300,
+                lp,
+                calls
+            );
+
+        uint128 protocolFee = 5e16;
+
+        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1
+            .ReferralInfo(address(this), 1e16);
+
+        uint256 gasUsed=conveyorRouterV1.quoteSwapExactTokenForEth{value: protocolFee}(
+            tokenIn,
+            amountIn,
+            amountOutMin,
+            multicall,
+            referralInfo,
+            true
+        );
+        console.log(gasUsed);
         console.log("balance before", balanceBefore);
         console.log("balance after", address(this).balance);
     }
