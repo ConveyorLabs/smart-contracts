@@ -16,12 +16,14 @@ contract Deploy is Script {
         returns (ConveyorRouterV1 conveyorRouterV1)
     {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        ConveyorRouterV1 conveyorRouterV1 = new ConveyorRouterV1(
+            address(0xdD69DB25F6D620A7baD3023c5d32761D353D3De9))
+        vm.startBroadcast(deployerPrivateKey);
 
-        // vm.startBroadcast(deployerPrivateKey);
         // /// Deploy ConveyorRouterV1
         // conveyorRouterV1 = new ConveyorRouterV1(
         //     WMATIC
         // );
-        // vm.stopBroadcast();
+        vm.stopBroadcast();
     }
 }

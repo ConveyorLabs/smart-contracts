@@ -6,6 +6,7 @@ import "./utils/Console.sol";
 import "./utils/Swap.sol";
 import "../src/interfaces/IConveyorRouterV1.sol";
 import "../src/lib/ConveyorTickMath.sol";
+import "../lib/create3-factory/src/ICREATE3Factory.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -57,6 +58,11 @@ contract ConveyorRouterV1Test is DSTest {
             address(conveyorRouterV1.CONVEYOR_MULTICALL())
         );
         cheatCodes.makePersistent(address(swapHelper));
+    }
+
+    function testGetCreationCode() public view {
+        bytes memory creationCode = type(conveyorRouterV1).creationCode;
+        console.logBytes(creationCode);
     }
 
     function testSwapUniv2SingleLP() public {
@@ -424,14 +430,9 @@ contract ConveyorRouterV1Test is DSTest {
         ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1
             .ReferralInfo(address(this), 0);
 
-        uint256 gasQuote=conveyorRouterV1.quoteSwapExactTokenForEth{value: 6e17}(
-            tokenIn,
-            amountIn,
-            amountOutMin,
-            multicall,
-            referralInfo,
-            false
-        );
+        uint256 gasQuote = conveyorRouterV1.quoteSwapExactTokenForEth{
+            value: 6e17
+        }(tokenIn, amountIn, amountOutMin, multicall, referralInfo, false);
         console.log(gasQuote);
         console.log("balance before", balanceBefore);
         console.log("balance after", address(this).balance);
@@ -512,18 +513,20 @@ contract ConveyorRouterV1Test is DSTest {
         ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1
             .ReferralInfo(address(this), 1e16);
 
-        uint256 gasUsed=conveyorRouterV1.quoteSwapExactTokenForEth{value: protocolFee}(
-            tokenIn,
-            amountIn,
-            amountOutMin,
-            multicall,
-            referralInfo,
-            true
-        );
+        uint256 gasUsed = conveyorRouterV1.quoteSwapExactTokenForEth{
+            value: protocolFee
+        }(tokenIn, amountIn, amountOutMin, multicall, referralInfo, true);
         console.log(gasUsed);
         console.log("balance before", balanceBefore);
         console.log("balance after", address(this).balance);
     }
+
+    function testRouterDeployment() public {
+        ICREATE3Factory create3Factory = ICREATE3Factory(address(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1));
+        address deployed=create3Factory.getDeployed(address(this), bytes32("0xc86ff6f"));
+        console.log(deployed);
+    }   
+
 
     receive() external payable {}
 
