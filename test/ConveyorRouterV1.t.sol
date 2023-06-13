@@ -516,14 +516,20 @@ contract ConveyorRouterV1Test is DSTest {
         console.log("balance after", address(this).balance);
     }
 
-    function testRouterDeployment() public {
+    function testRouterDeployment() public view {
         ICREATE3Factory create3Factory = ICREATE3Factory(
             address(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1)
         );
-        bytes32 salt = bytes32("0xafafaf");
+        bytes32 salt = bytes32("0xffffff");
         address deployed = create3Factory.getDeployed(
-            address(0x72b60C6e9A8e26A9307291B8B26FeA8606fd8F3C),
+            address(0x2f37bC8900EB1176C689c63c5E781B96DCC0C48E),
             salt
+        );
+        bytes memory initCode = type(ConveyorRouterV1).creationCode;
+        bytes32 initHash = keccak256(abi.encode(initCode));
+        console.logBytes32(initHash);
+        console.logBytes(
+            abi.encode(0xdD69DB25F6D620A7baD3023c5d32761D353D3De9)
         );
         console.log(deployed);
     }

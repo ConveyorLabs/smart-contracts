@@ -23,7 +23,10 @@ contract ConveyorRouterV1 {
     using SafeERC20 for IERC20;
     address public immutable CONVEYOR_MULTICALL;
     address public immutable WETH;
+
     address owner;
+    address tempOwner;
+
     /**@notice Event that is emitted when a token to token swap has filled successfully.
      **/
     event Swap(
@@ -577,6 +580,26 @@ contract ConveyorRouterV1 {
     function withdraw() external onlyOwner {
         _safeTransferETH(msg.sender, address(this).balance);
         emit Withdraw(msg.sender, address(this).balance);
+    }
+
+    ///@notice Function to confirm ownership transfer of the contract.
+    function confirmTransferOwnership() external {
+        if (msg.sender != tempOwner) {
+            revert UnauthorizedCaller();
+        }
+
+        ///@notice Cleanup tempOwner storage.
+        tempOwner = address(0);
+        owner = msg.sender;
+    }
+
+    ///@notice Function to transfer ownership of the contract.
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) {
+            revert InvalidAddress();
+        }
+
+        tempOwner = newOwner;
     }
 
     /// @notice Fallback receiver function.

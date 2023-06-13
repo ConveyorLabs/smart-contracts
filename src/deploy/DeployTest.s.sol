@@ -8,16 +8,16 @@ import "../../test/utils/Console.sol";
 import {ICREATE3Factory} from "../../lib/create3-factory/src/ICREATE3Factory.sol";
 
 contract Deploy is Script {
-    ///@dev Polygon Constructor Constants
-    address constant WMATIC = 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270;
+    ///@dev GOERLI Constructor Constants
+    address constant GOERLI_WETH = 0xdD69DB25F6D620A7baD3023c5d32761D353D3De9;
 
-    function run() public returns (ConveyorRouterV1 conveyorRouterV1) {
+    function run() public {
         // uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
-        bytes32 salt = bytes32("0xffffff");
+        bytes32 salt = bytes32("0x3rlk7N6qpQ");
         bytes memory creationCode = abi.encodePacked(
             type(ConveyorRouterV1).creationCode,
-            abi.encode(WMATIC)
+            abi.encode(GOERLI_WETH)
         );
 
         vm.startBroadcast();
