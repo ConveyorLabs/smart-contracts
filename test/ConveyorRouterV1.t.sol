@@ -29,41 +29,41 @@ contract ConveyorRouterV1Test is DSTest {
     IConveyorRouterV1 conveyorRouterV1;
 
     Swap swapHelper;
-    CheatCodes cheatCodes;
+    CheatCodes vm;
     uint256 forkId;
 
     function setUp() public {
-        cheatCodes = CheatCodes(HEVM_ADDRESS);
+        vm = CheatCodes(HEVM_ADDRESS);
 
         address uniV2Addr = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
         address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
         swapHelper = new Swap(uniV2Addr, WETH);
-        cheatCodes.deal(address(swapHelper), type(uint256).max);
+        vm.deal(address(swapHelper), type(uint256).max);
 
-        forkId = cheatCodes.activeFork();
+        forkId = vm.activeFork();
         conveyorRouterV1 = IConveyorRouterV1(
             address(
                 new ConveyorRouterV1(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)
             )
         );
-        cheatCodes.makePersistent(address(conveyorRouterV1));
-        cheatCodes.makePersistent(address(this));
+        vm.makePersistent(address(conveyorRouterV1));
+        vm.makePersistent(address(this));
 
-        cheatCodes.makePersistent(
+        vm.makePersistent(
             address(0xba5BDe662c17e2aDFF1075610382B9B691296350)
         );
 
-        cheatCodes.makePersistent(
+        vm.makePersistent(
             address(conveyorRouterV1.CONVEYOR_MULTICALL())
         );
-        cheatCodes.makePersistent(address(swapHelper));
+        vm.makePersistent(address(swapHelper));
     }
 
     function testSwapUniv2SingleLP() public {
-        cheatCodes.rollFork(forkId, 16749139);
+        vm.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
+        vm.deal(address(this), type(uint128).max);
         address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint256 amountIn = 1900000000000000000000;
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -97,9 +97,9 @@ contract ConveyorRouterV1Test is DSTest {
     }
 
     function testSwapUniv2SingleLPQuote() public {
-        cheatCodes.rollFork(forkId, 16749139);
+        vm.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
+        vm.deal(address(this), type(uint128).max);
         address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint256 amountIn = 1900000000000000000000;
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -137,9 +137,9 @@ contract ConveyorRouterV1Test is DSTest {
     }
 
     function testSwapUniv2SingleLPWithReferral() public {
-        cheatCodes.rollFork(forkId, 16749139);
+        vm.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
+        vm.deal(address(this), type(uint128).max);
         address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint256 amountIn = 1900000000000000000000;
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -180,9 +180,9 @@ contract ConveyorRouterV1Test is DSTest {
     }
 
     function testSwapUniv2SingleLPWithReferralQuote() public {
-        cheatCodes.rollFork(forkId, 16749139);
+        vm.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
+        vm.deal(address(this), type(uint128).max);
         address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint256 amountIn = 1900000000000000000000;
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -228,9 +228,9 @@ contract ConveyorRouterV1Test is DSTest {
     }
 
     function testSwapExactEthForTokens() public {
-        cheatCodes.rollFork(forkId, 16749139);
+        vm.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
+        vm.deal(address(this), type(uint128).max);
         uint256 amountIn = 1900000000000000000000;
         address tokenOut = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint128 amountOutMin = 54776144172760093;
@@ -259,9 +259,9 @@ contract ConveyorRouterV1Test is DSTest {
     }
 
     function testSwapExactEthForTokensQuote() public {
-        cheatCodes.rollFork(forkId, 16749139);
+        vm.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
+        vm.deal(address(this), type(uint128).max);
         uint256 amountIn = 1900000000000000000000;
         address tokenOut = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint128 amountOutMin = 54776144172760093;
@@ -292,9 +292,9 @@ contract ConveyorRouterV1Test is DSTest {
     }
 
     function testSwapExactEthForTokensWithReferral() public {
-        cheatCodes.rollFork(forkId, 16749139);
+        vm.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
+        vm.deal(address(this), type(uint128).max);
         uint256 amountIn = 1900000000000000000000;
         address tokenOut = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint128 amountOutMin = 54776144172760093;
@@ -325,9 +325,9 @@ contract ConveyorRouterV1Test is DSTest {
     }
 
     function testSwapExactEthForTokensWithReferralQuote() public {
-        cheatCodes.rollFork(forkId, 16749139);
+        vm.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
+        vm.deal(address(this), type(uint128).max);
         uint256 amountIn = 1900000000000000000000;
         address tokenOut = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint128 amountOutMin = 54776144172760093;
@@ -360,9 +360,9 @@ contract ConveyorRouterV1Test is DSTest {
     }
 
     function testSwapExactTokenForETH() public {
-        cheatCodes.rollFork(forkId, 16749139);
+        vm.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
+        vm.deal(address(this), type(uint128).max);
         address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint256 amountIn = 1900000000000000000000;
         uint256 amountOutMin = 54776144172760093;
@@ -397,9 +397,9 @@ contract ConveyorRouterV1Test is DSTest {
     }
 
     function testSwapExactTokenForETHQuote() public {
-        cheatCodes.rollFork(forkId, 16749139);
+        vm.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
+        vm.deal(address(this), type(uint128).max);
         address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint256 amountIn = 1900000000000000000000;
         uint256 amountOutMin = 54776144172760093;
@@ -434,9 +434,9 @@ contract ConveyorRouterV1Test is DSTest {
     }
 
     function testSwapExactTokenForETHWithReferral() public {
-        cheatCodes.rollFork(forkId, 16749139);
+        vm.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
+        vm.deal(address(this), type(uint128).max);
         address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint256 amountIn = 1900000000000000000000;
         uint256 amountOutMin = 54776144172760093;
@@ -477,9 +477,9 @@ contract ConveyorRouterV1Test is DSTest {
     }
 
     function testSwapExactTokenForETHWithReferralQuote() public {
-        cheatCodes.rollFork(forkId, 16749139);
+        vm.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
+        vm.deal(address(this), type(uint128).max);
         address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint256 amountIn = 1900000000000000000000;
         uint256 amountOutMin = 54776144172760093;
@@ -537,9 +537,9 @@ contract ConveyorRouterV1Test is DSTest {
     receive() external payable {}
 
     function testSwapUniv2MultiLP() public {
-        cheatCodes.rollFork(forkId, 16749139);
+        vm.rollFork(forkId, 16749139);
 
-        cheatCodes.deal(address(this), type(uint128).max);
+        vm.deal(address(this), type(uint128).max);
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         uint256 amountIn = 825000000;
         address tokenOut = 0x2e85ae1C47602f7927bCabc2Ff99C40aA222aE15;
@@ -582,7 +582,7 @@ contract ConveyorRouterV1Test is DSTest {
     }
 
     function testSwapUniv3SingleLP() public {
-        cheatCodes.deal(address(this), type(uint256).max);
+        vm.deal(address(this), type(uint256).max);
         address tokenIn = 0xba5BDe662c17e2aDFF1075610382B9B691296350;
         uint256 amountIn = 5678000000000000000000;
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -616,8 +616,8 @@ contract ConveyorRouterV1Test is DSTest {
         );
         console.log(IERC20(tokenIn).balanceOf(address(this)));
 
-        forkId = cheatCodes.activeFork();
-        cheatCodes.rollFork(forkId, 16749139);
+        forkId = vm.activeFork();
+        vm.rollFork(forkId, 16749139);
         console.log(IERC20(tokenIn).balanceOf(address(this)));
         ConveyorRouterV1.SwapAggregatorMulticall
             memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
@@ -640,14 +640,14 @@ contract ConveyorRouterV1Test is DSTest {
 
     function testWithdrawal() public {
         uint256 balanceBefore = address(this).balance;
-        cheatCodes.deal(address(conveyorRouterV1), type(uint128).max);
+        vm.deal(address(conveyorRouterV1), type(uint128).max);
         conveyorRouterV1.withdraw();
         assertGt(address(this).balance, balanceBefore);
     }
 
     function testFailWithdrawal_MsgSenderIsNotOwner() public {
-        cheatCodes.deal(address(conveyorRouterV1), type(uint128).max);
-        cheatCodes.prank(address(1));
+        vm.deal(address(conveyorRouterV1), type(uint128).max);
+        vm.prank(address(1));
         conveyorRouterV1.withdraw();
     }
 
