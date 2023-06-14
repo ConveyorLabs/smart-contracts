@@ -706,7 +706,13 @@ contract ConveyorMulticall {
 
                 amountIn = zeroForOne ? uint256(-amount1) : uint256(-amount0);
             }else {
-                
+                ///@notice Execute the v3 swap.
+                (bool success, ) = call.target.call(
+                    call.callData
+                );
+                if (!success) {
+                    revert CallFailed();
+                }
             }
 
             unchecked {
@@ -819,9 +825,9 @@ contract ConveyorMulticall {
     ) internal pure returns (uint256 callType) {
         /// @solidity memory-safe-assembly
         assembly {
-            //Left shift 0x3 to the position of the call type
-            let significant := shl(mul(position, 0x2), 0x3)
-            switch shr(mul(position,0x2), and(bitmap, significant)) //Shift right to get the call type
+            //Left shift 0x3 to the bit position of the call type
+            let significantBits := shl(mul(position, 0x2), 0x3)
+            switch shr(mul(position,0x2), and(bitmap, significantBits)) //Shift right to get the call type
                 case 0x0 {
                     callType := 0x0
                 }
