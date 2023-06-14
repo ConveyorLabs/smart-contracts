@@ -88,14 +88,14 @@ contract ConveyorRouterV1 {
 
     /// @notice SwapAggregatorMulticall struct for token Swaps.
     /// @param zeroForOneBitmap for zeroForOne bool along the swap calls.
-    /// @param isUniV2Bitmap for isUniV2 bool along the swap calls.
+    /// @param callTypeBitmap determines the call type being executed.
     /// @param toAddressBitmap for toAddress address along the swap calls.
     /// @param feeBitmap for uniV2 custom fee's along the swap calls.
     /// @param tokenInDestination Address to send tokenIn to.
     /// @param calls Array of calls to be executed.
     struct SwapAggregatorMulticall {
-        uint32 zeroForOneBitmap;
-        uint32 isUniV2Bitmap;
+        uint24 zeroForOneBitmap;
+        uint40 callTypeBitmap;
         uint64 toAddressBitmap;
         uint128 feeBitmap;
         address tokenInDestination;
@@ -647,9 +647,10 @@ contract ConveyorMulticall {
                 swapAggregatorMulticall.zeroForOneBitmap,
                 i
             );
+            uint256 callType = deriveCallFromBitmap(swapAggregatorMulticall.callTypeBitmap, i);
             ///@notice Check if the call is a v2 swap.
             if (
-                deriveBoolFromBitmap(swapAggregatorMulticall.isUniV2Bitmap, i)
+                callType==0x0
             ) {
                 ///@notice Instantiate the receiver address for the v2 swap.
                 address receiver;
@@ -689,7 +690,7 @@ contract ConveyorMulticall {
                 if (!success) {
                     revert V2SwapFailed();
                 }
-            } else {
+            } else if (callType==0x1) {
                 ///@notice Execute the v3 swap.
                 (bool success, bytes memory data) = call.target.call(
                     call.callData
@@ -704,6 +705,8 @@ contract ConveyorMulticall {
                 );
 
                 amountIn = zeroForOne ? uint256(-amount1) : uint256(-amount0);
+            }else {
+                
             }
 
             unchecked {
@@ -801,6 +804,33 @@ contract ConveyorMulticall {
             return false;
         } else {
             return true;
+        }
+    }
+
+    /// @notice Derives the call type from a bitmap.
+    /** @dev
+        0x0 - Uniswap v2 swap
+        0x1 - Uniswap v3 swap
+        0x2 - Generic call
+    */
+    function deriveCallFromBitmap(
+        uint40 bitmap,
+        uint256 position
+    ) internal pure returns (uint256 callType) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            //Left shift 0x3 to the position of the call type
+            let significant := shl(mul(position, 0x2), 0x3)
+            switch shr(mul(position,0x2), and(bitmap, significant)) //Shift right to get the call type
+                case 0x0 {
+                    callType := 0x0
+                }
+                case 0x1 {
+                    callType := 0x1
+                }
+                case 0x2 {
+                    callType := 0x2
+                }
         }
     }
 

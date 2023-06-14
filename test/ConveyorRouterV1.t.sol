@@ -27,7 +27,7 @@ interface CheatCodes {
 
 contract ConveyorRouterV1Test is DSTest {
     IConveyorRouterV1 conveyorRouterV1;
-
+    ConveyorMulticallWrapper conveyorMulticallWrapper;
     Swap swapHelper;
     CheatCodes vm;
     uint256 forkId;
@@ -47,17 +47,45 @@ contract ConveyorRouterV1Test is DSTest {
                 new ConveyorRouterV1(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)
             )
         );
+
+        conveyorMulticallWrapper = new ConveyorMulticallWrapper(
+            address(conveyorRouterV1)
+        );
+        vm.makePersistent(address(conveyorMulticallWrapper));
         vm.makePersistent(address(conveyorRouterV1));
         vm.makePersistent(address(this));
 
-        vm.makePersistent(
-            address(0xba5BDe662c17e2aDFF1075610382B9B691296350)
-        );
+        vm.makePersistent(address(0xba5BDe662c17e2aDFF1075610382B9B691296350));
 
-        vm.makePersistent(
-            address(conveyorRouterV1.CONVEYOR_MULTICALL())
-        );
+        vm.makePersistent(address(conveyorRouterV1.CONVEYOR_MULTICALL()));
         vm.makePersistent(address(swapHelper));
+    }
+
+    function testSplitRouteV2() public {
+        vm.deal(address(this), type(uint128).max);
+        //Split the input quantity 50/50 between the two pools.
+        address sushiDaiUsdc = 0xAaF5110db6e744ff70fB339DE037B990A20bdace;
+        address uniDaiUsdc = 0xAE461cA67B15dc8dc81CE7615e0320dA1A9aB8D5;
+
+        //Split the output quantity 50/50 between the two pools.
+        address sushiUsdcWeth = 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0;
+        address uniUsdcWeth = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
+    }
+
+    function testDeriveCallTypeFromBitmap() public {
+        uint40 bitmap = 0x0;
+        bitmap += 0x1 << 2;
+        bitmap += 0x2 << 4;
+        uint256 callType0 = conveyorMulticallWrapper
+            .deriveCallFromBitmapWrapper(bitmap, 0);
+        uint256 callType1 = conveyorMulticallWrapper
+            .deriveCallFromBitmapWrapper(bitmap, 1);
+        uint256 callType2 = conveyorMulticallWrapper
+            .deriveCallFromBitmapWrapper(bitmap, 2);
+
+        assertEq(callType0, 0x0);
+        assertEq(callType1, 0x1);
+        assertEq(callType2, 0x2);
     }
 
     function testSwapUniv2SingleLP() public {
@@ -716,5 +744,16 @@ contract ConveyorRouterV1Test is DSTest {
             new bytes(0)
         );
         return ConveyorRouterV1.Call({target: _lp, callData: callData});
+    }
+}
+
+contract ConveyorMulticallWrapper is ConveyorMulticall {
+    constructor(address _conveyor) ConveyorMulticall(_conveyor) {}
+
+    function deriveCallFromBitmapWrapper(
+        uint40 bitmap,
+        uint256 position
+    ) public pure returns (uint256) {
+        return deriveCallFromBitmap(bitmap, position);
     }
 }
