@@ -5,6 +5,8 @@ import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/libraries/token/SafeERC20.sol";
+import {UniswapV3Callback} from "./UniswapV3Callback.sol";
+import {UniswapV2Callback} from "./UniswapV2Callback.sol";
 
 interface IConveyorMulticall {
     function executeMulticall(
@@ -611,7 +613,7 @@ contract ConveyorRouterV1 {
 /// @title ConveyorMulticall
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Optimized multicall execution contract.
-contract ConveyorMulticall {
+contract ConveyorMulticall is UniswapV3Callback, UniswapV2Callback {
     address immutable CONVEYOR_SWAP_AGGREGATOR;
 
     ///@param conveyorRouterV1 Address of the ConveyorRouterV1 contract.
@@ -719,34 +721,6 @@ contract ConveyorMulticall {
             unchecked {
                 ++i;
             }
-        }
-    }
-
-    ///@notice Uniswap V3 callback function called during a swap on a v3 liqudity pool.
-    ///@param amount0Delta - The change in token0 reserves from the swap.
-    ///@param amount1Delta - The change in token1 reserves from the swap.
-    ///@param data - The data packed into the swap.
-    function uniswapV3SwapCallback(
-        int256 amount0Delta,
-        int256 amount1Delta,
-        bytes calldata data
-    ) external {
-        ///@notice Decode all of the swap data.
-        (bool _zeroForOne, address tokenIn, address _sender) = abi.decode(
-            data,
-            (bool, address, address)
-        );
-
-        ///@notice Set amountIn to the amountInDelta depending on boolean zeroForOne.
-        uint256 amountIn = _zeroForOne
-            ? uint256(amount0Delta)
-            : uint256(amount1Delta);
-
-        if (!(_sender == address(this))) {
-            ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender.
-            IERC20(tokenIn).transferFrom(_sender, msg.sender, amountIn);
-        } else {
-            IERC20(tokenIn).transfer(msg.sender, amountIn);
         }
     }
 

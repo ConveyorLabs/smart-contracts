@@ -90,12 +90,110 @@ contract ConveyorRouterV1Test is DSTest {
         calls[1] = newTransferCall(dai, uniDaiUsdc, 1e20);
 
         //Call 2,3 - Swap DAI for USDC on Sushi/Uni - Send tokens out to the the next pool
-        calls[2] = newUniV2Call(sushiDaiUsdc, 0, 1000000, sushiUsdcWeth);
-        calls[3] = newUniV2Call(uniDaiUsdc, 0, 1000000, uniUsdcWeth);
+        calls[2] = newUniV2Call(
+            sushiDaiUsdc,
+            0,
+            1000000,
+            sushiUsdcWeth,
+            new bytes(0)
+        );
+        calls[3] = newUniV2Call(
+            uniDaiUsdc,
+            0,
+            1000000,
+            uniUsdcWeth,
+            new bytes(0)
+        );
 
         //Call 4,5 - Swap USDC for WETH on Sushi/Uni - Send tokens out to the msg.sender
-        calls[4] = newUniV2Call(sushiUsdcWeth, 0, 1, address(this));
-        calls[5] = newUniV2Call(uniUsdcWeth, 0, 1, address(this));
+        calls[4] = newUniV2Call(
+            sushiUsdcWeth,
+            0,
+            1,
+            address(this),
+            new bytes(0)
+        );
+        calls[5] = newUniV2Call(uniUsdcWeth, 0, 1, address(this), new bytes(0));
+
+        //Generate the callTypeBitmap - Notice we preconstructed the v2 swap calldata our callType will be generic for all calls.
+        uint40 callTypeBitmap = 0x2; //Call 0 is Generic
+        callTypeBitmap += 0x2 << 2; //Call 1 is Generic
+        callTypeBitmap += 0x2 << 4; //Call 2 is Generic
+        callTypeBitmap += 0x2 << 6; //Call 3 is Generic
+        callTypeBitmap += 0x2 << 8; //Call 4 is Generic
+        callTypeBitmap += 0x2 << 10; //Call 5 is Generic
+        //Create the multicall
+        ConveyorRouterV1.SwapAggregatorMulticall
+            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+                0, //Irrelevant for generic calls
+                callTypeBitmap, //callTypeBitmap
+                1, //Irrelevant for generic calls
+                0, //Irrelevant for generic calls
+                conveyorRouterV1.CONVEYOR_MULTICALL(), //Transfer the full input quantity to the multicall contract first
+                calls
+            );
+
+        //Execute the swap
+        conveyorRouterV1.swapExactTokenForToken(
+            dai,
+            amountIn,
+            weth,
+            1, //Amount out min of 1 wei
+            multicall
+        );
+    }
+
+    function testSplitRouteV2WithCallback() public {
+        vm.rollFork(forkId, 16749139);
+        vm.deal(address(this), type(uint128).max);
+
+        address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F; //Input
+        address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; //Intermediary
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2; //Output
+
+        //Split the input quantity 50/50 between the two pools.
+        address sushiDaiUsdc = 0xAaF5110db6e744ff70fB339DE037B990A20bdace;
+        address uniDaiUsdc = 0xAE461cA67B15dc8dc81CE7615e0320dA1A9aB8D5;
+
+        //Split the output quantity 50/50 between the two pools.
+        address sushiUsdcWeth = 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0;
+        address uniUsdcWeth = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
+        uint256 amountIn = 2e20;
+        //Get some DAI
+        swapHelper.swapEthForTokenWithUniV2(100 ether, dai);
+        //Approve the router to spend the DAI
+        IERC20(dai).approve(address(conveyorRouterV1), type(uint256).max);
+
+        //Setup the calls
+        ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](5);
+        // //Transfer 50% of the input quantity from the conveyorMulticall to sushiDaiUsdc
+        // calls[0] = newTransferCall(dai, sushiDaiUsdc, 1e20);
+        // //Transfer 50% of the input quantity from the conveyorMulticall to uniDaiUsdc
+        // calls[1] = newTransferCall(dai, uniDaiUsdc, 1e20);
+        bytes memory data_1 = abi.encode(
+            true,
+            dai,
+            conveyorRouterV1.CONVEYOR_MULTICALL()
+        );
+        //Call 2,3 - Swap DAI for USDC on Sushi/Uni - Send tokens out to the the next pool
+        calls[0] = newUniV2Call(
+            sushiDaiUsdc,
+            0,
+            1000000,
+            conveyorRouterV1.CONVEYOR_MULTICALL(),
+            data_1
+        );
+        calls[1] = newUniV2Call(uniDaiUsdc, 0, 1000000, conveyorRouterV1.CONVEYOR_MULTICALL(), data_1);
+        bytes memory data_2 = abi.encode(
+            true,
+            usdc,
+            conveyorRouterV1.CONVEYOR_MULTICALL()
+        );
+        //Call 4,5 - Swap USDC for WETH on Sushi/Uni - Send tokens out to the msg.sender
+        calls[2] = newUniV2Call(sushiUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), data_2);
+        calls[3] = newUniV2Call(uniUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), data_2);
+
+        calls[4] = newTransferCall(weth, address(this), 2);
 
         //Generate the callTypeBitmap - Notice we preconstructed the v2 swap calldata our callType will be generic for all calls.
         uint40 callTypeBitmap = 0x2; //Call 0 is Generic
@@ -161,7 +259,7 @@ contract ConveyorRouterV1Test is DSTest {
         ConveyorRouterV1.SwapAggregatorMulticall
             memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
-                1, //univ2
+                0, //univ2
                 1, //msg.sender
                 300,
                 lp,
@@ -197,7 +295,7 @@ contract ConveyorRouterV1Test is DSTest {
         ConveyorRouterV1.SwapAggregatorMulticall
             memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
-                1, //univ2
+                0, //univ2
                 1, //msg.sender
                 300,
                 lp,
@@ -237,7 +335,7 @@ contract ConveyorRouterV1Test is DSTest {
         ConveyorRouterV1.SwapAggregatorMulticall
             memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
-                1, //univ2
+                0, //univ2
                 1, //msg.sender
                 300,
                 lp,
@@ -280,7 +378,7 @@ contract ConveyorRouterV1Test is DSTest {
         ConveyorRouterV1.SwapAggregatorMulticall
             memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
-                1, //univ2
+                0, //univ2
                 1, //msg.sender
                 300,
                 lp,
@@ -319,12 +417,18 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this));
+        calls[0] = newUniV2Call(
+            lp,
+            amountOutMin,
+            0,
+            address(this),
+            new bytes(0)
+        );
 
         ConveyorRouterV1.SwapAggregatorMulticall
             memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 0, //zeroForOne
-                1, //univ2
+                0, //univ2
                 1, //msg.sender
                 300,
                 lp,
@@ -350,12 +454,18 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this));
+        calls[0] = newUniV2Call(
+            lp,
+            amountOutMin,
+            0,
+            address(this),
+            new bytes(0)
+        );
 
         ConveyorRouterV1.SwapAggregatorMulticall
             memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 0, //zeroForOne
-                1, //univ2
+                0, //univ2
                 1, //msg.sender
                 300,
                 lp,
@@ -383,12 +493,18 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this));
+        calls[0] = newUniV2Call(
+            lp,
+            amountOutMin,
+            0,
+            address(this),
+            new bytes(0)
+        );
 
         ConveyorRouterV1.SwapAggregatorMulticall
             memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 0, //zeroForOne
-                1, //univ2
+                0, //univ2
                 1, //msg.sender
                 300,
                 lp,
@@ -416,12 +532,18 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this));
+        calls[0] = newUniV2Call(
+            lp,
+            amountOutMin,
+            0,
+            address(this),
+            new bytes(0)
+        );
 
         ConveyorRouterV1.SwapAggregatorMulticall
             memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 0, //zeroForOne
-                1, //univ2
+                0, //univ2
                 1, //msg.sender
                 300,
                 lp,
@@ -455,12 +577,18 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorRouterV1));
+        calls[0] = newUniV2Call(
+            lp,
+            0,
+            amountOutMin,
+            address(conveyorRouterV1),
+            new bytes(0)
+        );
 
         ConveyorRouterV1.SwapAggregatorMulticall
             memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
-                1, //univ2
+                0, //univ2
                 0, //SwapAggregator
                 300,
                 lp,
@@ -492,12 +620,18 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorRouterV1));
+        calls[0] = newUniV2Call(
+            lp,
+            0,
+            amountOutMin,
+            address(conveyorRouterV1),
+            new bytes(0)
+        );
 
         ConveyorRouterV1.SwapAggregatorMulticall
             memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
-                1, //univ2
+                0, //univ2
                 0, //SwapAggregator
                 300,
                 lp,
@@ -529,12 +663,18 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorRouterV1));
+        calls[0] = newUniV2Call(
+            lp,
+            0,
+            amountOutMin,
+            address(conveyorRouterV1),
+            new bytes(0)
+        );
 
         ConveyorRouterV1.SwapAggregatorMulticall
             memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
-                1, //univ2
+                0, //univ2
                 0, //SwapAggregator
                 300,
                 lp,
@@ -572,12 +712,18 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorRouterV1));
+        calls[0] = newUniV2Call(
+            lp,
+            0,
+            amountOutMin,
+            address(conveyorRouterV1),
+            new bytes(0)
+        );
 
         ConveyorRouterV1.SwapAggregatorMulticall
             memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
-                1, //univ2
+                0, //univ2
                 0, //SwapAggregator
                 300,
                 lp,
@@ -646,7 +792,7 @@ contract ConveyorRouterV1Test is DSTest {
         ConveyorRouterV1.SwapAggregatorMulticall
             memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
-                3, //univ2
+                0, //univ2
                 7, //lp, msg.sender
                 307500, //300, 300
                 firstLP,
@@ -703,7 +849,7 @@ contract ConveyorRouterV1Test is DSTest {
         ConveyorRouterV1.SwapAggregatorMulticall
             memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
                 1, //zeroForOne
-                0,
+                1,
                 0,
                 300,
                 conveyorRouterV1.CONVEYOR_MULTICALL(),
@@ -787,14 +933,15 @@ contract ConveyorRouterV1Test is DSTest {
         address _lp,
         uint256 amount0Out,
         uint256 amount1Out,
-        address _receiver
+        address _receiver,
+        bytes memory _data
     ) public pure returns (ConveyorRouterV1.Call memory) {
         bytes memory callData = abi.encodeWithSignature(
             "swap(uint256,uint256,address,bytes)",
             amount0Out,
             amount1Out,
             _receiver,
-            new bytes(0)
+            _data
         );
         return ConveyorRouterV1.Call({target: _lp, callData: callData});
     }
