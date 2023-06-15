@@ -776,7 +776,7 @@ contract ConveyorMulticall is
 
                 amountIn = zeroForOne ? uint256(-amount1) : uint256(-amount0);
             } else {
-                ///@notice Execute the v3 swap.
+                ///@notice Execute generic call.
                 (bool success, ) = call.target.call(call.callData);
                 if (!success) {
                     revert CallFailed();
