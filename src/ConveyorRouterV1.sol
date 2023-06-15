@@ -7,6 +7,7 @@ import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/libraries/token/SafeERC20.sol";
 import {UniswapV3Callback} from "./UniswapV3Callback.sol";
 import {UniswapV2Callback} from "./UniswapV2Callback.sol";
+import {GenericMulticall} from "./GenericMulticall.sol";
 
 interface IConveyorMulticall {
     function executeMulticall(
@@ -14,6 +15,10 @@ interface IConveyorMulticall {
             calldata swapAggregatorMulticall,
         uint256 amountIn,
         address receiver
+    ) external;
+
+    function executeGenericMulticall(
+        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata genericMulticall
     ) external;
 }
 
@@ -103,6 +108,12 @@ contract ConveyorRouterV1 {
         Call[] calls;
     }
 
+    /// @notice Gas optimized Multicall struct
+    struct SwapAggregatorGenericMulticall {
+        address tokenInDestination;
+        Call[] calls;
+    }
+
     /// @notice Call struct for token Swaps.
     /// @param target Address to call.
     /// @param callData Data to call.
@@ -149,6 +160,56 @@ contract ConveyorRouterV1 {
             swapAggregatorMulticall,
             amountIn,
             msg.sender
+        );
+
+        uint256 balanceAfter = IERC20(tokenOut).balanceOf(msg.sender);
+
+        ///@notice Check if tokenOut balance of msg.sender is sufficient.
+        if (balanceAfter < tokenOutAmountRequired) {
+            revert InsufficientOutputAmount(
+                tokenOutAmountRequired - balanceAfter,
+                amountOutMin
+            );
+        }
+
+        ///@notice Emit Swap event.
+        emit Swap(
+            tokenIn,
+            amountIn,
+            tokenOut,
+            balanceAfter - balanceBefore,
+            msg.sender
+        );
+    }
+
+    /// @notice Swap tokens for tokens.
+    /// @param tokenIn Address of token to swap.
+    /// @param amountIn Amount of tokenIn to swap.
+    /// @param tokenOut Address of token to receive.
+    /// @param amountOutMin Minimum amount of tokenOut to receive.
+    /// @param genericMulticall Multicall to be executed.
+    function swapExactTokenForTokenOptimized(
+        address tokenIn,
+        uint256 amountIn,
+        address tokenOut,
+        uint256 amountOutMin,
+        SwapAggregatorGenericMulticall calldata genericMulticall
+    ) public payable {
+        ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
+        IERC20(tokenIn).transferFrom(
+            msg.sender,
+            genericMulticall.tokenInDestination,
+            amountIn
+        );
+
+        ///@notice Get tokenOut balance of msg.sender.
+        uint256 balanceBefore = IERC20(tokenOut).balanceOf(msg.sender);
+        ///@notice Calculate tokenOut amount required.
+        uint256 tokenOutAmountRequired = balanceBefore + amountOutMin;
+
+        ///@notice Execute Multicall.
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(
+            genericMulticall
         );
 
         uint256 balanceAfter = IERC20(tokenOut).balanceOf(msg.sender);
@@ -613,7 +674,11 @@ contract ConveyorRouterV1 {
 /// @title ConveyorMulticall
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Optimized multicall execution contract.
-contract ConveyorMulticall is UniswapV3Callback, UniswapV2Callback {
+contract ConveyorMulticall is
+    GenericMulticall,
+    UniswapV3Callback,
+    UniswapV2Callback
+{
     address immutable CONVEYOR_SWAP_AGGREGATOR;
 
     ///@param conveyorRouterV1 Address of the ConveyorRouterV1 contract.

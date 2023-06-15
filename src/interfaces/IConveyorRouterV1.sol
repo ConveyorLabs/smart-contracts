@@ -12,6 +12,14 @@ interface IConveyorRouterV1 {
             calldata swapAggregatorMulticall
     ) external payable;
 
+    function swapExactTokenForTokenOptimized(
+        address tokenIn,
+        uint256 amountIn,
+        address tokenOut,
+        uint256 amountOutMin,
+        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata genericMulticall
+    ) external payable;
+
     function swapExactTokenForTokenWithReferral(
         address tokenIn,
         uint256 amountIn,
