@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity ^0.8.19;
 import "../ConveyorRouterV1.sol";
 
 interface IConveyorRouterV1 {

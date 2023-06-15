@@ -1,6 +1,6 @@
 
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.16;
+pragma solidity ^0.8.19;
 
 interface ScriptRunnerCheatCodes {
     function ffi(string[] calldata) external returns (bytes memory);
