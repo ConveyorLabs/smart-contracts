@@ -521,6 +521,7 @@ contract ConveyorRouterV1 {
     ///@notice Helper function to transfer ETH.
     function _safeTransferETH(address to, uint256 amount) internal {
         bool success;
+        /// @solidity memory-safe-assembly
         assembly {
             // Transfer the ETH and store if it succeeded or not.
             success := call(gas(), to, amount, 0, 0, 0, 0)
@@ -533,6 +534,7 @@ contract ConveyorRouterV1 {
 
     /// @notice Helper function to Withdraw ETH from WETH.
     function _withdrawEth(uint256 amount, address weth) internal {
+        /// @solidity memory-safe-assembly
         assembly {
             mstore(
                 0x0,
@@ -557,6 +559,7 @@ contract ConveyorRouterV1 {
 
     /// @notice Helper function to Deposit ETH into WETH.
     function _depositEth(uint256 amount, address weth) internal {
+        /// @solidity memory-safe-assembly
         assembly {
             mstore(0x0, shl(224, 0xd0e30db0)) /* keccak256("deposit()") */
             if iszero(
