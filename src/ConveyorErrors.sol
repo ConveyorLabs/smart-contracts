@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.16;
+pragma solidity ^0.8.19;
 
 error InsufficientWalletBalance(
     address account,
@@ -99,4 +99,5 @@ error ExecutorNotCheckedIn();
 error InvalidToAddressBits();
 error V2SwapFailed();
 error V3SwapFailed();
+error CallFailed();
 error InvalidReferral();

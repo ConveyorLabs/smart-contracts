@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.16;
+pragma solidity ^0.8.19;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/libraries/token/SafeERC20.sol";
-import "../test/utils/Console.sol";
+import {UniswapV3Callback} from "./UniswapV3Callback.sol";
+import {UniswapV2Callback} from "./UniswapV2Callback.sol";
+import {GenericMulticall} from "./GenericMulticall.sol";
 
 interface IConveyorMulticall {
     function executeMulticall(
@@ -13,6 +15,11 @@ interface IConveyorMulticall {
             calldata swapAggregatorMulticall,
         uint256 amountIn,
         address receiver
+    ) external;
+
+    function executeGenericMulticall(
+        ConveyorRouterV1.SwapAggregatorGenericMulticall
+            calldata genericMulticall
     ) external;
 }
 
@@ -88,16 +95,22 @@ contract ConveyorRouterV1 {
 
     /// @notice SwapAggregatorMulticall struct for token Swaps.
     /// @param zeroForOneBitmap for zeroForOne bool along the swap calls.
-    /// @param isUniV2Bitmap for isUniV2 bool along the swap calls.
+    /// @param callTypeBitmap determines the call type being executed.
     /// @param toAddressBitmap for toAddress address along the swap calls.
     /// @param feeBitmap for uniV2 custom fee's along the swap calls.
     /// @param tokenInDestination Address to send tokenIn to.
     /// @param calls Array of calls to be executed.
     struct SwapAggregatorMulticall {
-        uint32 zeroForOneBitmap;
-        uint32 isUniV2Bitmap;
+        uint24 zeroForOneBitmap;
+        uint40 callTypeBitmap;
         uint64 toAddressBitmap;
         uint128 feeBitmap;
+        address tokenInDestination;
+        Call[] calls;
+    }
+
+    /// @notice Gas optimized Multicall struct
+    struct SwapAggregatorGenericMulticall {
         address tokenInDestination;
         Call[] calls;
     }
@@ -148,6 +161,56 @@ contract ConveyorRouterV1 {
             swapAggregatorMulticall,
             amountIn,
             msg.sender
+        );
+
+        uint256 balanceAfter = IERC20(tokenOut).balanceOf(msg.sender);
+
+        ///@notice Check if tokenOut balance of msg.sender is sufficient.
+        if (balanceAfter < tokenOutAmountRequired) {
+            revert InsufficientOutputAmount(
+                tokenOutAmountRequired - balanceAfter,
+                amountOutMin
+            );
+        }
+
+        ///@notice Emit Swap event.
+        emit Swap(
+            tokenIn,
+            amountIn,
+            tokenOut,
+            balanceAfter - balanceBefore,
+            msg.sender
+        );
+    }
+
+    /// @notice Swap tokens for tokens.
+    /// @param tokenIn Address of token to swap.
+    /// @param amountIn Amount of tokenIn to swap.
+    /// @param tokenOut Address of token to receive.
+    /// @param amountOutMin Minimum amount of tokenOut to receive.
+    /// @param genericMulticall Multicall to be executed.
+    function swapExactTokenForTokenOptimized(
+        address tokenIn,
+        uint256 amountIn,
+        address tokenOut,
+        uint256 amountOutMin,
+        SwapAggregatorGenericMulticall calldata genericMulticall
+    ) public payable {
+        ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
+        IERC20(tokenIn).transferFrom(
+            msg.sender,
+            genericMulticall.tokenInDestination,
+            amountIn
+        );
+
+        ///@notice Get tokenOut balance of msg.sender.
+        uint256 balanceBefore = IERC20(tokenOut).balanceOf(msg.sender);
+        ///@notice Calculate tokenOut amount required.
+        uint256 tokenOutAmountRequired = balanceBefore + amountOutMin;
+
+        ///@notice Execute Multicall.
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(
+            genericMulticall
         );
 
         uint256 balanceAfter = IERC20(tokenOut).balanceOf(msg.sender);
@@ -439,6 +502,30 @@ contract ConveyorRouterV1 {
         }
     }
 
+    /// @notice Quotes the amount of gas used for a optimized token to token swap.
+    /// @dev This function should be used off chain through a static call.
+    function quoteSwapExactTokenForTokenOptimized(
+        address tokenIn,
+        uint256 amountIn,
+        address tokenOut,
+        uint256 amountOutMin,
+        SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+    ) external payable returns (uint256 gasConsumed) {
+        assembly {
+            mstore(0x60, gas())
+        }
+        swapExactTokenForTokenOptimized(
+            tokenIn,
+            amountIn,
+            tokenOut,
+            amountOutMin,
+            swapAggregatorMulticall
+        );
+        assembly {
+            gasConsumed := sub(mload(0x60), gas())
+        }
+    }
+
     /// @notice Quotes the amount of gas used for a ETH to token swap.
     /// @dev This function should be used off chain through a static call.
     function quoteSwapExactEthForToken(
@@ -522,6 +609,7 @@ contract ConveyorRouterV1 {
     ///@notice Helper function to transfer ETH.
     function _safeTransferETH(address to, uint256 amount) internal {
         bool success;
+        /// @solidity memory-safe-assembly
         assembly {
             // Transfer the ETH and store if it succeeded or not.
             success := call(gas(), to, amount, 0, 0, 0, 0)
@@ -534,6 +622,7 @@ contract ConveyorRouterV1 {
 
     /// @notice Helper function to Withdraw ETH from WETH.
     function _withdrawEth(uint256 amount, address weth) internal {
+        /// @solidity memory-safe-assembly
         assembly {
             mstore(
                 0x0,
@@ -558,6 +647,7 @@ contract ConveyorRouterV1 {
 
     /// @notice Helper function to Deposit ETH into WETH.
     function _depositEth(uint256 amount, address weth) internal {
+        /// @solidity memory-safe-assembly
         assembly {
             mstore(0x0, shl(224, 0xd0e30db0)) /* keccak256("deposit()") */
             if iszero(
@@ -609,7 +699,12 @@ contract ConveyorRouterV1 {
 /// @title ConveyorMulticall
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Optimized multicall execution contract.
-contract ConveyorMulticall {
+contract ConveyorMulticall is
+    GenericMulticall,
+    UniswapV3Callback,
+    UniswapV2Callback
+{
+    using SafeERC20 for IERC20;
     address immutable CONVEYOR_SWAP_AGGREGATOR;
 
     ///@param conveyorRouterV1 Address of the ConveyorRouterV1 contract.
@@ -647,10 +742,12 @@ contract ConveyorMulticall {
                 swapAggregatorMulticall.zeroForOneBitmap,
                 i
             );
+            uint256 callType = deriveCallFromBitmap(
+                swapAggregatorMulticall.callTypeBitmap,
+                i
+            );
             ///@notice Check if the call is a v2 swap.
-            if (
-                deriveBoolFromBitmap(swapAggregatorMulticall.isUniV2Bitmap, i)
-            ) {
+            if (callType == 0x0) {
                 ///@notice Instantiate the receiver address for the v2 swap.
                 address receiver;
                 {
@@ -689,7 +786,7 @@ contract ConveyorMulticall {
                 if (!success) {
                     revert V2SwapFailed();
                 }
-            } else {
+            } else if (callType == 0x1) {
                 ///@notice Execute the v3 swap.
                 (bool success, bytes memory data) = call.target.call(
                     call.callData
@@ -704,39 +801,17 @@ contract ConveyorMulticall {
                 );
 
                 amountIn = zeroForOne ? uint256(-amount1) : uint256(-amount0);
+            } else {
+                ///@notice Execute generic call.
+                (bool success, ) = call.target.call(call.callData);
+                if (!success) {
+                    revert CallFailed();
+                }
             }
 
             unchecked {
                 ++i;
             }
-        }
-    }
-
-    ///@notice Uniswap V3 callback function called during a swap on a v3 liqudity pool.
-    ///@param amount0Delta - The change in token0 reserves from the swap.
-    ///@param amount1Delta - The change in token1 reserves from the swap.
-    ///@param data - The data packed into the swap.
-    function uniswapV3SwapCallback(
-        int256 amount0Delta,
-        int256 amount1Delta,
-        bytes calldata data
-    ) external {
-        ///@notice Decode all of the swap data.
-        (bool _zeroForOne, address tokenIn, address _sender) = abi.decode(
-            data,
-            (bool, address, address)
-        );
-
-        ///@notice Set amountIn to the amountInDelta depending on boolean zeroForOne.
-        uint256 amountIn = _zeroForOne
-            ? uint256(amount0Delta)
-            : uint256(amount1Delta);
-
-        if (!(_sender == address(this))) {
-            ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender.
-            IERC20(tokenIn).transferFrom(_sender, msg.sender, amountIn);
-        } else {
-            IERC20(tokenIn).transfer(msg.sender, amountIn);
         }
     }
 
@@ -801,6 +876,33 @@ contract ConveyorMulticall {
             return false;
         } else {
             return true;
+        }
+    }
+
+    /// @notice Derives the call type from a bitmap.
+    /** @dev
+        0x0 - Uniswap v2 swap
+        0x1 - Uniswap v3 swap
+        0x2 - Generic call
+    */
+    function deriveCallFromBitmap(
+        uint40 bitmap,
+        uint256 position
+    ) internal pure returns (uint256 callType) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            let significantBits := shl(mul(position, 0x2), 0x3)
+
+            switch shr(mul(position, 0x2), and(bitmap, significantBits))
+            case 0x0 {
+                callType := 0x0
+            }
+            case 0x1 {
+                callType := 0x1
+            }
+            case 0x2 {
+                callType := 0x2
+            }
         }
     }
 
