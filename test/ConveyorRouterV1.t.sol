@@ -709,7 +709,7 @@ contract ConveyorRouterV1Test is DSTest {
 
     function testRouterDeployment() public view {
         ICREATE3Factory create3Factory = ICREATE3Factory(address(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1));
-        bytes32 salt = bytes32("0xffffff");
+        bytes32 salt = bytes32("0x7fab158");
         address deployed = create3Factory.getDeployed(address(0x2f37bC8900EB1176C689c63c5E781B96DCC0C48E), salt);
         bytes memory initCode = type(ConveyorRouterV1).creationCode;
         bytes32 initHash = keccak256(abi.encode(initCode));
