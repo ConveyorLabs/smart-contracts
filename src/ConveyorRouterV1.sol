@@ -704,6 +704,7 @@ contract ConveyorMulticall is
     UniswapV3Callback,
     UniswapV2Callback
 {
+    using SafeERC20 for IERC20;
     address immutable CONVEYOR_SWAP_AGGREGATOR;
 
     ///@param conveyorRouterV1 Address of the ConveyorRouterV1 contract.
