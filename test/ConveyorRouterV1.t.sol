@@ -454,7 +454,8 @@ contract ConveyorRouterV1Test is DSTest {
                 calls
             );
 
-        uint256 gasConsumed = conveyorRouterV1.quoteSwapExactTokenForTokenOptimized{value: 100 ether}(
+        uint256 gasConsumed = conveyorRouterV1
+            .quoteSwapExactTokenForTokenOptimized{value: 100 ether}(
             tokenIn,
             amountIn,
             tokenOut,
@@ -463,7 +464,6 @@ contract ConveyorRouterV1Test is DSTest {
         );
 
         console.log(gasConsumed);
-
     }
 
     function testSwapUniv2SingleLPQuote() public {
