@@ -18,7 +18,8 @@ interface IConveyorMulticall {
     ) external;
 
     function executeGenericMulticall(
-        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata genericMulticall
+        ConveyorRouterV1.SwapAggregatorGenericMulticall
+            calldata genericMulticall
     ) external;
 }
 
@@ -498,6 +499,30 @@ contract ConveyorRouterV1 {
             assembly {
                 gasConsumed := sub(mload(0x60), gas())
             }
+        }
+    }
+
+    /// @notice Quotes the amount of gas used for a optimized token to token swap.
+    /// @dev This function should be used off chain through a static call.
+    function quoteSwapExactTokenForTokenOptimized(
+        address tokenIn,
+        uint256 amountIn,
+        address tokenOut,
+        uint256 amountOutMin,
+        SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+    ) external payable returns (uint256 gasConsumed) {
+        assembly {
+            mstore(0x60, gas())
+        }
+        swapExactTokenForTokenOptimized(
+            tokenIn,
+            amountIn,
+            tokenOut,
+            amountOutMin,
+            swapAggregatorMulticall
+        );
+        assembly {
+            gasConsumed := sub(mload(0x60), gas())
         }
     }
 

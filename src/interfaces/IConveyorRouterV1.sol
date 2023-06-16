@@ -17,7 +17,8 @@ interface IConveyorRouterV1 {
         uint256 amountIn,
         address tokenOut,
         uint256 amountOutMin,
-        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata genericMulticall
+        ConveyorRouterV1.SwapAggregatorGenericMulticall
+            calldata genericMulticall
     ) external payable;
 
     function swapExactTokenForTokenWithReferral(
@@ -75,11 +76,21 @@ interface IConveyorRouterV1 {
         bool isReferral
     ) external payable returns (uint256 gasConsumed);
 
+    function quoteSwapExactTokenForTokenOptimized(
+        address tokenIn,
+        uint256 amountIn,
+        address tokenOut,
+        uint256 amountOutMin,
+        ConveyorRouterV1.SwapAggregatorGenericMulticall
+            calldata swapAggregatorMulticall
+    ) external payable returns (uint256 gasConsumed);
+
     function quoteSwapExactTokenForEth(
         address tokenIn,
         uint256 amountIn,
         uint256 amountOutMin,
-        ConveyorRouterV1.SwapAggregatorMulticall calldata swapAggregatorMulticall,
+        ConveyorRouterV1.SwapAggregatorMulticall
+            calldata swapAggregatorMulticall,
         ConveyorRouterV1.ReferralInfo calldata referralInfo,
         bool isReferral
     ) external payable returns (uint256 gasConsumed);
@@ -88,7 +99,8 @@ interface IConveyorRouterV1 {
         address tokenOut,
         uint128 amountOutMin,
         uint128 protocolFee,
-        ConveyorRouterV1.SwapAggregatorMulticall calldata swapAggregatorMulticall,
+        ConveyorRouterV1.SwapAggregatorMulticall
+            calldata swapAggregatorMulticall,
         ConveyorRouterV1.ReferralInfo calldata referralInfo,
         bool isReferral
     ) external payable returns (uint256 gasConsumed);
