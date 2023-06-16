@@ -9,3 +9,4 @@ src/artifacts
 .vscode
 .vscode/settings.json
 .env
+broadcast/

@@ -8,10 +8,7 @@ contract Deploy is Script {
     ///@dev Mainnet Constructor Constants
     address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    function run()
-        public
-        returns (ConveyorRouterV1 conveyorRouterV1)
-    {
+    function run() public returns (ConveyorRouterV1 conveyorRouterV1) {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
         vm.startBroadcast(deployerPrivateKey);

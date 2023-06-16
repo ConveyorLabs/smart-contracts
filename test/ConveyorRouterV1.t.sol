@@ -13,10 +13,7 @@ interface CheatCodes {
 
     function deal(address who, uint256 amount) external;
 
-    function createSelectFork(
-        string calldata,
-        uint256
-    ) external returns (uint256);
+    function createSelectFork(string calldata, uint256) external returns (uint256);
 
     function rollFork(uint256 forkId, uint256 blockNumber) external;
 
@@ -42,11 +39,7 @@ contract ConveyorRouterV1Test is DSTest {
         vm.deal(address(swapHelper), type(uint256).max);
 
         forkId = vm.activeFork();
-        conveyorRouterV1 = IConveyorRouterV1(
-            address(
-                new ConveyorRouterV1(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)
-            )
-        );
+        conveyorRouterV1 = IConveyorRouterV1(address(new ConveyorRouterV1(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)));
 
         conveyorMulticallWrapper = new ConveyorMulticallWrapper(
             address(conveyorRouterV1)
@@ -90,29 +83,11 @@ contract ConveyorRouterV1Test is DSTest {
         calls[1] = newTransferCall(dai, uniDaiUsdc, 1e20);
 
         //Call 2,3 - Swap DAI for USDC on Sushi/Uni - Send tokens out to the the next pool
-        calls[2] = newUniV2Call(
-            sushiDaiUsdc,
-            0,
-            1000000,
-            sushiUsdcWeth,
-            new bytes(0)
-        );
-        calls[3] = newUniV2Call(
-            uniDaiUsdc,
-            0,
-            1000000,
-            uniUsdcWeth,
-            new bytes(0)
-        );
+        calls[2] = newUniV2Call(sushiDaiUsdc, 0, 1000000, sushiUsdcWeth, new bytes(0));
+        calls[3] = newUniV2Call(uniDaiUsdc, 0, 1000000, uniUsdcWeth, new bytes(0));
 
         //Call 4,5 - Swap USDC for WETH on Sushi/Uni - Send tokens out to the msg.sender
-        calls[4] = newUniV2Call(
-            sushiUsdcWeth,
-            0,
-            1,
-            address(this),
-            new bytes(0)
-        );
+        calls[4] = newUniV2Call(sushiUsdcWeth, 0, 1, address(this), new bytes(0));
         calls[5] = newUniV2Call(uniUsdcWeth, 0, 1, address(this), new bytes(0));
 
         //Generate the callTypeBitmap - Notice we preconstructed the v2 swap calldata our callType will be generic for all calls.
@@ -123,15 +98,14 @@ contract ConveyorRouterV1Test is DSTest {
         callTypeBitmap += 0x2 << 8; //Call 4 is Generic
         callTypeBitmap += 0x2 << 10; //Call 5 is Generic
         //Create the multicall
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                0, //Irrelevant for generic calls
-                callTypeBitmap, //callTypeBitmap
-                1, //Irrelevant for generic calls
-                0, //Irrelevant for generic calls
-                conveyorRouterV1.CONVEYOR_MULTICALL(), //Transfer the full input quantity to the multicall contract first
-                calls
-            );
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            0, //Irrelevant for generic calls
+            callTypeBitmap, //callTypeBitmap
+            1, //Irrelevant for generic calls
+            0, //Irrelevant for generic calls
+            conveyorRouterV1.CONVEYOR_MULTICALL(), //Transfer the full input quantity to the multicall contract first
+            calls
+        );
 
         //Execute the swap
         conveyorRouterV1.swapExactTokenForToken(
@@ -170,46 +144,14 @@ contract ConveyorRouterV1Test is DSTest {
         // calls[0] = newTransferCall(dai, sushiDaiUsdc, 1e20);
         // //Transfer 50% of the input quantity from the conveyorMulticall to uniDaiUsdc
         // calls[1] = newTransferCall(dai, uniDaiUsdc, 1e20);
-        bytes memory data_1 = abi.encode(
-            true,
-            dai,
-            conveyorRouterV1.CONVEYOR_MULTICALL()
-        );
+        bytes memory data_1 = abi.encode(true, dai, conveyorRouterV1.CONVEYOR_MULTICALL());
         //Call 2,3 - Swap DAI for USDC on Sushi/Uni - Send tokens out to the the next pool
-        calls[0] = newUniV2Call(
-            sushiDaiUsdc,
-            0,
-            1000000,
-            conveyorRouterV1.CONVEYOR_MULTICALL(),
-            data_1
-        );
-        calls[1] = newUniV2Call(
-            uniDaiUsdc,
-            0,
-            1000000,
-            conveyorRouterV1.CONVEYOR_MULTICALL(),
-            data_1
-        );
-        bytes memory data_2 = abi.encode(
-            true,
-            usdc,
-            conveyorRouterV1.CONVEYOR_MULTICALL()
-        );
+        calls[0] = newUniV2Call(sushiDaiUsdc, 0, 1000000, conveyorRouterV1.CONVEYOR_MULTICALL(), data_1);
+        calls[1] = newUniV2Call(uniDaiUsdc, 0, 1000000, conveyorRouterV1.CONVEYOR_MULTICALL(), data_1);
+        bytes memory data_2 = abi.encode(true, usdc, conveyorRouterV1.CONVEYOR_MULTICALL());
         //Call 4,5 - Swap USDC for WETH on Sushi/Uni - Send tokens out to the msg.sender
-        calls[2] = newUniV2Call(
-            sushiUsdcWeth,
-            0,
-            1,
-            conveyorRouterV1.CONVEYOR_MULTICALL(),
-            data_2
-        );
-        calls[3] = newUniV2Call(
-            uniUsdcWeth,
-            0,
-            1,
-            conveyorRouterV1.CONVEYOR_MULTICALL(),
-            data_2
-        );
+        calls[2] = newUniV2Call(sushiUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), data_2);
+        calls[3] = newUniV2Call(uniUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), data_2);
 
         calls[4] = newTransferCall(weth, address(this), 2);
 
@@ -221,15 +163,14 @@ contract ConveyorRouterV1Test is DSTest {
         callTypeBitmap += 0x2 << 8; //Call 4 is Generic
         callTypeBitmap += 0x2 << 10; //Call 5 is Generic
         //Create the multicall
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                0, //Irrelevant for generic calls
-                callTypeBitmap, //callTypeBitmap
-                1, //Irrelevant for generic calls
-                0, //Irrelevant for generic calls
-                conveyorRouterV1.CONVEYOR_MULTICALL(), //Transfer the full input quantity to the multicall contract first
-                calls
-            );
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            0, //Irrelevant for generic calls
+            callTypeBitmap, //callTypeBitmap
+            1, //Irrelevant for generic calls
+            0, //Irrelevant for generic calls
+            conveyorRouterV1.CONVEYOR_MULTICALL(), //Transfer the full input quantity to the multicall contract first
+            calls
+        );
 
         //Execute the swap
         conveyorRouterV1.swapExactTokenForToken(
@@ -268,46 +209,14 @@ contract ConveyorRouterV1Test is DSTest {
         // calls[0] = newTransferCall(dai, sushiDaiUsdc, 1e20);
         // //Transfer 50% of the input quantity from the conveyorMulticall to uniDaiUsdc
         // calls[1] = newTransferCall(dai, uniDaiUsdc, 1e20);
-        bytes memory data_1 = abi.encode(
-            true,
-            dai,
-            conveyorRouterV1.CONVEYOR_MULTICALL()
-        );
+        bytes memory data_1 = abi.encode(true, dai, conveyorRouterV1.CONVEYOR_MULTICALL());
         //Call 2,3 - Swap DAI for USDC on Sushi/Uni - Send tokens out to the the next pool
-        calls[0] = newUniV2Call(
-            sushiDaiUsdc,
-            0,
-            1000000,
-            conveyorRouterV1.CONVEYOR_MULTICALL(),
-            data_1
-        );
-        calls[1] = newUniV2Call(
-            uniDaiUsdc,
-            0,
-            1000000,
-            conveyorRouterV1.CONVEYOR_MULTICALL(),
-            data_1
-        );
-        bytes memory data_2 = abi.encode(
-            true,
-            usdc,
-            conveyorRouterV1.CONVEYOR_MULTICALL()
-        );
+        calls[0] = newUniV2Call(sushiDaiUsdc, 0, 1000000, conveyorRouterV1.CONVEYOR_MULTICALL(), data_1);
+        calls[1] = newUniV2Call(uniDaiUsdc, 0, 1000000, conveyorRouterV1.CONVEYOR_MULTICALL(), data_1);
+        bytes memory data_2 = abi.encode(true, usdc, conveyorRouterV1.CONVEYOR_MULTICALL());
         //Call 4,5 - Swap USDC for WETH on Sushi/Uni - Send tokens out to the msg.sender
-        calls[2] = newUniV2Call(
-            sushiUsdcWeth,
-            0,
-            1,
-            conveyorRouterV1.CONVEYOR_MULTICALL(),
-            data_2
-        );
-        calls[3] = newUniV2Call(
-            uniUsdcWeth,
-            0,
-            1,
-            conveyorRouterV1.CONVEYOR_MULTICALL(),
-            data_2
-        );
+        calls[2] = newUniV2Call(sushiUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), data_2);
+        calls[3] = newUniV2Call(uniUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), data_2);
 
         calls[4] = newTransferCall(weth, address(this), 2);
 
@@ -319,11 +228,11 @@ contract ConveyorRouterV1Test is DSTest {
         callTypeBitmap += 0x2 << 8; //Call 4 is Generic
         callTypeBitmap += 0x2 << 10; //Call 5 is Generic
         //Create the multicall
-        ConveyorRouterV1.SwapAggregatorGenericMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorGenericMulticall(
-                conveyorRouterV1.CONVEYOR_MULTICALL(), //Transfer the full input quantity to the multicall contract first
-                calls
-            );
+        ConveyorRouterV1.SwapAggregatorGenericMulticall memory multicall = ConveyorRouterV1
+            .SwapAggregatorGenericMulticall(
+            conveyorRouterV1.CONVEYOR_MULTICALL(), //Transfer the full input quantity to the multicall contract first
+            calls
+        );
 
         //Execute the swap
         conveyorRouterV1.swapExactTokenForTokenOptimized(
@@ -339,12 +248,9 @@ contract ConveyorRouterV1Test is DSTest {
         uint40 bitmap = 0x0;
         bitmap += 0x1 << 2;
         bitmap += 0x2 << 4;
-        uint256 callType0 = conveyorMulticallWrapper
-            .deriveCallFromBitmapWrapper(bitmap, 0);
-        uint256 callType1 = conveyorMulticallWrapper
-            .deriveCallFromBitmapWrapper(bitmap, 1);
-        uint256 callType2 = conveyorMulticallWrapper
-            .deriveCallFromBitmapWrapper(bitmap, 2);
+        uint256 callType0 = conveyorMulticallWrapper.deriveCallFromBitmapWrapper(bitmap, 0);
+        uint256 callType1 = conveyorMulticallWrapper.deriveCallFromBitmapWrapper(bitmap, 1);
+        uint256 callType2 = conveyorMulticallWrapper.deriveCallFromBitmapWrapper(bitmap, 2);
 
         assertEq(callType0, 0x0);
         assertEq(callType1, 0x1);
@@ -368,23 +274,16 @@ contract ConveyorRouterV1Test is DSTest {
 
         calls[0] = ConveyorRouterV1.Call({target: lp, callData: new bytes(0)});
 
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                1, //zeroForOne
-                0, //univ2
-                1, //msg.sender
-                300,
-                lp,
-                calls
-            );
-
-        conveyorRouterV1.swapExactTokenForToken(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            amountOutMin,
-            multicall
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            1, //zeroForOne
+            0, //univ2
+            1, //msg.sender
+            300,
+            lp,
+            calls
         );
+
+        conveyorRouterV1.swapExactTokenForToken(tokenIn, amountIn, tokenOut, amountOutMin, multicall);
     }
 
     function testSwapUniv2SingleLPOptimized() public {
@@ -402,27 +301,12 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(
-            lp,
-            0,
-            amountOutMin,
-            address(this),
-            new bytes(0)
-        );
+        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(this), new bytes(0));
 
-        ConveyorRouterV1.SwapAggregatorGenericMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorGenericMulticall(
-                lp,
-                calls
-            );
+        ConveyorRouterV1.SwapAggregatorGenericMulticall memory multicall =
+            ConveyorRouterV1.SwapAggregatorGenericMulticall(lp, calls);
 
-        conveyorRouterV1.swapExactTokenForTokenOptimized(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            amountOutMin,
-            multicall
-        );
+        conveyorRouterV1.swapExactTokenForTokenOptimized(tokenIn, amountIn, tokenOut, amountOutMin, multicall);
     }
 
     function testSwapUniv2SingleLPOptimizedQuote() public {
@@ -440,27 +324,13 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(
-            lp,
-            0,
-            amountOutMin,
-            address(this),
-            new bytes(0)
-        );
+        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(this), new bytes(0));
 
-        ConveyorRouterV1.SwapAggregatorGenericMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorGenericMulticall(
-                lp,
-                calls
-            );
+        ConveyorRouterV1.SwapAggregatorGenericMulticall memory multicall =
+            ConveyorRouterV1.SwapAggregatorGenericMulticall(lp, calls);
 
-        uint256 gasConsumed = conveyorRouterV1
-            .quoteSwapExactTokenForTokenOptimized{value: 100 ether}(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            amountOutMin,
-            multicall
+        uint256 gasConsumed = conveyorRouterV1.quoteSwapExactTokenForTokenOptimized{value: 100 ether}(
+            tokenIn, amountIn, tokenOut, amountOutMin, multicall
         );
 
         console.log(gasConsumed);
@@ -483,25 +353,18 @@ contract ConveyorRouterV1Test is DSTest {
 
         calls[0] = ConveyorRouterV1.Call({target: lp, callData: new bytes(0)});
 
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                1, //zeroForOne
-                0, //univ2
-                1, //msg.sender
-                300,
-                lp,
-                calls
-            );
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            1, //zeroForOne
+            0, //univ2
+            1, //msg.sender
+            300,
+            lp,
+            calls
+        );
 
         ConveyorRouterV1.ReferralInfo memory referralInfo;
         uint256 gasConsumed = conveyorRouterV1.quoteSwapExactTokenForToken(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            amountOutMin,
-            multicall,
-            referralInfo,
-            false
+            tokenIn, amountIn, tokenOut, amountOutMin, multicall, referralInfo, false
         );
         console.log(gasConsumed);
     }
@@ -523,29 +386,23 @@ contract ConveyorRouterV1Test is DSTest {
 
         calls[0] = ConveyorRouterV1.Call({target: lp, callData: new bytes(0)});
 
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                1, //zeroForOne
-                0, //univ2
-                1, //msg.sender
-                300,
-                lp,
-                calls
-            );
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            1, //zeroForOne
+            0, //univ2
+            1, //msg.sender
+            300,
+            lp,
+            calls
+        );
 
         uint256 referralFee = 1e16;
         uint256 protocolFee = 5e16;
 
-        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1
-            .ReferralInfo({referrer: address(this), referralFee: referralFee});
+        ConveyorRouterV1.ReferralInfo memory referralInfo =
+            ConveyorRouterV1.ReferralInfo({referrer: address(this), referralFee: referralFee});
 
         conveyorRouterV1.swapExactTokenForTokenWithReferral{value: protocolFee}(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            amountOutMin,
-            multicall,
-            referralInfo
+            tokenIn, amountIn, tokenOut, amountOutMin, multicall, referralInfo
         );
     }
 
@@ -566,32 +423,23 @@ contract ConveyorRouterV1Test is DSTest {
 
         calls[0] = ConveyorRouterV1.Call({target: lp, callData: new bytes(0)});
 
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                1, //zeroForOne
-                0, //univ2
-                1, //msg.sender
-                300,
-                lp,
-                calls
-            );
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            1, //zeroForOne
+            0, //univ2
+            1, //msg.sender
+            300,
+            lp,
+            calls
+        );
 
         uint256 referralFee = 1e16;
         uint256 protocolFee = 5e16;
 
-        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1
-            .ReferralInfo({referrer: address(this), referralFee: referralFee});
+        ConveyorRouterV1.ReferralInfo memory referralInfo =
+            ConveyorRouterV1.ReferralInfo({referrer: address(this), referralFee: referralFee});
 
-        uint256 gasQuote = conveyorRouterV1.quoteSwapExactTokenForToken{
-            value: protocolFee
-        }(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            amountOutMin,
-            multicall,
-            referralInfo,
-            true
+        uint256 gasQuote = conveyorRouterV1.quoteSwapExactTokenForToken{value: protocolFee}(
+            tokenIn, amountIn, tokenOut, amountOutMin, multicall, referralInfo, true
         );
 
         console.log(gasQuote);
@@ -608,30 +456,18 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(
+        calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this), new bytes(0));
+
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            0, //zeroForOne
+            0, //univ2
+            1, //msg.sender
+            300,
             lp,
-            amountOutMin,
-            0,
-            address(this),
-            new bytes(0)
+            calls
         );
 
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                0, //zeroForOne
-                0, //univ2
-                1, //msg.sender
-                300,
-                lp,
-                calls
-            );
-
-        conveyorRouterV1.swapExactEthForToken{value: amountIn}(
-            tokenOut,
-            amountOutMin,
-            uint128(0),
-            multicall
-        );
+        conveyorRouterV1.swapExactEthForToken{value: amountIn}(tokenOut, amountOutMin, uint128(0), multicall);
     }
 
     function testSwapExactEthForTokensQuote() public {
@@ -645,30 +481,23 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(
+        calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this), new bytes(0));
+
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            0, //zeroForOne
+            0, //univ2
+            1, //msg.sender
+            300,
             lp,
-            amountOutMin,
-            0,
-            address(this),
-            new bytes(0)
+            calls
         );
 
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                0, //zeroForOne
-                0, //univ2
-                1, //msg.sender
-                300,
-                lp,
-                calls
-            );
+        ConveyorRouterV1.ReferralInfo memory referralInfo =
+            ConveyorRouterV1.ReferralInfo({referrer: address(this), referralFee: 0});
 
-        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1
-            .ReferralInfo({referrer: address(this), referralFee: 0});
-
-        uint256 gasQuote = conveyorRouterV1.quoteSwapExactEthForToken{
-            value: amountIn
-        }(tokenOut, amountOutMin, uint128(0), multicall, referralInfo, false);
+        uint256 gasQuote = conveyorRouterV1.quoteSwapExactEthForToken{value: amountIn}(
+            tokenOut, amountOutMin, uint128(0), multicall, referralInfo, false
+        );
 
         console.log(gasQuote);
     }
@@ -684,32 +513,24 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(
-            lp,
-            amountOutMin,
-            0,
-            address(this),
-            new bytes(0)
-        );
+        calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this), new bytes(0));
 
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                0, //zeroForOne
-                0, //univ2
-                1, //msg.sender
-                300,
-                lp,
-                calls
-            );
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            0, //zeroForOne
+            0, //univ2
+            1, //msg.sender
+            300,
+            lp,
+            calls
+        );
         uint128 protocolFee = 5e16;
         uint128 referralFee = 1e16;
 
-        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1
-            .ReferralInfo(address(this), referralFee);
+        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1.ReferralInfo(address(this), referralFee);
 
-        conveyorRouterV1.swapExactEthForTokenWithReferral{
-            value: amountIn + protocolFee
-        }(tokenOut, amountOutMin, protocolFee, multicall, referralInfo);
+        conveyorRouterV1.swapExactEthForTokenWithReferral{value: amountIn + protocolFee}(
+            tokenOut, amountOutMin, protocolFee, multicall, referralInfo
+        );
     }
 
     function testSwapExactEthForTokensWithReferralQuote() public {
@@ -723,32 +544,24 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(
-            lp,
-            amountOutMin,
-            0,
-            address(this),
-            new bytes(0)
-        );
+        calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this), new bytes(0));
 
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                0, //zeroForOne
-                0, //univ2
-                1, //msg.sender
-                300,
-                lp,
-                calls
-            );
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            0, //zeroForOne
+            0, //univ2
+            1, //msg.sender
+            300,
+            lp,
+            calls
+        );
         uint128 protocolFee = 5e16;
         uint128 referralFee = 1e16;
 
-        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1
-            .ReferralInfo(address(this), referralFee);
+        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1.ReferralInfo(address(this), referralFee);
 
-        uint256 gasQuote = conveyorRouterV1.quoteSwapExactEthForToken{
-            value: amountIn + protocolFee
-        }(tokenOut, amountOutMin, protocolFee, multicall, referralInfo, true);
+        uint256 gasQuote = conveyorRouterV1.quoteSwapExactEthForToken{value: amountIn + protocolFee}(
+            tokenOut, amountOutMin, protocolFee, multicall, referralInfo, true
+        );
 
         console.log(gasQuote);
     }
@@ -768,30 +581,18 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(
+        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorRouterV1), new bytes(0));
+
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            1, //zeroForOne
+            0, //univ2
+            0, //SwapAggregator
+            300,
             lp,
-            0,
-            amountOutMin,
-            address(conveyorRouterV1),
-            new bytes(0)
+            calls
         );
 
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                1, //zeroForOne
-                0, //univ2
-                0, //SwapAggregator
-                300,
-                lp,
-                calls
-            );
-
-        conveyorRouterV1.swapExactTokenForEth(
-            tokenIn,
-            amountIn,
-            amountOutMin,
-            multicall
-        );
+        conveyorRouterV1.swapExactTokenForEth(tokenIn, amountIn, amountOutMin, multicall);
         console.log("balance before", balanceBefore);
         console.log("balance after", address(this).balance);
     }
@@ -811,29 +612,21 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(
+        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorRouterV1), new bytes(0));
+
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            1, //zeroForOne
+            0, //univ2
+            0, //SwapAggregator
+            300,
             lp,
-            0,
-            amountOutMin,
-            address(conveyorRouterV1),
-            new bytes(0)
+            calls
         );
+        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1.ReferralInfo(address(this), 0);
 
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                1, //zeroForOne
-                0, //univ2
-                0, //SwapAggregator
-                300,
-                lp,
-                calls
-            );
-        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1
-            .ReferralInfo(address(this), 0);
-
-        uint256 gasQuote = conveyorRouterV1.quoteSwapExactTokenForEth{
-            value: 6e17
-        }(tokenIn, amountIn, amountOutMin, multicall, referralInfo, false);
+        uint256 gasQuote = conveyorRouterV1.quoteSwapExactTokenForEth{value: 6e17}(
+            tokenIn, amountIn, amountOutMin, multicall, referralInfo, false
+        );
         console.log(gasQuote);
         console.log("balance before", balanceBefore);
         console.log("balance after", address(this).balance);
@@ -854,35 +647,23 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(
-            lp,
-            0,
-            amountOutMin,
-            address(conveyorRouterV1),
-            new bytes(0)
-        );
+        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorRouterV1), new bytes(0));
 
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                1, //zeroForOne
-                0, //univ2
-                0, //SwapAggregator
-                300,
-                lp,
-                calls
-            );
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            1, //zeroForOne
+            0, //univ2
+            0, //SwapAggregator
+            300,
+            lp,
+            calls
+        );
 
         uint128 protocolFee = 5e16;
 
-        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1
-            .ReferralInfo(address(this), 1e16);
+        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1.ReferralInfo(address(this), 1e16);
 
         conveyorRouterV1.swapExactTokenForEthWithReferral{value: protocolFee}(
-            tokenIn,
-            amountIn,
-            amountOutMin,
-            multicall,
-            referralInfo
+            tokenIn, amountIn, amountOutMin, multicall, referralInfo
         );
         console.log("balance before", balanceBefore);
         console.log("balance after", address(this).balance);
@@ -903,52 +684,37 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV2Call(
-            lp,
-            0,
-            amountOutMin,
-            address(conveyorRouterV1),
-            new bytes(0)
-        );
+        calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorRouterV1), new bytes(0));
 
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                1, //zeroForOne
-                0, //univ2
-                0, //SwapAggregator
-                300,
-                lp,
-                calls
-            );
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            1, //zeroForOne
+            0, //univ2
+            0, //SwapAggregator
+            300,
+            lp,
+            calls
+        );
 
         uint128 protocolFee = 5e16;
 
-        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1
-            .ReferralInfo(address(this), 1e16);
+        ConveyorRouterV1.ReferralInfo memory referralInfo = ConveyorRouterV1.ReferralInfo(address(this), 1e16);
 
-        uint256 gasUsed = conveyorRouterV1.quoteSwapExactTokenForEth{
-            value: protocolFee
-        }(tokenIn, amountIn, amountOutMin, multicall, referralInfo, true);
+        uint256 gasUsed = conveyorRouterV1.quoteSwapExactTokenForEth{value: protocolFee}(
+            tokenIn, amountIn, amountOutMin, multicall, referralInfo, true
+        );
         console.log(gasUsed);
         console.log("balance before", balanceBefore);
         console.log("balance after", address(this).balance);
     }
 
     function testRouterDeployment() public view {
-        ICREATE3Factory create3Factory = ICREATE3Factory(
-            address(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1)
-        );
+        ICREATE3Factory create3Factory = ICREATE3Factory(address(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1));
         bytes32 salt = bytes32("0xffffff");
-        address deployed = create3Factory.getDeployed(
-            address(0x2f37bC8900EB1176C689c63c5E781B96DCC0C48E),
-            salt
-        );
+        address deployed = create3Factory.getDeployed(address(0x2f37bC8900EB1176C689c63c5E781B96DCC0C48E), salt);
         bytes memory initCode = type(ConveyorRouterV1).creationCode;
         bytes32 initHash = keccak256(abi.encode(initCode));
         console.logBytes32(initHash);
-        console.logBytes(
-            abi.encode(0xdD69DB25F6D620A7baD3023c5d32761D353D3De9)
-        );
+        console.logBytes(abi.encode(0xdD69DB25F6D620A7baD3023c5d32761D353D3De9));
         console.log(deployed);
     }
 
@@ -970,33 +736,20 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](2);
 
-        calls[0] = ConveyorRouterV1.Call({
-            target: firstLP,
-            callData: new bytes(0)
-        });
+        calls[0] = ConveyorRouterV1.Call({target: firstLP, callData: new bytes(0)});
 
-        calls[1] = ConveyorRouterV1.Call({
-            target: secondLP,
-            callData: new bytes(0)
-        });
+        calls[1] = ConveyorRouterV1.Call({target: secondLP, callData: new bytes(0)});
 
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                1, //zeroForOne
-                0, //univ2
-                7, //lp, msg.sender
-                307500, //300, 300
-                firstLP,
-                calls
-            );
-
-        conveyorRouterV1.swapExactTokenForToken(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            amountOutMin,
-            multicall
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            1, //zeroForOne
+            0, //univ2
+            7, //lp, msg.sender
+            307500, //300, 300
+            firstLP,
+            calls
         );
+
+        conveyorRouterV1.swapExactTokenForToken(tokenIn, amountIn, tokenOut, amountOutMin, multicall);
     }
 
     function testSwapUniv3SingleLP() public {
@@ -1008,52 +761,32 @@ contract ConveyorRouterV1Test is DSTest {
         address lp = 0x7685cD3ddD862b8745B1082A6aCB19E14EAA74F3;
 
         //Deposit weth to address(this)
-        (bool depositSuccess, ) = address(tokenOut).call{
-            value: 500000000 ether
-        }(abi.encodeWithSignature("deposit()"));
+        (bool depositSuccess,) = address(tokenOut).call{value: 500000000 ether}(abi.encodeWithSignature("deposit()"));
         require(depositSuccess, "deposit failed");
         IUniswapV3Pool(lp).swap(
-            address(this),
-            false,
-            500 ether,
-            TickMath.MAX_SQRT_RATIO - 1,
-            abi.encode(false, tokenOut, address(this))
+            address(this), false, 500 ether, TickMath.MAX_SQRT_RATIO - 1, abi.encode(false, tokenOut, address(this))
         );
 
         IERC20(tokenIn).approve(address(conveyorRouterV1), type(uint256).max);
 
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
 
-        calls[0] = newUniV3Call(
-            lp,
-            conveyorRouterV1.CONVEYOR_MULTICALL(),
-            address(this),
-            true,
-            amountIn,
-            tokenIn
-        );
+        calls[0] = newUniV3Call(lp, conveyorRouterV1.CONVEYOR_MULTICALL(), address(this), true, amountIn, tokenIn);
         console.log(IERC20(tokenIn).balanceOf(address(this)));
 
         forkId = vm.activeFork();
         vm.rollFork(forkId, 16749139);
         console.log(IERC20(tokenIn).balanceOf(address(this)));
-        ConveyorRouterV1.SwapAggregatorMulticall
-            memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
-                1, //zeroForOne
-                1,
-                0,
-                300,
-                conveyorRouterV1.CONVEYOR_MULTICALL(),
-                calls
-            );
-
-        conveyorRouterV1.swapExactTokenForToken(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            amountOutMin,
-            multicall
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            1, //zeroForOne
+            1,
+            0,
+            300,
+            conveyorRouterV1.CONVEYOR_MULTICALL(),
+            calls
         );
+
+        conveyorRouterV1.swapExactTokenForToken(tokenIn, amountIn, tokenOut, amountOutMin, multicall);
     }
 
     /// TODO: Prank address(this) to be tx.origin for this test
@@ -1070,21 +803,12 @@ contract ConveyorRouterV1Test is DSTest {
         conveyorRouterV1.withdraw();
     }
 
-    function uniswapV3SwapCallback(
-        int256 amount0Delta,
-        int256 amount1Delta,
-        bytes memory data
-    ) external {
+    function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes memory data) external {
         ///@notice Decode all of the swap data.
-        (bool _zeroForOne, address tokenIn, address _sender) = abi.decode(
-            data,
-            (bool, address, address)
-        );
+        (bool _zeroForOne, address tokenIn, address _sender) = abi.decode(data, (bool, address, address));
 
         ///@notice Set amountIn to the amountInDelta depending on boolean zeroForOne.
-        uint256 amountIn = _zeroForOne
-            ? uint256(amount0Delta)
-            : uint256(amount1Delta);
+        uint256 amountIn = _zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta);
 
         if (!(_sender == address(this))) {
             ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender.
@@ -1111,9 +835,7 @@ contract ConveyorRouterV1Test is DSTest {
             _receiver,
             _zeroForOne,
             int256(_amountIn),
-            _zeroForOne
-                ? TickMath.MIN_SQRT_RATIO + 1
-                : TickMath.MAX_SQRT_RATIO - 1,
+            _zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1,
             data
         );
         ///@notice Return the call
@@ -1121,33 +843,22 @@ contract ConveyorRouterV1Test is DSTest {
     }
 
     ///@notice Helper function to create a single mock call for a v2 swap.
-    function newUniV2Call(
-        address _lp,
-        uint256 amount0Out,
-        uint256 amount1Out,
-        address _receiver,
-        bytes memory _data
-    ) public pure returns (ConveyorRouterV1.Call memory) {
-        bytes memory callData = abi.encodeWithSignature(
-            "swap(uint256,uint256,address,bytes)",
-            amount0Out,
-            amount1Out,
-            _receiver,
-            _data
-        );
+    function newUniV2Call(address _lp, uint256 amount0Out, uint256 amount1Out, address _receiver, bytes memory _data)
+        public
+        pure
+        returns (ConveyorRouterV1.Call memory)
+    {
+        bytes memory callData =
+            abi.encodeWithSignature("swap(uint256,uint256,address,bytes)", amount0Out, amount1Out, _receiver, _data);
         return ConveyorRouterV1.Call({target: _lp, callData: callData});
     }
 
-    function newTransferCall(
-        address _token,
-        address _receiver,
-        uint256 _amount
-    ) public pure returns (ConveyorRouterV1.Call memory) {
-        bytes memory callData = abi.encodeWithSignature(
-            "transfer(address,uint256)",
-            _receiver,
-            _amount
-        );
+    function newTransferCall(address _token, address _receiver, uint256 _amount)
+        public
+        pure
+        returns (ConveyorRouterV1.Call memory)
+    {
+        bytes memory callData = abi.encodeWithSignature("transfer(address,uint256)", _receiver, _amount);
         return ConveyorRouterV1.Call({target: _token, callData: callData});
     }
 }
@@ -1155,10 +866,7 @@ contract ConveyorRouterV1Test is DSTest {
 contract ConveyorMulticallWrapper is ConveyorMulticall {
     constructor(address _conveyor) ConveyorMulticall(_conveyor) {}
 
-    function deriveCallFromBitmapWrapper(
-        uint40 bitmap,
-        uint256 position
-    ) public pure returns (uint256) {
+    function deriveCallFromBitmapWrapper(uint40 bitmap, uint256 position) public pure returns (uint256) {
         return deriveCallFromBitmap(bitmap, position);
     }
 }

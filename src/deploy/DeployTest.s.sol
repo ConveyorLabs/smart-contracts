@@ -15,16 +15,10 @@ contract Deploy is Script {
         // uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
         bytes32 salt = bytes32("0x3rlk7N6qpQ");
-        bytes memory creationCode = abi.encodePacked(
-            type(ConveyorRouterV1).creationCode,
-            abi.encode(GOERLI_WETH)
-        );
+        bytes memory creationCode = abi.encodePacked(type(ConveyorRouterV1).creationCode, abi.encode(GOERLI_WETH));
 
         vm.startBroadcast();
-        ICREATE3Factory(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1).deploy(
-            salt,
-            creationCode
-        );
+        ICREATE3Factory(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1).deploy(salt, creationCode);
         vm.stopBroadcast();
     }
 }
