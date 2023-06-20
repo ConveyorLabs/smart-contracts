@@ -1,5 +1,5 @@
 import math
-from eth_abi import encode_single
+from eth_abi import encode
 import sys
 def main(args):
     alphaX=int(args[1])
@@ -12,7 +12,7 @@ def main(args):
 
     simulatedSpotPrice = (reserveB/reserveA)*2**128
 
-    enc = encode_single('uint256', int(simulatedSpotPrice))
+    enc = encode(['uint256'], [int(simulatedSpotPrice)])
     print("0x" + enc.hex())
 
 

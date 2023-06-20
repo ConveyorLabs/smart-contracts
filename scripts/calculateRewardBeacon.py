@@ -1,5 +1,5 @@
 import math
-from eth_abi import encode_single
+from eth_abi import encode
 import sys
 def main(args):
     percentFee = int(args[1])
@@ -17,7 +17,7 @@ def main(args):
     conveyorReward = conveyorPercent*wethTotal
     beaconReward = wethTotal-conveyorReward
 
-    enc = encode_single('uint256', int(beaconReward))
+    enc = encode(['uint256'], [int(beaconReward)])
     print("0x" + enc.hex())
 
 if __name__ == '__main__':
