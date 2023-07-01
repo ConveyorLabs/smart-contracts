@@ -1,4 +1,4 @@
-name: test
+name: smart_contracts
 
 on:
   push:
@@ -36,5 +36,3 @@ jobs:
       - name: Run tests
         run: forge test -f "${{ secrets.MAINNET_RPC_ENDPOINT }}" --ffi 
 
-      - name: Run snapshot
-        run: forge snapshot -f "${{ secrets.MAINNET_RPC_ENDPOINT }}" --ffi
