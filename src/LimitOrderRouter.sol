@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.16;
+pragma solidity ^0.8.19;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "./LimitOrderBook.sol";
@@ -62,18 +62,12 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
     ///@param _usdc - Address of the USD pegged token for the chain.
     ///@param _limitOrderExecutor - Address of the limit order executor contract
     ///@param _minExecutionCredit - Minimum amount of credit that must be provided to the limit order executor contract.
-    constructor(
-        address _weth,
-        address _usdc,
-        address _limitOrderExecutor,
-        uint256 _minExecutionCredit
-    ) LimitOrderBook(_limitOrderExecutor, _weth, _usdc, _minExecutionCredit) {
+    constructor(address _weth, address _usdc, address _limitOrderExecutor, uint256 _minExecutionCredit)
+        LimitOrderBook(_limitOrderExecutor, _weth, _usdc, _minExecutionCredit)
+    {
         ///@notice Require that deployment addresses are not zero
         ///@dev All other addresses are being asserted in the limit order executor, which deploys the limit order router
-        require(
-            _limitOrderExecutor != address(0),
-            "Invalid ConveyorExecutor address"
-        );
+        require(_limitOrderExecutor != address(0), "Invalid ConveyorExecutor address");
 
         ///@notice Set the owner of the contract
         owner = tx.origin;
@@ -83,8 +77,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
     /// @param orderIds - Array of order Ids to indicate which orders should be refreshed.
     function refreshOrder(bytes32[] calldata orderIds) external nonReentrant {
         ///@notice Get the last checkin time of the executor.
-        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
-            .lastCheckIn(msg.sender);
+        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR).lastCheckIn(msg.sender);
 
         ///@notice Check if the last checkin time is greater than the checkin interval.
         if (block.timestamp - lastCheckInTime > CHECK_IN_INTERVAL) {
@@ -96,7 +89,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         uint256 totalRefreshFees;
 
         ///@notice For each order in the orderIds array.
-        for (uint256 i = 0; i < orderIds.length; ) {
+        for (uint256 i = 0; i < orderIds.length;) {
             ///@notice Get the current orderId.
             bytes32 orderId = orderIds[i];
 
@@ -115,10 +108,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
     ///@notice Internal helper function to refresh a Limit Order.
     ///@param order - The Limit Order to be refreshed.
     ///@return executorFee - The fee to be compensated to the off-chain executor.
-    function _refreshLimitOrder(LimitOrder memory order)
-        internal
-        returns (uint256 executorFee)
-    {
+    function _refreshLimitOrder(LimitOrder memory order) internal returns (uint256 executorFee) {
         uint128 executionCreditBalance = order.executionCredit;
 
         ///@notice Require that current timestamp is not past order expiration, otherwise cancel the order and continue the loop.
@@ -144,25 +134,14 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
             revert OrderNotEligibleForRefresh(order.orderId);
         }
 
-        orderIdToLimitOrder[order.orderId].executionCredit =
-            executionCreditBalance -
-            uint128(REFRESH_FEE);
-        emit OrderExecutionCreditUpdated(
-            order.orderId,
-            executionCreditBalance - REFRESH_FEE
-        );
+        orderIdToLimitOrder[order.orderId].executionCredit = executionCreditBalance - uint128(REFRESH_FEE);
+        emit OrderExecutionCreditUpdated(order.orderId, executionCreditBalance - REFRESH_FEE);
         ///@notice update the order's last refresh timestamp
         ///@dev uint32(block.timestamp % (2**32 - 1)) is used to future proof the contract.
-        orderIdToLimitOrder[order.orderId].lastRefreshTimestamp = uint32(
-            block.timestamp % (2**32 - 1)
-        );
+        orderIdToLimitOrder[order.orderId].lastRefreshTimestamp = uint32(block.timestamp % (2 ** 32 - 1));
 
         ///@notice Emit an event to notify the off-chain executors that the order has been refreshed.
-        emit OrderRefreshed(
-            order.orderId,
-            order.lastRefreshTimestamp,
-            order.expirationTimestamp
-        );
+        emit OrderRefreshed(order.orderId, order.lastRefreshTimestamp, order.expirationTimestamp);
 
         ///@notice Accumulate the REFRESH_FEE.
         return REFRESH_FEE;
@@ -171,14 +150,9 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
     /// @notice Function for off-chain executors to cancel an Order that does not have the minimum gas credit balance for order execution.
     /// @param orderId - Order Id of the order to cancel.
     /// @return success - Boolean to indicate if the order was successfully canceled and compensation was sent to the off-chain executor.
-    function validateAndCancelOrder(bytes32 orderId)
-        external
-        nonReentrant
-        returns (bool success)
-    {
+    function validateAndCancelOrder(bytes32 orderId) external nonReentrant returns (bool success) {
         ///@notice Get the last checkin time of the executor.
-        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
-            .lastCheckIn(msg.sender);
+        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR).lastCheckIn(msg.sender);
 
         ///@notice Check if the last checkin time is greater than the checkin interval.
         if (block.timestamp - lastCheckInTime > CHECK_IN_INTERVAL) {
@@ -201,25 +175,19 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
     /// @notice Internal helper function to cancel an order. This function is only called after cancel order validation.
     /// @param order - The order to cancel.
     /// @return success - Boolean to indicate if the order was successfully canceled.
-    function _cancelLimitOrderViaExecutor(LimitOrder memory order)
-        internal
-        returns (uint256)
-    {
+    function _cancelLimitOrderViaExecutor(LimitOrder memory order) internal returns (uint256) {
         uint256 executorFee;
         ///@notice Remove the order from the limit order system.
         _removeOrderFromSystem(order.orderId);
 
-        addressToOrderIds[msg.sender][order.orderId] = OrderType
-            .CanceledLimitOrder;
+        addressToOrderIds[msg.sender][order.orderId] = OrderType.CanceledLimitOrder;
 
         uint128 executionCredit = order.executionCredit;
 
         ///@notice If the order owner's gas credit balance is greater than the minimum needed for a single order, send the executor the REFRESH_FEE.
         if (executionCredit > REFRESH_FEE) {
             ///@notice Decrement from the order owner's gas credit balance.
-            orderIdToLimitOrder[order.orderId].executionCredit =
-                executionCredit -
-                uint128(REFRESH_FEE);
+            orderIdToLimitOrder[order.orderId].executionCredit = executionCredit - uint128(REFRESH_FEE);
             executorFee = REFRESH_FEE;
             _safeTransferETH(order.owner, executionCredit - REFRESH_FEE);
         } else {
@@ -238,12 +206,9 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
     ///@notice Function to validate the congruency of an array of orders.
     ///@param orders Array of orders to be validated
-    function _validateOrderSequencing(LimitOrder[] memory orders)
-        internal
-        pure
-    {
+    function _validateOrderSequencing(LimitOrder[] memory orders) internal pure {
         ///@notice Iterate through the length of orders -1.
-        for (uint256 i = 0; i < orders.length - 1; ) {
+        for (uint256 i = 0; i < orders.length - 1;) {
             ///@notice Cache order at index i, and i+1
             LimitOrder memory currentOrder = orders[i];
             LimitOrder memory nextOrder = orders[i + 1];
@@ -255,10 +220,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
             ///@notice Check if the token in is the same for the next order
             if (currentOrder.tokenIn != nextOrder.tokenIn) {
-                revert IncongruentInputTokenInOrderGroup(
-                    nextOrder.tokenIn,
-                    currentOrder.tokenIn
-                );
+                revert IncongruentInputTokenInOrderGroup(nextOrder.tokenIn, currentOrder.tokenIn);
             }
 
             ///@notice Check if the stoploss status is the same for the next order
@@ -268,10 +230,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
             ///@notice Check if the token out is the same for the next order
             if (currentOrder.tokenOut != nextOrder.tokenOut) {
-                revert IncongruentOutputTokenInOrderGroup(
-                    nextOrder.tokenOut,
-                    currentOrder.tokenOut
-                );
+                revert IncongruentOutputTokenInOrderGroup(nextOrder.tokenOut, currentOrder.tokenOut);
             }
 
             ///@notice Check if the buy status is the same for the next order
@@ -304,14 +263,9 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
     ///@notice This function is called by off-chain executors, passing in an array of orderIds to execute a specific batch of orders.
     /// @param orderIds - Array of orderIds to indicate which orders should be executed.
-    function executeLimitOrders(bytes32[] calldata orderIds)
-        external
-        nonReentrant
-        onlyEOA
-    {
+    function executeLimitOrders(bytes32[] calldata orderIds) external nonReentrant onlyEOA {
         ///@notice Get the last checkin time of the executor.
-        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR)
-            .lastCheckIn(msg.sender);
+        uint256 lastCheckInTime = IConveyorExecutor(LIMIT_ORDER_EXECUTOR).lastCheckIn(msg.sender);
 
         ///@notice Check if the last checkin time is greater than the checkin interval.
         if (block.timestamp - lastCheckInTime > CHECK_IN_INTERVAL) {
@@ -327,7 +281,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         ///@notice Get all of the orders by orderId and add them to a temporary orders array
         LimitOrder[] memory orders = new LimitOrder[](orderIds.length);
 
-        for (uint256 i = 0; i < orderIds.length; ) {
+        for (uint256 i = 0; i < orderIds.length;) {
             orders[i] = getLimitOrderById(orderIds[i]);
             if (orders[i].orderId == bytes32(0)) {
                 revert OrderDoesNotExist(orderIds[i]);
@@ -358,18 +312,16 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
         ///@notice If the order is not taxed and the tokenOut on the order is Weth
         if (orders[0].tokenOut == WETH) {
-            (totalBeaconReward, totalConveyorReward) = IConveyorExecutor(
-                LIMIT_ORDER_EXECUTOR
-            ).executeTokenToWethOrders(orders);
+            (totalBeaconReward, totalConveyorReward) =
+                IConveyorExecutor(LIMIT_ORDER_EXECUTOR).executeTokenToWethOrders(orders);
         } else {
             ///@notice Otherwise, if the tokenOut is not weth, continue with a regular token to token execution.
-            (totalBeaconReward, totalConveyorReward) = IConveyorExecutor(
-                LIMIT_ORDER_EXECUTOR
-            ).executeTokenToTokenOrders(orders);
+            (totalBeaconReward, totalConveyorReward) =
+                IConveyorExecutor(LIMIT_ORDER_EXECUTOR).executeTokenToTokenOrders(orders);
         }
 
         ///@notice Iterate through all orderIds in the batch and delete the orders from queue post execution.
-        for (uint256 i = 0; i < orderIds.length; ) {
+        for (uint256 i = 0; i < orderIds.length;) {
             bytes32 orderId = orderIds[i];
             ///@notice Mark the order as resolved from the system.
             _resolveCompletedOrder(orderId);
@@ -384,7 +336,7 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
 
         ///@notice Calculate the execution gas compensation.
         uint256 executionGasCompensation;
-        for (uint256 i = 0; i < orders.length; ) {
+        for (uint256 i = 0; i < orders.length;) {
             executionGasCompensation += orders[i].executionCredit;
             unchecked {
                 ++i;
@@ -411,15 +363,9 @@ contract LimitOrderRouter is ILimitOrderRouter, LimitOrderBook {
         tempOwner = newOwner;
     }
 
-    function setMinExecutionCredit(uint256 newMinExecutionCredit)
-        external
-        onlyOwner
-    {
+    function setMinExecutionCredit(uint256 newMinExecutionCredit) external onlyOwner {
         uint256 oldMinExecutionCredit = minExecutionCredit;
         minExecutionCredit = newMinExecutionCredit;
-        emit MinExecutionCreditUpdated(
-            minExecutionCredit,
-            oldMinExecutionCredit
-        );
+        emit MinExecutionCreditUpdated(minExecutionCredit, oldMinExecutionCredit);
     }
 }

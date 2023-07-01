@@ -1,5 +1,5 @@
 import math
-from eth_abi import encode_single
+from eth_abi import encode
 import sys
 def main(args):
     v3Spot = int(args[1])
@@ -17,7 +17,7 @@ def main(args):
     if(priceDivergence==340282366920938463463374607431768211456):
         priceDivergence=0
     
-    enc = encode_single('uint256', int(priceDivergence))
+    enc = encode(['uint256'], [int(priceDivergence)])
     print("0x" + enc.hex())
 
 if __name__ == '__main__':

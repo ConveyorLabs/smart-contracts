@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity ^0.8.19;
 
 interface ILimitOrderRouter {
     function refreshOrder(bytes32[] memory orderIds) external;
 
-    function validateAndCancelOrder(bytes32 orderId)
-        external
-        returns (bool success);
+    function validateAndCancelOrder(bytes32 orderId) external returns (bool success);
 
     function executeLimitOrders(bytes32[] calldata orderIds) external;
 

@@ -1,5 +1,5 @@
 import math
-from eth_abi import encode_single
+from eth_abi import encode
 import sys
 def main(args):
     
@@ -11,7 +11,7 @@ def main(args):
 
     reserveB = math.ceil((reserveIn*reserveOut)/(reserveA))
 
-    enc = encode_single('uint256', int(reserveB))
+    enc = encode(['uint256'], [int(reserveB)])
     print("0x" + enc.hex())
 
 if __name__ == '__main__':

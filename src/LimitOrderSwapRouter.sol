@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.16;
+pragma solidity ^0.8.19;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Factory.sol";
@@ -101,8 +101,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     uint128 private constant MIN_FEE_64x64 = 18446744073709552;
     uint128 private constant BASE_SWAP_FEE = 55340232221128660;
     uint128 private constant MAX_UINT_128 = 0xffffffffffffffffffffffffffffffff;
-    uint256 private constant MAX_UINT_256 =
-        0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+    uint256 private constant MAX_UINT_256 = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     uint256 private constant ONE_128x128 = uint256(1) << 128;
     uint24 private constant ZERO_UINT24 = 0;
     uint256 private constant ZERO_POINT_NINE = 16602069666338597000 << 64;
@@ -118,8 +117,10 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
 
     //======================Constructor================================
 
-    /**@dev It is important to note that a univ2 compatible DEX must be initialized in the 0th index.
-        The calculateFee function relies on a uniV2 DEX to be in the 0th index.*/
+    /**
+     * @dev It is important to note that a univ2 compatible DEX must be initialized in the 0th index.
+     *     The calculateFee function relies on a uniV2 DEX to be in the 0th index.
+     */
     ///@param _dexFactories - Array of DEX factory addresses.
     ///@param _isUniV2 - Array of booleans indicating if the DEX is UniV2 compatible.
     constructor(address[] memory _dexFactories, bool[] memory _isUniV2) {
@@ -128,16 +129,8 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
             if (i == 0) {
                 require(_isUniV2[i], "First Dex must be uniswap v2");
             }
-            require(
-                _dexFactories[i] != address(0),
-                "Zero values in constructor"
-            );
-            dexes.push(
-                Dex({
-                    factoryAddress: _dexFactories[i],
-                    isUniV2: _isUniV2[i]
-                })
-            );
+            require(_dexFactories[i] != address(0), "Zero values in constructor");
+            dexes.push(Dex({factoryAddress: _dexFactories[i], isUniV2: _isUniV2[i]}));
 
             address uniswapV3Factory;
             ///@notice If the dex is a univ3 variant, then set the uniswapV3Factory storage address.
@@ -168,36 +161,27 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     /// @notice Helper function to calculate the logistic mapping output on a USDC input quantity for fee % calculation.
     /// @dev amountIn must be in WETH represented in 18 decimal form.
     /// @dev This calculation assumes that all values are in a 64x64 fixed point uint128 representation.
-    /** @param amountIn - Amount of Weth represented as a 64x64 fixed point value to calculate the fee that will be applied
-    to the amountOut of an executed order. */
+    /**
+     * @param amountIn - Amount of Weth represented as a 64x64 fixed point value to calculate the fee that will be applied
+     * to the amountOut of an executed order.
+     */
     ///@param usdc - Address of USDC
     ///@param weth - Address of Weth
     /// @return calculated_fee_64x64 -  Returns the fee percent that is applied to the amountOut realized from an executed.
     ///NOTE: f(x)=0.225/e^(x/100000)+0.025
-    function calculateFee(
-        uint128 amountIn,
-        address usdc,
-        address weth
-    ) public view returns (uint128) {
+    function calculateFee(uint128 amountIn, address usdc, address weth) public view returns (uint128) {
         if (amountIn == 0) {
             revert AmountInIsZero();
         }
 
         ///@notice Initialize spot reserve structure to retrive the spot price from uni v2
-        (SpotReserve memory _spRes, ) = _calculateV2SpotPrice(
-            weth,
-            usdc,
-            dexes[0].factoryAddress
-        );
+        (SpotReserve memory _spRes,) = _calculateV2SpotPrice(weth, usdc, dexes[0].factoryAddress);
 
         ///@notice Cache the spot price
         uint256 spotPrice = _spRes.spotPrice;
 
         ///@notice The SpotPrice is represented as a 128x128 fixed point value. To derive the amount in USDC, multiply spotPrice*amountIn and adjust to base 10
-        uint256 amountInUSDCDollarValue = ConveyorMath.mul128U(
-            spotPrice,
-            amountIn
-        ) / uint256(10**18);
+        uint256 amountInUSDCDollarValue = ConveyorMath.mul128U(spotPrice, amountIn) / uint256(10 ** 18);
 
         ///@notice if usdc value of trade is >= 1,000,000 set static fee of 0.00025
         if (amountInUSDCDollarValue >= 1000000) {
@@ -207,9 +191,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
         uint128 numerator = 4150517416584649000;
 
         ///@notice Exponent= usdAmount/100000
-        uint128 exponent = uint128(
-            ConveyorMath.divUU(amountInUSDCDollarValue, 100000)
-        );
+        uint128 exponent = uint128(ConveyorMath.divUU(amountInUSDCDollarValue, 100000));
 
         // ///@notice This is to prevent overflow, and order is of sufficient size to receive 0.00025 fee
         if (exponent >= 0x400000000000000000) {
@@ -220,24 +202,16 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
         uint128 denominator = ConveyorMath.exp(exponent);
 
         // ///@notice divide numerator by denominator
-        uint128 rationalFraction = ConveyorMath.div64x64(
-            numerator,
-            denominator
-        );
+        uint128 rationalFraction = ConveyorMath.div64x64(numerator, denominator);
 
-        return
-            ConveyorMath.add64x64(rationalFraction, 461168601842738800) / 10**2;
+        return ConveyorMath.add64x64(rationalFraction, 461168601842738800) / 10 ** 2;
     }
 
     ///@notice Helper function to transfer ERC20 tokens out to an order owner address.
     ///@param orderOwner - The address to send the tokens to.
     ///@param amount - The amount of tokenOut to send to orderOwner.
     ///@param tokenOut - The address of the ERC20 token being sent to orderOwner.
-    function _transferTokensOutToOwner(
-        address orderOwner,
-        uint256 amount,
-        address tokenOut
-    ) internal {
+    function _transferTokensOutToOwner(address orderOwner, uint256 amount, address tokenOut) internal {
         IERC20(tokenOut).safeTransfer(orderOwner, amount);
     }
 
@@ -245,11 +219,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     ///@param totalBeaconReward - The total reward to be transferred to the executor.
     ///@param executorAddress - The address to send the reward to.
     ///@param weth - The wrapped native token address.
-    function _transferBeaconReward(
-        uint256 totalBeaconReward,
-        address executorAddress,
-        address weth
-    ) internal {
+    function _transferBeaconReward(uint256 totalBeaconReward, address executorAddress, address weth) internal {
         ///@notice Unwrap the total reward.
         IWETH(weth).withdraw(totalBeaconReward);
 
@@ -286,23 +256,17 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
         }
 
         ///@notice Get token0 from the pairing.
-        (address token0, ) = _sortTokens(_tokenIn, _tokenOut);
+        (address token0,) = _sortTokens(_tokenIn, _tokenOut);
 
         ///@notice Intialize the amountOutMin value
-        (uint256 amount0Out, uint256 amount1Out) = _tokenIn == token0
-            ? (uint256(0), _amountOutMin)
-            : (_amountOutMin, uint256(0));
+        (uint256 amount0Out, uint256 amount1Out) =
+            _tokenIn == token0 ? (uint256(0), _amountOutMin) : (_amountOutMin, uint256(0));
 
         ///@notice Get the balance before the swap to know how much was received from swapping.
         uint256 balanceBefore = IERC20(_tokenOut).balanceOf(_receiver);
 
         ///@notice Execute the swap on the lp for the amounts specified.
-        IUniswapV2Pair(_lp).swap(
-            amount0Out,
-            amount1Out,
-            _receiver,
-            new bytes(0)
-        );
+        IUniswapV2Pair(_lp).swap(amount0Out, amount1Out, _receiver, new bytes(0));
 
         ///@notice calculate the amount recieved
         amountReceived = IERC20(_tokenOut).balanceOf(_receiver) - balanceBefore;
@@ -339,26 +303,9 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
         address _sender
     ) internal returns (uint256 amountReceived) {
         if (_lpIsNotUniV3(_lp)) {
-            amountReceived = _swapV2(
-                _tokenIn,
-                _tokenOut,
-                _lp,
-                _amountIn,
-                _amountOutMin,
-                _receiver,
-                _sender
-            );
+            amountReceived = _swapV2(_tokenIn, _tokenOut, _lp, _amountIn, _amountOutMin, _receiver, _sender);
         } else {
-            amountReceived = _swapV3(
-                _lp,
-                _tokenIn,
-                _tokenOut,
-                _fee,
-                _amountIn,
-                _amountOutMin,
-                _receiver,
-                _sender
-            );
+            amountReceived = _swapV3(_lp, _tokenIn, _tokenOut, _fee, _amountIn, _amountOutMin, _receiver, _sender);
         }
     }
 
@@ -386,28 +333,19 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
 
         ///@notice Scope out logic to prevent stack too deep.
         {
-            (address token0, ) = _sortTokens(_tokenIn, _tokenOut);
+            (address token0,) = _sortTokens(_tokenIn, _tokenOut);
             _zeroForOne = token0 == _tokenIn ? true : false;
         }
 
         ///@notice Pack the relevant data to be retrieved in the swap callback.
-        bytes memory data = abi.encode(
-            _amountOutMin,
-            _zeroForOne,
-            _tokenIn,
-            _tokenOut,
-            _fee,
-            _sender
-        );
+        bytes memory data = abi.encode(_amountOutMin, _zeroForOne, _tokenIn, _tokenOut, _fee, _sender);
 
         ///@notice Execute the swap on the lp for the amounts specified.
         IUniswapV3Pool(_lp).swap(
             _receiver,
             _zeroForOne,
             int256(_amountIn),
-            _zeroForOne
-                ? TickMath.MIN_SQRT_RATIO + 1
-                : TickMath.MAX_SQRT_RATIO - 1,
+            _zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1,
             data
         );
 
@@ -423,29 +361,12 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     ///@param amount0Delta - The change in token0 reserves from the swap.
     ///@param amount1Delta - The change in token1 reserves from the swap.
     ///@param data - The data packed into the swap.
-    function uniswapV3SwapCallback(
-        int256 amount0Delta,
-        int256 amount1Delta,
-        bytes calldata data
-    ) external {
+    function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external {
         ///@notice Decode all of the swap data.
-        (
-            uint256 amountOutMin,
-            bool _zeroForOne,
-            address tokenIn,
-            address tokenOut,
-            uint24 fee,
-            address _sender
-        ) = abi.decode(
-                data,
-                (uint256, bool, address, address, uint24, address)
-            );
+        (uint256 amountOutMin, bool _zeroForOne, address tokenIn, address tokenOut, uint24 fee, address _sender) =
+            abi.decode(data, (uint256, bool, address, address, uint24, address));
 
-        address poolAddress = IUniswapV3Factory(UNISWAP_V3_FACTORY).getPool(
-            tokenIn,
-            tokenOut,
-            fee
-        );
+        address poolAddress = IUniswapV3Factory(UNISWAP_V3_FACTORY).getPool(tokenIn, tokenOut, fee);
 
         if (msg.sender != poolAddress) {
             revert UnauthorizedUniswapV3CallbackCaller();
@@ -468,9 +389,7 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
         }
 
         ///@notice Set amountIn to the amountInDelta depending on boolean zeroForOne.
-        uint256 amountIn = _zeroForOne
-            ? uint256(amount0Delta)
-            : uint256(amount1Delta);
+        uint256 amountIn = _zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta);
 
         if (!(_sender == address(this))) {
             ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender.
@@ -484,11 +403,11 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     /// @param token0 - Address of token1.
     /// @param token1 - Address of token2.
     /// @param _factory - Factory address.
-    function _calculateV2SpotPrice(
-        address token0,
-        address token1,
-        address _factory
-    ) internal view returns (SpotReserve memory spRes, address poolAddress) {
+    function _calculateV2SpotPrice(address token0, address token1, address _factory)
+        internal
+        view
+        returns (SpotReserve memory spRes, address poolAddress)
+    {
         ///@notice Require token address's are not identical
 
         if (token0 == token1) {
@@ -516,30 +435,21 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
         }
         {
             ///@notice Set reserve0, reserve1 to current LP reserves
-            (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pairAddress)
-                .getReserves();
+            (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(pairAddress).getReserves();
 
             ///@notice Convert the reserve values to a common decimal base.
-            (
-                uint256 commonReserve0,
-                uint256 commonReserve1
-            ) = _getReservesCommonDecimals(tok0, tok1, reserve0, reserve1);
+            (uint256 commonReserve0, uint256 commonReserve1) =
+                _getReservesCommonDecimals(tok0, tok1, reserve0, reserve1);
 
             ///@notice Set spotPrice to the current spot price on the dex represented as 128.128 fixed point.
             _spRes.spotPrice = token0IsReserve0
-                ? uint256(ConveyorMath.divUU(commonReserve1, commonReserve0)) <<
-                    64
-                : _spRes.spotPrice =
-                uint256(ConveyorMath.divUU(commonReserve0, commonReserve1)) <<
-                64;
+                ? uint256(ConveyorMath.divUU(commonReserve1, commonReserve0)) << 64
+                : _spRes.spotPrice = uint256(ConveyorMath.divUU(commonReserve0, commonReserve1)) << 64;
 
             _spRes.token0IsReserve0 = token0IsReserve0;
 
             ///@notice Set res0, res1 on SpotReserve to commonReserve0, commonReserve1 respectively.
-            (_spRes.res0, _spRes.res1) = (
-                uint128(commonReserve0),
-                uint128(commonReserve1)
-            );
+            (_spRes.res0, _spRes.res1) = (uint128(commonReserve0), uint128(commonReserve1));
         }
 
         ///@notice Return pool address and populated SpotReserve struct.
@@ -551,23 +461,22 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     ///@param tok1 - Address of token1.
     ///@param reserve0 - Reserve0 liquidity.
     ///@param reserve1 - Reserve1 liquidity.
-    function _getReservesCommonDecimals(
-        address tok0,
-        address tok1,
-        uint128 reserve0,
-        uint128 reserve1
-    ) internal view returns (uint128, uint128) {
+    function _getReservesCommonDecimals(address tok0, address tok1, uint128 reserve0, uint128 reserve1)
+        internal
+        view
+        returns (uint128, uint128)
+    {
         ///@notice Get target decimals for token0 & token1
         uint8 token0Decimals = IERC20(tok0).decimals();
         uint8 token1Decimals = IERC20(tok1).decimals();
 
         ///@notice Retrieve the common 18 decimal reserve values.
         uint128 commonReserve0 = token0Decimals <= 18
-            ? uint128(reserve0 * (10**(18 - token0Decimals)))
-            : uint128(reserve0 * (10**(token0Decimals - 18)));
+            ? uint128(reserve0 * (10 ** (18 - token0Decimals)))
+            : uint128(reserve0 * (10 ** (token0Decimals - 18)));
         uint128 commonReserve1 = token1Decimals <= 18
-            ? uint128(reserve1 * (10**(18 - token1Decimals)))
-            : uint128(reserve1 * (10**(token1Decimals - 18)));
+            ? uint128(reserve1 * (10 ** (18 - token1Decimals)))
+            : uint128(reserve1 * (10 ** (token1Decimals - 18)));
         return (commonReserve0, commonReserve1);
     }
 
@@ -578,12 +487,11 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     /// @param _factory - Uniswap v3 factory address.
     /// @return  _spRes SpotReserve struct to hold reserve0, reserve1, and the spot price of the token pair.
     /// @return pool Address of the Uniswap V3 pool.
-    function _calculateV3SpotPrice(
-        address token0,
-        address token1,
-        uint24 fee,
-        address _factory
-    ) internal view returns (SpotReserve memory _spRes, address pool) {
+    function _calculateV3SpotPrice(address token0, address token1, uint24 fee, address _factory)
+        internal
+        view
+        returns (SpotReserve memory _spRes, address pool)
+    {
         ///@notice Sort the tokens to retrieve token0, token1 in the pool.
         (address _tokenX, address _tokenY) = _sortTokens(token0, token1);
         ///@notice Get the pool address for token pair.
@@ -593,18 +501,13 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
             return (_spRes, address(0));
         }
         ///@notice Get the current sqrtPrice ratio.
-        (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(pool).slot0();
+        (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(pool).slot0();
 
         ///@notice Boolean indicating whether token0 is token0 in the pool.
         bool token0IsReserve0 = _tokenX == token0 ? true : false;
 
         ///@notice Initialize block scoped variables
-        uint256 priceX128 = fromSqrtX96(
-            sqrtPriceX96,
-            token0IsReserve0,
-            _tokenX,
-            _tokenY
-        );
+        uint256 priceX128 = fromSqrtX96(sqrtPriceX96, token0IsReserve0, _tokenX, _tokenY);
 
         ///@notice Set the spot price in the spot reserve structure.
         _spRes.spotPrice = priceX128;
@@ -617,29 +520,23 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     ///@param _factory - Factory address of the Dex.
     ///@param token0 - Token0 address.
     ///@param token1 - Token1 address.
-    function _getV2PairAddress(
-        address _factory,
-        address token0,
-        address token1
-    ) internal view returns (address pairAddress) {
+    function _getV2PairAddress(address _factory, address token0, address token1)
+        internal
+        view
+        returns (address pairAddress)
+    {
         pairAddress = IUniswapV2Factory(_factory).getPair(token0, token1);
     }
 
     /// @notice Helper function to return sorted token addresses.
     /// @param tokenA - Address of tokenA.
     /// @param tokenB - Address of tokenB.
-    function _sortTokens(address tokenA, address tokenB)
-        internal
-        pure
-        returns (address token0, address token1)
-    {
+    function _sortTokens(address tokenA, address tokenB) internal pure returns (address token0, address token1) {
         if (tokenA == tokenB) {
             revert IdenticalTokenAddresses();
         }
 
-        (token0, token1) = tokenA < tokenB
-            ? (tokenA, tokenB)
-            : (tokenB, tokenA);
+        (token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
 
         if (token0 == address(0)) {
             revert AddressIsZero();
@@ -653,20 +550,18 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
         bool success;
         assembly {
             //store the function sig for  "fee()"
-            mstore(
-                0x00,
-                0xddca3f4300000000000000000000000000000000000000000000000000000000
-            )
+            mstore(0x00, 0xddca3f4300000000000000000000000000000000000000000000000000000000)
 
-            success := call(
-                gas(), // gas remaining
-                lp, // destination address
-                0, // no ether
-                0x00, // input buffer (starts after the first 32 bytes in the `data` array)
-                0x04, // input length (loaded from the first 32 bytes in the `data` array)
-                0x00, // output buffer
-                0x00 // output length
-            )
+            success :=
+                call(
+                    gas(), // gas remaining
+                    lp, // destination address
+                    0, // no ether
+                    0x00, // input buffer (starts after the first 32 bytes in the `data` array)
+                    0x04, // input length (loaded from the first 32 bytes in the `data` array)
+                    0x00, // output buffer
+                    0x00 // output length
+                )
         }
         ///@notice return the opposite of success, meaning if the call succeeded, the address is univ3, and we should
         ///@notice indicate that lpIsNotUniV3 is false
@@ -679,11 +574,11 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
     /// @param FEE - The Uniswap V3 pool fee on the token pair.
     /// @return prices - SpotReserve array holding the reserves and spot prices across all dexes.
     /// @return lps - Pool address's on the token pair across all dexes.
-    function getAllPrices(
-        address token0,
-        address token1,
-        uint24 FEE
-    ) public view returns (SpotReserve[] memory prices, address[] memory lps) {
+    function getAllPrices(address token0, address token1, uint24 FEE)
+        public
+        view
+        returns (SpotReserve[] memory prices, address[] memory lps)
+    {
         ///@notice Check if the token address' are identical.
         if (token0 != token1) {
             ///@notice Initialize SpotReserve and lp arrays of lenth dexes.length
@@ -691,18 +586,12 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
             address[] memory _lps = new address[](dexes.length);
 
             ///@notice Iterate through Dexs in dexes and check if isUniV2.
-            for (uint256 i = 0; i < dexes.length; ) {
+            for (uint256 i = 0; i < dexes.length;) {
                 if (dexes[i].isUniV2) {
                     {
                         ///@notice Get the Uniswap v2 spot price and lp address.
-                        (
-                            SpotReserve memory spotPrice,
-                            address poolAddress
-                        ) = _calculateV2SpotPrice(
-                                token0,
-                                token1,
-                                dexes[i].factoryAddress
-                            );
+                        (SpotReserve memory spotPrice, address poolAddress) =
+                            _calculateV2SpotPrice(token0, token1, dexes[i].factoryAddress);
                         ///@notice Set SpotReserve and lp values if the returned values are not null.
                         if (spotPrice.spotPrice != 0) {
                             _spotPrices[i] = spotPrice;
@@ -713,15 +602,8 @@ contract LimitOrderSwapRouter is ConveyorTickMath {
                     {
                         {
                             ///@notice Get the Uniswap v2 spot price and lp address.
-                            (
-                                SpotReserve memory spotPrice,
-                                address poolAddress
-                            ) = _calculateV3SpotPrice(
-                                    token0,
-                                    token1,
-                                    FEE,
-                                    dexes[i].factoryAddress
-                                );
+                            (SpotReserve memory spotPrice, address poolAddress) =
+                                _calculateV3SpotPrice(token0, token1, FEE, dexes[i].factoryAddress);
 
                             ///@notice Set SpotReserve and lp values if the returned values are not null.
                             if (spotPrice.spotPrice != 0) {

@@ -1,17 +1,14 @@
-# Conveyor Limit Orders v0
-The core smart contracts of the Conveyor Limit Orders protocol.
+# Conveyor Smart Contracts
+The core smart contracts of the Conveyor protocol.
 
 ## Build Instructions
 First Clone the Repository
 ```sh
-git clone https://github.com/ConveyorLabs/LimitOrders-v0 && cd LimitOrders-v0
+git clone https://github.com/ConveyorLabs/smart_contracts && cd smart_contracts
 ```
 ### Run The Test Suite
 ```sh
  forge test -f <RPC_URL> --ffi 
- //Run a individual Test 
- forge test -f <RPC_URL> --ffi --match-contract LimitOrderRouterTest --match-test testOnlyEOA 
-
 ```
 ### Forge Coverage
 ```sh
