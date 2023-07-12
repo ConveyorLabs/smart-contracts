@@ -36,6 +36,13 @@ interface IConveyorRouterV1 {
         ConveyorRouterV1.SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable;
 
+    function swapExactTokenForEthOptimized(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+    ) external payable;
+
     function swapExactEthForTokenWithReferral(
         address tokenOut,
         uint128 amountOutMin,
@@ -49,6 +56,13 @@ interface IConveyorRouterV1 {
         uint256 amountIn,
         uint256 amountOutMin,
         ConveyorRouterV1.SwapAggregatorMulticall calldata swapAggregatorMulticall
+    ) external payable;
+
+    function swapExactEthForTokenOptimized(
+        address tokenOut,
+        uint128 amountOutMin,
+        uint128 protocolFee,
+        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
     ) external payable;
 
     function swapExactTokenForEthWithReferral(
@@ -86,6 +100,13 @@ interface IConveyorRouterV1 {
         bool isReferral
     ) external payable returns (uint256 gasConsumed);
 
+    function quoteSwapExactTokenForEthOptimized(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+    ) external payable returns (uint256 gasConsumed);
+
     function quoteSwapExactEthForToken(
         address tokenOut,
         uint128 amountOutMin,
@@ -93,6 +114,13 @@ interface IConveyorRouterV1 {
         ConveyorRouterV1.SwapAggregatorMulticall calldata swapAggregatorMulticall,
         ConveyorRouterV1.ReferralInfo calldata referralInfo,
         bool isReferral
+    ) external payable returns (uint256 gasConsumed);
+
+    function quoteSwapExactEthForTokenOptimized(
+        address tokenOut,
+        uint128 amountOutMin,
+        uint128 protocolFee,
+        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
     ) external payable returns (uint256 gasConsumed);
 
     function withdraw() external;
