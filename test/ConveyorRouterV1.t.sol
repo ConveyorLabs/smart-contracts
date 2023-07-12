@@ -469,7 +469,7 @@ contract ConveyorRouterV1Test is DSTest {
 
         conveyorRouterV1.swapExactEthForToken{value: amountIn}(tokenOut, amountOutMin, uint128(0), multicall);
     }
-    
+
     function testSwapExactEthForTokensOptimized() public {
         vm.rollFork(forkId, 16749139);
 
@@ -483,14 +483,11 @@ contract ConveyorRouterV1Test is DSTest {
 
         calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this), new bytes(0));
 
-        ConveyorRouterV1.SwapAggregatorGenericMulticall memory multicall = ConveyorRouterV1.SwapAggregatorGenericMulticall(
-            lp,
-            calls
-        );
+        ConveyorRouterV1.SwapAggregatorGenericMulticall memory multicall =
+            ConveyorRouterV1.SwapAggregatorGenericMulticall(lp, calls);
 
         conveyorRouterV1.swapExactEthForTokenOptimized{value: amountIn}(tokenOut, amountOutMin, uint128(0), multicall);
     }
-
 
     function testSwapExactEthForTokensOptimizedQuote() public {
         vm.rollFork(forkId, 16749139);
@@ -505,12 +502,12 @@ contract ConveyorRouterV1Test is DSTest {
 
         calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this), new bytes(0));
 
-        ConveyorRouterV1.SwapAggregatorGenericMulticall memory multicall = ConveyorRouterV1.SwapAggregatorGenericMulticall(
-            lp,
-            calls
-        );
+        ConveyorRouterV1.SwapAggregatorGenericMulticall memory multicall =
+            ConveyorRouterV1.SwapAggregatorGenericMulticall(lp, calls);
 
-        uint256 gas=conveyorRouterV1.quoteSwapExactEthForTokenOptimized{value: amountIn}(tokenOut, amountOutMin, uint128(0), multicall);
+        uint256 gas = conveyorRouterV1.quoteSwapExactEthForTokenOptimized{value: amountIn}(
+            tokenOut, amountOutMin, uint128(0), multicall
+        );
         console.log(gas);
     }
 
@@ -658,10 +655,8 @@ contract ConveyorRouterV1Test is DSTest {
 
         calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorRouterV1), new bytes(0));
 
-        ConveyorRouterV1.SwapAggregatorGenericMulticall memory multicall = ConveyorRouterV1.SwapAggregatorGenericMulticall(
-            lp,
-            calls
-        );
+        ConveyorRouterV1.SwapAggregatorGenericMulticall memory multicall =
+            ConveyorRouterV1.SwapAggregatorGenericMulticall(lp, calls);
 
         conveyorRouterV1.swapExactTokenForEthOptimized(tokenIn, amountIn, amountOutMin, multicall);
         console.log("balance before", balanceBefore);
@@ -684,14 +679,13 @@ contract ConveyorRouterV1Test is DSTest {
 
         calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorRouterV1), new bytes(0));
 
-        ConveyorRouterV1.SwapAggregatorGenericMulticall memory multicall = ConveyorRouterV1.SwapAggregatorGenericMulticall(
-            lp,
-            calls
-        );
+        ConveyorRouterV1.SwapAggregatorGenericMulticall memory multicall =
+            ConveyorRouterV1.SwapAggregatorGenericMulticall(lp, calls);
 
-        uint256 gas=conveyorRouterV1.quoteSwapExactTokenForEthOptimized(tokenIn, amountIn, amountOutMin, multicall);
+        uint256 gas = conveyorRouterV1.quoteSwapExactTokenForEthOptimized(tokenIn, amountIn, amountOutMin, multicall);
         console.log("gas", gas);
     }
+
     function testSwapExactTokenForETHQuote() public {
         vm.rollFork(forkId, 16749139);
 

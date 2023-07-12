@@ -11,16 +11,13 @@ import {GenericMulticall} from "./GenericMulticall.sol";
 
 interface IConveyorMulticall {
     function executeMulticall(
-        ConveyorRouterV1.SwapAggregatorMulticall
-            calldata swapAggregatorMulticall,
+        ConveyorRouterV1.SwapAggregatorMulticall calldata swapAggregatorMulticall,
         uint256 amountIn,
         address receiver
     ) external;
 
-    function executeGenericMulticall(
-        ConveyorRouterV1.SwapAggregatorGenericMulticall
-            calldata genericMulticall
-    ) external;
+    function executeGenericMulticall(ConveyorRouterV1.SwapAggregatorGenericMulticall calldata genericMulticall)
+        external;
 }
 
 /// @title ConveyorRouterV1
@@ -40,44 +37,26 @@ contract ConveyorRouterV1 {
      *
      */
     event Swap(
-        address indexed tokenIn,
-        uint256 amountIn,
-        address indexed tokenOut,
-        uint256 amountOut,
-        address indexed receiver
+        address indexed tokenIn, uint256 amountIn, address indexed tokenOut, uint256 amountOut, address indexed receiver
     );
 
     /**
      * @notice Event that is emitted when a token to ETH swap has filled successfully.
      *
      */
-    event SwapExactTokenForEth(
-        address indexed tokenIn,
-        uint256 amountIn,
-        uint256 amountOut,
-        address indexed receiver
-    );
+    event SwapExactTokenForEth(address indexed tokenIn, uint256 amountIn, uint256 amountOut, address indexed receiver);
 
     /**
      * @notice Event that is emitted when a ETH to token swap has filled successfully.
      *
      */
-    event SwapExactEthForToken(
-        uint256 amountIn,
-        address indexed tokenOut,
-        uint256 amountOut,
-        address indexed receiver
-    );
+    event SwapExactEthForToken(uint256 amountIn, address indexed tokenOut, uint256 amountOut, address indexed receiver);
 
     /**
      * @notice Event that is emitted when a referral token swap has filled successfully
      *
      */
-    event Referral(
-        address indexed referrer,
-        address indexed receiver,
-        uint256 referralFee
-    );
+    event Referral(address indexed referrer, address indexed receiver, uint256 referralFee);
 
     /**
      * @notice Event that is emitted when ETH is withdrawn from the contract
@@ -156,11 +135,7 @@ contract ConveyorRouterV1 {
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) public payable {
         ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
-        IERC20(tokenIn).transferFrom(
-            msg.sender,
-            swapAggregatorMulticall.tokenInDestination,
-            amountIn
-        );
+        IERC20(tokenIn).transferFrom(msg.sender, swapAggregatorMulticall.tokenInDestination, amountIn);
 
         ///@notice Get tokenOut balance of msg.sender.
         uint256 balanceBefore = IERC20(tokenOut).balanceOf(msg.sender);
@@ -168,30 +143,17 @@ contract ConveyorRouterV1 {
         uint256 tokenOutAmountRequired = balanceBefore + amountOutMin;
 
         ///@notice Execute Multicall.
-        IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(
-            swapAggregatorMulticall,
-            amountIn,
-            msg.sender
-        );
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(swapAggregatorMulticall, amountIn, msg.sender);
 
         uint256 balanceAfter = IERC20(tokenOut).balanceOf(msg.sender);
 
         ///@notice Check if tokenOut balance of msg.sender is sufficient.
         if (balanceAfter < tokenOutAmountRequired) {
-            revert InsufficientOutputAmount(
-                tokenOutAmountRequired - balanceAfter,
-                amountOutMin
-            );
+            revert InsufficientOutputAmount(tokenOutAmountRequired - balanceAfter, amountOutMin);
         }
 
         ///@notice Emit Swap event.
-        emit Swap(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            balanceAfter - balanceBefore,
-            msg.sender
-        );
+        emit Swap(tokenIn, amountIn, tokenOut, balanceAfter - balanceBefore, msg.sender);
     }
 
     /// @notice Swap tokens for tokens.
@@ -208,11 +170,7 @@ contract ConveyorRouterV1 {
         SwapAggregatorGenericMulticall calldata genericMulticall
     ) public payable {
         ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
-        IERC20(tokenIn).transferFrom(
-            msg.sender,
-            genericMulticall.tokenInDestination,
-            amountIn
-        );
+        IERC20(tokenIn).transferFrom(msg.sender, genericMulticall.tokenInDestination, amountIn);
 
         ///@notice Get tokenOut balance of msg.sender.
         uint256 balanceBefore = IERC20(tokenOut).balanceOf(msg.sender);
@@ -220,28 +178,17 @@ contract ConveyorRouterV1 {
         uint256 tokenOutAmountRequired = balanceBefore + amountOutMin;
 
         ///@notice Execute Multicall.
-        IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(
-            genericMulticall
-        );
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(genericMulticall);
 
         uint256 balanceAfter = IERC20(tokenOut).balanceOf(msg.sender);
 
         ///@notice Check if tokenOut balance of msg.sender is sufficient.
         if (balanceAfter < tokenOutAmountRequired) {
-            revert InsufficientOutputAmount(
-                tokenOutAmountRequired - balanceAfter,
-                amountOutMin
-            );
+            revert InsufficientOutputAmount(tokenOutAmountRequired - balanceAfter, amountOutMin);
         }
 
         ///@notice Emit Swap event.
-        emit Swap(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            balanceAfter - balanceBefore,
-            msg.sender
-        );
+        emit Swap(tokenIn, amountIn, tokenOut, balanceAfter - balanceBefore, msg.sender);
     }
 
     /// @notice Swap tokens for tokens with referral.
@@ -271,13 +218,7 @@ contract ConveyorRouterV1 {
         }
 
         ///@notice Swap tokens for tokens.
-        swapExactTokenForToken(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            amountOutMin,
-            swapAggregatorMulticall
-        );
+        swapExactTokenForToken(tokenIn, amountIn, tokenOut, amountOutMin, swapAggregatorMulticall);
 
         ///@notice Emit Referral event.
         emit Referral(referrer, msg.sender, referralFee);
@@ -304,10 +245,7 @@ contract ConveyorRouterV1 {
         _depositEth(amountIn, WETH);
 
         ///@notice Transfer WETH from WETH to tokenInDestination address.
-        IERC20(WETH).transfer(
-            swapAggregatorMulticall.tokenInDestination,
-            amountIn
-        );
+        IERC20(WETH).transfer(swapAggregatorMulticall.tokenInDestination, amountIn);
 
         ///@notice Get tokenOut balance of msg.sender.
         uint256 balanceBefore = IERC20(tokenOut).balanceOf(msg.sender);
@@ -316,30 +254,18 @@ contract ConveyorRouterV1 {
         uint256 tokenOutAmountRequired = balanceBefore + amountOutMin;
 
         ///@notice Execute Multicall.
-        IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(
-            swapAggregatorMulticall,
-            amountIn,
-            msg.sender
-        );
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(swapAggregatorMulticall, amountIn, msg.sender);
 
         ///@notice Get tokenOut balance of msg.sender after multicall execution.
         uint256 balanceAfter = IERC20(tokenOut).balanceOf(msg.sender);
 
         ///@notice Revert if tokenOut balance of msg.sender is insufficient.
         if (balanceAfter < tokenOutAmountRequired) {
-            revert InsufficientOutputAmount(
-                tokenOutAmountRequired - balanceAfter,
-                amountOutMin
-            );
+            revert InsufficientOutputAmount(tokenOutAmountRequired - balanceAfter, amountOutMin);
         }
 
         ///@notice Emit SwapExactEthForToken event.
-        emit SwapExactEthForToken(
-            msg.value,
-            tokenOut,
-            balanceAfter - balanceBefore,
-            msg.sender
-        );
+        emit SwapExactEthForToken(msg.value, tokenOut, balanceAfter - balanceBefore, msg.sender);
     }
 
     /// @notice Swap ETH for tokens.
@@ -363,10 +289,7 @@ contract ConveyorRouterV1 {
         _depositEth(amountIn, WETH);
 
         ///@notice Transfer WETH from WETH to tokenInDestination address.
-        IERC20(WETH).transfer(
-            swapAggregatorMulticall.tokenInDestination,
-            amountIn
-        );
+        IERC20(WETH).transfer(swapAggregatorMulticall.tokenInDestination, amountIn);
 
         ///@notice Get tokenOut balance of msg.sender.
         uint256 balanceBefore = IERC20(tokenOut).balanceOf(msg.sender);
@@ -375,28 +298,18 @@ contract ConveyorRouterV1 {
         uint256 tokenOutAmountRequired = balanceBefore + amountOutMin;
 
         ///@notice Execute Multicall.
-        IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(
-            swapAggregatorMulticall
-        );
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(swapAggregatorMulticall);
 
         ///@notice Get tokenOut balance of msg.sender after multicall execution.
         uint256 balanceAfter = IERC20(tokenOut).balanceOf(msg.sender);
 
         ///@notice Revert if tokenOut balance of msg.sender is insufficient.
         if (balanceAfter < tokenOutAmountRequired) {
-            revert InsufficientOutputAmount(
-                tokenOutAmountRequired - balanceAfter,
-                amountOutMin
-            );
+            revert InsufficientOutputAmount(tokenOutAmountRequired - balanceAfter, amountOutMin);
         }
 
         ///@notice Emit SwapExactEthForToken event.
-        emit SwapExactEthForToken(
-            msg.value,
-            tokenOut,
-            balanceAfter - balanceBefore,
-            msg.sender
-        );
+        emit SwapExactEthForToken(msg.value, tokenOut, balanceAfter - balanceBefore, msg.sender);
     }
 
     /// @notice Swap ETH for tokens with Referral.
@@ -425,12 +338,7 @@ contract ConveyorRouterV1 {
             revert InvalidReferral();
         }
 
-        swapExactEthForToken(
-            tokenOut,
-            amountOutMin,
-            protocolFee,
-            swapAggregatorMulticall
-        );
+        swapExactEthForToken(tokenOut, amountOutMin, protocolFee, swapAggregatorMulticall);
         ///@notice Emit Referral event.
         emit Referral(referrer, msg.sender, referralFee);
     }
@@ -449,11 +357,7 @@ contract ConveyorRouterV1 {
         ///@dev Ignore if the tokenInDestination is address(0).
         if (swapAggregatorMulticall.tokenInDestination != address(0)) {
             ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
-            IERC20(tokenIn).transferFrom(
-                msg.sender,
-                swapAggregatorMulticall.tokenInDestination,
-                amountIn
-            );
+            IERC20(tokenIn).transferFrom(msg.sender, swapAggregatorMulticall.tokenInDestination, amountIn);
         }
         ///@notice Get ETH balance of msg.sender.
         uint256 balanceBefore = msg.sender.balance;
@@ -462,11 +366,7 @@ contract ConveyorRouterV1 {
         uint256 amountOutRequired = balanceBefore + amountOutMin;
 
         ///@notice Execute Multicall.
-        IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(
-            swapAggregatorMulticall,
-            amountIn,
-            msg.sender
-        );
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(swapAggregatorMulticall, amountIn, msg.sender);
 
         ///@notice Get WETH balance of this contract.
         uint256 balanceWeth = IERC20(WETH).balanceOf(address(this));
@@ -479,19 +379,11 @@ contract ConveyorRouterV1 {
 
         ///@notice Revert if Eth balance of the caller is insufficient.
         if (msg.sender.balance < amountOutRequired) {
-            revert InsufficientOutputAmount(
-                amountOutRequired - msg.sender.balance,
-                amountOutMin
-            );
+            revert InsufficientOutputAmount(amountOutRequired - msg.sender.balance, amountOutMin);
         }
 
         ///@notice Emit SwapExactTokenForEth event.
-        emit SwapExactTokenForEth(
-            tokenIn,
-            amountIn,
-            msg.sender.balance - balanceBefore,
-            msg.sender
-        );
+        emit SwapExactTokenForEth(tokenIn, amountIn, msg.sender.balance - balanceBefore, msg.sender);
     }
 
     /// @notice Swap tokens for ETH.
@@ -508,11 +400,7 @@ contract ConveyorRouterV1 {
         ///@dev Ignore if the tokenInDestination is address(0).
         if (swapAggregatorMulticall.tokenInDestination != address(0)) {
             ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
-            IERC20(tokenIn).transferFrom(
-                msg.sender,
-                swapAggregatorMulticall.tokenInDestination,
-                amountIn
-            );
+            IERC20(tokenIn).transferFrom(msg.sender, swapAggregatorMulticall.tokenInDestination, amountIn);
         }
         ///@notice Get ETH balance of msg.sender.
         uint256 balanceBefore = msg.sender.balance;
@@ -521,9 +409,7 @@ contract ConveyorRouterV1 {
         uint256 amountOutRequired = balanceBefore + amountOutMin;
 
         ///@notice Execute Multicall.
-        IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(
-            swapAggregatorMulticall
-        );
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(swapAggregatorMulticall);
 
         ///@notice Get WETH balance of this contract.
         uint256 balanceWeth = IERC20(WETH).balanceOf(address(this));
@@ -536,19 +422,11 @@ contract ConveyorRouterV1 {
 
         ///@notice Revert if Eth balance of the caller is insufficient.
         if (msg.sender.balance < amountOutRequired) {
-            revert InsufficientOutputAmount(
-                amountOutRequired - msg.sender.balance,
-                amountOutMin
-            );
+            revert InsufficientOutputAmount(amountOutRequired - msg.sender.balance, amountOutMin);
         }
 
         ///@notice Emit SwapExactTokenForEth event.
-        emit SwapExactTokenForEth(
-            tokenIn,
-            amountIn,
-            msg.sender.balance - balanceBefore,
-            msg.sender
-        );
+        emit SwapExactTokenForEth(tokenIn, amountIn, msg.sender.balance - balanceBefore, msg.sender);
     }
 
     /// @notice Swap tokens for ETH.
@@ -573,12 +451,7 @@ contract ConveyorRouterV1 {
             revert InvalidReferral();
         }
 
-        swapExactTokenForEth(
-            tokenIn,
-            amountIn,
-            amountOutMin,
-            swapAggregatorMulticall
-        );
+        swapExactTokenForEth(tokenIn, amountIn, amountOutMin, swapAggregatorMulticall);
 
         ///@notice Emit Referral event.
         emit Referral(referrer, msg.sender, referralFee);
@@ -600,12 +473,7 @@ contract ConveyorRouterV1 {
                 mstore(0x60, gas())
             }
             swapExactTokenForTokenWithReferral(
-                tokenIn,
-                amountIn,
-                tokenOut,
-                amountOutMin,
-                swapAggregatorMulticall,
-                referralInfo
+                tokenIn, amountIn, tokenOut, amountOutMin, swapAggregatorMulticall, referralInfo
             );
             assembly {
                 gasConsumed := sub(mload(0x60), gas())
@@ -614,13 +482,7 @@ contract ConveyorRouterV1 {
             assembly {
                 mstore(0x60, gas())
             }
-            swapExactTokenForToken(
-                tokenIn,
-                amountIn,
-                tokenOut,
-                amountOutMin,
-                swapAggregatorMulticall
-            );
+            swapExactTokenForToken(tokenIn, amountIn, tokenOut, amountOutMin, swapAggregatorMulticall);
             assembly {
                 gasConsumed := sub(mload(0x60), gas())
             }
@@ -639,13 +501,7 @@ contract ConveyorRouterV1 {
         assembly {
             mstore(0x60, gas())
         }
-        swapExactTokenForTokenOptimized(
-            tokenIn,
-            amountIn,
-            tokenOut,
-            amountOutMin,
-            swapAggregatorMulticall
-        );
+        swapExactTokenForTokenOptimized(tokenIn, amountIn, tokenOut, amountOutMin, swapAggregatorMulticall);
         assembly {
             gasConsumed := sub(mload(0x60), gas())
         }
@@ -665,13 +521,7 @@ contract ConveyorRouterV1 {
             assembly {
                 mstore(0x60, gas())
             }
-            swapExactEthForTokenWithReferral(
-                tokenOut,
-                amountOutMin,
-                protocolFee,
-                swapAggregatorMulticall,
-                referralInfo
-            );
+            swapExactEthForTokenWithReferral(tokenOut, amountOutMin, protocolFee, swapAggregatorMulticall, referralInfo);
             assembly {
                 gasConsumed := sub(mload(0x60), gas())
             }
@@ -679,12 +529,7 @@ contract ConveyorRouterV1 {
             assembly {
                 mstore(0x60, gas())
             }
-            swapExactEthForToken(
-                tokenOut,
-                amountOutMin,
-                protocolFee,
-                swapAggregatorMulticall
-            );
+            swapExactEthForToken(tokenOut, amountOutMin, protocolFee, swapAggregatorMulticall);
             assembly {
                 gasConsumed := sub(mload(0x60), gas())
             }
@@ -702,12 +547,7 @@ contract ConveyorRouterV1 {
         assembly {
             mstore(0x60, gas())
         }
-        swapExactEthForTokenOptimized(
-            tokenOut,
-            amountOutMin,
-            protocolFee,
-            swapAggregatorMulticall
-        );
+        swapExactEthForTokenOptimized(tokenOut, amountOutMin, protocolFee, swapAggregatorMulticall);
         assembly {
             gasConsumed := sub(mload(0x60), gas())
         }
@@ -727,13 +567,7 @@ contract ConveyorRouterV1 {
             assembly {
                 mstore(0x60, gas())
             }
-            swapExactTokenForEthWithReferral(
-                tokenIn,
-                amountIn,
-                amountOutMin,
-                swapAggregatorMulticall,
-                referralInfo
-            );
+            swapExactTokenForEthWithReferral(tokenIn, amountIn, amountOutMin, swapAggregatorMulticall, referralInfo);
             assembly {
                 gasConsumed := sub(mload(0x60), gas())
             }
@@ -741,12 +575,7 @@ contract ConveyorRouterV1 {
             assembly {
                 mstore(0x60, gas())
             }
-            swapExactTokenForEth(
-                tokenIn,
-                amountIn,
-                amountOutMin,
-                swapAggregatorMulticall
-            );
+            swapExactTokenForEth(tokenIn, amountIn, amountOutMin, swapAggregatorMulticall);
             assembly {
                 gasConsumed := sub(mload(0x60), gas())
             }
@@ -764,12 +593,7 @@ contract ConveyorRouterV1 {
         assembly {
             mstore(0x60, gas())
         }
-        swapExactTokenForEthOptimized(
-            tokenIn,
-            amountIn,
-            amountOutMin,
-            swapAggregatorMulticall
-        );
+        swapExactTokenForEthOptimized(tokenIn, amountIn, amountOutMin, swapAggregatorMulticall);
         assembly {
             gasConsumed := sub(mload(0x60), gas())
         }
@@ -793,24 +617,19 @@ contract ConveyorRouterV1 {
     function _withdrawEth(uint256 amount, address weth) internal {
         /// @solidity memory-safe-assembly
         assembly {
-            mstore(
-                0x0,
-                shl(224, 0x2e1a7d4d) /* keccak256("withdraw(uint256)") */
-            )
+            mstore(0x0, shl(224, 0x2e1a7d4d) /* keccak256("withdraw(uint256)") */ )
             mstore(4, amount)
             if iszero(
                 call(
-                    gas() /* gas */,
-                    weth /* to */,
-                    0 /* value */,
-                    0 /* in */,
-                    68 /* in size */,
-                    0 /* out */,
+                    gas(), /* gas */
+                    weth, /* to */
+                    0, /* value */
+                    0, /* in */
+                    68, /* in size */
+                    0, /* out */
                     0 /* out size */
                 )
-            ) {
-                revert("Native Token Withdraw failed", amount)
-            }
+            ) { revert("Native Token Withdraw failed", amount) }
         }
     }
 
@@ -821,17 +640,15 @@ contract ConveyorRouterV1 {
             mstore(0x0, shl(224, 0xd0e30db0)) /* keccak256("deposit()") */
             if iszero(
                 call(
-                    gas() /* gas */,
-                    weth /* to */,
-                    amount /* value */,
-                    0 /* in */,
-                    0 /* in size */,
-                    0 /* out */,
+                    gas(), /* gas */
+                    weth, /* to */
+                    amount, /* value */
+                    0, /* in */
+                    0, /* in size */
+                    0, /* out */
                     0 /* out size */
                 )
-            ) {
-                revert("Native token deposit failed", amount)
-            }
+            ) { revert("Native token deposit failed", amount) }
         }
     }
 
@@ -868,11 +685,7 @@ contract ConveyorRouterV1 {
 /// @title ConveyorMulticall
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Optimized multicall execution contract.
-contract ConveyorMulticall is
-    GenericMulticall,
-    UniswapV3Callback,
-    UniswapV2Callback
-{
+contract ConveyorMulticall is GenericMulticall, UniswapV3Callback, UniswapV2Callback {
     using SafeERC20 for IERC20;
 
     address immutable CONVEYOR_SWAP_AGGREGATOR;
@@ -887,8 +700,7 @@ contract ConveyorMulticall is
     ///@param amountIn Amount of tokenIn to swap.
     ///@param recipient Recipient of the output tokens.
     function executeMulticall(
-        ConveyorRouterV1.SwapAggregatorMulticall
-            calldata swapAggregatorMulticall,
+        ConveyorRouterV1.SwapAggregatorMulticall calldata swapAggregatorMulticall,
         uint256 amountIn,
         address payable recipient
     ) public {
@@ -901,31 +713,20 @@ contract ConveyorMulticall is
         ///@notice Cache the feeBitmap in memory.
         uint128 feeBitmap = swapAggregatorMulticall.feeBitmap;
         ///@notice Iterate through the calls array.
-        for (uint256 i = 0; i < callsLength; ) {
+        for (uint256 i = 0; i < callsLength;) {
             ///@notice Get the call from the calls array.
-            ConveyorRouterV1.Call memory call = swapAggregatorMulticall.calls[
-                i
-            ];
+            ConveyorRouterV1.Call memory call = swapAggregatorMulticall.calls[i];
 
             ///@notice Get the zeroForOne value from the zeroForOneBitmap.
-            bool zeroForOne = deriveBoolFromBitmap(
-                swapAggregatorMulticall.zeroForOneBitmap,
-                i
-            );
-            uint256 callType = deriveCallFromBitmap(
-                swapAggregatorMulticall.callTypeBitmap,
-                i
-            );
+            bool zeroForOne = deriveBoolFromBitmap(swapAggregatorMulticall.zeroForOneBitmap, i);
+            uint256 callType = deriveCallFromBitmap(swapAggregatorMulticall.callTypeBitmap, i);
             ///@notice Check if the call is a v2 swap.
             if (callType == 0x0) {
                 ///@notice Instantiate the receiver address for the v2 swap.
                 address receiver;
                 {
                     ///@notice Get the toAddressBitPattern from the toAddressBitmap.
-                    uint256 toAddressBitPattern = deriveToAddressFromBitmap(
-                        swapAggregatorMulticall.toAddressBitmap,
-                        i
-                    );
+                    uint256 toAddressBitPattern = deriveToAddressFromBitmap(swapAggregatorMulticall.toAddressBitmap, i);
                     ///@notice Set the receiver address based on the toAddressBitPattern.
                     if (toAddressBitPattern == 0x3) {
                         if (i == callsLength - 1) {
@@ -942,38 +743,28 @@ contract ConveyorMulticall is
                 }
 
                 ///@notice Construct the calldata for the v2 swap.
-                (callData, amountIn, feeBitmap) = constructV2SwapCalldata(
-                    amountIn,
-                    zeroForOne,
-                    receiver,
-                    call.target,
-                    feeBitmap
-                );
+                (callData, amountIn, feeBitmap) =
+                    constructV2SwapCalldata(amountIn, zeroForOne, receiver, call.target, feeBitmap);
 
                 ///@notice Execute the v2 swap.
-                (bool success, ) = call.target.call(callData);
+                (bool success,) = call.target.call(callData);
 
                 if (!success) {
                     revert V2SwapFailed();
                 }
             } else if (callType == 0x1) {
                 ///@notice Execute the v3 swap.
-                (bool success, bytes memory data) = call.target.call(
-                    call.callData
-                );
+                (bool success, bytes memory data) = call.target.call(call.callData);
                 if (!success) {
                     revert V3SwapFailed();
                 }
                 ///@notice Decode the amountIn from the v3 swap.
-                (int256 amount0, int256 amount1) = abi.decode(
-                    data,
-                    (int256, int256)
-                );
+                (int256 amount0, int256 amount1) = abi.decode(data, (int256, int256));
 
                 amountIn = zeroForOne ? uint256(-amount1) : uint256(-amount0);
             } else {
                 ///@notice Execute generic call.
-                (bool success, ) = call.target.call(call.callData);
+                (bool success,) = call.target.call(call.callData);
                 if (!success) {
                     revert CallFailed();
                 }
@@ -994,35 +785,19 @@ contract ConveyorMulticall is
     ///@return callData - The calldata for the v2 swap.
     ///@return amountOut - The amount of tokenOut received from the swap.
     ///@return updatedFeeBitmap - The updated feeBitmap.
-    function constructV2SwapCalldata(
-        uint256 amountIn,
-        bool zeroForOne,
-        address to,
-        address pool,
-        uint128 feeBitmap
-    )
+    function constructV2SwapCalldata(uint256 amountIn, bool zeroForOne, address to, address pool, uint128 feeBitmap)
         internal
         view
-        returns (
-            bytes memory callData,
-            uint256 amountOut,
-            uint128 updatedFeeBitmap
-        )
+        returns (bytes memory callData, uint256 amountOut, uint128 updatedFeeBitmap)
     {
         ///@notice Get the reserves for the pool.
-        (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(pool)
-            .getReserves();
+        (uint256 reserve0, uint256 reserve1,) = IUniswapV2Pair(pool).getReserves();
         uint24 fee;
 
         (fee, updatedFeeBitmap) = deriveFeeFromBitmap(feeBitmap);
 
         ///@notice Get the amountOut from the reserves.
-        amountOut = getAmountOut(
-            amountIn,
-            zeroForOne ? reserve0 : reserve1,
-            zeroForOne ? reserve1 : reserve0,
-            fee
-        );
+        amountOut = getAmountOut(amountIn, zeroForOne ? reserve0 : reserve1, zeroForOne ? reserve1 : reserve0, fee);
         ///@notice Encode the swap calldata.
         callData = abi.encodeWithSignature(
             "swap(uint256,uint256,address,bytes)",
@@ -1038,10 +813,7 @@ contract ConveyorMulticall is
     ///@notice Derives a boolean at a specific bit position from a bitmap.
     ///@param bitmap - The bitmap to derive the boolean from.
     ///@param position - The bit position.
-    function deriveBoolFromBitmap(
-        uint64 bitmap,
-        uint256 position
-    ) internal pure returns (bool) {
+    function deriveBoolFromBitmap(uint64 bitmap, uint256 position) internal pure returns (bool) {
         if ((2 ** position) & bitmap == 0) {
             return false;
         } else {
@@ -1056,24 +828,15 @@ contract ConveyorMulticall is
      *     0x1 - Uniswap v3 swap
      *     0x2 - Generic call
      */
-    function deriveCallFromBitmap(
-        uint40 bitmap,
-        uint256 position
-    ) internal pure returns (uint256 callType) {
+    function deriveCallFromBitmap(uint40 bitmap, uint256 position) internal pure returns (uint256 callType) {
         /// @solidity memory-safe-assembly
         assembly {
             let significantBits := shl(mul(position, 0x2), 0x3)
 
             switch shr(mul(position, 0x2), and(bitmap, significantBits))
-            case 0x0 {
-                callType := 0x0
-            }
-            case 0x1 {
-                callType := 0x1
-            }
-            case 0x2 {
-                callType := 0x2
-            }
+            case 0x0 { callType := 0x0 }
+            case 0x1 { callType := 0x1 }
+            case 0x2 { callType := 0x2 }
         }
     }
 
@@ -1083,9 +846,7 @@ contract ConveyorMulticall is
     ///@param feeBitmap - The bitmap of fees to use for the swap.
     ///@return fee - The fee to use for the swap.
     ///@return updatedFeeBitmap - The updated feeBitmap.
-    function deriveFeeFromBitmap(
-        uint128 feeBitmap
-    ) internal pure returns (uint24 fee, uint128 updatedFeeBitmap) {
+    function deriveFeeFromBitmap(uint128 feeBitmap) internal pure returns (uint24 fee, uint128 updatedFeeBitmap) {
         /**
          * @dev Retrieve the first 10 bits from the feeBitmap to get the fee, shift right to set the next
          *         fee in the first bit position.*
@@ -1099,10 +860,7 @@ contract ConveyorMulticall is
     ///@param toAddressBitmap - The bitmap of toAddresses to use for the swap.
     ///@param i - The index of the toAddress to derive.
     ///@return unsigned - 2 bit pattern representing the receiver of the current swap.
-    function deriveToAddressFromBitmap(
-        uint128 toAddressBitmap,
-        uint256 i
-    ) internal pure returns (uint256) {
+    function deriveToAddressFromBitmap(uint128 toAddressBitmap, uint256 i) internal pure returns (uint256) {
         if ((3 << (2 * i)) & toAddressBitmap == 3 << (2 * i)) {
             return 0x3;
         } else if ((2 << (2 * i)) & toAddressBitmap == 2 << (2 * i)) {
@@ -1119,12 +877,11 @@ contract ConveyorMulticall is
     ///@param reserveIn - tokenIn reserve for the swap.
     ///@param reserveOut - tokenOut reserve for the swap.
     ///@return amountOut - AmountOut from the given parameters.
-    function getAmountOut(
-        uint256 amountIn,
-        uint256 reserveIn,
-        uint256 reserveOut,
-        uint24 fee
-    ) internal pure returns (uint256 amountOut) {
+    function getAmountOut(uint256 amountIn, uint256 reserveIn, uint256 reserveOut, uint24 fee)
+        internal
+        pure
+        returns (uint256 amountOut)
+    {
         if (amountIn == 0) {
             revert InsufficientInputAmount(0, 1);
         }
