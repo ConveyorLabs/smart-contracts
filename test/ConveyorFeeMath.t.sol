@@ -47,21 +47,15 @@ contract ConveyorFeeMathTest is DSTest {
     address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     //pancake, sushi, uni create2 factory initialization bytecode
-    bytes32 _sushiHexDem =
-        0xe18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303;
-    bytes32 _uniswapV2HexDem =
-        0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
+    bytes32 _sushiHexDem = 0xe18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303;
+    bytes32 _uniswapV2HexDem = 0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
 
     //MAX_UINT for testing
-    uint256 constant MAX_UINT = 2**256 - 1;
+    uint256 constant MAX_UINT = 2 ** 256 - 1;
 
     //Dex[] dexes array of dex structs
     bytes32[] _hexDems = [_uniswapV2HexDem, _sushiHexDem, _uniswapV2HexDem];
-    address[] _dexFactories = [
-        _uniV2FactoryAddress,
-        _sushiFactoryAddress,
-        _uniV3FactoryAddress
-    ];
+    address[] _dexFactories = [_uniV2FactoryAddress, _sushiFactoryAddress, _uniV3FactoryAddress];
     bool[] _isUniV2 = [true, true, false];
 
     function setUp() public {
@@ -78,17 +72,10 @@ contract ConveyorFeeMathTest is DSTest {
     function testCalculateOrderRewardBeacon(uint64 wethValue) public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        if (!(wethValue < 10**18)) {
-            uint128 fee = limitOrderExecutor.calculateFee(
-                wethValue,
-                usdc,
-                weth
-            );
+        if (!(wethValue < 10 ** 18)) {
+            uint128 fee = limitOrderExecutor.calculateFee(wethValue, usdc, weth);
             //1.8446744073709550
-            (, uint128 rewardBeacon) = ConveyorFeeMath.calculateReward(
-                fee,
-                wethValue
-            );
+            (, uint128 rewardBeacon) = ConveyorFeeMath.calculateReward(fee, wethValue);
 
             //Pack the args
             string memory path = "scripts/calculateRewardBeacon.py";
@@ -101,7 +88,7 @@ contract ConveyorFeeMathTest is DSTest {
             uint256 beaconRewardExpected = bytesToUint(spotOut);
 
             //Assert the values
-            assertEq(rewardBeacon / 10**3, beaconRewardExpected / 10**3);
+            assertEq(rewardBeacon / 10 ** 3, beaconRewardExpected / 10 ** 3);
         }
     }
 
@@ -109,17 +96,10 @@ contract ConveyorFeeMathTest is DSTest {
     function testCalculateOrderRewardConveyor(uint64 wethValue) public {
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        if (!(wethValue < 10**18)) {
-            uint128 fee = limitOrderExecutor.calculateFee(
-                wethValue,
-                usdc,
-                weth
-            );
+        if (!(wethValue < 10 ** 18)) {
+            uint128 fee = limitOrderExecutor.calculateFee(wethValue, usdc, weth);
             //1.8446744073709550
-            (uint128 rewardConveyor, ) = ConveyorFeeMath.calculateReward(
-                fee,
-                wethValue
-            );
+            (uint128 rewardConveyor,) = ConveyorFeeMath.calculateReward(fee, wethValue);
 
             //Pack the arguments
             string memory path = "scripts/calculateRewardConveyor.py";
@@ -132,7 +112,7 @@ contract ConveyorFeeMathTest is DSTest {
             uint256 conveyorRewardExpected = bytesToUint(spotOut);
 
             //Assert the outputs with a precision buffer on fuzz
-            assertEq(rewardConveyor / 10**3, conveyorRewardExpected / 10**3);
+            assertEq(rewardConveyor / 10 ** 3, conveyorRewardExpected / 10 ** 3);
         }
     }
 
@@ -144,10 +124,7 @@ contract ConveyorFeeMathTest is DSTest {
     function bytesToUint(bytes memory b) internal pure returns (uint256) {
         uint256 number;
         for (uint256 i = 0; i < b.length; i++) {
-            number =
-                number +
-                uint256(uint8(b[i])) *
-                (2**(8 * (b.length - (i + 1))));
+            number = number + uint256(uint8(b[i])) * (2 ** (8 * (b.length - (i + 1))));
         }
         return number;
     }
@@ -176,15 +153,9 @@ contract ConveyorFeeMathTest is DSTest {
 
 //wrapper around LimitOrderSwapRouter to expose internal functions for testing
 contract LimitOrderExecutorWrapper is LimitOrderSwapRouter {
-    constructor(address[] memory _dexFactories, bool[] memory _isUniV2)
-        LimitOrderSwapRouter(_dexFactories, _isUniV2)
-    {}
+    constructor(address[] memory _dexFactories, bool[] memory _isUniV2) LimitOrderSwapRouter(_dexFactories, _isUniV2) {}
 
-    function getV3PoolFee(address pairAddress)
-        public
-        view
-        returns (uint24 poolFee)
-    {
+    function getV3PoolFee(address pairAddress) public view returns (uint24 poolFee) {
         return getV3PoolFee(pairAddress);
     }
 
@@ -203,16 +174,7 @@ contract LimitOrderExecutorWrapper is LimitOrderSwapRouter {
         address _receiver,
         address _sender
     ) public returns (uint256) {
-        return
-            _swapV2(
-                _tokenIn,
-                _tokenOut,
-                _lp,
-                _amountIn,
-                _amountOutMin,
-                _receiver,
-                _sender
-            );
+        return _swapV2(_tokenIn, _tokenOut, _lp, _amountIn, _amountOutMin, _receiver, _sender);
     }
 
     function swapV3(
@@ -225,33 +187,21 @@ contract LimitOrderExecutorWrapper is LimitOrderSwapRouter {
         address _receiver,
         address _sender
     ) public returns (uint256) {
-        return
-            _swapV3(
-                _lp,
-                _tokenIn,
-                _tokenOut,
-                _fee,
-                _amountIn,
-                _amountOutMin,
-                _receiver,
-                _sender
-            );
+        return _swapV3(_lp, _tokenIn, _tokenOut, _fee, _amountIn, _amountOutMin, _receiver, _sender);
     }
 
-    function calculateV2SpotPrice(
-        address token0,
-        address token1,
-        address _factory
-    ) public view returns (SpotReserve memory spRes, address poolAddress) {
+    function calculateV2SpotPrice(address token0, address token1, address _factory)
+        public
+        view
+        returns (SpotReserve memory spRes, address poolAddress)
+    {
         return _calculateV2SpotPrice(token0, token1, _factory);
     }
 
-    function calculateV3SpotPrice(
-        address token0,
-        address token1,
-        uint24 FEE,
-        address _factory
-    ) public returns (SpotReserve memory, address) {
+    function calculateV3SpotPrice(address token0, address token1, uint24 FEE, address _factory)
+        public
+        returns (SpotReserve memory, address)
+    {
         return _calculateV3SpotPrice(token0, token1, FEE, _factory);
     }
 
@@ -265,16 +215,6 @@ contract LimitOrderExecutorWrapper is LimitOrderSwapRouter {
         address _receiver,
         address _sender
     ) public returns (uint256 amountReceived) {
-        return
-            _swap(
-                _tokenIn,
-                _tokenOut,
-                _lp,
-                _fee,
-                _amountIn,
-                _amountOutMin,
-                _receiver,
-                _sender
-            );
+        return _swap(_tokenIn, _tokenOut, _lp, _fee, _amountIn, _amountOutMin, _receiver, _sender);
     }
 }

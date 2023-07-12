@@ -386,7 +386,7 @@ contract SandboxLimitOrderBook is ISandboxLimitOrderBook {
 
             ///@notice increment the orderNonce
             /**
-             * @dev This is unchecked because the orderNonce and block.timestamp will never be the same, so even if the 
+             * @dev This is unchecked because the orderNonce and block.timestamp will never be the same, so even if the
              *         orderNonce overflows, it will still produce unique orderIds because the timestamp will be different.
              */
             unchecked {

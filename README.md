@@ -4,7 +4,7 @@ The core smart contracts of the Conveyor protocol.
 ## Build Instructions
 First Clone the Repository
 ```sh
-git clone https://github.com/ConveyorLabs/smart_contracts && cd smart_contracts
+git clone https://github.com/ConveyorLabs/smart-contracts && cd smart-contracts
 ```
 ### Run The Test Suite
 ```sh

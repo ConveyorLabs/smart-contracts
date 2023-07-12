@@ -18,7 +18,7 @@ contract Deploy is Script {
         bytes memory creationCode = abi.encodePacked(type(ConveyorRouterV1).creationCode, abi.encode(WMATIC));
 
         vm.startBroadcast();
-        conveyorRouterV1=ICREATE3Factory(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1).deploy(salt, creationCode);
+        conveyorRouterV1 = ICREATE3Factory(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1).deploy(salt, creationCode);
         vm.stopBroadcast();
     }
 }
