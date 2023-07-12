@@ -268,6 +268,50 @@ contract ConveyorRouterV1 {
         emit SwapExactEthForToken(msg.value, tokenOut, balanceAfter - balanceBefore, msg.sender);
     }
 
+    /// @notice Swap ETH for tokens.
+    /// @param tokenOut Address of token to receive.
+    /// @param amountOutMin Minimum amount of tokenOut to receive.
+    /// @param swapAggregatorMulticall Multicall to be executed.
+    function swapExactEthForTokenOptimized(
+        address tokenOut,
+        uint128 amountOutMin,
+        uint128 protocolFee,
+        SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+    ) public payable {
+        if (protocolFee > msg.value) {
+            revert InsufficientMsgValue();
+        }
+
+        ///@notice Cache the amountIn to save gas.
+        uint256 amountIn = msg.value - protocolFee;
+
+        ///@notice Deposit the msg.value-protocolFee into WETH.
+        _depositEth(amountIn, WETH);
+
+        ///@notice Transfer WETH from WETH to tokenInDestination address.
+        IERC20(WETH).transfer(swapAggregatorMulticall.tokenInDestination, amountIn);
+
+        ///@notice Get tokenOut balance of msg.sender.
+        uint256 balanceBefore = IERC20(tokenOut).balanceOf(msg.sender);
+
+        ///@notice Calculate tokenOut amount required.
+        uint256 tokenOutAmountRequired = balanceBefore + amountOutMin;
+
+        ///@notice Execute Multicall.
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(swapAggregatorMulticall);
+
+        ///@notice Get tokenOut balance of msg.sender after multicall execution.
+        uint256 balanceAfter = IERC20(tokenOut).balanceOf(msg.sender);
+
+        ///@notice Revert if tokenOut balance of msg.sender is insufficient.
+        if (balanceAfter < tokenOutAmountRequired) {
+            revert InsufficientOutputAmount(tokenOutAmountRequired - balanceAfter, amountOutMin);
+        }
+
+        ///@notice Emit SwapExactEthForToken event.
+        emit SwapExactEthForToken(msg.value, tokenOut, balanceAfter - balanceBefore, msg.sender);
+    }
+
     /// @notice Swap ETH for tokens with Referral.
     /// @param tokenOut Address of token to receive.
     /// @param amountOutMin Minimum amount of tokenOut to receive.
@@ -323,6 +367,49 @@ contract ConveyorRouterV1 {
 
         ///@notice Execute Multicall.
         IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(swapAggregatorMulticall, amountIn, msg.sender);
+
+        ///@notice Get WETH balance of this contract.
+        uint256 balanceWeth = IERC20(WETH).balanceOf(address(this));
+
+        ///@notice Withdraw WETH from this contract.
+        _withdrawEth(balanceWeth, WETH);
+
+        ///@notice Transfer ETH to msg.sender.
+        _safeTransferETH(msg.sender, balanceWeth);
+
+        ///@notice Revert if Eth balance of the caller is insufficient.
+        if (msg.sender.balance < amountOutRequired) {
+            revert InsufficientOutputAmount(amountOutRequired - msg.sender.balance, amountOutMin);
+        }
+
+        ///@notice Emit SwapExactTokenForEth event.
+        emit SwapExactTokenForEth(tokenIn, amountIn, msg.sender.balance - balanceBefore, msg.sender);
+    }
+
+    /// @notice Swap tokens for ETH.
+    /// @param tokenIn Address of token to swap.
+    /// @param amountIn Amount of tokenIn to swap.
+    /// @param amountOutMin Minimum amount of ETH to receive.
+    /// @param swapAggregatorMulticall Multicall to be executed.
+    function swapExactTokenForEthOptimized(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+    ) public payable {
+        ///@dev Ignore if the tokenInDestination is address(0).
+        if (swapAggregatorMulticall.tokenInDestination != address(0)) {
+            ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
+            IERC20(tokenIn).transferFrom(msg.sender, swapAggregatorMulticall.tokenInDestination, amountIn);
+        }
+        ///@notice Get ETH balance of msg.sender.
+        uint256 balanceBefore = msg.sender.balance;
+
+        ///@notice Calculate amountOutRequired.
+        uint256 amountOutRequired = balanceBefore + amountOutMin;
+
+        ///@notice Execute Multicall.
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(swapAggregatorMulticall);
 
         ///@notice Get WETH balance of this contract.
         uint256 balanceWeth = IERC20(WETH).balanceOf(address(this));
@@ -449,6 +536,23 @@ contract ConveyorRouterV1 {
         }
     }
 
+    /// @notice Quotes the amount of gas used for a ETH to token swap.
+    /// @dev This function should be used off chain through a static call.
+    function quoteSwapExactEthForTokenOptimized(
+        address tokenOut,
+        uint128 amountOutMin,
+        uint128 protocolFee,
+        SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+    ) external payable returns (uint256 gasConsumed) {
+        assembly {
+            mstore(0x60, gas())
+        }
+        swapExactEthForTokenOptimized(tokenOut, amountOutMin, protocolFee, swapAggregatorMulticall);
+        assembly {
+            gasConsumed := sub(mload(0x60), gas())
+        }
+    }
+
     /// @notice Quotes the amount of gas used for a token to ETH swap.
     /// @dev This function should be used off chain through a static call.
     function quoteSwapExactTokenForEth(
@@ -475,6 +579,23 @@ contract ConveyorRouterV1 {
             assembly {
                 gasConsumed := sub(mload(0x60), gas())
             }
+        }
+    }
+
+    /// @notice Quotes the amount of gas used for a token to ETH swap.
+    /// @dev This function should be used off chain through a static call.
+    function quoteSwapExactTokenForEthOptimized(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+    ) external payable returns (uint256 gasConsumed) {
+        assembly {
+            mstore(0x60, gas())
+        }
+        swapExactTokenForEthOptimized(tokenIn, amountIn, amountOutMin, swapAggregatorMulticall);
+        assembly {
+            gasConsumed := sub(mload(0x60), gas())
         }
     }
 
@@ -774,7 +895,7 @@ contract ConveyorMulticall is GenericMulticall, UniswapV3Callback, UniswapV2Call
         }
         /**
          * Note: fee is specified in the callData as per the UniswapV2 variants specification.
-         *         If this fee is not specified correctly the swap will likely fail, or yield unoptimal 
+         *         If this fee is not specified correctly the swap will likely fail, or yield unoptimal
          *         trade values.*
          */
         uint256 amountInWithFee = amountIn * (100000 - fee);
