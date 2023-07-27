@@ -428,7 +428,7 @@ contract ConveyorRouterV1 {
         tempOwner = newOwner;
     }
 
-    function upgrateMulticall(
+    function upgradeMulticall(
         bytes memory bytecode,
         bytes32 salt
     ) external payable onlyOwner returns (address) {
