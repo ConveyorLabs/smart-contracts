@@ -7,16 +7,8 @@ import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/libraries/token/SafeERC20.sol";
 import {UniswapV3Callback} from "./UniswapV3Callback.sol";
 import {UniswapV2Callback} from "./UniswapV2Callback.sol";
-import {GenericMulticall} from "./GenericMulticall.sol";
 
 interface IConveyorMulticall {
-    function executeMulticall(
-        ConveyorRouterV1.SwapAggregatorMulticall
-            calldata swapAggregatorMulticall,
-        uint256 amountIn,
-        address receiver
-    ) external;
-
     function executeGenericMulticall(
         ConveyorRouterV1.SwapAggregatorGenericMulticall
             calldata genericMulticall
@@ -29,7 +21,7 @@ interface IConveyorMulticall {
 contract ConveyorRouterV1 {
     using SafeERC20 for IERC20;
 
-    address public immutable CONVEYOR_MULTICALL;
+    address public CONVEYOR_MULTICALL;
     address public immutable WETH;
 
     address owner;
@@ -436,6 +428,28 @@ contract ConveyorRouterV1 {
         tempOwner = newOwner;
     }
 
+    function upgrateMulticall(
+        bytes memory bytecode,
+        bytes32 salt
+    ) external payable onlyOwner returns (address) {
+        assembly {
+            let addr := create2(
+                callvalue(),
+                add(bytecode, 0x20),
+                mload(bytecode),
+                salt
+            )
+
+            if iszero(extcodesize(addr)) {
+                revert(0, 0)
+            }
+
+            sstore(CONVEYOR_MULTICALL.slot, addr)
+        }
+
+        return CONVEYOR_MULTICALL;
+    }
+
     /// @notice Fallback receiver function.
     receive() external payable {}
 }
@@ -454,7 +468,7 @@ contract ConveyorMulticall is UniswapV3Callback, UniswapV2Callback {
     }
 
     function executeGenericMulticall(
-        SwapAggregatorGenericMulticall calldata multicall
+        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata multicall
     ) external {
         for (uint256 i = 0; i < multicall.calls.length; i++) {
             (bool success, ) = multicall.calls[i].target.call(
