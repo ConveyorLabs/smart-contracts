@@ -99,6 +99,12 @@ contract ConveyorRouterV1 {
         uint16 affiliate;
     }
 
+    struct TokenToEthSwapData {
+        uint120 amountOutMin;
+        uint120 protocolFee;
+        uint16 affiliate;
+    }
+
     ///@dev Deploys the ConveyorSwapExecutor contract.
     ///@param _weth Address of Wrapped Native Asset.
     constructor(address _weth) {
@@ -181,16 +187,15 @@ contract ConveyorRouterV1 {
     /// @param swapAggregatorMulticall Multicall to be executed.
     function swapExactEthForToken(
         address tokenOut,
-        uint128 amountOutMin,
-        uint128 protocolFee,
+        TokenToEthSwapData calldata swapData,
         SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
     ) public payable {
-        if (protocolFee > msg.value) {
+        if (swapData.protocolFee > msg.value) {
             revert InsufficientMsgValue();
         }
 
         ///@notice Cache the amountIn to save gas.
-        uint256 amountIn = msg.value - protocolFee;
+        uint256 amountIn = msg.value - swapData.protocolFee;
 
         ///@notice Deposit the msg.value-protocolFee into WETH.
         _depositEth(amountIn, WETH);
@@ -205,7 +210,7 @@ contract ConveyorRouterV1 {
         uint256 balanceBefore = IERC20(tokenOut).balanceOf(msg.sender);
 
         ///@notice Calculate tokenOut amount required.
-        uint256 tokenOutAmountRequired = balanceBefore + amountOutMin;
+        uint256 tokenOutAmountRequired = balanceBefore + swapData.amountOutMin;
 
         ///@notice Execute Multicall.
         IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(
@@ -219,9 +224,12 @@ contract ConveyorRouterV1 {
         if (balanceAfter < tokenOutAmountRequired) {
             revert InsufficientOutputAmount(
                 tokenOutAmountRequired - balanceAfter,
-                amountOutMin
+                swapData.amountOutMin
             );
         }
+        address affiliate = affiliates[swapData.affiliate];
+
+        _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, swapData.protocolFee));
 
         ///@notice Emit SwapExactEthForToken event.
         emit SwapExactEthForToken(
