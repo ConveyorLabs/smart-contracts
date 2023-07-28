@@ -5,6 +5,7 @@ import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/libraries/token/SafeERC20.sol";
+import "./lib/ConveyorMath.sol";
 import {UniswapV3Callback} from "./UniswapV3Callback.sol";
 import {UniswapV2Callback} from "./UniswapV2Callback.sol";
 
@@ -20,12 +21,15 @@ interface IConveyorMulticall {
 /// @notice Multicall contract for token Swaps.
 contract ConveyorRouterV1 {
     using SafeERC20 for IERC20;
+    using ConveyorMath for *;
 
     address public CONVEYOR_MULTICALL;
     address public immutable WETH;
 
     address owner;
     address tempOwner;
+
+  uint128 internal constant AFFILIATE_PERCENT = 1844674407370955200;
 
     /**
      * @notice Event that is emitted when a token to token swap has filled successfully.
@@ -87,6 +91,14 @@ contract ConveyorRouterV1 {
         _;
     }
 
+    mapping(uint16 => address) public affiliates;
+
+    struct TokenToTokenSwapData {
+        uint120 amountIn;
+        uint120 amountOutMin;
+        uint16 affiliate;
+    }
+
     ///@dev Deploys the ConveyorSwapExecutor contract.
     ///@param _weth Address of Wrapped Native Asset.
     constructor(address _weth) {
@@ -112,28 +124,26 @@ contract ConveyorRouterV1 {
 
     /// @notice Swap tokens for tokens.
     /// @param tokenIn Address of token to swap.
-    /// @param amountIn Amount of tokenIn to swap.
     /// @param tokenOut Address of token to receive.
-    /// @param amountOutMin Minimum amount of tokenOut to receive.
+    /// @param swapData The swap data for the transaction.
     /// @param genericMulticall Multicall to be executed.
     function swapExactTokenForToken(
         address tokenIn,
-        uint256 amountIn,
         address tokenOut,
-        uint256 amountOutMin,
+        TokenToTokenSwapData calldata swapData,
         SwapAggregatorGenericMulticall calldata genericMulticall
     ) public payable {
         ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
         IERC20(tokenIn).transferFrom(
             msg.sender,
             genericMulticall.tokenInDestination,
-            amountIn
+            swapData.amountIn
         );
 
         ///@notice Get tokenOut balance of msg.sender.
         uint256 balanceBefore = IERC20(tokenOut).balanceOf(msg.sender);
         ///@notice Calculate tokenOut amount required.
-        uint256 tokenOutAmountRequired = balanceBefore + amountOutMin;
+        uint256 tokenOutAmountRequired = balanceBefore + swapData.amountOutMin;
 
         ///@notice Execute Multicall.
         IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(
@@ -146,19 +156,24 @@ contract ConveyorRouterV1 {
         if (balanceAfter < tokenOutAmountRequired) {
             revert InsufficientOutputAmount(
                 tokenOutAmountRequired - balanceAfter,
-                amountOutMin
+                swapData.amountOutMin
             );
         }
+
+        address affiliate = affiliates[swapData.affiliate];
+
+        _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, msg.value));
 
         ///@notice Emit Swap event.
         emit Swap(
             tokenIn,
-            amountIn,
+            swapData.amountIn,
             tokenOut,
             balanceAfter - balanceBefore,
             msg.sender
         );
     }
+
 
     /// @notice Swap ETH for tokens.
     /// @param tokenOut Address of token to receive.
@@ -278,9 +293,8 @@ contract ConveyorRouterV1 {
     /// @dev This function should be used off chain through a static call.
     function quoteSwapExactTokenForToken(
         address tokenIn,
-        uint256 amountIn,
         address tokenOut,
-        uint256 amountOutMin,
+        TokenToTokenSwapData calldata swapData,
         SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
     ) external payable returns (uint256 gasConsumed) {
         assembly {
@@ -288,9 +302,8 @@ contract ConveyorRouterV1 {
         }
         swapExactTokenForToken(
             tokenIn,
-            amountIn,
             tokenOut,
-            amountOutMin,
+            swapData,
             swapAggregatorMulticall
         );
         assembly {
