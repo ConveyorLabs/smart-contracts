@@ -40,7 +40,6 @@ contract ConveyorRouterV1Test is DSTest {
 
         forkId = vm.activeFork();
         //Set the owner to the test contract.
-        vm.prank(address(1));
         conveyorRouterV1 = IConveyorRouterV1(address(new ConveyorRouterV1(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)));
 
         conveyorMulticallWrapper = new ConveyorMulticallWrapper(
@@ -206,21 +205,19 @@ contract ConveyorRouterV1Test is DSTest {
         IERC20(dai).approve(address(conveyorRouterV1), type(uint256).max);
 
         //Setup the calls
-        ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](5);
+        ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](7);
         // //Transfer 50% of the input quantity from the conveyorMulticall to sushiDaiUsdc
-        // calls[0] = newTransferCall(dai, sushiDaiUsdc, 1e20);
+        calls[0] = newTransferCall(dai, sushiDaiUsdc, 1e20);
         // //Transfer 50% of the input quantity from the conveyorMulticall to uniDaiUsdc
-        // calls[1] = newTransferCall(dai, uniDaiUsdc, 1e20);
-        bytes memory data_1 = abi.encode(true, dai, conveyorRouterV1.CONVEYOR_MULTICALL());
+        calls[1] = newTransferCall(dai, uniDaiUsdc, 1e20);
         //Call 2,3 - Swap DAI for USDC on Sushi/Uni - Send tokens out to the the next pool
-        calls[0] = newUniV2Call(sushiDaiUsdc, 0, 1000000, conveyorRouterV1.CONVEYOR_MULTICALL(), data_1);
-        calls[1] = newUniV2Call(uniDaiUsdc, 0, 1000000, conveyorRouterV1.CONVEYOR_MULTICALL(), data_1);
-        bytes memory data_2 = abi.encode(true, usdc, conveyorRouterV1.CONVEYOR_MULTICALL());
+        calls[2] = newUniV2Call(sushiDaiUsdc, 0, 1000000, sushiUsdcWeth,new bytes(0));
+        calls[3] = newUniV2Call(uniDaiUsdc, 0, 1000000, uniUsdcWeth, new bytes(0));
         //Call 4,5 - Swap USDC for WETH on Sushi/Uni - Send tokens out to the msg.sender
-        calls[2] = newUniV2Call(sushiUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), data_2);
-        calls[3] = newUniV2Call(uniUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), data_2);
+        calls[4] = newUniV2Call(sushiUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), new bytes(0));
+        calls[5] = newUniV2Call(uniUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), new bytes(0));
 
-        calls[4] = newTransferCall(weth, address(this), 2);
+        calls[6] = newTransferCall(weth, address(this), 2);
 
         //Create the multicall
         ConveyorRouterV1.SwapAggregatorGenericMulticall memory multicall = ConveyorRouterV1
