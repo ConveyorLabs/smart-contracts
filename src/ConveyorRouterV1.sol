@@ -93,13 +93,13 @@ contract ConveyorRouterV1 {
 
     mapping(uint16 => address) public affiliates;
 
-    struct TokenToTokenSwapData {
+    struct SwapData {
         uint120 amountIn;
         uint120 amountOutMin;
         uint16 affiliate;
     }
 
-    struct TokenToEthSwapData {
+    struct EthToTokenSwapData {
         uint120 amountOutMin;
         uint120 protocolFee;
         uint16 affiliate;
@@ -136,7 +136,7 @@ contract ConveyorRouterV1 {
     function swapExactTokenForToken(
         address tokenIn,
         address tokenOut,
-        TokenToTokenSwapData calldata swapData,
+        SwapData calldata swapData,
         SwapAggregatorGenericMulticall calldata genericMulticall
     ) public payable {
         ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
@@ -183,11 +183,11 @@ contract ConveyorRouterV1 {
 
     /// @notice Swap ETH for tokens.
     /// @param tokenOut Address of token to receive.
-    /// @param amountOutMin Minimum amount of tokenOut to receive.
+    /// @param swapData The swap data for the transaction.
     /// @param swapAggregatorMulticall Multicall to be executed.
     function swapExactEthForToken(
         address tokenOut,
-        TokenToEthSwapData calldata swapData,
+        EthToTokenSwapData calldata swapData,
         SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
     ) public payable {
         if (swapData.protocolFee > msg.value) {
@@ -242,13 +242,11 @@ contract ConveyorRouterV1 {
 
     /// @notice Swap tokens for ETH.
     /// @param tokenIn Address of token to swap.
-    /// @param amountIn Amount of tokenIn to swap.
-    /// @param amountOutMin Minimum amount of ETH to receive.
+    /// @param swapData The swap data for the transaction.
     /// @param swapAggregatorMulticall Multicall to be executed.
     function swapExactTokenForEth(
         address tokenIn,
-        uint256 amountIn,
-        uint256 amountOutMin,
+        SwapData calldata swapData,
         SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
     ) public payable {
         ///@dev Ignore if the tokenInDestination is address(0).
@@ -257,14 +255,14 @@ contract ConveyorRouterV1 {
             IERC20(tokenIn).transferFrom(
                 msg.sender,
                 swapAggregatorMulticall.tokenInDestination,
-                amountIn
+                swapData.amountIn
             );
         }
         ///@notice Get ETH balance of msg.sender.
         uint256 balanceBefore = msg.sender.balance;
 
         ///@notice Calculate amountOutRequired.
-        uint256 amountOutRequired = balanceBefore + amountOutMin;
+        uint256 amountOutRequired = balanceBefore + swapData.amountOutMin;
 
         ///@notice Execute Multicall.
         IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(
@@ -284,14 +282,18 @@ contract ConveyorRouterV1 {
         if (msg.sender.balance < amountOutRequired) {
             revert InsufficientOutputAmount(
                 amountOutRequired - msg.sender.balance,
-                amountOutMin
+                swapData.amountOutMin
             );
         }
+
+        address affiliate = affiliates[swapData.affiliate];
+
+        _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, msg.value));
 
         ///@notice Emit SwapExactTokenForEth event.
         emit SwapExactTokenForEth(
             tokenIn,
-            amountIn,
+            swapData.amountIn,
             msg.sender.balance - balanceBefore,
             msg.sender
         );
@@ -302,7 +304,7 @@ contract ConveyorRouterV1 {
     function quoteSwapExactTokenForToken(
         address tokenIn,
         address tokenOut,
-        TokenToTokenSwapData calldata swapData,
+        SwapData calldata swapData,
         SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
     ) external payable returns (uint256 gasConsumed) {
         assembly {
@@ -323,8 +325,7 @@ contract ConveyorRouterV1 {
     /// @dev This function should be used off chain through a static call.
     function quoteSwapExactEthForToken(
         address tokenOut,
-        uint128 amountOutMin,
-        uint128 protocolFee,
+        EthToTokenSwapData calldata swapData,
         SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
     ) external payable returns (uint256 gasConsumed) {
         assembly {
@@ -332,8 +333,7 @@ contract ConveyorRouterV1 {
         }
         swapExactEthForToken(
             tokenOut,
-            amountOutMin,
-            protocolFee,
+            swapData,
             swapAggregatorMulticall
         );
         assembly {
@@ -345,8 +345,7 @@ contract ConveyorRouterV1 {
     /// @dev This function should be used off chain through a static call.
     function quoteSwapExactTokenForEth(
         address tokenIn,
-        uint256 amountIn,
-        uint256 amountOutMin,
+        SwapData calldata swapData,
         SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
     ) external payable returns (uint256 gasConsumed) {
         assembly {
@@ -354,8 +353,7 @@ contract ConveyorRouterV1 {
         }
         swapExactTokenForEth(
             tokenIn,
-            amountIn,
-            amountOutMin,
+            swapData,
             swapAggregatorMulticall
         );
         assembly {
