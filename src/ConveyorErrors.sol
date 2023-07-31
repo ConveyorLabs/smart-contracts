@@ -67,3 +67,5 @@ error V3SwapFailed();
 error CallFailed();
 error InvalidReferral();
 error InvalidReferralFee();
+error AffiliateDoesNotExist();
+error ReferrerDoesNotExist();

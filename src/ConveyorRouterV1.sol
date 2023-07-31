@@ -72,6 +72,7 @@ contract ConveyorRouterV1 {
         _;
     }
     ///@notice Mapping from uint16 to affiliate address.
+
     mapping(uint16 => address) public affiliates;
     ///@notice Mapping from uint16 to referrer address.
     mapping(uint16 => address) public referrers;
@@ -82,9 +83,10 @@ contract ConveyorRouterV1 {
     uint16 public referrerNonce;
 
     struct SwapData {
-        uint120 amountIn;
-        uint120 amountOutMin;
+        uint112 amountIn;
+        uint112 amountOutMin;
         uint16 affiliate;
+        uint16 referrer;
     }
 
     struct ReferralSwapData {
@@ -162,21 +164,21 @@ contract ConveyorRouterV1 {
         }
 
         address affiliate = affiliates[swapData.affiliate];
-
+        if (affiliate == address(0)) {
+            revert AffiliateDoesNotExist();
+        }
         _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, msg.value));
+        ///@dev First bit of referrer is used to check if referrer exists
+        if (swapData.referrer & 0x1 != 0x0) {
+            address referrer = referrers[swapData.referrer >> 0x1];
+            if (referrer == address(0)) {
+                revert ReferrerDoesNotExist();
+            }
+            _safeTransferETH(referrer, ConveyorMath.mul64U(REFERRAL_PERCENT, msg.value));
+        }
 
         ///@notice Emit Swap event.
         emit Swap(tokenIn, swapData.amountIn, tokenOut, balanceAfter - balanceBefore, msg.sender);
-    }
-
-    /// @notice Swap tokens for tokens with referral.
-    function swapExactTokenForTokenViaReferral(
-        address tokenIn,
-        address tokenOut,
-        ReferralSwapData calldata swapData,
-        SwapAggregatorGenericMulticall calldata genericMulticall
-    ) external payable {
-        ///TODO:
     }
 
     /// @notice Swap ETH for tokens.
@@ -225,15 +227,6 @@ contract ConveyorRouterV1 {
         emit SwapExactEthForToken(msg.value, tokenOut, balanceAfter - balanceBefore, msg.sender);
     }
 
-    /// @notice Swap ETH for tokens with referral.
-    function swapExactEthForTokenViaReferral(
-        address tokenOut,
-        ReferralEthToTokenSwapData calldata swapData,
-        SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
-    ) external payable {
-        ///TODO:
-    }
-
     /// @notice Swap tokens for ETH.
     /// @param tokenIn Address of token to swap.
     /// @param swapData The swap data for the transaction.
@@ -277,15 +270,6 @@ contract ConveyorRouterV1 {
 
         ///@notice Emit SwapExactTokenForEth event.
         emit SwapExactTokenForEth(tokenIn, swapData.amountIn, msg.sender.balance - balanceBefore, msg.sender);
-    }
-
-    /// @notice Swap tokens for ETH with referral.
-    function swapExactTokenForEthViaReferral(
-        address tokenIn,
-        ReferralSwapData calldata swapData,
-        SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
-    ) external payable {
-        ///TODO:
     }
 
     /// @notice Quotes the amount of gas used for a optimized token to token swap.
@@ -448,7 +432,7 @@ contract ConveyorRouterV1 {
         referrers[tempReferrerNonce] = msg.sender;
 
         unchecked {
-            referrerNonce= tempReferrerNonce + 1;
+            referrerNonce = tempReferrerNonce + 1;
             require(referrerNonce < type(uint16).max, "Referrer nonce overflow");
         }
     }
