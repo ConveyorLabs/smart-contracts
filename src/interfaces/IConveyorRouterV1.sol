@@ -11,15 +11,34 @@ interface IConveyorRouterV1 {
         ConveyorRouterV1.SwapAggregatorGenericMulticall calldata genericMulticall
     ) external payable;
 
+    function swapExactTokenForTokenViaReferral(
+        address tokenIn,
+        address tokenOut,
+        ConveyorRouterV1.ReferralSwapData calldata swapData,
+        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata genericMulticall
+    ) external payable;
+
     function swapExactEthForToken(
         address tokenOut,
         ConveyorRouterV1.EthToTokenSwapData calldata swapData,
         ConveyorRouterV1.SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
     ) external payable;
 
+    function swapExactEthForTokenViaReferral(
+        address tokenOut,
+        ConveyorRouterV1.ReferralEthToTokenSwapData calldata swapData,
+        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+    ) external payable;
+
     function swapExactTokenForEth(
         address tokenIn,
         ConveyorRouterV1.SwapData calldata swapData,
+        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+    ) external payable;
+
+    function swapExactTokenForEthViaReferral(
+        address tokenIn,
+        ConveyorRouterV1.ReferralSwapData calldata swapData,
         ConveyorRouterV1.SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
     ) external payable;
 

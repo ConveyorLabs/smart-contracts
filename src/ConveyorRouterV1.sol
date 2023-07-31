@@ -70,8 +70,16 @@ contract ConveyorRouterV1 {
 
         _;
     }
+    ///@notice Mapping from uint16 to affiliate address.
 
     mapping(uint16 => address) public affiliates;
+    ///@notice Mapping from uint16 to referrer address.
+    mapping(uint16 => address) public referrers;
+
+    ///@notice Current Nonce for affiliate addresses.
+    uint16 public affiliateNonce;
+    ///@notice Current Nonce for referrer addresses.
+    uint16 public referrerNonce;
 
     struct SwapData {
         uint120 amountIn;
@@ -79,10 +87,24 @@ contract ConveyorRouterV1 {
         uint16 affiliate;
     }
 
+    struct ReferralSwapData {
+        uint112 amountIn;
+        uint112 amountOutMin;
+        uint16 affiliate;
+        uint16 referrer;
+    }
+
     struct EthToTokenSwapData {
         uint120 amountOutMin;
         uint120 protocolFee;
         uint16 affiliate;
+    }
+
+    struct ReferralEthToTokenSwapData {
+        uint112 amountOutMin;
+        uint112 protocolFee;
+        uint16 affiliate;
+        uint16 referrer;
     }
 
     ///@dev Deploys the ConveyorSwapExecutor contract.
@@ -145,6 +167,16 @@ contract ConveyorRouterV1 {
         emit Swap(tokenIn, swapData.amountIn, tokenOut, balanceAfter - balanceBefore, msg.sender);
     }
 
+    /// @notice Swap tokens for tokens with referral.
+    function swapExactTokenForTokenViaReferral(
+        address tokenIn,
+        address tokenOut,
+        ReferralSwapData calldata swapData,
+        SwapAggregatorGenericMulticall calldata genericMulticall
+    ) external payable {
+        ///TODO:
+    }
+
     /// @notice Swap ETH for tokens.
     /// @param tokenOut Address of token to receive.
     /// @param swapData The swap data for the transaction.
@@ -191,6 +223,15 @@ contract ConveyorRouterV1 {
         emit SwapExactEthForToken(msg.value, tokenOut, balanceAfter - balanceBefore, msg.sender);
     }
 
+    /// @notice Swap ETH for tokens with referral.
+    function swapExactEthForTokenViaReferral(
+        address tokenOut,
+        ReferralEthToTokenSwapData calldata swapData,
+        SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+    ) external payable {
+        ///TODO:
+    }
+
     /// @notice Swap tokens for ETH.
     /// @param tokenIn Address of token to swap.
     /// @param swapData The swap data for the transaction.
@@ -234,6 +275,15 @@ contract ConveyorRouterV1 {
 
         ///@notice Emit SwapExactTokenForEth event.
         emit SwapExactTokenForEth(tokenIn, swapData.amountIn, msg.sender.balance - balanceBefore, msg.sender);
+    }
+
+    /// @notice Swap tokens for ETH with referral.
+    function swapExactTokenForEthViaReferral(
+        address tokenIn,
+        ReferralSwapData calldata swapData,
+        SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+    ) external payable {
+        ///TODO:
     }
 
     /// @notice Quotes the amount of gas used for a optimized token to token swap.
