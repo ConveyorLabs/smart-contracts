@@ -39,8 +39,10 @@ contract ConveyorRouterV1Test is DSTest {
         vm.deal(address(swapHelper), type(uint256).max);
 
         forkId = vm.activeFork();
+
+        uint128 REFERRAL_INITIALIZATION_FEE = 18446744073709550;
         //Set the owner to the test contract.
-        conveyorRouterV1 = IConveyorRouterV1(address(new ConveyorRouterV1(WETH, 1)));
+        conveyorRouterV1 = IConveyorRouterV1(address(new ConveyorRouterV1(WETH, REFERRAL_INITIALIZATION_FEE)));
 
         conveyorMulticallWrapper = new ConveyorMulticallWrapper(
             address(conveyorRouterV1)
