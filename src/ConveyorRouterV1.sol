@@ -8,7 +8,6 @@ import "../lib/libraries/token/SafeERC20.sol";
 import "./lib/ConveyorMath.sol";
 import {UniswapV3Callback} from "./UniswapV3Callback.sol";
 import {UniswapV2Callback} from "./UniswapV2Callback.sol";
-import "../test/utils/Console.sol";
 
 interface IConveyorMulticall {
     function executeGenericMulticall(ConveyorRouterV1.SwapAggregatorGenericMulticall calldata genericMulticall)
@@ -72,8 +71,8 @@ contract ConveyorRouterV1 {
 
         _;
     }
-    ///@notice Mapping from uint16 to affiliate address.
 
+    ///@notice Mapping from uint16 to affiliate address.
     mapping(uint16 => address) public affiliates;
     ///@notice Mapping from uint16 to referrer address.
     mapping(uint16 => address) public referrers;
@@ -90,20 +89,7 @@ contract ConveyorRouterV1 {
         uint16 referrer;
     }
 
-    struct ReferralSwapData {
-        uint112 amountIn;
-        uint112 amountOutMin;
-        uint16 affiliate;
-        uint16 referrer;
-    }
-
     struct EthToTokenSwapData {
-        uint120 amountOutMin;
-        uint120 protocolFee;
-        uint16 affiliate;
-    }
-
-    struct ReferralEthToTokenSwapData {
         uint112 amountOutMin;
         uint112 protocolFee;
         uint16 affiliate;
@@ -119,7 +105,6 @@ contract ConveyorRouterV1 {
         CONVEYOR_MULTICALL = address(new ConveyorMulticall(address(this)));
         WETH = _weth;
         owner = tx.origin;
-        console.log("Owner:", owner);
     }
 
     /// @notice Gas optimized Multicall struct
@@ -176,7 +161,6 @@ contract ConveyorRouterV1 {
             if (referrer == address(0)) {
                 revert ReferrerDoesNotExist();
             }
-            console.log("Referral!!");
             _safeTransferETH(referrer, ConveyorMath.mul64U(REFERRAL_PERCENT, msg.value));
         }
 
@@ -223,8 +207,19 @@ contract ConveyorRouterV1 {
             revert InsufficientOutputAmount(tokenOutAmountRequired - balanceAfter, swapData.amountOutMin);
         }
         address affiliate = affiliates[swapData.affiliate];
-
+        if (affiliate == address(0)) {
+            revert AffiliateDoesNotExist();
+        }
         _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, swapData.protocolFee));
+
+        ///@dev First bit of referrer is used to check if referrer exists
+        if (swapData.referrer & 0x1 != 0x0) {
+            address referrer = referrers[swapData.referrer >> 0x1];
+            if (referrer == address(0)) {
+                revert ReferrerDoesNotExist();
+            }
+            _safeTransferETH(referrer, ConveyorMath.mul64U(REFERRAL_PERCENT, swapData.protocolFee));
+        }
 
         ///@notice Emit SwapExactEthForToken event.
         emit SwapExactEthForToken(msg.value, tokenOut, balanceAfter - balanceBefore, msg.sender);
@@ -270,6 +265,14 @@ contract ConveyorRouterV1 {
         address affiliate = affiliates[swapData.affiliate];
 
         _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, msg.value));
+        ///@dev First bit of referrer is used to check if referrer exists
+        if (swapData.referrer & 0x1 != 0x0) {
+            address referrer = referrers[swapData.referrer >> 0x1];
+            if (referrer == address(0)) {
+                revert ReferrerDoesNotExist();
+            }
+            _safeTransferETH(referrer, ConveyorMath.mul64U(REFERRAL_PERCENT, msg.value));
+        }
 
         ///@notice Emit SwapExactTokenForEth event.
         emit SwapExactTokenForEth(tokenIn, swapData.amountIn, msg.sender.balance - balanceBefore, msg.sender);
@@ -425,9 +428,10 @@ contract ConveyorRouterV1 {
         }
     }
 
+    ///@notice Function to set referrer mapping.
     function initializeReferrer() external payable {
         uint16 tempReferrerNonce = referrerNonce;
-
+        ///@dev The msg.value required to set the referral address increases over time to protect against spam.
         if (msg.value < ConveyorMath.mul64U(REFERRAL_INITIALIZATION_FEE, tempReferrerNonce)) {
             revert InvalidReferralFee();
         }
