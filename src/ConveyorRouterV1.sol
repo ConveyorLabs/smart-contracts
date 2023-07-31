@@ -8,6 +8,7 @@ import "../lib/libraries/token/SafeERC20.sol";
 import "./lib/ConveyorMath.sol";
 import {UniswapV3Callback} from "./UniswapV3Callback.sol";
 import {UniswapV2Callback} from "./UniswapV2Callback.sol";
+import "../test/utils/Console.sol";
 
 interface IConveyorMulticall {
     function executeGenericMulticall(ConveyorRouterV1.SwapAggregatorGenericMulticall calldata genericMulticall)
@@ -118,6 +119,7 @@ contract ConveyorRouterV1 {
         CONVEYOR_MULTICALL = address(new ConveyorMulticall(address(this)));
         WETH = _weth;
         owner = tx.origin;
+        console.log("Owner:", owner);
     }
 
     /// @notice Gas optimized Multicall struct
@@ -174,6 +176,7 @@ contract ConveyorRouterV1 {
             if (referrer == address(0)) {
                 revert ReferrerDoesNotExist();
             }
+            console.log("Referral!!");
             _safeTransferETH(referrer, ConveyorMath.mul64U(REFERRAL_PERCENT, msg.value));
         }
 
@@ -414,8 +417,7 @@ contract ConveyorRouterV1 {
     }
 
     ///@notice Function to set affiliate address.
-    ///TODO: Add onlyOwner modifier.
-    function initializeAffiliate(address affiliateAddress) external {
+    function initializeAffiliate(address affiliateAddress) external onlyOwner {
         affiliates[affiliateNonce] = affiliateAddress;
         unchecked {
             affiliateNonce++;

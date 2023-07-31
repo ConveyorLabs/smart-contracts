@@ -45,6 +45,9 @@ contract ConveyorRouterV1Test is DSTest {
         conveyorMulticallWrapper = new ConveyorMulticallWrapper(
             address(conveyorRouterV1)
         );
+        vm.prank(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38));
+        //Setup the affiliate
+        conveyorRouterV1.initializeAffiliate(address(this));
         vm.makePersistent(address(conveyorMulticallWrapper));
         vm.makePersistent(address(conveyorRouterV1));
         vm.makePersistent(address(this));
@@ -225,8 +228,9 @@ contract ConveyorRouterV1Test is DSTest {
             conveyorRouterV1.CONVEYOR_MULTICALL(), //Transfer the full input quantity to the multicall contract first
             calls
         );
-        conveyorRouterV1.initializeAffiliate(address(this));
-        ConveyorRouterV1.SwapData memory swapData = ConveyorRouterV1.SwapData(uint112(amountIn), 1, 0, 0);
+
+        conveyorRouterV1.initializeReferrer(); //Set the referrer at referrerNonce 0.
+        ConveyorRouterV1.SwapData memory swapData = ConveyorRouterV1.SwapData(uint112(amountIn), 1, 0, 1); //referrer 1 since first index is used to set the referrer bool.
 
         //Execute the swap
         conveyorRouterV1.swapExactTokenForToken(dai, weth, swapData, multicall);
