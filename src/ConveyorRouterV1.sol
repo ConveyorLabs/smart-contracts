@@ -526,7 +526,7 @@ contract ConveyorRouterV1 {
         unchecked {
             affiliateNonce++;
             require(
-                affiliateNonce < type(uint128).max,
+                affiliateNonce < type(uint16).max,
                 "Affiliate nonce overflow"
             );
         }
@@ -547,7 +547,7 @@ contract ConveyorRouterV1 {
         unchecked {
             affiliateNonce++;
             require(
-                affiliateNonce < type(uint128).max,
+                affiliateNonce < type(uint16).max,
                 "Affiliate nonce overflow"
             );
         }
