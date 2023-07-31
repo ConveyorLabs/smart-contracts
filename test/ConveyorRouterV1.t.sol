@@ -40,7 +40,7 @@ contract ConveyorRouterV1Test is DSTest {
 
         forkId = vm.activeFork();
         //Set the owner to the test contract.
-        conveyorRouterV1 = IConveyorRouterV1(address(new ConveyorRouterV1(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)));
+        conveyorRouterV1 = IConveyorRouterV1(address(new ConveyorRouterV1(WETH, 1)));
 
         conveyorMulticallWrapper = new ConveyorMulticallWrapper(
             address(conveyorRouterV1)
@@ -225,8 +225,8 @@ contract ConveyorRouterV1Test is DSTest {
             conveyorRouterV1.CONVEYOR_MULTICALL(), //Transfer the full input quantity to the multicall contract first
             calls
         );
-        conveyorRouterV1.setAffiliate(0, address(this));
-        ConveyorRouterV1.SwapData memory swapData = ConveyorRouterV1.SwapData(uint120(amountIn), 1, 0);
+        conveyorRouterV1.initializeAffiliate(address(this));
+        ConveyorRouterV1.SwapData memory swapData = ConveyorRouterV1.SwapData(uint112(amountIn), 1, 0, 0);
 
         //Execute the swap
         conveyorRouterV1.swapExactTokenForToken(dai, weth, swapData, multicall);

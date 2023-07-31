@@ -14,7 +14,8 @@ contract Deploy is Script {
         vm.startBroadcast(deployerPrivateKey);
         /// Deploy ConveyorRouterV1
         conveyorRouterV1 = new ConveyorRouterV1(
-            WETH
+            WETH,
+            0
         );
         vm.stopBroadcast();
     }

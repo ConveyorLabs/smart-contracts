@@ -8,64 +8,76 @@ interface IConveyorRouterV1 {
         address tokenIn,
         address tokenOut,
         ConveyorRouterV1.SwapData calldata swapData,
-        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata genericMulticall
+        ConveyorRouterV1.SwapAggregatorGenericMulticall
+            calldata genericMulticall
     ) external payable;
 
     function swapExactTokenForTokenViaReferral(
         address tokenIn,
         address tokenOut,
         ConveyorRouterV1.ReferralSwapData calldata swapData,
-        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata genericMulticall
+        ConveyorRouterV1.SwapAggregatorGenericMulticall
+            calldata genericMulticall
     ) external payable;
 
     function swapExactEthForToken(
         address tokenOut,
         ConveyorRouterV1.EthToTokenSwapData calldata swapData,
-        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+        ConveyorRouterV1.SwapAggregatorGenericMulticall
+            calldata swapAggregatorMulticall
     ) external payable;
 
     function swapExactEthForTokenViaReferral(
         address tokenOut,
         ConveyorRouterV1.ReferralEthToTokenSwapData calldata swapData,
-        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+        ConveyorRouterV1.SwapAggregatorGenericMulticall
+            calldata swapAggregatorMulticall
     ) external payable;
 
     function swapExactTokenForEth(
         address tokenIn,
         ConveyorRouterV1.SwapData calldata swapData,
-        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+        ConveyorRouterV1.SwapAggregatorGenericMulticall
+            calldata swapAggregatorMulticall
     ) external payable;
 
     function swapExactTokenForEthViaReferral(
         address tokenIn,
         ConveyorRouterV1.ReferralSwapData calldata swapData,
-        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+        ConveyorRouterV1.SwapAggregatorGenericMulticall
+            calldata swapAggregatorMulticall
     ) external payable;
 
-    function setAffiliate(uint16 affiliateId, address affiliateAddress) external;
+    function initializeAffiliate(address affiliateAddress) external;
 
-    function upgradeMulticall(bytes memory bytecode, bytes32 salt) external payable returns (address);
+    function upgradeMulticall(
+        bytes memory bytecode,
+        bytes32 salt
+    ) external payable returns (address);
 
     function quoteSwapExactTokenForToken(
         address tokenIn,
         uint256 amountIn,
         address tokenOut,
         uint256 amountOutMin,
-        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+        ConveyorRouterV1.SwapAggregatorGenericMulticall
+            calldata swapAggregatorMulticall
     ) external payable returns (uint256 gasConsumed);
 
     function quoteSwapExactTokenForEth(
         address tokenIn,
         uint256 amountIn,
         uint256 amountOutMin,
-        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+        ConveyorRouterV1.SwapAggregatorGenericMulticall
+            calldata swapAggregatorMulticall
     ) external payable returns (uint256 gasConsumed);
 
     function quoteSwapExactEthForToken(
         address tokenOut,
         uint128 amountOutMin,
         uint128 protocolFee,
-        ConveyorRouterV1.SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+        ConveyorRouterV1.SwapAggregatorGenericMulticall
+            calldata swapAggregatorMulticall
     ) external payable returns (uint256 gasConsumed);
 
     function withdraw() external;

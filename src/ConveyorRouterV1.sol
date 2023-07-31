@@ -414,7 +414,8 @@ contract ConveyorRouterV1 {
     }
 
     ///@notice Function to set affiliate address.
-    function initializeAffiliate(address affiliateAddress) external onlyOwner {
+    ///TODO: Add onlyOwner modifier.
+    function initializeAffiliate(address affiliateAddress) external {
         affiliates[affiliateNonce] = affiliateAddress;
         unchecked {
             affiliateNonce++;
