@@ -66,3 +66,4 @@ error V2SwapFailed();
 error V3SwapFailed();
 error CallFailed();
 error InvalidReferral();
+error InvalidReferralFee();
