@@ -156,12 +156,13 @@ contract ConveyorRouterV1 {
         if (balanceAfter < tokenOutAmountRequired) {
             revert InsufficientOutputAmount(tokenOutAmountRequired - balanceAfter, swapData.amountOutMin);
         }
-
-        address affiliate = affiliates[swapData.affiliate];
-        if (affiliate == address(0)) {
-            revert AffiliateDoesNotExist();
+        if (swapData.affiliate & 0x1 != 0x0) {
+            address affiliate = affiliates[swapData.affiliate >> 0x1];
+            if (affiliate == address(0)) {
+                revert AffiliateDoesNotExist();
+            }
+            _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, msg.value));
         }
-        _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, msg.value));
         ///@dev First bit of referrer is used to check if referrer exists
         if (swapData.referrer & 0x1 != 0x0) {
             address referrer = referrers[swapData.referrer >> 0x1];
@@ -211,12 +212,13 @@ contract ConveyorRouterV1 {
         if (balanceAfter < tokenOutAmountRequired) {
             revert InsufficientOutputAmount(tokenOutAmountRequired - balanceAfter, swapData.amountOutMin);
         }
-        address affiliate = affiliates[swapData.affiliate];
-        if (affiliate == address(0)) {
-            revert AffiliateDoesNotExist();
+        if (swapData.affiliate & 0x1 != 0x0) {
+            address affiliate = affiliates[swapData.affiliate >> 0x1];
+            if (affiliate == address(0)) {
+                revert AffiliateDoesNotExist();
+            }
+            _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, swapData.protocolFee));
         }
-        _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, swapData.protocolFee));
-
         ///@dev First bit of referrer is used to check if referrer exists
         if (swapData.referrer & 0x1 != 0x0) {
             address referrer = referrers[swapData.referrer >> 0x1];
@@ -266,10 +268,13 @@ contract ConveyorRouterV1 {
         if (msg.sender.balance < amountOutRequired) {
             revert InsufficientOutputAmount(amountOutRequired - msg.sender.balance, swapData.amountOutMin);
         }
-
-        address affiliate = affiliates[swapData.affiliate];
-
-        _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, msg.value));
+        if (swapData.affiliate & 0x1 != 0x0) {
+            address affiliate = affiliates[swapData.affiliate >> 0x1];
+            if (affiliate == address(0)) {
+                revert AffiliateDoesNotExist();
+            }
+            _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, msg.value));
+        }
         ///@dev First bit of referrer is used to check if referrer exists
         if (swapData.referrer & 0x1 != 0x0) {
             address referrer = referrers[swapData.referrer >> 0x1];
