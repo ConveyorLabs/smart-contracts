@@ -27,7 +27,8 @@ contract ConveyorRouterV1 {
     address tempOwner;
 
     uint128 internal constant AFFILIATE_PERCENT = 1844674407370955200;
-    uint128 internal constant ONE_TENTH_PERCENT = 1844674407370955;
+    uint128 internal constant REFERRAL_PERCENT = 922337203685477600;
+    uint128 immutable REFERRAL_INITIALIZATION_FEE;
 
     /**
      * @notice Event that is emitted when a token to token swap has filled successfully.
@@ -108,8 +109,10 @@ contract ConveyorRouterV1 {
 
     ///@dev Deploys the ConveyorSwapExecutor contract.
     ///@param _weth Address of Wrapped Native Asset.
-    constructor(address _weth) {
+    constructor(address _weth, uint128 _referralInitializationFee) payable {
         require(_weth != address(0), "WETH address is zero");
+        require(_referralInitializationFee > 0, "Referral initialization fee is zero");
+        REFERRAL_INITIALIZATION_FEE = _referralInitializationFee;
         CONVEYOR_MULTICALL = address(new ConveyorMulticall(address(this)));
         WETH = _weth;
         owner = tx.origin;
@@ -438,7 +441,7 @@ contract ConveyorRouterV1 {
     function initializeReferrer() external payable {
         uint16 tempReferrerNonce = referrerNonce;
 
-        if (msg.value < ConveyorMath.mul64U(ONE_TENTH_PERCENT, tempReferrerNonce)) {
+        if (msg.value < ConveyorMath.mul64U(REFERRAL_INITIALIZATION_FEE, tempReferrerNonce)) {
             revert InvalidReferralFee();
         }
 
