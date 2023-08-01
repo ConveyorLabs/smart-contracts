@@ -501,6 +501,8 @@ contract ConveyorMulticall is
     SakeSwapCallback,
     LinkSwapCallback
 {
+    using SafeERC20 for IERC20;
+
     constructor() {}
 
     function executeMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata multicall) external {

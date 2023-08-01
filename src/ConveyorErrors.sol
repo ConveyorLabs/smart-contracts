@@ -46,11 +46,8 @@ error IdenticalTokenAddresses();
 error InvalidInputTokenForOrderPlacement();
 error SandboxFillAmountNotSatisfied(bytes32 orderId, uint256 amountFilled, uint256 fillAmountRequired);
 error OrderNotEligibleForRefresh(bytes32 orderId);
-
 error SandboxAmountOutRequiredNotSatisfied(bytes32 orderId, uint256 amountOut, uint256 amountOutRequired);
-
 error AmountOutRequiredIsZero(bytes32 orderId);
-
 error FillAmountSpecifiedGreaterThanAmountRemaining(
     uint256 fillAmountSpecified, uint256 amountInRemaining, bytes32 orderId
 );
@@ -59,7 +56,6 @@ error InsufficientFillAmountSpecified(uint128 fillAmountSpecified, uint128 amoun
 error InsufficientExecutionCredit(uint256 msgValue, uint256 minExecutionCredit);
 error WithdrawAmountExceedsExecutionCredit(uint256 amount, uint256 executionCredit);
 error MsgValueIsNotCumulativeExecutionCredit(uint256 msgValue, uint256 cumulativeExecutionCredit);
-
 error ExecutorNotCheckedIn();
 error InvalidToAddressBits();
 error V2SwapFailed();
