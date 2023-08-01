@@ -467,7 +467,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
 
         unchecked {
             tempReferrerNonce++;
-            require(referrerNonce < type(uint16).max >> 0x1, "Referrer nonce overflow");
+            require(tempReferrerNonce < type(uint16).max >> 0x1, "Referrer nonce overflow");
             referrerNonce = tempReferrerNonce;
         }
     }
