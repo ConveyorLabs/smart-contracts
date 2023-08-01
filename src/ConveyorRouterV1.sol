@@ -10,8 +10,7 @@ import {UniswapV3Callback} from "./UniswapV3Callback.sol";
 import {UniswapV2Callback} from "./UniswapV2Callback.sol";
 
 interface IConveyorMulticall {
-    function executeGenericMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata genericMulticall)
-        external;
+    function executeGenericMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata genericMulticall) external;
 }
 
 /// @title ConveyorRouterV1
