@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.19;
 
-import "../lib/interfaces/token/IERC20.sol";
 import "./ConveyorErrors.sol";
-import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
-import "../lib/libraries/token/SafeERC20.sol";
-import "./lib/ConveyorMath.sol";
+import {IERC20} from "../lib/interfaces/token/IERC20.sol";
+import {SafeERC20} from "../lib/libraries/token/SafeERC20.sol";
+import {ConveyorMath} from "./lib/ConveyorMath.sol";
 import {AlgebraCallback} from "./callbacks/AlgebraCallback.sol";
 import {UniswapV3Callback} from "./callbacks/UniswapV3Callback.sol";
 import {PancakeV3Callback} from "./callbacks/PancakeV3Callback.sol";
