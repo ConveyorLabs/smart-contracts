@@ -19,7 +19,7 @@ import {LinkSwapCallback} from "./callbacks/LinkSwapCallback.sol";
 import {IConveyorRouterV1} from "./interfaces/IConveyorRouterV1.sol";
 
 interface IConveyorMulticall {
-    function executeGenericMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata genericMulticall) external;
+    function executeMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata genericMulticall) external;
 }
 
 /// @title ConveyorRouterV1
@@ -161,7 +161,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         uint256 tokenOutAmountRequired = balanceBefore + swapData.amountOutMin;
 
         ///@notice Execute Multicall.
-        IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(genericMulticall);
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(genericMulticall);
 
         uint256 balanceAfter = IERC20(swapData.tokenOut).balanceOf(msg.sender);
 
@@ -216,7 +216,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         uint256 tokenOutAmountRequired = balanceBefore + swapData.amountOutMin;
 
         ///@notice Execute Multicall.
-        IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(swapAggregatorMulticall);
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(swapAggregatorMulticall);
 
         ///@notice Get tokenOut balance of msg.sender after multicall execution.
         uint256 balanceAfter = IERC20(swapData.tokenOut).balanceOf(msg.sender);
@@ -266,7 +266,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         uint256 amountOutRequired = balanceBefore + swapData.amountOutMin;
 
         ///@notice Execute Multicall.
-        IConveyorMulticall(CONVEYOR_MULTICALL).executeGenericMulticall(swapAggregatorMulticall);
+        IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(swapAggregatorMulticall);
 
         ///@notice Get WETH balance of this contract.
         uint256 balanceWeth = IERC20(WETH).balanceOf(address(this));
@@ -491,7 +491,7 @@ contract ConveyorMulticall is
 {
     constructor() {}
 
-    function executeGenericMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata multicall) external {
+    function executeMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata multicall) external {
         for (uint256 i = 0; i < multicall.calls.length; i++) {
             (bool success,) = multicall.calls[i].target.call(multicall.calls[i].callData);
             if (!success) {
