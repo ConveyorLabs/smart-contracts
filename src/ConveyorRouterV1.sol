@@ -8,6 +8,7 @@ import "../lib/libraries/token/SafeERC20.sol";
 import "./lib/ConveyorMath.sol";
 import {UniswapV3Callback} from "./UniswapV3Callback.sol";
 import {UniswapV2Callback} from "./UniswapV2Callback.sol";
+import {PancakeV3Callback} from "./PancakeV3Callback.sol";
 
 interface IConveyorMulticall {
     function executeGenericMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata genericMulticall) external;
@@ -456,7 +457,7 @@ contract ConveyorRouterV1 {
 /// @title ConveyorMulticall
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Optimized multicall execution contract.
-contract ConveyorMulticall is UniswapV3Callback, UniswapV2Callback {
+contract ConveyorMulticall is UniswapV3Callback, PancakeV3Callback, UniswapV2Callback {
     using SafeERC20 for IERC20;
 
     address immutable CONVEYOR_SWAP_AGGREGATOR;
