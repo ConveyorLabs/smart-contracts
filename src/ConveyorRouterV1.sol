@@ -475,6 +475,11 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         }
     }
 
+    ///@dev Calculates the referrer fee.
+    function calculateReferralFee() external view returns (uint256 referralFee) {
+        referralFee=ConveyorMath.mul64U(REFERRAL_INITIALIZATION_FEE, referrerNonce);
+    }
+
     /// @notice Fallback receiver function.
     receive() external payable {}
 }
