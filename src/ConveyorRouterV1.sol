@@ -10,7 +10,7 @@ import {UniswapV3Callback} from "./UniswapV3Callback.sol";
 import {UniswapV2Callback} from "./UniswapV2Callback.sol";
 
 interface IConveyorMulticall {
-    function executeGenericMulticall(ConveyorRouterV1.SwapAggregatorGenericMulticall calldata genericMulticall)
+    function executeGenericMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata genericMulticall)
         external;
 }
 
@@ -119,7 +119,7 @@ contract ConveyorRouterV1 {
     }
 
     /// @notice Gas optimized Multicall struct
-    struct SwapAggregatorGenericMulticall {
+    struct SwapAggregatorMulticall {
         address tokenInDestination;
         Call[] calls;
     }
@@ -137,7 +137,7 @@ contract ConveyorRouterV1 {
     /// @param genericMulticall Multicall to be executed.
     function swapExactTokenForToken(
         TokenToTokenSwapData calldata swapData,
-        SwapAggregatorGenericMulticall calldata genericMulticall
+        SwapAggregatorMulticall calldata genericMulticall
     ) public payable {
         ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
         IERC20(swapData.tokenIn).transferFrom(msg.sender, genericMulticall.tokenInDestination, swapData.amountIn);
@@ -181,7 +181,7 @@ contract ConveyorRouterV1 {
     /// @param swapAggregatorMulticall Multicall to be executed.
     function swapExactEthForToken(
         EthToTokenSwapData calldata swapData,
-        SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+        SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) public payable {
         if (swapData.protocolFee > msg.value) {
             revert InsufficientMsgValue();
@@ -237,7 +237,7 @@ contract ConveyorRouterV1 {
     /// @param swapAggregatorMulticall Multicall to be executed.
     function swapExactTokenForEth(
         TokenToEthSwapData calldata swapData,
-        SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+        SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) public payable {
         ///@dev Ignore if the tokenInDestination is address(0).
         if (swapAggregatorMulticall.tokenInDestination != address(0)) {
@@ -292,7 +292,7 @@ contract ConveyorRouterV1 {
     /// @dev This function should be used off chain through a static call.
     function quoteSwapExactTokenForToken(
         TokenToTokenSwapData calldata swapData,
-        SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+        SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable returns (uint256 gasConsumed) {
         assembly {
             mstore(0x60, gas())
@@ -307,7 +307,7 @@ contract ConveyorRouterV1 {
     /// @dev This function should be used off chain through a static call.
     function quoteSwapExactEthForToken(
         EthToTokenSwapData calldata swapData,
-        SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+        SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable returns (uint256 gasConsumed) {
         assembly {
             mstore(0x60, gas())
@@ -322,7 +322,7 @@ contract ConveyorRouterV1 {
     /// @dev This function should be used off chain through a static call.
     function quoteSwapExactTokenForEth(
         TokenToEthSwapData calldata swapData,
-        SwapAggregatorGenericMulticall calldata swapAggregatorMulticall
+        SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable returns (uint256 gasConsumed) {
         assembly {
             mstore(0x60, gas())
@@ -467,7 +467,7 @@ contract ConveyorMulticall is UniswapV3Callback, UniswapV2Callback {
         CONVEYOR_SWAP_AGGREGATOR = conveyorRouterV1;
     }
 
-    function executeGenericMulticall(ConveyorRouterV1.SwapAggregatorGenericMulticall calldata multicall) external {
+    function executeGenericMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata multicall) external {
         for (uint256 i = 0; i < multicall.calls.length; i++) {
             (bool success,) = multicall.calls[i].target.call(multicall.calls[i].callData);
             if (!success) {
