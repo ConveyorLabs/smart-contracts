@@ -7,6 +7,7 @@ import "./utils/Swap.sol";
 import "../src/interfaces/IConveyorRouterV1.sol";
 import "../src/lib/ConveyorTickMath.sol";
 import "../lib/create3-factory/src/ICREATE3Factory.sol";
+import {IConveyorMulticall} from "../src/ConveyorRouterV1.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -24,6 +25,7 @@ interface CheatCodes {
 
 contract ConveyorRouterV1Test is DSTest {
     IConveyorRouterV1 conveyorRouterV1;
+    IConveyorMulticall conveyorMulticall;
     Swap swapHelper;
     CheatCodes vm;
     uint256 forkId;
@@ -42,7 +44,7 @@ contract ConveyorRouterV1Test is DSTest {
         uint128 REFERRAL_INITIALIZATION_FEE = 18446744073709550;
         //Set the owner to the test contract.
         conveyorRouterV1 = IConveyorRouterV1(address(new ConveyorRouterV1(WETH, REFERRAL_INITIALIZATION_FEE)));
-
+        conveyorMulticall = IConveyorMulticall(conveyorRouterV1.CONVEYOR_MULTICALL());
         vm.prank(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38));
         //Setup the affiliate
         conveyorRouterV1.initializeAffiliate(address(this));
@@ -339,20 +341,17 @@ contract ConveyorRouterV1Test is DSTest {
         calls[0] = newUniV2Call(lp, 0, amountOutMin, address(conveyorRouterV1), new bytes(0));
 
         ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(lp, calls);
-
+        //Upgrade the multicall just to make sure it points to the right address.
+        bytes memory bytecode = type(ConveyorMulticall).creationCode;
+        bytes32 salt = bytes32("0x7fab158");
+        vm.deal(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38), type(uint128).max);
+        vm.prank(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38));
+        conveyorRouterV1.upgradeMulticall(bytecode, salt);
         ConveyorRouterV1.TokenToEthSwapData memory swapData =
             ConveyorRouterV1.TokenToEthSwapData(tokenIn, uint112(amountIn), 1, 0, 0);
 
         uint256 gas = conveyorRouterV1.quoteSwapExactTokenForEth(swapData, multicall);
         console.log("gas", gas);
-    }
-
-    function testRouterDeployment() public view {
-        ICREATE3Factory create3Factory = ICREATE3Factory(address(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1));
-        bytes32 salt = bytes32("0x7fab158");
-        address deployed = create3Factory.getDeployed(address(0x2f37bC8900EB1176C689c63c5E781B96DCC0C48E), salt);
-
-        console.log(deployed);
     }
 
     receive() external payable {}
@@ -382,6 +381,11 @@ contract ConveyorRouterV1Test is DSTest {
         forkId = vm.activeFork();
         vm.rollFork(forkId, 16749139);
         console.log(IERC20(tokenIn).balanceOf(address(this)));
+        bytes memory bytecode = type(ConveyorMulticall).creationCode;
+        bytes32 salt = bytes32("0x7fab158");
+
+        conveyorRouterV1.upgradeMulticall(bytecode, salt);
+
         ConveyorRouterV1.SwapAggregatorMulticall memory multicall =
             ConveyorRouterV1.SwapAggregatorMulticall(conveyorRouterV1.CONVEYOR_MULTICALL(), calls);
 
@@ -403,6 +407,24 @@ contract ConveyorRouterV1Test is DSTest {
         vm.deal(address(conveyorRouterV1), type(uint128).max);
         vm.prank(address(1));
         conveyorRouterV1.withdraw();
+    }
+
+    function testRouterDeployment() public view {
+        ICREATE3Factory create3Factory = ICREATE3Factory(address(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1));
+        bytes32 salt = bytes32("0x7fab158");
+        address deployed = create3Factory.getDeployed(address(0x2f37bC8900EB1176C689c63c5E781B96DCC0C48E), salt);
+
+        console.log(deployed);
+    }
+
+    function testUpgradeMulticall() public {
+        bytes memory bytecode = type(ConveyorMulticall).creationCode;
+        bytes32 salt = bytes32("0x7fab158");
+        vm.deal(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38), type(uint128).max);
+        vm.prank(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38));
+        address upgradedMulticall = conveyorRouterV1.upgradeMulticall(bytecode, salt);
+
+        console.log(upgradedMulticall);
     }
 
     function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes memory data) external {
