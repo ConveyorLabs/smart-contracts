@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import "../lib/interfaces/token/IERC20.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
+import "./lib/OracleLibraryV2.sol";
 
 contract PancakeV2Callback {
     /// @notice Uniswap v2 swap callback
@@ -16,21 +17,9 @@ contract PancakeV2Callback {
         uint256 amountOut = _zeroForOne ? amount1 : amount0;
         (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(msg.sender).getReserves();
 
-        uint256 amountIn = getAmountInPancake(
+        uint256 amountIn = OracleLibraryV2.getAmountIn(
             amountOut, _zeroForOne ? reserve0 : reserve1, _zeroForOne ? reserve1 : reserve0, _swapFee
         );
         IERC20(_tokenIn).transfer(msg.sender, amountIn);
-    }
-
-    function getAmountInPancake(uint256 amountOut, uint256 reserveIn, uint256 reserveOut, uint24 swapFee)
-        internal
-        pure
-        returns (uint256 amountIn)
-    {
-        require(amountOut > 0, "UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT");
-        require(reserveIn > 0 && reserveOut > 0, "UniswapV2Library: INSUFFICIENT_LIQUIDITY");
-        uint256 numerator = reserveIn * amountOut * 100000;
-        uint256 denominator = (reserveOut - amountOut) * (100000 - swapFee);
-        amountIn = (numerator / denominator) + 1;
     }
 }
