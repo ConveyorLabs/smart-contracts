@@ -6,11 +6,17 @@ import "./ConveyorErrors.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/libraries/token/SafeERC20.sol";
 import "./lib/ConveyorMath.sol";
-import {AlgebraCallback} from "./AlgebraCallback.sol";
-import {UniswapV3Callback} from "./UniswapV3Callback.sol";
-import {PancakeV3Callback} from "./PancakeV3Callback.sol";
-import {UniswapV2Callback} from "./UniswapV2Callback.sol";
-import {PancakeV2Callback} from "./PancakeV2Callback.sol";
+import {AlgebraCallback} from "./callbacks/AlgebraCallback.sol";
+import {UniswapV3Callback} from "./callbacks/UniswapV3Callback.sol";
+import {PancakeV3Callback} from "./callbacks/PancakeV3Callback.sol";
+import {UniswapV2Callback} from "./callbacks/UniswapV2Callback.sol";
+import {PancakeV2Callback} from "./callbacks/PancakeV2Callback.sol";
+import {ConvergenceXCallback} from "./callbacks/ConvergenceXCallback.sol";
+import {DXSwapCallback} from "./callbacks/DXSwapCallback.sol";
+import {UniFiCallback} from "./callbacks/UniFiCallback.sol";
+import {VerseCallback} from "./callbacks/VerseCallback.sol";
+import {SakeSwapCallback} from "./callbacks/SakeSwapCallback.sol";
+import {LinkSwapCallback} from "./callbacks/LinkSwapCallback.sol";
 import {IConveyorRouterV1} from "./interfaces/IConveyorRouterV1.sol";
 
 interface IConveyorMulticall {
@@ -476,7 +482,13 @@ contract ConveyorMulticall is
     UniswapV3Callback,
     PancakeV3Callback,
     UniswapV2Callback,
-    PancakeV2Callback
+    PancakeV2Callback,
+    ConvergenceXCallback,
+    DXSwapCallback,
+    UniFiCallback,
+    VerseCallback,
+    SakeSwapCallback,
+    LinkSwapCallback
 {
     constructor() {}
 
