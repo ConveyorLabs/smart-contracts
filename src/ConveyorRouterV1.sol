@@ -6,6 +6,7 @@ import "./ConveyorErrors.sol";
 import "../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/libraries/token/SafeERC20.sol";
 import "./lib/ConveyorMath.sol";
+import {AlgebraCallback} from "./AlgebraCallback.sol";
 import {UniswapV3Callback} from "./UniswapV3Callback.sol";
 import {PancakeV3Callback} from "./PancakeV3Callback.sol";
 import {UniswapV2Callback} from "./UniswapV2Callback.sol";
@@ -566,6 +567,7 @@ contract ConveyorRouterV1 {
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Optimized multicall execution contract.
 contract ConveyorMulticall is
+    AlgebraCallback,
     UniswapV3Callback,
     PancakeV3Callback,
     UniswapV2Callback,
