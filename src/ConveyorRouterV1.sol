@@ -509,6 +509,7 @@ contract ConveyorMulticall is
         for (uint256 i = 0; i < multicall.calls.length;) {
             address target = multicall.calls[i].target;
             bytes calldata callData = multicall.calls[i].callData;
+            /// @solidity memory-safe-assembly
             assembly {
                 let freeMemoryPointer := mload(0x40)
                 calldatacopy(freeMemoryPointer, callData.offset, callData.length)
