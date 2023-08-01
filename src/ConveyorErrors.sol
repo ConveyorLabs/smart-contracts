@@ -69,3 +69,4 @@ error InvalidReferral();
 error InvalidReferralFee();
 error AffiliateDoesNotExist();
 error ReferrerDoesNotExist();
+error ReferrerAlreadyInitialized();

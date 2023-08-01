@@ -456,6 +456,9 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
 
     ///@notice Function to set referrer mapping.
     function initializeReferrer() external payable {
+        if (referrerIndex[msg.sender] != 0) {
+            revert ReferrerAlreadyInitialized();
+        }
         uint16 tempReferrerNonce = referrerNonce;
         ///@dev The msg.value required to set the referral address increases over time to protect against spam.
         if (msg.value < ConveyorMath.mul64U(REFERRAL_INITIALIZATION_FEE, tempReferrerNonce)) {
