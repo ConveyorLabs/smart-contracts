@@ -24,7 +24,6 @@ interface CheatCodes {
 
 contract ConveyorRouterV1Test is DSTest {
     IConveyorRouterV1 conveyorRouterV1;
-    ConveyorMulticallWrapper conveyorMulticallWrapper;
     Swap swapHelper;
     CheatCodes vm;
     uint256 forkId;
@@ -44,13 +43,9 @@ contract ConveyorRouterV1Test is DSTest {
         //Set the owner to the test contract.
         conveyorRouterV1 = IConveyorRouterV1(address(new ConveyorRouterV1(WETH, REFERRAL_INITIALIZATION_FEE)));
 
-        conveyorMulticallWrapper = new ConveyorMulticallWrapper(
-            address(conveyorRouterV1)
-        );
         vm.prank(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38));
         //Setup the affiliate
         conveyorRouterV1.initializeAffiliate(address(this));
-        vm.makePersistent(address(conveyorMulticallWrapper));
         vm.makePersistent(address(conveyorRouterV1));
         vm.makePersistent(address(this));
 
@@ -468,8 +463,4 @@ contract ConveyorRouterV1Test is DSTest {
         bytes memory callData = abi.encodeWithSignature("transfer(address,uint256)", _receiver, _amount);
         return ConveyorRouterV1.Call({target: _token, callData: callData});
     }
-}
-
-contract ConveyorMulticallWrapper is ConveyorMulticall {
-    constructor(address _conveyor) ConveyorMulticall(_conveyor) {}
 }

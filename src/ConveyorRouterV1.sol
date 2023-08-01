@@ -11,6 +11,7 @@ import {UniswapV3Callback} from "./UniswapV3Callback.sol";
 import {PancakeV3Callback} from "./PancakeV3Callback.sol";
 import {UniswapV2Callback} from "./UniswapV2Callback.sol";
 import {PancakeV2Callback} from "./PancakeV2Callback.sol";
+import {IConveyorRouterV1} from "./interfaces/IConveyorRouterV1.sol";
 
 interface IConveyorMulticall {
     function executeGenericMulticall(
@@ -21,7 +22,7 @@ interface IConveyorMulticall {
 /// @title ConveyorRouterV1
 /// @author 0xKitsune, 0xOsiris, Conveyor Labs
 /// @notice Multicall contract for token Swaps.
-contract ConveyorRouterV1 {
+contract ConveyorRouterV1 is IConveyorRouterV1 {
     using SafeERC20 for IERC20;
 
     address public CONVEYOR_MULTICALL;
@@ -99,6 +100,11 @@ contract ConveyorRouterV1 {
     ///@notice Mapping from uint16 to referrer address.
     mapping(uint16 => address) public referrers;
 
+    ///@notice Mapping from affiliate address to affiliate index.
+    mapping(address => uint16) public affiliateIndex;
+    ///@notice Mapping from referrer address to referrer index.
+    mapping(address => uint16) public referrerIndex;
+
     ///@notice Current Nonce for affiliate addresses.
     uint16 public affiliateNonce;
     ///@notice Current Nonce for referrer addresses.
@@ -113,7 +119,7 @@ contract ConveyorRouterV1 {
             "Referral initialization fee is zero"
         );
         REFERRAL_INITIALIZATION_FEE = _referralInitializationFee;
-        CONVEYOR_MULTICALL = address(new ConveyorMulticall(address(this)));
+        CONVEYOR_MULTICALL = address(new ConveyorMulticall());
         WETH = _weth;
         owner = tx.origin;
     }
@@ -527,13 +533,16 @@ contract ConveyorRouterV1 {
 
     ///@notice Function to set affiliate address.
     function initializeAffiliate(address affiliateAddress) external onlyOwner {
-        affiliates[affiliateNonce] = affiliateAddress;
+        uint16 tempAffiliateNonce = affiliateNonce;
+        affiliates[tempAffiliateNonce] = affiliateAddress;
+        affiliateIndex[affiliateAddress] = tempAffiliateNonce;
         unchecked {
-            affiliateNonce++;
+            tempAffiliateNonce++;
             require(
-                affiliateNonce < type(uint16).max,
+                tempAffiliateNonce < type(uint16).max >> 0x1,
                 "Affiliate nonce overflow"
             );
+            affiliateNonce = tempAffiliateNonce;
         }
     }
 
@@ -549,13 +558,15 @@ contract ConveyorRouterV1 {
         }
 
         referrers[tempReferrerNonce] = msg.sender;
+        referrerIndex[msg.sender] = tempReferrerNonce;
 
         unchecked {
-            referrerNonce = tempReferrerNonce + 1;
+            tempReferrerNonce++;
             require(
-                referrerNonce < type(uint16).max,
+                referrerNonce < type(uint16).max >> 0x1,
                 "Referrer nonce overflow"
             );
+            referrerNonce = tempReferrerNonce;
         }
     }
 
@@ -567,20 +578,14 @@ contract ConveyorRouterV1 {
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Optimized multicall execution contract.
 contract ConveyorMulticall is
+    IConveyorMulticall,
     AlgebraCallback,
     UniswapV3Callback,
     PancakeV3Callback,
     UniswapV2Callback,
     PancakeV2Callback
 {
-    using SafeERC20 for IERC20;
-
-    address immutable CONVEYOR_SWAP_AGGREGATOR;
-
-    ///@param conveyorRouterV1 Address of the ConveyorRouterV1 contract.
-    constructor(address conveyorRouterV1) {
-        CONVEYOR_SWAP_AGGREGATOR = conveyorRouterV1;
-    }
+    constructor() {}
 
     function executeGenericMulticall(
         ConveyorRouterV1.SwapAggregatorMulticall calldata multicall

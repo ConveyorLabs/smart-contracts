@@ -20,7 +20,7 @@ interface IConveyorRouterV1 {
     ) external payable;
 
     function initializeAffiliate(address affiliateAddress) external;
-    function initializeReferrer() external;
+    function initializeReferrer() external payable;
 
     function upgradeMulticall(bytes memory bytecode, bytes32 salt) external payable returns (address);
 
@@ -42,4 +42,6 @@ interface IConveyorRouterV1 {
     function withdraw() external;
 
     function CONVEYOR_MULTICALL() external view returns (address);
+    function affiliates(uint16) external view returns (address);
+    function referrers(uint16) external view returns (address);
 }
