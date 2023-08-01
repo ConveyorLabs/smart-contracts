@@ -97,6 +97,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
 
     ///@dev Deploys the ConveyorSwapExecutor contract.
     ///@param _weth Address of Wrapped Native Asset.
+    ///@param _referralInitializationFee Fee required to initialize a referral address.
     constructor(address _weth, uint128 _referralInitializationFee) payable {
         require(_weth != address(0), "WETH address is zero");
         require(_referralInitializationFee > 0, "Referral initialization fee is zero");
@@ -106,6 +107,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         owner = tx.origin;
     }
 
+    ///@notice Struct for token to token swap data.
     struct TokenToTokenSwapData {
         address tokenIn;
         address tokenOut;
@@ -115,6 +117,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         uint16 referrer;
     }
 
+    ///@notice Struct for token to ETH swap data.
     struct TokenToEthSwapData {
         address tokenIn;
         uint112 amountIn;
@@ -123,6 +126,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         uint16 referrer;
     }
 
+    ///@notice Struct for ETH to token swap data.
     struct EthToTokenSwapData {
         address tokenOut;
         uint112 amountOutMin;
