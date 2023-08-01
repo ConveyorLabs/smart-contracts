@@ -492,10 +492,19 @@ contract ConveyorMulticall is
     constructor() {}
 
     function executeMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata multicall) external {
-        for (uint256 i = 0; i < multicall.calls.length; i++) {
-            (bool success,) = multicall.calls[i].target.call(multicall.calls[i].callData);
-            if (!success) {
-                revert CallFailed();
+        for (uint256 i = 0; i < multicall.calls.length;) {
+            address target = multicall.calls[i].target;
+            bytes calldata callData = multicall.calls[i].callData;
+            assembly {
+                let freeMemoryPointer := mload(0x40)
+                calldatacopy(freeMemoryPointer, callData.offset, callData.length)
+                if iszero(call(gas(), target, 0, freeMemoryPointer, callData.length, 0, 0)) {
+                    returndatacopy(0, 0, returndatasize())
+                    revert(0, returndatasize())
+                }
+            }
+            unchecked {
+                i++;
             }
         }
     }
