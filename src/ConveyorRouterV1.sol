@@ -139,16 +139,16 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         }
         if (swapData.affiliate & 0x1 != 0x0) {
             address affiliate = affiliates[swapData.affiliate >> 0x1];
-            assembly {
-                if iszero(affiliate) { revert("Address is zero", 0) }
+            if (affiliate == address(0)) {
+                revert AffiliateDoesNotExist();
             }
             _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, msg.value));
         }
         ///@dev First bit of referrer is used to check if referrer exists
         if (swapData.referrer & 0x1 != 0x0) {
             address referrer = referrers[swapData.referrer >> 0x1];
-            assembly {
-                if iszero(referrer) { revert("Address is zero", 0) }
+            if (referrer == address(0)) {
+                revert ReferrerDoesNotExist();
             }
             _safeTransferETH(referrer, ConveyorMath.mul64U(REFERRAL_PERCENT, msg.value));
         }
@@ -192,8 +192,8 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         }
         if (swapData.affiliate & 0x1 != 0x0) {
             address affiliate = affiliates[swapData.affiliate >> 0x1];
-            assembly {
-                if iszero(affiliate) { revert("Address is zero", 0) }
+            if (affiliate == address(0)) {
+                revert AffiliateDoesNotExist();
             }
             _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, swapData.protocolFee));
         }
