@@ -5,17 +5,7 @@ import "./ConveyorErrors.sol";
 import {IERC20} from "../lib/interfaces/token/IERC20.sol";
 import {SafeERC20} from "../lib/libraries/token/SafeERC20.sol";
 import {ConveyorMath} from "./lib/ConveyorMath.sol";
-import {AlgebraCallback} from "./callbacks/AlgebraCallback.sol";
-import {UniswapV3Callback} from "./callbacks/UniswapV3Callback.sol";
-import {PancakeV3Callback} from "./callbacks/PancakeV3Callback.sol";
-import {UniswapV2Callback} from "./callbacks/UniswapV2Callback.sol";
-import {PancakeV2Callback} from "./callbacks/PancakeV2Callback.sol";
-import {ConvergenceXCallback} from "./callbacks/ConvergenceXCallback.sol";
-import {DXSwapCallback} from "./callbacks/DXSwapCallback.sol";
-import {UniFiCallback} from "./callbacks/UniFiCallback.sol";
-import {VerseCallback} from "./callbacks/VerseCallback.sol";
-import {SakeSwapCallback} from "./callbacks/SakeSwapCallback.sol";
-import {LinkSwapCallback} from "./callbacks/LinkSwapCallback.sol";
+import {ConveyorSwapCallbacks} from "./callbacks/ConveyorSwapCallbacks.sol";
 import {IConveyorRouterV1} from "./interfaces/IConveyorRouterV1.sol";
 
 interface IConveyorMulticall {
@@ -489,17 +479,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
 /// @notice Optimized multicall execution contract.
 contract ConveyorMulticall is
     IConveyorMulticall,
-    AlgebraCallback,
-    UniswapV3Callback,
-    PancakeV3Callback,
-    UniswapV2Callback,
-    PancakeV2Callback,
-    ConvergenceXCallback,
-    DXSwapCallback,
-    UniFiCallback,
-    VerseCallback,
-    SakeSwapCallback,
-    LinkSwapCallback
+    ConveyorSwapCallbacks
 {
     using SafeERC20 for IERC20;
 
