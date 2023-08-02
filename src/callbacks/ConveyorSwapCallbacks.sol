@@ -17,8 +17,7 @@ import {UniswapV3Callback} from "./UniswapV3Callback.sol";
 import {VerseCallback} from "./VerseCallback.sol";
 import {WaultSwapCallback} from "./WaultSwapCallback.sol";
 
-
-contract ConveyorSwapCallbacks is 
+contract ConveyorSwapCallbacks is
     AlgebraCallback,
     ConvergenceXCallback,
     DXSwapCallback,
@@ -35,4 +34,3 @@ contract ConveyorSwapCallbacks is
     VerseCallback,
     WaultSwapCallback
 {}
-

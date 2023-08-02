@@ -29,32 +29,6 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
     uint128 immutable REFERRAL_INITIALIZATION_FEE;
 
     /**
-     * @notice Event that is emitted when a token to token swap has filled successfully.
-     *
-     */
-    event Swap(
-        address indexed tokenIn, uint256 amountIn, address indexed tokenOut, uint256 amountOut, address indexed receiver
-    );
-
-    /**
-     * @notice Event that is emitted when a token to ETH swap has filled successfully.
-     *
-     */
-    event SwapExactTokenForEth(address indexed tokenIn, uint256 amountIn, uint256 amountOut, address indexed receiver);
-
-    /**
-     * @notice Event that is emitted when a ETH to token swap has filled successfully.
-     *
-     */
-    event SwapExactEthForToken(uint256 amountIn, address indexed tokenOut, uint256 amountOut, address indexed receiver);
-
-    /**
-     * @notice Event that is emitted when a referral token swap has filled successfully
-     *
-     */
-    event Referral(address indexed referrer, address indexed receiver, uint256 referralFee);
-
-    /**
      * @notice Event that is emitted when ETH is withdrawn from the contract
      *
      */
@@ -165,22 +139,19 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         }
         if (swapData.affiliate & 0x1 != 0x0) {
             address affiliate = affiliates[swapData.affiliate >> 0x1];
-            if (affiliate == address(0)) {
-                revert AffiliateDoesNotExist();
+            assembly {
+                if iszero(affiliate) { revert("Address is zero", 0) }
             }
             _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, msg.value));
         }
         ///@dev First bit of referrer is used to check if referrer exists
         if (swapData.referrer & 0x1 != 0x0) {
             address referrer = referrers[swapData.referrer >> 0x1];
-            if (referrer == address(0)) {
-                revert ReferrerDoesNotExist();
+            assembly {
+                if iszero(referrer) { revert("Address is zero", 0) }
             }
             _safeTransferETH(referrer, ConveyorMath.mul64U(REFERRAL_PERCENT, msg.value));
         }
-
-        ///@notice Emit Swap event.
-        emit Swap(swapData.tokenIn, swapData.amountIn, swapData.tokenOut, balanceAfter - balanceBefore, msg.sender);
     }
 
     /// @notice Swap ETH for tokens.
@@ -221,8 +192,8 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         }
         if (swapData.affiliate & 0x1 != 0x0) {
             address affiliate = affiliates[swapData.affiliate >> 0x1];
-            if (affiliate == address(0)) {
-                revert AffiliateDoesNotExist();
+            assembly {
+                if iszero(affiliate) { revert("Address is zero", 0) }
             }
             _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, swapData.protocolFee));
         }
@@ -234,9 +205,6 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
             }
             _safeTransferETH(referrer, ConveyorMath.mul64U(REFERRAL_PERCENT, swapData.protocolFee));
         }
-
-        ///@notice Emit SwapExactEthForToken event.
-        emit SwapExactEthForToken(msg.value, swapData.tokenOut, balanceAfter - balanceBefore, msg.sender);
     }
 
     /// @notice Swap tokens for ETH.
@@ -290,9 +258,6 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
             }
             _safeTransferETH(referrer, ConveyorMath.mul64U(REFERRAL_PERCENT, msg.value));
         }
-
-        ///@notice Emit SwapExactTokenForEth event.
-        emit SwapExactTokenForEth(swapData.tokenIn, swapData.amountIn, msg.sender.balance - balanceBefore, msg.sender);
     }
 
     /// @notice Quotes the amount of gas used for a optimized token to token swap.
@@ -477,10 +442,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
 /// @title ConveyorMulticall
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Optimized multicall execution contract.
-contract ConveyorMulticall is
-    IConveyorMulticall,
-    ConveyorSwapCallbacks
-{
+contract ConveyorMulticall is IConveyorMulticall, ConveyorSwapCallbacks {
     using SafeERC20 for IERC20;
 
     constructor() {}
