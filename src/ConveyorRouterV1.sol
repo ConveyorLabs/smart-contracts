@@ -34,8 +34,8 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
     address owner;
     address tempOwner;
 
-    uint128 internal constant AFFILIATE_PERCENT = 1844674407370955200;
-    uint128 internal constant REFERRAL_PERCENT = 922337203685477600;
+    uint128 internal constant AFFILIATE_PERCENT = 5534023222112865000;
+    uint128 internal constant REFERRAL_PERCENT = 5534023222112865000;
     uint128 immutable REFERRAL_INITIALIZATION_FEE;
 
     /**
@@ -461,7 +461,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         }
         uint16 tempReferrerNonce = referrerNonce;
         ///@dev The msg.value required to set the referral address increases over time to protect against spam.
-        if (msg.value < ConveyorMath.mul64U(REFERRAL_INITIALIZATION_FEE, tempReferrerNonce)) {
+        if (msg.value < ConveyorMath.mul64U(REFERRAL_INITIALIZATION_FEE, tempReferrerNonce * 10 ** 18)) {
             revert InvalidReferralFee();
         }
 
@@ -477,7 +477,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
 
     ///@dev Calculates the referrer fee.
     function calculateReferralFee() external view returns (uint256 referralFee) {
-        referralFee = ConveyorMath.mul64U(REFERRAL_INITIALIZATION_FEE, referrerNonce);
+        referralFee = ConveyorMath.mul64U(REFERRAL_INITIALIZATION_FEE, referrerNonce * 10 ** 18);
     }
 
     /// @notice Fallback receiver function.

@@ -14,8 +14,9 @@ contract Deploy is Script {
     function run() public returns (address conveyorRouterV1) {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
-        bytes32 salt = bytes32("0x7fbb158");
-        bytes memory creationCode = abi.encodePacked(type(ConveyorRouterV1).creationCode, abi.encode(WBNB, 0));
+        bytes32 salt = bytes32("0x8fbb158");
+        bytes memory creationCode =
+            abi.encodePacked(type(ConveyorRouterV1).creationCode, abi.encode(WBNB, 184467440737095));
 
         vm.startBroadcast(deployerPrivateKey);
         conveyorRouterV1 = ICREATE3Factory(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1).deploy(salt, creationCode);
