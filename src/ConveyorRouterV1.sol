@@ -416,7 +416,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         }
         uint16 tempReferrerNonce = referrerNonce;
         ///@dev The msg.value required to set the referral address increases over time to protect against spam.
-        if (msg.value < ConveyorMath.mul64U(REFERRAL_INITIALIZATION_FEE, tempReferrerNonce * 10 ** 18)) {
+        if (msg.value < ConveyorMath.mul64U(REFERRAL_INITIALIZATION_FEE, tempReferrerNonce * 1e18)) {
             revert InvalidReferralFee();
         }
 
