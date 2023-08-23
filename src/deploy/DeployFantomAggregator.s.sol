@@ -15,8 +15,7 @@ contract Deploy is Script {
 
         /// Deploy ConveyorRouterV1
         conveyorRouterV1 = new ConveyorRouterV1(
-            WFTM,
-            0
+            WFTM
         );
 
         vm.stopBroadcast();

@@ -41,9 +41,8 @@ contract ConveyorRouterV1Test is DSTest {
 
         forkId = vm.activeFork();
 
-        uint128 REFERRAL_INITIALIZATION_FEE = 18446744073709550;
         //Set the owner to the test contract.
-        conveyorRouterV1 = IConveyorRouterV1(address(new ConveyorRouterV1(WETH, REFERRAL_INITIALIZATION_FEE)));
+        conveyorRouterV1 = IConveyorRouterV1(address(new ConveyorRouterV1(WETH)));
         conveyorMulticall = IConveyorMulticall(conveyorRouterV1.CONVEYOR_MULTICALL());
         vm.prank(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38));
         //Setup the affiliate
@@ -199,11 +198,78 @@ contract ConveyorRouterV1Test is DSTest {
         );
 
         conveyorRouterV1.initializeReferrer(); //Set the referrer at referrerNonce 0.
+
         ConveyorRouterV1.TokenToTokenSwapData memory swapData =
             ConveyorRouterV1.TokenToTokenSwapData(dai, weth, uint112(amountIn), 1, 1, 1); //referrer 1 since first index is used to set the referrer bool.
 
         //Execute the swap
         conveyorRouterV1.swapExactTokenForToken(swapData, multicall);
+    }
+
+    function testInitializeReferrer() public {
+        vm.deal(address(this), type(uint128).max);
+        vm.deal(address(1), type(uint128).max);
+        vm.deal(address(2), type(uint128).max);
+        vm.deal(address(3), type(uint128).max);
+        vm.deal(address(4), type(uint128).max);
+        vm.deal(address(5), type(uint128).max);
+        vm.deal(address(6), type(uint128).max);
+        vm.deal(address(7), type(uint128).max);
+        vm.deal(address(8), type(uint128).max);
+        vm.deal(address(9), type(uint128).max);
+        vm.deal(address(10), type(uint128).max);
+        vm.deal(address(11), type(uint128).max);
+        vm.deal(address(12), type(uint128).max);
+        vm.deal(address(13), type(uint128).max);
+        vm.deal(address(14), type(uint128).max);
+        vm.deal(address(15), type(uint128).max);
+        vm.deal(address(16), type(uint128).max);
+        vm.deal(address(17), type(uint128).max);
+        vm.deal(address(18), type(uint128).max);
+        vm.deal(address(19), type(uint128).max);
+        vm.deal(address(20), type(uint128).max);
+        vm.prank(address(this));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(1));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(2));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(3));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(4));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(5));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(6));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(7));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(8));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(9));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(10));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(11));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(12));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(13));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(14));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(15));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(16));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(17));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(18));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(19));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        // vm.prank(address(20));
+        // conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
     }
 
     function testSwapUniv2SingleLPOptimized() public {
