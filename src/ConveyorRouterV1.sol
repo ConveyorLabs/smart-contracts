@@ -412,7 +412,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         }
         uint16 tempReferrerNonce = referrerNonce;
         referrers[tempReferrerNonce] = msg.sender;
-        referrerIndex[msg.sender] = uint16(tempReferrerNonce);
+        referrerIndex[msg.sender] = tempReferrerNonce;
 
         unchecked {
             tempReferrerNonce++;

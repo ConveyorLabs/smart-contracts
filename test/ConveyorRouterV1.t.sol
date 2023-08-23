@@ -198,7 +198,7 @@ contract ConveyorRouterV1Test is DSTest {
         );
 
         conveyorRouterV1.initializeReferrer(); //Set the referrer at referrerNonce 0.
-        
+
         ConveyorRouterV1.TokenToTokenSwapData memory swapData =
             ConveyorRouterV1.TokenToTokenSwapData(dai, weth, uint112(amountIn), 1, 1, 1); //referrer 1 since first index is used to set the referrer bool.
 
