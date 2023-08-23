@@ -47,6 +47,7 @@ contract ConveyorRouterV1Test is DSTest {
         vm.prank(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38));
         //Setup the affiliate
         conveyorRouterV1.initializeAffiliate(address(this));
+        conveyorRouterV1.initializeReferrer();
         vm.makePersistent(address(conveyorRouterV1));
         vm.makePersistent(address(this));
 
