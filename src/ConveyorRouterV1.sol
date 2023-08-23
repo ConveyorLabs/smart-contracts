@@ -26,7 +26,6 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
 
     uint128 internal constant AFFILIATE_PERCENT = 5534023222112865000;
     uint128 internal constant REFERRAL_PERCENT = 5534023222112865000;
-    uint128 immutable REFERRAL_INITIALIZATION_FEE;
 
     /**
      * @notice Event that is emitted when ETH is withdrawn from the contract
@@ -59,13 +58,10 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
     ///@notice Current Nonce for referrer addresses.
     uint16 public referrerNonce;
 
-    ///@dev Deploys the ConveyorSwapExecutor contract.
+    ///@dev Deploys the ConveyorMulticall contract.
     ///@param _weth Address of Wrapped Native Asset.
-    ///@param _referralInitializationFee Fee required to initialize a referral address.
-    constructor(address _weth, uint128 _referralInitializationFee) payable {
+    constructor(address _weth) payable {
         require(_weth != address(0), "WETH address is zero");
-        require(_referralInitializationFee > 0, "Referral initialization fee is zero");
-        REFERRAL_INITIALIZATION_FEE = _referralInitializationFee;
         CONVEYOR_MULTICALL = address(new ConveyorMulticall());
         WETH = _weth;
         owner = tx.origin;
@@ -415,24 +411,14 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
             revert ReferrerAlreadyInitialized();
         }
         uint16 tempReferrerNonce = referrerNonce;
-        ///@dev The msg.value required to set the referral address increases over time to protect against spam.
-        if (msg.value < ConveyorMath.mul64U(REFERRAL_INITIALIZATION_FEE, tempReferrerNonce * 1e18)) {
-            revert InvalidReferralFee();
-        }
-
         referrers[tempReferrerNonce] = msg.sender;
-        referrerIndex[msg.sender] = tempReferrerNonce;
+        referrerIndex[msg.sender] = uint16(tempReferrerNonce);
 
         unchecked {
             tempReferrerNonce++;
             require(tempReferrerNonce < type(uint16).max >> 0x1, "Referrer nonce overflow");
             referrerNonce = tempReferrerNonce;
         }
-    }
-
-    ///@dev Calculates the referrer fee.
-    function calculateReferralFee() external view returns (uint256 referralFee) {
-        referralFee = ConveyorMath.mul64U(REFERRAL_INITIALIZATION_FEE, referrerNonce * 10 ** 18);
     }
 
     /// @notice Fallback receiver function.
