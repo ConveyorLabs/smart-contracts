@@ -16,7 +16,7 @@ contract Deploy is Script {
 
         bytes32 salt = bytes32("0x8fbb158");
         bytes memory creationCode =
-            abi.encodePacked(type(ConveyorRouterV1).creationCode, abi.encode(WBNB, 184467440737095));
+            abi.encodePacked(type(ConveyorRouterV1).creationCode, abi.encode(WBNB));
 
         vm.startBroadcast(deployerPrivateKey);
         conveyorRouterV1 = ICREATE3Factory(0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1).deploy(salt, creationCode);
