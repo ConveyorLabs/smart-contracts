@@ -451,12 +451,8 @@ contract ConveyorMulticall is IConveyorMulticall, ConveyorSwapCallbacks {
                 let o := add(calls.offset, mload(freeMemoryPointer))
                 let len := calldataload(add(o, 0x40))
                 let memPtr := mload(add(sub(size, freeMemoryPointer), 0x20))
-                calldatacopy(
-                    memPtr,
-                    add(o, 0x60), // The offset of the current bytes' bytes.
-                    len // The length of the current bytes.
-                )
-                if iszero(call(gas(), calldataload(o), 0, memPtr, len, 0, 0)) {
+                mstore(memPtr, add(o, 0x60))
+                if iszero(call(gas(), calldataload(o), 0, mload(memPtr), len, 0, 0)) {
                     returndatacopy(0, 0, returndatasize())
                     revert(0, returndatasize())
                 }
