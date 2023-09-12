@@ -44,7 +44,6 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         _;
     }
 
-
     ///@notice Mapping from uint16 to affiliate address.
     mapping(uint16 => address) public affiliates;
     ///@notice Mapping from uint16 to referrer address.
@@ -158,7 +157,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
     function swapExactEthForToken(
         EthToTokenSwapData calldata swapData,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
-    ) public payable  {
+    ) public payable {
         if (swapData.protocolFee > msg.value) {
             revert InsufficientMsgValue();
         }
@@ -211,7 +210,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
     function swapExactTokenForEth(
         TokenToEthSwapData calldata swapData,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
-    ) public payable  {
+    ) public payable {
         ///@dev Ignore if the tokenInDestination is address(0).
         if (swapAggregatorMulticall.tokenInDestination != address(0)) {
             ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
@@ -437,9 +436,21 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
 contract ConveyorMulticall is IConveyorMulticall, ConveyorSwapCallbacks {
     using SafeERC20 for IERC20;
 
+    bool private locked;
+
+    /// @notice Reentrancy lock.
+    modifier lock() {
+        if (locked) {
+            revert Reentrancy();
+        }
+        locked = true;
+        _;
+        locked = false;
+    }
+
     constructor() {}
 
-    function executeMulticall(ConveyorRouterV1.Call[] calldata calls) external {
+    function executeMulticall(ConveyorRouterV1.Call[] calldata calls) external lock {
         assembly ("memory-safe") {
             let freeMemoryPointer := 0x40
             let size := mul(0x20, calls.length)
@@ -463,9 +474,7 @@ contract ConveyorMulticall is IConveyorMulticall, ConveyorSwapCallbacks {
                 freeMemoryPointer := add(freeMemoryPointer, 0x20)
 
                 if iszero(lt(freeMemoryPointer, size)) { break }
-                
             }
         }
-        
     }
 }
