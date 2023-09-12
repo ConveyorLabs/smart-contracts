@@ -108,7 +108,6 @@ contract ConveyorRouterV1Test is DSTest {
     function testSplitRouteV2WithCallback() public {
         vm.rollFork(forkId, 16749139);
         vm.deal(address(this), type(uint128).max);
-
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F; //Input
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; //Intermediary
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2; //Output
@@ -170,7 +169,7 @@ contract ConveyorRouterV1Test is DSTest {
         //Split the output quantity 50/50 between the two pools.
         address sushiUsdcWeth = 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0;
         address uniUsdcWeth = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
-        uint256 amountIn = 2e20;
+        uint256 amountIn = 2e22;
         //Get some DAI
         swapHelper.swapEthForTokenWithUniV2(100 ether, dai);
         //Approve the router to spend the DAI
@@ -179,17 +178,17 @@ contract ConveyorRouterV1Test is DSTest {
         //Setup the calls
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](7);
         // //Transfer 50% of the input quantity from the conveyorMulticall to sushiDaiUsdc
-        calls[0] = newTransferCall(dai, sushiDaiUsdc, 1e20);
+        calls[0] = newTransferCall(dai, sushiDaiUsdc, 1e22);
         // //Transfer 50% of the input quantity from the conveyorMulticall to uniDaiUsdc
-        calls[1] = newTransferCall(dai, uniDaiUsdc, 1e20);
+        calls[1] = newTransferCall(dai, uniDaiUsdc, 1e22);
         //Call 2,3 - Swap DAI for USDC on Sushi/Uni - Send tokens out to the the next pool
         calls[2] = newUniV2Call(sushiDaiUsdc, 0, 1000000, sushiUsdcWeth, new bytes(0));
         calls[3] = newUniV2Call(uniDaiUsdc, 0, 1000000, uniUsdcWeth, new bytes(0));
         //Call 4,5 - Swap USDC for WETH on Sushi/Uni - Send tokens out to the msg.sender
-        calls[4] = newUniV2Call(sushiUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), new bytes(0));
-        calls[5] = newUniV2Call(uniUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), new bytes(0));
+        calls[4] = newUniV2Call(sushiUsdcWeth, 0, 10000, conveyorRouterV1.CONVEYOR_MULTICALL(), new bytes(0));
+        calls[5] = newUniV2Call(uniUsdcWeth, 0, 10000, conveyorRouterV1.CONVEYOR_MULTICALL(), new bytes(0));
 
-        calls[6] = newTransferCall(weth, address(this), 2);
+        calls[6] = newTransferCall(weth, address(this), 20000);
 
         //Create the multicall
         ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
@@ -198,7 +197,7 @@ contract ConveyorRouterV1Test is DSTest {
         );
 
         conveyorRouterV1.initializeReferrer(); //Set the referrer at referrerNonce 0.
-        
+
         ConveyorRouterV1.TokenToTokenSwapData memory swapData =
             ConveyorRouterV1.TokenToTokenSwapData(dai, weth, uint112(amountIn), 1, 1, 1); //referrer 1 since first index is used to set the referrer bool.
 
@@ -424,6 +423,7 @@ contract ConveyorRouterV1Test is DSTest {
 
     function testSwapUniv3SingleLP() public {
         vm.deal(address(this), type(uint256).max);
+        console.log(address(this));
         address tokenIn = 0xba5BDe662c17e2aDFF1075610382B9B691296350;
         uint256 amountIn = 5678000000000000000000;
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
