@@ -517,7 +517,7 @@ contract ConveyorRouterV1Test is DSTest {
         address _tokenIn
     ) public pure returns (ConveyorRouterV1.Call memory) {
         ///@notice Pack the required data for the call.
-        bytes memory data = abi.encode(_zeroForOne, _tokenIn, _sender);
+        bytes memory data = abi.encode(_tokenIn);
         ///@notice Encode the callData for the call.
         bytes memory callData = abi.encodeWithSignature(
             "swap(address,bool,int256,uint160,bytes)",

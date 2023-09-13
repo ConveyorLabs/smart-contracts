@@ -12,7 +12,7 @@ contract UniswapV3Callback {
         assembly {
             // Start at fmp
             let freeMemoryPointer := mload(0x40)
-            let tokenIn := calldataload(add(data.offset, 0x20))
+            let token := calldataload(data.offset)
             mstore(freeMemoryPointer, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
             mstore(add(freeMemoryPointer, 4), and(caller(), 0xffffffffffffffffffffffffffffffffffffffff)) // Append and mask the "to" argument.
             switch slt(amount0Delta, 0)
@@ -23,7 +23,7 @@ contract UniswapV3Callback {
             if iszero(
                 and(
                     or(and(eq(mload(0), 1), gt(returndatasize(), 31)), iszero(returndatasize())),
-                    call(gas(), tokenIn, 0, freeMemoryPointer, 68, 0, 32)
+                    call(gas(), token, 0, freeMemoryPointer, 68, 0, 32)
                 )
             ) {
                 // Revert if the call failed.
