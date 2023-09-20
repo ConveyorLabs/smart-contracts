@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.19;
+pragma solidity =0.8.21;
 
 error InsufficientWalletBalance(address account, uint256 balance, uint256 balanceNeeded);
 error OrderDoesNotExist(bytes32 orderId);
