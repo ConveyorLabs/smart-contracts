@@ -41,9 +41,8 @@ contract ConveyorRouterV1Test is DSTest {
 
         forkId = vm.activeFork();
 
-        uint128 REFERRAL_INITIALIZATION_FEE = 18446744073709550;
         //Set the owner to the test contract.
-        conveyorRouterV1 = IConveyorRouterV1(address(new ConveyorRouterV1(WETH, REFERRAL_INITIALIZATION_FEE)));
+        conveyorRouterV1 = IConveyorRouterV1(address(new ConveyorRouterV1(WETH)));
         conveyorMulticall = IConveyorMulticall(conveyorRouterV1.CONVEYOR_MULTICALL());
         vm.prank(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38));
         //Setup the affiliate
@@ -109,7 +108,6 @@ contract ConveyorRouterV1Test is DSTest {
     function testSplitRouteV2WithCallback() public {
         vm.rollFork(forkId, 16749139);
         vm.deal(address(this), type(uint128).max);
-
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F; //Input
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; //Intermediary
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2; //Output
@@ -171,7 +169,7 @@ contract ConveyorRouterV1Test is DSTest {
         //Split the output quantity 50/50 between the two pools.
         address sushiUsdcWeth = 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0;
         address uniUsdcWeth = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
-        uint256 amountIn = 2e20;
+        uint256 amountIn = 2e22;
         //Get some DAI
         swapHelper.swapEthForTokenWithUniV2(100 ether, dai);
         //Approve the router to spend the DAI
@@ -180,17 +178,17 @@ contract ConveyorRouterV1Test is DSTest {
         //Setup the calls
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](7);
         // //Transfer 50% of the input quantity from the conveyorMulticall to sushiDaiUsdc
-        calls[0] = newTransferCall(dai, sushiDaiUsdc, 1e20);
+        calls[0] = newTransferCall(dai, sushiDaiUsdc, 1e22);
         // //Transfer 50% of the input quantity from the conveyorMulticall to uniDaiUsdc
-        calls[1] = newTransferCall(dai, uniDaiUsdc, 1e20);
+        calls[1] = newTransferCall(dai, uniDaiUsdc, 1e22);
         //Call 2,3 - Swap DAI for USDC on Sushi/Uni - Send tokens out to the the next pool
         calls[2] = newUniV2Call(sushiDaiUsdc, 0, 1000000, sushiUsdcWeth, new bytes(0));
         calls[3] = newUniV2Call(uniDaiUsdc, 0, 1000000, uniUsdcWeth, new bytes(0));
         //Call 4,5 - Swap USDC for WETH on Sushi/Uni - Send tokens out to the msg.sender
-        calls[4] = newUniV2Call(sushiUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), new bytes(0));
-        calls[5] = newUniV2Call(uniUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), new bytes(0));
+        calls[4] = newUniV2Call(sushiUsdcWeth, 0, 10000, conveyorRouterV1.CONVEYOR_MULTICALL(), new bytes(0));
+        calls[5] = newUniV2Call(uniUsdcWeth, 0, 10000, conveyorRouterV1.CONVEYOR_MULTICALL(), new bytes(0));
 
-        calls[6] = newTransferCall(weth, address(this), 2);
+        calls[6] = newTransferCall(weth, address(this), 20000);
 
         //Create the multicall
         ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
@@ -199,11 +197,78 @@ contract ConveyorRouterV1Test is DSTest {
         );
 
         conveyorRouterV1.initializeReferrer(); //Set the referrer at referrerNonce 0.
+
         ConveyorRouterV1.TokenToTokenSwapData memory swapData =
             ConveyorRouterV1.TokenToTokenSwapData(dai, weth, uint112(amountIn), 1, 1, 1); //referrer 1 since first index is used to set the referrer bool.
 
         //Execute the swap
         conveyorRouterV1.swapExactTokenForToken(swapData, multicall);
+    }
+
+    function testInitializeReferrer() public {
+        vm.deal(address(this), type(uint128).max);
+        vm.deal(address(1), type(uint128).max);
+        vm.deal(address(2), type(uint128).max);
+        vm.deal(address(3), type(uint128).max);
+        vm.deal(address(4), type(uint128).max);
+        vm.deal(address(5), type(uint128).max);
+        vm.deal(address(6), type(uint128).max);
+        vm.deal(address(7), type(uint128).max);
+        vm.deal(address(8), type(uint128).max);
+        vm.deal(address(9), type(uint128).max);
+        vm.deal(address(10), type(uint128).max);
+        vm.deal(address(11), type(uint128).max);
+        vm.deal(address(12), type(uint128).max);
+        vm.deal(address(13), type(uint128).max);
+        vm.deal(address(14), type(uint128).max);
+        vm.deal(address(15), type(uint128).max);
+        vm.deal(address(16), type(uint128).max);
+        vm.deal(address(17), type(uint128).max);
+        vm.deal(address(18), type(uint128).max);
+        vm.deal(address(19), type(uint128).max);
+        vm.deal(address(20), type(uint128).max);
+        vm.prank(address(this));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(1));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(2));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(3));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(4));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(5));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(6));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(7));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(8));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(9));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(10));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(11));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(12));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(13));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(14));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(15));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(16));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(17));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(18));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        vm.prank(address(19));
+        conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
+        // vm.prank(address(20));
+        // conveyorRouterV1.initializeReferrer{value: type(uint128).max}();
     }
 
     function testSwapUniv2SingleLPOptimized() public {
@@ -358,6 +423,7 @@ contract ConveyorRouterV1Test is DSTest {
 
     function testSwapUniv3SingleLP() public {
         vm.deal(address(this), type(uint256).max);
+        console.log(address(this));
         address tokenIn = 0xba5BDe662c17e2aDFF1075610382B9B691296350;
         uint256 amountIn = 5678000000000000000000;
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -451,7 +517,7 @@ contract ConveyorRouterV1Test is DSTest {
         address _tokenIn
     ) public pure returns (ConveyorRouterV1.Call memory) {
         ///@notice Pack the required data for the call.
-        bytes memory data = abi.encode(_zeroForOne, _tokenIn, _sender);
+        bytes memory data = abi.encode(_tokenIn);
         ///@notice Encode the callData for the call.
         bytes memory callData = abi.encodeWithSignature(
             "swap(address,bool,int256,uint160,bytes)",

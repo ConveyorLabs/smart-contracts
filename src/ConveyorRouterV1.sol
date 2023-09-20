@@ -7,9 +7,10 @@ import {SafeERC20} from "../lib/libraries/token/SafeERC20.sol";
 import {ConveyorMath} from "./lib/ConveyorMath.sol";
 import {ConveyorSwapCallbacks} from "./callbacks/ConveyorSwapCallbacks.sol";
 import {IConveyorRouterV1} from "./interfaces/IConveyorRouterV1.sol";
+import "../test/utils/Console.sol";
 
 interface IConveyorMulticall {
-    function executeMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata genericMulticall) external;
+    function executeMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata multicall) external;
 }
 
 /// @title ConveyorRouterV1
@@ -24,9 +25,8 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
     address owner;
     address tempOwner;
 
-    uint128 internal constant AFFILIATE_PERCENT = 5534023222112865000;
-    uint128 internal constant REFERRAL_PERCENT = 5534023222112865000;
-    uint128 immutable REFERRAL_INITIALIZATION_FEE;
+    uint128 private constant AFFILIATE_PERCENT = 5534023222112865000;
+    uint128 private constant REFERRAL_PERCENT = 5534023222112865000;
 
     /**
      * @notice Event that is emitted when ETH is withdrawn from the contract
@@ -59,13 +59,10 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
     ///@notice Current Nonce for referrer addresses.
     uint16 public referrerNonce;
 
-    ///@dev Deploys the ConveyorSwapExecutor contract.
+    ///@dev Deploys the ConveyorMulticall contract.
     ///@param _weth Address of Wrapped Native Asset.
-    ///@param _referralInitializationFee Fee required to initialize a referral address.
-    constructor(address _weth, uint128 _referralInitializationFee) payable {
+    constructor(address _weth) payable {
         require(_weth != address(0), "WETH address is zero");
-        require(_referralInitializationFee > 0, "Referral initialization fee is zero");
-        REFERRAL_INITIALIZATION_FEE = _referralInitializationFee;
         CONVEYOR_MULTICALL = address(new ConveyorMulticall());
         WETH = _weth;
         owner = tx.origin;
@@ -132,7 +129,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(genericMulticall);
 
         uint256 balanceAfter = IERC20(swapData.tokenOut).balanceOf(msg.sender);
-
+        console.log("balanceAfter", balanceAfter);
         ///@notice Check if tokenOut balance of msg.sender is sufficient.
         if (balanceAfter < tokenOutAmountRequired) {
             revert InsufficientOutputAmount(tokenOutAmountRequired - balanceAfter, swapData.amountOutMin);
@@ -266,12 +263,13 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         TokenToTokenSwapData calldata swapData,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable returns (uint256 gasConsumed) {
+        uint256 gasBefore;
         assembly {
-            mstore(0x60, gas())
+            gasBefore := gas()
         }
         swapExactTokenForToken(swapData, swapAggregatorMulticall);
         assembly {
-            gasConsumed := sub(mload(0x60), gas())
+            gasConsumed := sub(gasBefore, gas())
         }
     }
 
@@ -281,12 +279,13 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         EthToTokenSwapData calldata swapData,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable returns (uint256 gasConsumed) {
+        uint256 gasBefore;
         assembly {
-            mstore(0x60, gas())
+            gasBefore := gas()
         }
         swapExactEthForToken(swapData, swapAggregatorMulticall);
         assembly {
-            gasConsumed := sub(mload(0x60), gas())
+            gasConsumed := sub(gasBefore, gas())
         }
     }
 
@@ -296,12 +295,14 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         TokenToEthSwapData calldata swapData,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable returns (uint256 gasConsumed) {
+        uint256 gasBefore;
         assembly {
-            mstore(0x60, gas())
+            gasBefore := gas()
         }
+
         swapExactTokenForEth(swapData, swapAggregatorMulticall);
         assembly {
-            gasConsumed := sub(mload(0x60), gas())
+            gasConsumed := sub(gasBefore, gas())
         }
     }
 
@@ -415,24 +416,14 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
             revert ReferrerAlreadyInitialized();
         }
         uint16 tempReferrerNonce = referrerNonce;
-        ///@dev The msg.value required to set the referral address increases over time to protect against spam.
-        if (msg.value < ConveyorMath.mul64U(REFERRAL_INITIALIZATION_FEE, tempReferrerNonce * 1e18)) {
-            revert InvalidReferralFee();
-        }
-
         referrers[tempReferrerNonce] = msg.sender;
-        referrerIndex[msg.sender] = tempReferrerNonce;
+        referrerIndex[msg.sender] = uint16(tempReferrerNonce);
 
         unchecked {
             tempReferrerNonce++;
             require(tempReferrerNonce < type(uint16).max >> 0x1, "Referrer nonce overflow");
             referrerNonce = tempReferrerNonce;
         }
-    }
-
-    ///@dev Calculates the referrer fee.
-    function calculateReferralFee() external view returns (uint256 referralFee) {
-        referralFee = ConveyorMath.mul64U(REFERRAL_INITIALIZATION_FEE, referrerNonce * 10 ** 18);
     }
 
     /// @notice Fallback receiver function.
@@ -445,14 +436,25 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
 contract ConveyorMulticall is IConveyorMulticall, ConveyorSwapCallbacks {
     using SafeERC20 for IERC20;
 
+    bool private locked;
+
+    /// @notice Reentrancy lock.
+    modifier lock() {
+        if (locked) {
+            revert Reentrancy();
+        }
+        locked = true;
+        _;
+        locked = false;
+    }
+
     constructor() {}
 
-    function executeMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata multicall) external {
+    function executeMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata multicall) external lock {
         for (uint256 i = 0; i < multicall.calls.length;) {
             address target = multicall.calls[i].target;
             bytes calldata callData = multicall.calls[i].callData;
-            /// @solidity memory-safe-assembly
-            assembly {
+            assembly ("memory-safe") {
                 let freeMemoryPointer := mload(0x40)
                 calldatacopy(freeMemoryPointer, callData.offset, callData.length)
                 if iszero(call(gas(), target, 0, freeMemoryPointer, callData.length, 0, 0)) {
@@ -461,7 +463,7 @@ contract ConveyorMulticall is IConveyorMulticall, ConveyorSwapCallbacks {
                 }
             }
             unchecked {
-                i++;
+                ++i;
             }
         }
     }
