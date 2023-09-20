@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.19;
+pragma solidity =0.8.21;
 
 import "./ConveyorErrors.sol";
 import {IERC20} from "../lib/interfaces/token/IERC20.sol";
