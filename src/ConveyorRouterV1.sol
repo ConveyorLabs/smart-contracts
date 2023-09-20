@@ -7,7 +7,6 @@ import {SafeERC20} from "../lib/libraries/token/SafeERC20.sol";
 import {ConveyorMath} from "./lib/ConveyorMath.sol";
 import {ConveyorSwapCallbacks} from "./callbacks/ConveyorSwapCallbacks.sol";
 import {IConveyorRouterV1} from "./interfaces/IConveyorRouterV1.sol";
-import "../test/utils/Console.sol";
 
 interface IConveyorMulticall {
     function executeMulticall(ConveyorRouterV1.SwapAggregatorMulticall calldata multicall) external;
@@ -129,7 +128,6 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         IConveyorMulticall(CONVEYOR_MULTICALL).executeMulticall(genericMulticall);
 
         uint256 balanceAfter = IERC20(swapData.tokenOut).balanceOf(msg.sender);
-        console.log("balanceAfter", balanceAfter);
         ///@notice Check if tokenOut balance of msg.sender is sufficient.
         if (balanceAfter < tokenOutAmountRequired) {
             revert InsufficientOutputAmount(tokenOutAmountRequired - balanceAfter, swapData.amountOutMin);
