@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.19;
+pragma solidity =0.8.21;
 
 import {PancakeV2Callback} from "./PancakeV2Callback.sol";
 import {PancakeV3Callback} from "./PancakeV3Callback.sol";
