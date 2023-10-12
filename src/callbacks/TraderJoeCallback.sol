@@ -6,20 +6,56 @@ import "../../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
 import "../lib/OracleLibraryV2.sol";
 
 contract TraderJoeCallback {
+    bytes4 private constant _UNISWAP_PAIR_RESERVES_CALL_SELECTOR = 0x0902f1ac; // getReserves()
+
     /// @notice TraderJoe swap callback
     /// @param amount0 - The change in token0 reserves from the swap.
     /// @param amount1 - The change in token1 reserves from the swap.
     /// @param data - The data packed into the swap.
     function joeCall(address, uint256 amount0, uint256 amount1, bytes calldata data) external {
-        ///@notice Decode all of the swap data.
-        (bool _zeroForOne, address _tokenIn, uint24 _swapFee) = abi.decode(data, (bool, address, uint24));
+        assembly {
+            // Start at fmp
+            let freeMemoryPointer := mload(0x40)
+            let token := calldataload(data.offset)
+            let fee := calldataload(add(data.offset, 0x20))
+            mstore(freeMemoryPointer, _UNISWAP_PAIR_RESERVES_CALL_SELECTOR) // getReserves()
+            if iszero(staticcall(gas(), caller(), freeMemoryPointer, 0x4, freeMemoryPointer, 0x40)) {
+                // Revert if the call failed.
+                revert(0, 0)
+            }
 
-        uint256 amountOut = _zeroForOne ? amount1 : amount0;
-        (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(msg.sender).getReserves();
+            if iszero(eq(returndatasize(), 0x60)) {
+                mstore(0, 0x85cd58dc00000000000000000000000000000000000000000000000000000000) // ReservesCallFailed()
+                revert(0, 4)
+            }
 
-        uint256 amountIn = OracleLibraryV2.getAmountIn(
-            amountOut, _zeroForOne ? reserve0 : reserve1, _zeroForOne ? reserve1 : reserve0, _swapFee
-        );
-        IERC20(_tokenIn).transfer(msg.sender, amountIn);
+            let reserve0 := mload(freeMemoryPointer)
+            let reserve1 := mload(add(freeMemoryPointer, 0x20))
+
+            mstore(freeMemoryPointer, 0xa9059cbb00000000000000000000000000000000000000000000000000000000)
+            mstore(add(freeMemoryPointer, 4), and(caller(), 0xffffffffffffffffffffffffffffffffffffffff)) // Append and mask the "to" argument.
+            switch eq(amount1, 0)
+            case 0 {
+                mstore(
+                    add(freeMemoryPointer, 36),
+                    add(div(mul(mul(reserve0, amount1), 100000), mul(sub(reserve1, amount1), sub(100000, fee))), 1)
+                )
+            }
+            default {
+                mstore(
+                    add(freeMemoryPointer, 36),
+                    add(div(mul(mul(reserve1, amount0), 100000), mul(sub(reserve0, amount0), sub(100000, fee))), 1)
+                )
+            }
+            if iszero(
+                and(
+                    or(and(eq(mload(0), 1), gt(returndatasize(), 31)), iszero(returndatasize())),
+                    call(gas(), token, 0, freeMemoryPointer, 68, 0, 32)
+                )
+            ) {
+                // Revert if the call failed.
+                revert(0, 0)
+            }
+        }
     }
 }

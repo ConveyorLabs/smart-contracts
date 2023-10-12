@@ -432,8 +432,6 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
 /// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice Optimized multicall execution contract.
 contract ConveyorMulticall is IConveyorMulticall, ConveyorSwapCallbacks {
-    using SafeERC20 for IERC20;
-
     bool private locked;
 
     /// @notice Reentrancy lock.
