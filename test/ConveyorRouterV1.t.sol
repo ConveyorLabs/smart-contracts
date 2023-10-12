@@ -131,11 +131,11 @@ contract ConveyorRouterV1Test is DSTest {
         // calls[0] = newTransferCall(dai, sushiDaiUsdc, 1e20);
         // //Transfer 50% of the input quantity from the conveyorMulticall to uniDaiUsdc
         // calls[1] = newTransferCall(dai, uniDaiUsdc, 1e20);
-        bytes memory data_1 = abi.encode(true, dai, 300);
+        bytes memory data_1 = abi.encode(dai, 300);
         //Call 2,3 - Swap DAI for USDC on Sushi/Uni - Send tokens out to the the next pool
         calls[0] = newUniV2Call(sushiDaiUsdc, 0, 1000000, conveyorRouterV1.CONVEYOR_MULTICALL(), data_1);
         calls[1] = newUniV2Call(uniDaiUsdc, 0, 1000000, conveyorRouterV1.CONVEYOR_MULTICALL(), data_1);
-        bytes memory data_2 = abi.encode(true, usdc, 300);
+        bytes memory data_2 = abi.encode(usdc, 300);
         //Call 4,5 - Swap USDC for WETH on Sushi/Uni - Send tokens out to the msg.sender
         calls[2] = newUniV2Call(sushiUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), data_2);
         calls[3] = newUniV2Call(uniUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), data_2);

@@ -10,7 +10,6 @@ contract UniswapV3Callback {
     ///@param data - The data packed into the swap.
     function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external {
         assembly {
-            let tokenIn := calldataload(data.offset)
             // Start at fmp
             let freeMemoryPointer := mload(0x40)
             let token := calldataload(data.offset)

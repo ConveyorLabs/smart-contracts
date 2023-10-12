@@ -117,7 +117,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         SwapAggregatorMulticall calldata genericMulticall
     ) public payable {
         ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
-        IERC20(swapData.tokenIn).transferFrom(msg.sender, genericMulticall.tokenInDestination, swapData.amountIn);
+        IERC20(swapData.tokenIn).safeTransferFrom(msg.sender, genericMulticall.tokenInDestination, swapData.amountIn);
 
         ///@notice Get tokenOut balance of msg.sender.
         uint256 balanceBefore = IERC20(swapData.tokenOut).balanceOf(msg.sender);
@@ -212,7 +212,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         ///@dev Ignore if the tokenInDestination is address(0).
         if (swapAggregatorMulticall.tokenInDestination != address(0)) {
             ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
-            IERC20(swapData.tokenIn).transferFrom(
+            IERC20(swapData.tokenIn).safeTransferFrom(
                 msg.sender, swapAggregatorMulticall.tokenInDestination, swapData.amountIn
             );
         }
