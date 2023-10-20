@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity =0.8.21;
 
-import "../../lib/interfaces/token/IERC20.sol";
-
 contract AlgebraCallback {
     ///@notice Algebra callback function called during a swap on a algebra liqudity pool.
     ///@param amount0Delta - The change in token0 reserves from the swap.
