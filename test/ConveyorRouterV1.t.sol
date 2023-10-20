@@ -585,6 +585,7 @@ contract ConveyorRouterV1Test is DSTest {
 
     function testUpgradeMulticall() public {
         bytes memory bytecode = type(ConveyorMulticall).creationCode;
+        console.logBytes(bytecode);
         bytes32 salt = bytes32("0x7fab158");
         vm.deal(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38), type(uint128).max);
         vm.prank(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38));
