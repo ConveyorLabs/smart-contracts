@@ -6,8 +6,8 @@ import {ConveyorRouterV1} from "../ConveyorRouterV1.sol";
 import {ICREATE3Factory} from "../../lib/create3-factory/src/ICREATE3Factory.sol";
 
 contract Deploy is Script {
-    ///@dev Mainnet Constructor Constants
-    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    ///@dev Base Constructor Constants
+    address constant WETH = 0x4200000000000000000000000000000000000006;
 
     function run() public returns (address conveyorRouterV1) {
         bytes32 salt = bytes32("0x8fbb158");

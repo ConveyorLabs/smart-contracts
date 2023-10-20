@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.19;
+pragma solidity =0.8.21;
 
 import {PancakeV2Callback} from "./PancakeV2Callback.sol";
 import {PancakeV3Callback} from "./PancakeV3Callback.sol";
@@ -12,6 +12,8 @@ import {ApeSwapCallback} from "./ApeSwapCallback.sol";
 import {LinkSwapCallback} from "./LinkSwapCallback.sol";
 import {SakeSwapCallback} from "./SakeSwapCallback.sol";
 import {DefiSwapCallback} from "./DefiSwapCallback.sol";
+import {KyberSwapV3Callback} from "./KyberSwapV3Callback.sol";
+import {AlgebraCallback} from "./AlgebraCallback.sol";
 
 contract ConveyorSwapCallbacks is
     PancakeV2Callback,
@@ -24,5 +26,7 @@ contract ConveyorSwapCallbacks is
     ApeSwapCallback,
     LinkSwapCallback,
     SakeSwapCallback,
-    DefiSwapCallback
+    DefiSwapCallback,
+    KyberSwapV3Callback,
+    AlgebraCallback
 {}
