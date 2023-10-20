@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity =0.8.21;
 
-import "../../lib/interfaces/token/IERC20.sol";
-import "../../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
-import "../lib/OracleLibraryV2.sol";
-
 contract ElkSwapCallback {
     bytes4 private constant _UNISWAP_PAIR_RESERVES_CALL_SELECTOR = 0x0902f1ac; // getReserves()
 
