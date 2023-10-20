@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity =0.8.21;
 
 import {Script} from "../../lib/forge-std/src/Script.sol";
 import {ConveyorRouterV1} from "../ConveyorRouterV1.sol";

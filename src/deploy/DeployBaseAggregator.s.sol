@@ -6,12 +6,10 @@ import {ConveyorRouterV1} from "../ConveyorRouterV1.sol";
 import {ICREATE3Factory} from "../../lib/create3-factory/src/ICREATE3Factory.sol";
 
 contract Deploy is Script {
-    ///@dev Arbitrum Constructor Constants
-    address constant WETH = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
+    ///@dev Base Constructor Constants
+    address constant WETH = 0x4200000000000000000000000000000000000006;
 
     function run() public returns (address conveyorRouterV1) {
-        // uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-
         bytes32 salt = bytes32("0x8fbb158");
         bytes memory creationCode = abi.encodePacked(type(ConveyorRouterV1).creationCode, abi.encode(WETH));
 

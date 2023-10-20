@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+pragma solidity =0.8.21;
 
 import "./utils/test.sol";
 import "./utils/Console.sol";
@@ -8,6 +8,8 @@ import "../src/interfaces/IConveyorRouterV1.sol";
 import "../src/lib/ConveyorTickMath.sol";
 import "../lib/create3-factory/src/ICREATE3Factory.sol";
 import {IConveyorMulticall} from "../src/ConveyorRouterV1.sol";
+import "../lib/libraries/token/SafeERC20.sol";
+import "../lib/interfaces/token/IERC20.sol";
 
 interface CheatCodes {
     function prank(address) external;
@@ -24,6 +26,8 @@ interface CheatCodes {
 }
 
 contract ConveyorRouterV1Test is DSTest {
+    using SafeERC20 for IERC20;
+
     IConveyorRouterV1 conveyorRouterV1;
     IConveyorMulticall conveyorMulticall;
     Swap swapHelper;
@@ -108,7 +112,6 @@ contract ConveyorRouterV1Test is DSTest {
     function testSplitRouteV2WithCallback() public {
         vm.rollFork(forkId, 16749139);
         vm.deal(address(this), type(uint128).max);
-
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F; //Input
         address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; //Intermediary
         address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2; //Output
@@ -132,11 +135,11 @@ contract ConveyorRouterV1Test is DSTest {
         // calls[0] = newTransferCall(dai, sushiDaiUsdc, 1e20);
         // //Transfer 50% of the input quantity from the conveyorMulticall to uniDaiUsdc
         // calls[1] = newTransferCall(dai, uniDaiUsdc, 1e20);
-        bytes memory data_1 = abi.encode(true, dai, 300);
+        bytes memory data_1 = abi.encode(dai, 300);
         //Call 2,3 - Swap DAI for USDC on Sushi/Uni - Send tokens out to the the next pool
         calls[0] = newUniV2Call(sushiDaiUsdc, 0, 1000000, conveyorRouterV1.CONVEYOR_MULTICALL(), data_1);
         calls[1] = newUniV2Call(uniDaiUsdc, 0, 1000000, conveyorRouterV1.CONVEYOR_MULTICALL(), data_1);
-        bytes memory data_2 = abi.encode(true, usdc, 300);
+        bytes memory data_2 = abi.encode(usdc, 300);
         //Call 4,5 - Swap USDC for WETH on Sushi/Uni - Send tokens out to the msg.sender
         calls[2] = newUniV2Call(sushiUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), data_2);
         calls[3] = newUniV2Call(uniUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), data_2);
@@ -151,6 +154,39 @@ contract ConveyorRouterV1Test is DSTest {
 
         ConveyorRouterV1.TokenToTokenSwapData memory swapData =
             ConveyorRouterV1.TokenToTokenSwapData(dai, weth, uint112(amountIn), 1, 0, 0);
+
+        conveyorRouterV1.swapExactTokenForToken(swapData, multicall);
+    }
+
+    function testUsdtV2Callback() public {
+        vm.deal(address(this), type(uint128).max);
+        address tether = 0xdAC17F958D2ee523a2206206994597C13D831ec7; //Input
+        address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2; //Output
+
+        //Split the input quantity 50/50 between the two pools.
+        address tetherWethPool = 0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852;
+
+        uint256 amountIn = 2e10; //20000 USDT
+        //Get some DAI
+        swapHelper.swapEthForTokenWithUniV2(100 ether, tether);
+        //Approve the router to spend the DAI
+        IERC20(tether).safeApprove(address(conveyorRouterV1), type(uint256).max);
+
+        //Setup the calls
+        ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](2);
+
+        bytes memory data_1 = abi.encode(tether, 300);
+        //Call 2,3 - Swap DAI for USDC on Sushi/Uni - Send tokens out to the the next pool
+        calls[0] = newUniV2Call(tetherWethPool, 10000000000000000000, 0, conveyorRouterV1.CONVEYOR_MULTICALL(), data_1);
+        calls[1] = newTransferCall(weth, address(this), 10000000000000000000);
+        //Create the multicall
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
+            conveyorRouterV1.CONVEYOR_MULTICALL(), //Transfer the full input quantity to the multicall contract first
+            calls
+        );
+
+        ConveyorRouterV1.TokenToTokenSwapData memory swapData =
+            ConveyorRouterV1.TokenToTokenSwapData(tether, weth, uint112(amountIn), 10000000000000000000, 0, 0);
 
         conveyorRouterV1.swapExactTokenForToken(swapData, multicall);
     }
@@ -170,7 +206,7 @@ contract ConveyorRouterV1Test is DSTest {
         //Split the output quantity 50/50 between the two pools.
         address sushiUsdcWeth = 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0;
         address uniUsdcWeth = 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc;
-        uint256 amountIn = 2e20;
+        uint256 amountIn = 2e22;
         //Get some DAI
         swapHelper.swapEthForTokenWithUniV2(100 ether, dai);
         //Approve the router to spend the DAI
@@ -179,17 +215,17 @@ contract ConveyorRouterV1Test is DSTest {
         //Setup the calls
         ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](7);
         // //Transfer 50% of the input quantity from the conveyorMulticall to sushiDaiUsdc
-        calls[0] = newTransferCall(dai, sushiDaiUsdc, 1e20);
+        calls[0] = newTransferCall(dai, sushiDaiUsdc, 1e22);
         // //Transfer 50% of the input quantity from the conveyorMulticall to uniDaiUsdc
-        calls[1] = newTransferCall(dai, uniDaiUsdc, 1e20);
+        calls[1] = newTransferCall(dai, uniDaiUsdc, 1e22);
         //Call 2,3 - Swap DAI for USDC on Sushi/Uni - Send tokens out to the the next pool
         calls[2] = newUniV2Call(sushiDaiUsdc, 0, 1000000, sushiUsdcWeth, new bytes(0));
         calls[3] = newUniV2Call(uniDaiUsdc, 0, 1000000, uniUsdcWeth, new bytes(0));
         //Call 4,5 - Swap USDC for WETH on Sushi/Uni - Send tokens out to the msg.sender
-        calls[4] = newUniV2Call(sushiUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), new bytes(0));
-        calls[5] = newUniV2Call(uniUsdcWeth, 0, 1, conveyorRouterV1.CONVEYOR_MULTICALL(), new bytes(0));
+        calls[4] = newUniV2Call(sushiUsdcWeth, 0, 10000, conveyorRouterV1.CONVEYOR_MULTICALL(), new bytes(0));
+        calls[5] = newUniV2Call(uniUsdcWeth, 0, 10000, conveyorRouterV1.CONVEYOR_MULTICALL(), new bytes(0));
 
-        calls[6] = newTransferCall(weth, address(this), 2);
+        calls[6] = newTransferCall(weth, address(this), 20000);
 
         //Create the multicall
         ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
@@ -422,8 +458,9 @@ contract ConveyorRouterV1Test is DSTest {
 
     receive() external payable {}
 
-    function testSwapUniv3SingleLP() public {
+    function testSwapUniv3SingleLP_ZeroForOneTrue() public {
         vm.deal(address(this), type(uint256).max);
+        console.log(address(this));
         address tokenIn = 0xba5BDe662c17e2aDFF1075610382B9B691296350;
         uint256 amountIn = 5678000000000000000000;
         address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -460,6 +497,70 @@ contract ConveyorRouterV1Test is DSTest {
         conveyorRouterV1.swapExactTokenForToken(swapData, multicall);
     }
 
+    function testSwapUniv3SingleLP_ZeroForOneFalse() public {
+        vm.deal(address(this), type(uint256).max);
+        address tokenOut = 0xba5BDe662c17e2aDFF1075610382B9B691296350;
+        uint256 amountIn = 5678000000000000000000;
+        address tokenIn = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        uint256 amountOutMin = 453245423220749265;
+        address lp = 0x7685cD3ddD862b8745B1082A6aCB19E14EAA74F3;
+
+        //Deposit weth to address(this)
+        (bool depositSuccess,) = address(tokenIn).call{value: 500000000 ether}(abi.encodeWithSignature("deposit()"));
+        require(depositSuccess, "deposit failed");
+
+        IERC20(tokenIn).approve(address(conveyorRouterV1), type(uint256).max);
+
+        ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
+
+        calls[0] = newUniV3Call(lp, conveyorRouterV1.CONVEYOR_MULTICALL(), address(this), false, amountIn, tokenIn);
+        console.log(IERC20(tokenIn).balanceOf(address(this)));
+
+        forkId = vm.activeFork();
+        vm.rollFork(forkId, 16749139);
+        console.log(IERC20(tokenIn).balanceOf(address(this)));
+
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall =
+            ConveyorRouterV1.SwapAggregatorMulticall(conveyorRouterV1.CONVEYOR_MULTICALL(), calls);
+
+        ConveyorRouterV1.TokenToTokenSwapData memory swapData =
+            ConveyorRouterV1.TokenToTokenSwapData(tokenIn, tokenOut, uint112(amountIn), uint112(amountOutMin), 0, 0);
+        vm.prank(address(this));
+        conveyorRouterV1.swapExactTokenForToken(swapData, multicall);
+    }
+
+    function testSwapUniv3SingleLPTether() public {
+        vm.deal(address(this), type(uint256).max);
+        address tokenIn = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+        uint256 amountIn = 2e11;
+        address tokenOut = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        uint256 amountOutMin = 1000000000000000000;
+        address lp = 0x11b815efB8f581194ae79006d24E0d814B7697F6;
+        //Deposit weth to address(this)
+        (bool depositSuccess,) = address(tokenOut).call{value: 500000000 ether}(abi.encodeWithSignature("deposit()"));
+        require(depositSuccess, "deposit failed");
+        IUniswapV3Pool(lp).swap(
+            address(this), true, 500 ether, TickMath.MIN_SQRT_RATIO + 1, abi.encode(true, tokenOut, address(this))
+        );
+
+        IERC20(tokenIn).safeApprove(address(conveyorRouterV1), type(uint256).max);
+
+        ConveyorRouterV1.Call[] memory calls = new ConveyorRouterV1.Call[](1);
+
+        calls[0] = newUniV3Call(lp, conveyorRouterV1.CONVEYOR_MULTICALL(), address(this), false, amountIn, tokenIn);
+
+        forkId = vm.activeFork();
+        vm.rollFork(forkId, 16749139);
+
+        ConveyorRouterV1.SwapAggregatorMulticall memory multicall =
+            ConveyorRouterV1.SwapAggregatorMulticall(conveyorRouterV1.CONVEYOR_MULTICALL(), calls);
+
+        ConveyorRouterV1.TokenToTokenSwapData memory swapData =
+            ConveyorRouterV1.TokenToTokenSwapData(tokenIn, tokenOut, uint112(amountIn), uint112(amountOutMin), 0, 0);
+        vm.prank(address(this));
+        conveyorRouterV1.swapExactTokenForToken(swapData, multicall);
+    }
+
     function testWithdrawal() public {
         uint256 balanceBefore = address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38).balance;
         vm.deal(address(conveyorRouterV1), type(uint128).max);
@@ -484,6 +585,7 @@ contract ConveyorRouterV1Test is DSTest {
 
     function testUpgradeMulticall() public {
         bytes memory bytecode = type(ConveyorMulticall).creationCode;
+        console.logBytes(bytecode);
         bytes32 salt = bytes32("0x7fab158");
         vm.deal(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38), type(uint128).max);
         vm.prank(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38));
@@ -501,9 +603,9 @@ contract ConveyorRouterV1Test is DSTest {
 
         if (!(_sender == address(this))) {
             ///@notice Transfer the amountIn of tokenIn to the liquidity pool from the sender.
-            IERC20(tokenIn).transferFrom(_sender, msg.sender, amountIn);
+            IERC20(tokenIn).safeTransferFrom(_sender, msg.sender, amountIn);
         } else {
-            IERC20(tokenIn).transfer(msg.sender, amountIn);
+            IERC20(tokenIn).safeTransfer(msg.sender, amountIn);
         }
     }
 
@@ -517,7 +619,7 @@ contract ConveyorRouterV1Test is DSTest {
         address _tokenIn
     ) public pure returns (ConveyorRouterV1.Call memory) {
         ///@notice Pack the required data for the call.
-        bytes memory data = abi.encode(_zeroForOne, _tokenIn, _sender);
+        bytes memory data = abi.encode(_tokenIn);
         ///@notice Encode the callData for the call.
         bytes memory callData = abi.encodeWithSignature(
             "swap(address,bool,int256,uint160,bytes)",

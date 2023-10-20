@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity =0.8.21;
 
-contract CafeSwapCallback {
+contract ArbSwapCallback {
     bytes4 private constant _UNISWAP_PAIR_RESERVES_CALL_SELECTOR = 0x0902f1ac; // getReserves()
 
-    /// @notice Cafe swap callback
+    /// @notice Arb swap callback
     /// @param amount0 - The change in token0 reserves from the swap.
     /// @param amount1 - The change in token1 reserves from the swap.
     /// @param data - The data packed into the swap.
-    function cafeCall(address, uint256 amount0, uint256 amount1, bytes calldata data) external {
+    function swapCall(address, uint256 amount0, uint256 amount1, bytes calldata data) external {
         assembly {
             // Start at fmp
             let freeMemoryPointer := mload(0x40)
