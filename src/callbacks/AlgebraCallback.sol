@@ -3,8 +3,8 @@ pragma solidity =0.8.21;
 
 contract AlgebraCallback {
     ///@notice Algebra callback function called during a swap on a algebra liqudity pool.
-    ///@param amount0 - The change in token0 reserves from the swap.
-    ///@param amount1 - The change in token1 reserves from the swap.
+    ///@param amount0Delta - The change in token0 reserves from the swap.
+    ///@param amount1Delta - The change in token1 reserves from the swap.
     ///@param data - The data packed into the swap.
     function algebraSwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external {
         assembly {
