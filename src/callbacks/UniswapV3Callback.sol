@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity =0.8.21;
 
-import "../../lib/interfaces/token/IERC20.sol";
-
 contract UniswapV3Callback {
     ///@notice Uniswap V3 callback function called during a swap on a v3 liqudity pool.
     ///@param amount0Delta - The change in token0 reserves from the swap.
@@ -10,7 +8,6 @@ contract UniswapV3Callback {
     ///@param data - The data packed into the swap.
     function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external {
         assembly {
-            let tokenIn := calldataload(data.offset)
             // Start at fmp
             let freeMemoryPointer := mload(0x40)
             let token := calldataload(data.offset)
