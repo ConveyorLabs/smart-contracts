@@ -1,17 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity =0.8.21;
 
-import "../../lib/interfaces/token/IERC20.sol";
-import "../../lib/interfaces/uniswap-v2/IUniswapV2Pair.sol";
-import "../lib/OracleLibraryV2.sol";
-
 contract UniswapV2Callback {
-    bytes4 private constant _UNISWAP_PAIR_RESERVES_CALL_SELECTOR = 0x0902f1ac;
+    bytes4 private constant _UNISWAP_PAIR_RESERVES_CALL_SELECTOR = 0x0902f1ac; // getReserves()
+
     /// @notice Uniswap v2 swap callback
     /// @param amount0 - The change in token0 reserves from the swap.
     /// @param amount1 - The change in token1 reserves from the swap.
     /// @param data - The data packed into the swap.
-
     function uniswapV2Call(address, uint256 amount0, uint256 amount1, bytes calldata data) external {
         assembly {
             // Start at fmp
@@ -25,8 +21,8 @@ contract UniswapV2Callback {
             }
 
             if iszero(eq(returndatasize(), 0x60)) {
-                mstore(0, 0x85cd58dc00000000000000000000000000000000000000000000000000000000) // ReservesCallFailed()
-                revert(0, 4)
+                // Revert if the return data size doesn't match the expected size.
+                revert(0, 0)
             }
 
             let reserve0 := mload(freeMemoryPointer)
