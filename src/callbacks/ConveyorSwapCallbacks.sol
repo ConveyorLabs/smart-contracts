@@ -6,11 +6,13 @@ import {UniswapV3Callback} from "./UniswapV3Callback.sol";
 import {ElkSwapCallback} from "./ElkSwapCallback.sol";
 import {TraderJoeCallback} from "./TraderJoeCallback.sol";
 import {PangolinSwapCallback} from "./PangolinSwapCallback.sol";
+import {LydiaSwapCallback} from "./LydiaSwapCallback.sol";
 
 contract ConveyorSwapCallbacks is
     UniswapV2Callback,
     UniswapV3Callback,
     ElkSwapCallback,
     TraderJoeCallback,
-    PangolinSwapCallback
+    PangolinSwapCallback,
+    LydiaSwapCallback
 {}
