@@ -177,8 +177,8 @@ contract ConveyorRouterV1Test is DSTest {
 
         bytes memory data_1 = abi.encode(tether, 300);
         //Call 2,3 - Swap DAI for USDC on Sushi/Uni - Send tokens out to the the next pool
-        calls[0] = newUniV2Call(tetherWethPool, 10000000000000000000, 0, conveyorRouterV1.CONVEYOR_MULTICALL(), data_1);
-        calls[1] = newTransferCall(weth, address(this), 10000000000000000000);
+        calls[0] = newUniV2Call(tetherWethPool, 1000000000000000000, 0, conveyorRouterV1.CONVEYOR_MULTICALL(), data_1);
+        calls[1] = newTransferCall(weth, address(this), 1000000000000000000);
         //Create the multicall
         ConveyorRouterV1.SwapAggregatorMulticall memory multicall = ConveyorRouterV1.SwapAggregatorMulticall(
             conveyorRouterV1.CONVEYOR_MULTICALL(), //Transfer the full input quantity to the multicall contract first
@@ -186,7 +186,7 @@ contract ConveyorRouterV1Test is DSTest {
         );
 
         ConveyorRouterV1.TokenToTokenSwapData memory swapData =
-            ConveyorRouterV1.TokenToTokenSwapData(tether, weth, uint112(amountIn), 10000000000000000000, 0, 0);
+            ConveyorRouterV1.TokenToTokenSwapData(tether, weth, uint112(amountIn), 1000000000000000000, 0, 0);
 
         conveyorRouterV1.swapExactTokenForToken(swapData, multicall);
     }
