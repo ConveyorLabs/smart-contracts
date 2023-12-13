@@ -132,7 +132,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         if (balanceAfter < tokenOutAmountRequired) {
             revert InsufficientOutputAmount(tokenOutAmountRequired - balanceAfter, swapData.amountOutMin);
         }
-        if (swapData.affiliate & 0x1 != 0x0) {
+        if (swapData.affiliate & 0xFFFF != 0x0) {
             address affiliate = affiliates[swapData.affiliate >> 0x1];
             if (affiliate == address(0)) {
                 revert AffiliateDoesNotExist();
@@ -140,7 +140,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
             _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, msg.value));
         }
         ///@dev First bit of referrer is used to check if referrer exists
-        if (swapData.referrer & 0x1 != 0x0) {
+        if (swapData.referrer & 0xFFFF != 0x0) {
             address referrer = referrers[swapData.referrer >> 0x1];
             if (referrer == address(0)) {
                 revert ReferrerDoesNotExist();
@@ -185,7 +185,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         if (balanceAfter < tokenOutAmountRequired) {
             revert InsufficientOutputAmount(tokenOutAmountRequired - balanceAfter, swapData.amountOutMin);
         }
-        if (swapData.affiliate & 0x1 != 0x0) {
+        if (swapData.affiliate & 0xFFFF != 0x0) {
             address affiliate = affiliates[swapData.affiliate >> 0x1];
             if (affiliate == address(0)) {
                 revert AffiliateDoesNotExist();
@@ -193,7 +193,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
             _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, swapData.protocolFee));
         }
         ///@dev First bit of referrer is used to check if referrer exists
-        if (swapData.referrer & 0x1 != 0x0) {
+        if (swapData.referrer & 0xFFFF != 0x0) {
             address referrer = referrers[swapData.referrer >> 0x1];
             if (referrer == address(0)) {
                 revert ReferrerDoesNotExist();
@@ -238,7 +238,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
         if (msg.sender.balance < amountOutRequired) {
             revert InsufficientOutputAmount(amountOutRequired - msg.sender.balance, swapData.amountOutMin);
         }
-        if (swapData.affiliate & 0x1 != 0x0) {
+        if (swapData.affiliate & 0xFFFF != 0x0) {
             address affiliate = affiliates[swapData.affiliate >> 0x1];
             if (affiliate == address(0)) {
                 revert AffiliateDoesNotExist();
@@ -246,7 +246,7 @@ contract ConveyorRouterV1 is IConveyorRouterV1 {
             _safeTransferETH(affiliate, ConveyorMath.mul64U(AFFILIATE_PERCENT, msg.value));
         }
         ///@dev First bit of referrer is used to check if referrer exists
-        if (swapData.referrer & 0x1 != 0x0) {
+        if (swapData.referrer & 0xFFFF != 0x0) {
             address referrer = referrers[swapData.referrer >> 0x1];
             if (referrer == address(0)) {
                 revert ReferrerDoesNotExist();
